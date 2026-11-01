@@ -23,7 +23,7 @@ check-required-fixes:
 REGENTS_CLI_REV := 8c29aff897fedc11ea8db4ee088f6926a32a8836
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
-	  python -m regents_cli.check_commands cli/commands.json cli/docs/profile.openapi.json cli/docs/api-contract.openapiv3.yaml
+	  python -m regents_cli.check_commands cli/commands.json cli/docs/profile.openapi.json cli/docs/api-contract.openapiv3.yaml cli/docs/covered-calls.openapiv3.yaml
 # Fails unless the site is on the newest SIWA on both sides: the newest regents-cli
 # (the pin above, the documents and the journeys) and the newest change to the SIWA
 # library in the elixir-utils commit platform/mix.exs pins. Needs `gh auth login`.

@@ -333,6 +333,25 @@
       ]
     },
     {
+      "command": "covered-calls quote <symbol>",
+      "description": "Read the strikes a seller chooses from on one Base stock token's covered calls, for each of the next four Friday windows, and the premium suggested at each. Every figure is a whole number: micro-USDC per whole token, basis points, Unix seconds. A suggested premium is a guide from a fixed volatility, not a buyer's offer, and is null while price_fresh is false. Changes nothing.",
+      "operation_id": "quoteCoveredCall",
+      "webmcp": "autolaunch_covered_call_quote",
+      "method": "GET",
+      "path": "/api/v1/covered-calls/{symbol}/quote",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "in": "path",
+          "field": "symbol",
+          "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
+        }
+      ]
+    },
+    {
       "command": "agents whoami",
       "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "agent_whoami",

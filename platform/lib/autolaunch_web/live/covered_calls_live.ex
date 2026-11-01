@@ -21,9 +21,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   alias Phoenix.LiveView.AsyncResult
   alias Regent.Primitives, as: P
 
-  # Strikes the Sell tab suggests, above the reference price, in percent.
-  @suggested_strikes [1, 3, 5]
-
   def mount(_params, _session, socket) do
     with true <- Deployment.enabled?(),
          {:ok, %{chain_id: chain_id, markets: [market | _]}} <- Deployment.current() do
@@ -90,16 +87,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  # A suggested strike and its premium, put into the List form.
-  def handle_event("use_suggestion", %{"strike" => strike, "premium" => premium}, socket) do
-    send_update(CoveredCallComponent,
-      id: "covered-call-list",
-      fill: %{"strike" => strike, "premium" => premium}
-    )
-
-    {:noreply, socket}
-  end
-
   # A press landed here: every open page of this market hears which listing
   # and wallet.
   def handle_info({:covered_calls_changed, symbol, press}, socket) do
@@ -122,7 +109,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     {:noreply, read_book(socket)}
   end
 
-  # The List form changed: the guide follows the trade being made.
+  # The List form changed: the guide follows the window, strike and premium chosen.
   def handle_info({:covered_call_form, inputs}, socket),
     do: {:noreply, assign(socket, sell: inputs)}
 
@@ -165,6 +152,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     assigns =
       assign(assigns,
         reading: book,
+        set: with(%{} <- book, {:ok, set} <- Quote.set(book), do: set, else: (_none -> nil)),
         open:
           if(book,
             do: Enum.filter(book.listings, &(Terms.stage(&1, book.now) == :open)),
@@ -313,6 +301,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             symbol={@market.symbol}
             unit={@reading.unit}
             expiries={Terms.expiries(@reading.now)}
+            set={@set}
             session_lease={@session_lease}
             current_human_id={@human_id}
           />
@@ -326,7 +315,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </div>
         <aside :if={@reading} class="covered-calls__guide" aria-labelledby="covered-calls-guide-title">
           <h2 id="covered-calls-guide-title" class="covered-calls__title">Guide</h2>
-          <.guide reading={@reading} symbol={@market.symbol} sell={@sell} />
+          <.guide reading={@reading} set={@set} symbol={@market.symbol} sell={@sell} />
         </aside>
       </section>
 
@@ -484,25 +473,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   attr :reading, :map, required: true
+  attr :set, :map, default: nil
   attr :symbol, :string, required: true
   attr :sell, :map, required: true
 
-  # The guide follows the List form: suggested premiums for the window chosen,
-  # the result at expiry of the strike and premium typed (an example from the
-  # middle suggestion until both are), the reference price and its basis, then
-  # the terms.
-  defp guide(%{reading: reading, sell: sell} = assigns) do
-    expiry = chosen_expiry(sell, Terms.expiries(reading.now))
-    spot = spot(reading)
-    rows = suggestions(spot, expiry, reading.now)
-    trade = trade(sell, rows)
-
-    assigns = assign(assigns, expiry: expiry, spot: spot, rows: rows, trade: trade)
+  # The guide follows the List form: the result at expiry of the strike and
+  # premium chosen (the middle strike at its suggestion until the form says
+  # otherwise), the basis of the suggestions, then the terms.
+  defp guide(%{reading: reading, set: set, sell: sell} = assigns) do
+    assigns = assign(assigns, spot: spot(reading), trade: trade(sell, set))
 
     ~H"""
     <div :if={@trade && @spot} class="covered-calls__suggest" id="covered-calls-outcome">
       <div class="covered-calls__panel-head">
-        <h3>{@trade.title}</h3>
+        <h3>Your trade</h3>
         <P.tip id="covered-calls-outcome-tip" label="Result">
           Per {@symbol} against the reference price, with the premium after the 1% fee, if the
           buyer exercises whenever the price is above the strike. Exercising, they pay the strike,
@@ -527,50 +511,26 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       </table>
     </div>
 
-    <div :if={@rows != []} class="covered-calls__suggest" id="covered-calls-suggestions">
-      <h3>Suggested premiums, {F.window_days(@expiry)}</h3>
-      <table class="covered-calls__mini">
-        <thead>
-          <tr>
-            <th scope="col">Strike</th>
-            <th scope="col">Premium</th>
-            <th scope="col"><span class="visually-hidden">Use</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={row <- @rows}>
-            <td>{F.usd(row.strike)} <small>+{row.percent}%</small></td>
-            <td>{F.usd(row.premium)} <small class="covered-calls__each">per {@symbol}</small></td>
-            <td>
-              <button
-                type="button"
-                class="rg-button rg-button--secondary covered-calls__use"
-                phx-click="use_suggestion"
-                phx-value-strike={F.plain_usd(row.strike)}
-                phx-value-premium={F.plain_usd(row.premium)}
-                aria-label={"Use #{F.usd(row.strike)} strike and #{F.usd(row.premium)} premium"}
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p :if={@rows == []} class="covered-calls__note">
-      No suggested premium right now: the reference price couldn't be read or is more than four
-      days old.
+    <p :if={@set && !@set.price_fresh} class="covered-calls__note">
+      No premium is suggested right now: the reference price is more than four days old. The
+      strikes still come from it.
     </p>
 
     <P.disclosure id="covered-calls-estimate" summary="Estimate" class="covered-calls__more">
+      <p :if={@set}>
+        The strikes are the reference price plus 1%, 3% and 5%, rounded up to the next {F.usd(
+          @set.strike_step
+        )}.
+      </p>
       <p>
-        A model estimate, not a market quote: a standard option price with an assumed {round(
-          Quote.volatility() * 100
+        Each premium is a suggestion, not a buyer's offer: a standard option price with a fixed {div(
+          Quote.volatility_bps(),
+          100
         )}% yearly volatility and no interest, counted to the
         window's close (Saturday 21:00 UTC). It starts from the reference price (Chainlink's feed for the stock on Base: {reference(
           @reading
         )}), which updates less often while the market is closed and is not a
-        price you can trade at. You choose the premium.
+        price you can trade at. You choose the premium, and you earn it only when a buyer pays it.
       </p>
     </P.disclosure>
 
@@ -593,14 +553,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     """
   end
 
-  # The window the form has chosen, or the next one before it has.
-  defp chosen_expiry(sell, [next | _later] = expiries) do
-    case Integer.parse(sell["expiry"] || "") do
-      {chosen, ""} -> if chosen in expiries, do: chosen, else: next
-      _none -> next
-    end
-  end
-
   defp spot(reading) do
     case Quote.spot(reading) do
       {:ok, spot} -> spot
@@ -608,30 +560,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     end
   end
 
-  defp suggestions(nil, _expiry, _now), do: []
+  # The strike and premium the form holds, or the middle strike of the next
+  # window at its suggestion before the form has said.
+  defp trade(%{strike: strike, premium: premium}, _set)
+       when is_integer(strike) and is_integer(premium),
+       do: %{strike: strike, premium: premium}
 
-  defp suggestions(spot, expiry, now) do
-    for percent <- @suggested_strikes do
-      strike = round_cents(spot * (100 + percent) / 100)
-      # To the cent, as the form takes a premium.
-      premium = max(round_cents(Quote.premium(spot, strike, expiry, now)), 10_000)
-      %{percent: percent, strike: strike, premium: premium}
-    end
+  defp trade(sell, %{windows: [_next | _later]} = set) when map_size(sell) == 0 do
+    %{strikes: [_low, middle | _high]} = hd(set.windows)
+
+    if middle.suggested_premium_per_token,
+      do: %{strike: middle.strike_per_token, premium: middle.suggested_premium_per_token}
   end
 
-  # The strike and premium typed, or the middle suggestion as an example.
-  defp trade(sell, rows) do
-    case {F.parse_usd(sell["strike"] || ""), F.parse_usd(sell["premium"] || ""), rows} do
-      {strike, premium, _rows} when is_integer(strike) and is_integer(premium) ->
-        %{title: "Your trade", strike: strike, premium: premium}
-
-      {_strike, _premium, [_low, middle | _high]} ->
-        %{title: "Example", strike: middle.strike, premium: middle.premium}
-
-      _no_price ->
-        nil
-    end
-  end
+  defp trade(_sell, _set), do: nil
 
   defp outcomes(spot),
     do: [

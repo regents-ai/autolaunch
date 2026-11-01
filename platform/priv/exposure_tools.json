@@ -1,5 +1,5 @@
 {
-  "_comment": "The browser tools for Isolated Exposure to After-hours Stocks. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers them (AUTOLAUNCH_EXPOSURE=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "_comment": "The browser tools for Isolated Exposure to After-hours Stocks. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers them (AUTOLAUNCH_EXPOSURE=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input.",
   "tools": [
     {
       "name": "autolaunch_after_hour_stocks_list",

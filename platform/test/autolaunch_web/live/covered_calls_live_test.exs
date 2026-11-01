@@ -97,15 +97,59 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     assert html =~ "Dividends during the week stay with the tokens"
     assert html =~ "$254.00"
-    assert html =~ "Suggested premiums"
   end
 
-  test "a stale reference price hides the suggestion and keeps the form", %{conn: conn} do
+  test "the Sell tab offers three strikes from the reference price, the middle one chosen at its suggested premium",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls")
+    render_async(view, @async_ms)
+    {:ok, %{windows: [window | _later]}} = Autolaunch.CoveredCalls.Quote.read("AMZNc")
+
+    # $254 gives a $2.50 step: $256.54, $261.62 and $266.70 round up.
+    names = ["$257.50, 1.4% above", "$262.50, 3.3% above", "$267.50, 5.3% above"]
+
+    for {name, position} <- Enum.with_index(names) do
+      premium = F.usd(Enum.at(window.strikes, position).suggested_premium_per_token)
+      label = "#{name}, #{premium} suggested premium"
+
+      assert has_element?(
+               view,
+               ~s(#covered-call-list input[name=strike][value='#{position}'][aria-label="#{label}"])
+             )
+    end
+
+    assert has_element?(view, "#covered-call-list input[name=strike][value='1'][checked]")
+    middle = Enum.at(window.strikes, 1).suggested_premium_per_token
+
+    assert has_element?(
+             view,
+             "#covered-call-list-premium[value='#{F.plain_usd(middle)}']"
+           )
+
+    refute has_element?(view, "#covered-call-list-strike")
+    refute has_element?(view, "#covered-calls-suggestions")
+  end
+
+  test "a reference price more than four days old keeps the strikes and suggests no premium",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{price_updated_at: CoveredCallsChain.now() - 5 * 86_400})
+    {:ok, view, _html} = live(conn, "/covered-calls")
+    html = render_async(view, @async_ms)
+
+    assert has_element?(view, "#covered-call-list input[name=strike][value='1'][checked]")
+    assert has_element?(view, "#covered-call-list-premium[value='']")
+    refute has_element?(view, "#covered-call-list fieldset small", "suggested")
+    assert html =~ "No premium is suggested right now"
+  end
+
+  test "a reference price that can't be read offers no strikes and keeps the form", %{conn: conn} do
     CoveredCallsChain.install(%{price: 0})
     {:ok, view, _html} = live(conn, "/covered-calls")
     html = render_async(view, @async_ms)
 
-    refute html =~ "Suggested premiums"
+    refute has_element?(view, "#covered-call-list input[name=strike]")
+    assert html =~ "Strikes appear once the stock&#39;s price can be read."
     assert has_element?(view, "#covered-call-list button[data-account-target=sign-in]")
   end
 
@@ -240,53 +284,99 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-claim-1")
   end
 
-  test "the guide follows the List form: the window chosen, the strike and premium typed", %{
-    conn: conn
-  } do
+  test "the guide follows the List form: the strike chosen and the premium typed", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls")
     render_async(view, @async_ms)
     [first, second | _later] = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
+    {:ok, %{windows: [window | _later]}} = Autolaunch.CoveredCalls.Quote.read("AMZNc")
+    middle = Enum.at(window.strikes, 1).suggested_premium_per_token
 
-    assert has_element?(view, "#covered-calls-outcome h3", "Example")
-    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(first))
+    assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
+
+    assert has_element?(
+             view,
+             "#covered-calls-outcome",
+             "$262.50 strike · #{F.usd(middle)} premium"
+           )
 
     view
     |> element("#covered-call-list-form")
     |> render_change(%{
+      "_target" => ["premium"],
       "amount" => "2",
-      "strike" => "260",
+      "strike" => "2",
       "premium" => "3",
       "expiry" => "#{second}"
     })
 
-    assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
-    assert has_element?(view, "#covered-calls-outcome", "$260.00 strike · $3.00 premium")
-
-    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(second))
+    assert has_element?(view, "#covered-calls-outcome", "$267.50 strike · $3.00 premium")
 
     # Away to Buy and back, the form is built anew, and the guide starts from it again.
     view |> element(".covered-calls__tabs a", "Buy calls") |> render_click()
     view |> element(".covered-calls__tabs a", "Sell calls") |> render_click()
-    assert has_element?(view, "#covered-calls-outcome h3", "Example")
-    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(first))
+
+    assert has_element?(
+             view,
+             "#covered-calls-outcome",
+             "$262.50 strike · #{F.usd(middle)} premium"
+           )
+
+    assert has_element?(view, "select[name=expiry] option[value='#{first}'][selected]")
   end
 
-  test "a suggested strike and premium fill the List form when chosen", %{conn: conn} do
+  test "choosing a strike or a window puts its suggested premium in the form; a typed premium stays",
+       %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls")
     render_async(view, @async_ms)
+    [first, second | _later] = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
+    {:ok, %{windows: [window, later | _rest]}} = Autolaunch.CoveredCalls.Quote.read("AMZNc")
+    form = element(view, "#covered-call-list-form")
 
-    button = element(view, "#covered-calls-suggestions tbody tr:first-child button")
+    premium = fn window, position ->
+      Enum.at(window.strikes, position).suggested_premium_per_token
+    end
 
-    [strike, premium] =
-      for name <- ~w(strike premium), do: render(button) |> attribute("phx-value-#{name}")
+    render_change(form, %{
+      "_target" => ["strike"],
+      "amount" => "",
+      "strike" => "0",
+      "premium" => "",
+      "expiry" => "#{first}"
+    })
 
-    render_click(button)
+    assert has_element?(
+             view,
+             "#covered-call-list-premium[value='#{F.plain_usd(premium.(window, 0))}']"
+           )
 
-    assert has_element?(view, "#covered-call-list-strike[value='#{strike}']")
-    assert has_element?(view, "#covered-call-list-premium[value='#{premium}']")
-    assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
+    assert has_element?(view, "#covered-calls-outcome", "$257.50 strike")
+
+    render_change(form, %{
+      "_target" => ["premium"],
+      "amount" => "",
+      "strike" => "0",
+      "premium" => "9",
+      "expiry" => "#{first}"
+    })
+
+    assert has_element?(view, "#covered-call-list-premium[value='9']")
+
+    render_change(form, %{
+      "_target" => ["expiry"],
+      "amount" => "",
+      "strike" => "0",
+      "premium" => "9",
+      "expiry" => "#{second}"
+    })
+
+    assert has_element?(
+             view,
+             "#covered-call-list-premium[value='#{F.plain_usd(premium.(later, 0))}']"
+           )
+
+    assert has_element?(view, "#covered-call-list input[name=strike][value='0'][checked]")
   end
 
   test "selling comes first and opens by default; Buy says how many calls are for sale",
@@ -403,11 +493,6 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
     render_async(view, @async_ms)
     {view, panel}
-  end
-
-  defp attribute(html, name) do
-    [value] = html |> LazyHTML.from_fragment() |> LazyHTML.attribute(name)
-    value
   end
 
   # A page's visible words, tags dropped and spaces made single.

@@ -18,7 +18,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   fail, with the reason beside it.
 
   The page passes `kind`, `symbol`, `unit` (raw units per whole token), the
-  `listing` an action is on, `expiries` for a new listing, `holding` for an
+  `listing` an action is on, `expiries` and the strike `set`
+  (`Autolaunch.CoveredCalls.Quote.set/1`, nil while the price can't be read)
+  for a new listing, `holding` for an
   exercise, the panel's `session_lease` and `current_human_id`, and, for a row
   of actions such as the portfolio's, `variant="secondary"` for its button. A landed
   step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
@@ -36,6 +38,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   alias Phoenix.LiveView.JS
   alias Regent.Primitives, as: P
   alias RegentChain.{Presses, Review}
+
+  # A new listing starts on the middle of the three strikes.
+  @middle "1"
 
   @impl true
   def mount(socket) do
@@ -55,20 +60,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        listing: nil,
        holding: nil,
        expiries: [],
+       set: nil,
        variant: "primary"
      )}
   end
 
-  # A suggestion the page's guide offers, put into the form as if typed.
   @impl true
-  def update(%{fill: fill}, socket),
-    do:
-      {:ok,
-       socket
-       |> assign(inputs: Map.merge(socket.assigns.inputs, fill), typed: true, notice: nil)
-       |> tell_form()
-       |> sync()}
-
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
@@ -95,8 +92,17 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # allows the action.
   def handle_event("refresh_funds", _params, socket), do: {:noreply, sync(socket)}
 
+  # Choosing a strike or a window puts its suggested premium in the form; a
+  # premium the seller types stays theirs.
   def handle_event("change", params, socket) do
-    socket = assign(socket, inputs: inputs(socket.assigns.kind, params), typed: true, notice: nil)
+    inputs = inputs(socket.assigns.kind, params)
+
+    inputs =
+      if params["_target"] in [["strike"], ["expiry"]],
+        do: suggested(inputs, socket.assigns.set),
+        else: inputs
+
+    socket = assign(socket, inputs: inputs, typed: true, notice: nil)
     {:noreply, socket |> tell_form() |> sync()}
   end
 
@@ -233,9 +239,19 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp unreadable(_kind), do: "Enter an amount above zero, with a dot for decimals (1.5)."
 
-  # The List form tells the page what it holds, so the page's guide follows it.
-  defp tell_form(%{assigns: %{kind: :list, inputs: inputs}} = socket) do
-    send(self(), {:covered_call_form, inputs})
+  # The List form tells the page the window, strike and premium it holds, so
+  # the page's guide follows it.
+  defp tell_form(%{assigns: %{kind: :list, inputs: inputs, set: set}} = socket) do
+    send(
+      self(),
+      {:covered_call_form,
+       %{
+         expiry: inputs["expiry"],
+         strike: with(%{strike_per_token: strike} <- choice(set, inputs), do: strike),
+         premium: F.parse_usd(inputs["premium"] || "")
+       }}
+    )
+
     socket
   end
 
@@ -316,9 +332,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: OnchainSteps.take_account(socket, account, &sync/1)
 
   # The typed form, as the arguments of the action.
-  defp request(%{kind: :list, inputs: inputs, unit: unit}) do
+  defp request(%{kind: :list, inputs: inputs, unit: unit, set: set}) do
     with {:ok, amount} <- amount(F.parse_tokens(inputs["amount"], unit)),
-         {:ok, strike} <- amount(F.parse_usd(inputs["strike"])),
+         %{strike_per_token: strike} <- choice(set, inputs) || {:error, :price_unavailable},
          {:ok, premium} <- amount(F.parse_usd(inputs["premium"])),
          {expiry, ""} <- Integer.parse(inputs["expiry"] || "") do
       {:ok,
@@ -344,8 +360,53 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp inputs(kind, form) when kind in [:fill, :exercise], do: Map.take(form, ~w(amount))
   defp inputs(_kind, _form), do: %{}
 
-  defp defaults(%{kind: :list, expiries: [first | _]}),
-    do: %{"amount" => "", "strike" => "", "premium" => "", "expiry" => Integer.to_string(first)}
+  # The strikes offered for the window `expiry` names, lowest first; the form
+  # holds the position of the one chosen, so a new reading of the price moves
+  # the strike and keeps the choice.
+  defp choices(nil, _expiry), do: []
+
+  defp choices(set, expiry) do
+    case Enum.find(set.windows, &(Integer.to_string(&1.expiry) == expiry)) do
+      nil -> []
+      window -> window.strikes
+    end
+  end
+
+  defp choice(set, inputs) do
+    case Integer.parse(inputs["strike"] || "") do
+      {position, ""} when position >= 0 -> Enum.at(choices(set, inputs["expiry"]), position)
+      _none -> nil
+    end
+  end
+
+  # A strike choice as it is read out: its parts sit on lines of their own on screen.
+  defp choice_name(choice, price) do
+    [
+      "#{F.usd(choice.strike_per_token)}, #{F.percent_above(choice.strike_per_token, price)} above",
+      choice.suggested_premium_per_token &&
+        "#{F.usd(choice.suggested_premium_per_token)} suggested premium"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(", ")
+  end
+
+  # The chosen strike's suggested premium, to the cent, or nothing to suggest.
+  defp suggested(inputs, set) do
+    premium =
+      case choice(set, inputs) do
+        %{suggested_premium_per_token: premium} when is_integer(premium) -> F.plain_usd(premium)
+        _none -> ""
+      end
+
+    Map.put(inputs, "premium", premium)
+  end
+
+  defp defaults(%{kind: :list, expiries: [first | _], set: set}),
+    do:
+      suggested(
+        %{"amount" => "", "strike" => @middle, "expiry" => Integer.to_string(first)},
+        set
+      )
 
   defp defaults(%{kind: :exercise, listing: listing, unit: unit, holding: held}),
     do: %{"amount" => F.tokens(held || listing.filled, unit)}
@@ -355,13 +416,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp defaults(_assigns), do: %{}
 
-  # A new listing starts empty again on the same expiry; the other forms
-  # follow the listing again as the page reads it next (`update/2`).
-  defp cleared(:list, %{inputs: inputs}),
-    do: [
-      inputs: %{"amount" => "", "strike" => "", "premium" => "", "expiry" => inputs["expiry"]},
-      typed: true
-    ]
+  # A new listing starts again on the same window and strike, at its
+  # suggested premium; the other forms follow the listing again as the page
+  # reads it next (`update/2`).
+  defp cleared(:list, %{inputs: inputs, set: set}),
+    do: [inputs: suggested(%{inputs | "amount" => ""}, set), typed: true]
 
   defp cleared(_kind, assigns), do: [inputs: defaults(assigns), typed: false]
 
@@ -410,6 +469,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
               id={@id}
               inputs={@inputs}
               expiries={@expiries}
+              choices={choices(@set, @inputs["expiry"])}
+              price={@set && @set.price_per_token}
               symbol={@symbol}
             />
             <.field
@@ -565,6 +626,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   attr :id, :string, required: true
   attr :inputs, :map, required: true
   attr :expiries, :list, required: true
+  attr :choices, :list, required: true
+  attr :price, :integer, default: nil
   attr :symbol, :string, required: true
 
   defp list_fields(assigns) do
@@ -575,13 +638,6 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       label="Amount"
       value={@inputs["amount"]}
       unit={@symbol}
-    />
-    <.field
-      id={"#{@id}-strike"}
-      name="strike"
-      label="Strike price"
-      value={@inputs["strike"]}
-      unit={"USDC per #{@symbol}"}
     />
     <div class="rg-field">
       <label for={"#{@id}-expiry"}>Exercise window</label>
@@ -600,6 +656,30 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         Opens Friday 21:00 UTC, closes Saturday 21:00 UTC.
       </small>
     </div>
+    <fieldset class="covered-call-panel__strikes" aria-describedby={"#{@id}-strike-hint"}>
+      <legend>Strike price</legend>
+      <div :if={@choices != []} class="covered-call-panel__choices">
+        <label :for={{choice, position} <- Enum.with_index(@choices)}>
+          <input
+            type="radio"
+            name="strike"
+            value={position}
+            checked={Integer.to_string(position) == @inputs["strike"]}
+            aria-label={choice_name(choice, @price)}
+          />
+          <span>
+            <strong>{F.usd(choice.strike_per_token)}</strong>
+            <small>+{F.percent_above(choice.strike_per_token, @price)}</small>
+            <small :if={choice.suggested_premium_per_token}>{F.usd(choice.suggested_premium_per_token)} suggested</small>
+          </span>
+        </label>
+      </div>
+      <small id={"#{@id}-strike-hint"} class="covered-call-panel__hint">
+        {if @choices == [],
+          do: "Strikes appear once the stock's price can be read.",
+          else: "The price you agree to sell at."}
+      </small>
+    </fieldset>
     <.field
       id={"#{@id}-premium"}
       name="premium"
@@ -826,5 +906,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp refusal_words(:expiry_passed), do: "That expiry has passed. Choose a later Friday."
   defp refusal_words(:unknown_listing), do: "This listing isn't on Base."
   defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
+
+  defp refusal_words(:price_unavailable),
+    do: "Strikes appear once the stock's price can be read."
+
   defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
 end

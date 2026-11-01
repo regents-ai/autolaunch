@@ -1,6 +1,6 @@
 # Covered calls — strike design
 
-**Status:** Proposed · 31 October 2026 · for the orchestrator and the Autolaunch chief, before any UI
+**Status:** Built · 1 November 2026. Approved by the chief engineer under Sean's standing order (1a 2a 3a 4a 5a, 1 Nov 00:20Z), with the Autolaunch chief's three review fixes.
 
 **Brief:** [yield-borrow-spec.md](yield-borrow-spec.md) line 19, "Offer a small set of quoted strikes
 and expiries" (AL-CC-SPEC, Sean 28 Oct, confirmed "5a" 31 Oct). It replaces the 13 Oct "no strike
@@ -29,9 +29,11 @@ For each of the four weekly expiries the page already offers (the next four Frid
 strikes:
 
 1. **Strike step:** the largest of $0.01, $0.05, $0.10, $0.25, $0.50, $1, $2.50, $5, $10 and $25 that
-   is not above 1% of the reference price. AMZNc at $240.27 gives $1.
-2. **Strikes:** the reference price plus 1%, 3% and 5%, each rounded **up** to the strike step. With
-   steps at most 1% of the price and targets 2% apart, the three never collide.
+   is not above 1% of the reference price, and $0.01 for a price under $1. AMZNc at $240.27 gives $1.
+2. **Strikes:** the reference price plus 1%, 3% and 5%, each rounded **up** to the strike step and at
+   least one step above the one before it (the first, above the price). From $1 up the targets are
+   2% apart and a step is at most 1%, so the rounding alone keeps them apart; under $1 the one-step
+   rule does: $0.30 gives $0.31, $0.32 and $0.33.
 3. **Suggested premium:** today's formula, unchanged, rounded to the cent with a $0.10 floor, as the
    page rounds it now.
 4. **The price it moves with:** the Chainlink reading in the shared book (at most five minutes old, ten
@@ -56,10 +58,12 @@ step, and a buyer sees a few strikes with several listings each.
 
 - **Amount** and **Window**, as now.
 - **Strike:** three choices for the window picked, each showing the strike, how far above the price it
-  is, and the suggested premium. The typed strike field goes. Changing the window refreshes the three
-  premiums and keeps the position chosen (low, middle, high).
-- **Premium:** filled with the chosen strike's suggestion. The seller may change it; it is still the
-  minimum a buyer pays. With no fresh price it starts empty.
+  is, and the suggested premium; the middle one is chosen to start. The typed strike field goes.
+  The form keeps the position chosen (low, middle, high), so a new price reading moves the strike
+  and keeps the choice. When the feed gives no answer at all there are no strikes until the next
+  reading, and the form says so.
+- **Premium:** choosing a strike or a window puts that strike's suggestion in the premium. The seller
+  may change it; it is still the minimum a buyer pays. With no fresh price it starts empty.
 - **Guide:** the result at three prices and the after-fee premium follow the strike and premium chosen,
   as they follow the typed ones today. The separate suggestions table and its Use buttons go, since
   the choices replace them.
@@ -83,7 +87,7 @@ The Buy tab is unchanged in this step. Grouping its rows by strike can follow on
   "price_per_token": 240271250,
   "price_updated_at": 1793390057,
   "price_fresh": true,
-  "volatility": 0.3,
+  "volatility_bps": 3000,
   "strike_step": 1000000,
   "windows": [
     {
@@ -92,7 +96,7 @@ The Buy tab is unchanged in this step. Grouping its rows by strike can follow on
       "strikes": [
         {
           "strike_per_token": 243000000,
-          "percent_above": 1.1,
+          "above_bps": 114,
           "suggested_premium_per_token": 2750000,
           "fee_per_token": 27500
         }
@@ -102,44 +106,47 @@ The Buy tab is unchanged in this step. Grouping its rows by strike can follow on
 }
 ```
 
-USDC figures are micro-USDC per whole token, as in every covered-call tool. `suggested_premium_per_token`
-and `fee_per_token` are `null` when `price_fresh` is false.
+Every figure is a whole number: USDC in micro-USDC per whole token, as in every covered-call tool,
+and `above_bps` and `volatility_bps` in basis points (`above_bps` rounded half up), so an agent never
+reads a decimal. The page's "+1.1%" is worked out from the strike and the price, not from
+`above_bps`. `suggested_premium_per_token` and `fee_per_token` are `null` when `price_fresh` is false.
 
 `autolaunch_covered_call_prepare` with `kind: "list"` keeps its inputs. It prepares any strike the agent
-names, as the contract accepts any strike (proposal 2). The HTTP spec
-(`platform/contracts/covered-calls.openapiv3.yaml`), the tool file (`platform/priv/covered_calls_tools.json`),
-WebMCP and `regents autolaunch` change together; the CLI command belongs to the regents-cli lane.
+names, as the contract accepts any strike (decision 2). The route moved from `POST` to `GET` in one
+release with the HTTP spec (`platform/contracts/covered-calls.openapiv3.yaml`) and the tool file
+(`platform/priv/covered_calls_tools.json`); nothing answers the old `POST`. The regents CLI has no
+covered-call command yet; its `covered-calls quote <symbol>` is built against this shape by the
+regents-cli lane.
 
-## Proposals for the orchestrator
+## Decisions (all a)
 
 1. **How the set is spread.**
-   - a) The live +1%, +3%, +5%, rounded up to the step, the same for every Friday. Recommended: the
+   - a) The live +1%, +3%, +5%, rounded up to the step, the same for every Friday. Chosen: the
      percents Sean already reviewed on the page, one rule a person can check by hand.
    - b) Spread by time: 0.25, 0.75 and 1.25 of the expected move to each Friday, so the chance of being
      exercised is about the same in every window (for 27 Nov: $246, $256, $266). Fairer across
      windows, but harder to explain.
 2. **Strikes off the set.**
    - a) The page offers only the set; agents may still prepare any strike, because the contract takes
-     any strike and the site never refuses what the chain would accept. Recommended.
+     any strike and the site never refuses what the chain would accept. Chosen.
    - b) The site also refuses an agent's off-set strike. It would race the price: a set read a minute
      earlier can be refused on prepare.
 3. **Quote source.**
-   - a) Keep the Chainlink price and the fixed 30% model, labelled a suggestion. Recommended for the
+   - a) Keep the Chainlink price and the fixed 30% model, labelled a suggestion. Chosen for the
      first stock: no new source to qualify; the buyer's fill is the executable quote.
    - b) Volatility from the feed's own last 30 days of prices. Closer to the market, but a new
      calculation to prove.
 4. **Expiry rules.**
    - a) Unchanged: the next four Fridays at 21:00 UTC and the 24-hour window after. A window that
      closes after a scheduled change to the stock's multiplier stays offered; its List step comes back
-     blocked with the reason, as now, because the contract refuses it. Recommended.
+     blocked with the reason, as now, because the contract refuses it. Chosen.
    - b) Also drop a Friday less than a day away. Its premium is cents and fills close at expiry.
 5. **Premium and Credits.**
-   - a) USDC only, as the spec and the deployed contract have it. Recommended: Credits would need a new
+   - a) USDC only, as the spec and the deployed contract have it. Chosen: Credits would need a new
      contract.
    - b) Credits as well, in a later contract.
 
-## Not in this step
+## Built
 
-No contract change, no deploy, no page change. Once the proposals are answered: the Sell form, the
-quote tool and route, their tests, the journeys, and [covered-calls-design.md](covered-calls-design.md)
-change together in one release.
+No contract change and no deploy. The Sell form, the quote tool and route, their tests, the journey
+and [covered-calls-design.md](covered-calls-design.md) changed together in one branch.

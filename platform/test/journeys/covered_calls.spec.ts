@@ -48,8 +48,17 @@ const read = async (name: "listingCount" | "held" | "claimable", args: unknown[]
   BigInt(await call(contract(), encodeFunctionData({abi, functionName: name, args: args as any}) as Hex))
 
 async function expiryOf(id: bigint): Promise<number> {
+  return Number(await listingWord(id, 1))
+}
+
+/** A listing's strike in micro-USDC per whole token, as the contract holds it. */
+async function strikeOf(id: bigint): Promise<bigint> {
+  return listingWord(id, 6)
+}
+
+async function listingWord(id: bigint, index: number): Promise<bigint> {
   const words = await call(contract(), encodeFunctionData({abi, functionName: "listings", args: [id]}) as Hex)
-  return Number(BigInt("0x" + words.slice(2 + 64, 2 + 128)))
+  return BigInt("0x" + words.slice(2 + 64 * index, 2 + 64 * (index + 1)))
 }
 
 /** Moves the copy's clock to `at` (a Unix time) and mines a block there. */
@@ -138,7 +147,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await mintStock(AMZNC, people.a.wallet, 3n * UNIT)
   const aStock = await balanceOf(AMZNC, people.a.wallet)
 
-  // Person A lists three AMZNc as calls at a 300 USDC strike and a 3 USDC premium.
+  // Person A lists three AMZNc as calls at the highest of the three strikes offered and a 3 USDC premium.
   await signIn(page, people.a)
   await page.goto("/covered-calls")
   await ready(page)
@@ -152,7 +161,9 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   const unchanged = await page.request.get("/assets/js/covered_calls.css", {headers: {"if-none-match": styles.headers()["etag"]}})
   expect(unchanged.status(), "the browser's copy is kept while the file is the same").toBe(304)
   await page.getByLabel("Amount").fill("3")
-  await page.getByLabel("Strike price").fill("300")
+  const highest = page.getByRole("radio", {name: /^\$[\d,.]+, 5\.\d% above/})
+  await highest.check()
+  const chosen = (await highest.getAttribute("aria-label"))!.match(/^\$([\d,.]+)/)![1].replace(/,/g, "")
   await page.getByLabel("Premium", {exact: true}).fill("3")
   await fitsAndPresses(page, touch)
   await review(page, "List calls")
@@ -163,6 +174,9 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await expect(toast(page, "Listed")).toBeVisible()
   const id = await read("listingCount")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - 3n * UNIT)
+  // The listing holds the strike the page showed.
+  const strike = await strikeOf(id)
+  expect(strike).toBe(BigInt(Math.round(Number(chosen) * 100)) * 10_000n)
 
   // B, a wallet the site has never seen, buys one of them from the Buy tab, then one more.
   const fresh = await freshPerson()
@@ -225,10 +239,10 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   expect((await collect(b, "held", id, "Collect AMZNc", bought)).status).toBe("0x0")
   await expect(b.getByText("That did not go through and nothing moved. Close this and review again.")).toBeVisible()
 
-  // A still collects the 600 USDC strike during the pause.
+  // A still collects the strike on both during the pause.
   const aUsdc = await balanceOf(USDC, people.a.wallet)
   expect((await collect(page, "sold", id, "Collect USDC", sent)).status).toBe("0x1")
-  expect((await balanceOf(USDC, people.a.wallet)) - aUsdc).toBe(600_000_000n)
+  expect((await balanceOf(USDC, people.a.wallet)) - aUsdc).toBe(2n * strike)
 
   // Transfers resume after the window: B collects the stock bought, A the one never sold.
   await sendAs(USDC_HOLDER, AMZNC, encodeFunctionData({abi, functionName: "setPaused", args: [false]}))

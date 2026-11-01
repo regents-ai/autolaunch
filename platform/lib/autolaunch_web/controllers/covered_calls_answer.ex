@@ -57,7 +57,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     authentication_required: {:unauthorized, "Nobody is signed in on this site in this browser."},
     price_unavailable:
       {:service_unavailable,
-       "The stock's reference price is not available right now, so no premium is suggested."},
+       "The stock's reference price could not be read just now, so there are no strikes to offer."},
     chain_unavailable: @chain_unavailable,
     # The node answered something that is not Base or not a block: to an agent,
     # the chain could not be read just now.

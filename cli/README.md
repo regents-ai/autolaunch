@@ -72,7 +72,7 @@ Use an existing wallet or delegated wallet provider for endpoints that actually 
 
 The checks create disposable local servers and install directories and clean up only those resources. Packaging includes only the executable, source, contract documentation, README and license; it excludes tests, platform code and development configuration. Release only the reviewed artifact after registry authority is established.
 
-The platform owns `platform/contracts/api-contract.openapiv3.yaml`; its reviewed copy ships as `docs/api-contract.openapiv3.yaml`. Run `npm run check:contract` in the monorepo to detect drift. The standalone build never requires the platform.
+The platform owns `platform/contracts/api-contract.openapiv3.yaml` and `platform/contracts/covered-calls.openapiv3.yaml`; their reviewed copies ship as `docs/api-contract.openapiv3.yaml` and `docs/covered-calls.openapiv3.yaml`. Covered calls keep their own file because the site's `/openapi.json` names them only while they are switched on. Run `npm run check:contract` in the monorepo to detect drift. The standalone build never requires the platform.
 
 To try a local server, pass its loopback origin: `autolaunch auctions list --base-url http://127.0.0.1:<port>`.
 
@@ -86,8 +86,8 @@ Private `profile get`, `profile sync`, and `profile update` use the owner's acce
 
 ## Signed agent access
 
-`commands.json` contains typed descriptions for the unified Regents CLI: seven public reads that need no sign-in, and signed commands that take private JSON on stdin. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.
+`commands.json` contains typed descriptions for the unified Regents CLI: eight public reads that need no sign-in, and signed commands that take private JSON on stdin. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.
 
 The unified command names are `regents autolaunch drafts revstake show`, `regents autolaunch drafts revstake save`, `regents autolaunch drafts memestock show`, and `regents autolaunch drafts memestock save`. Saves take metadata as private JSON stdin and remain refused while prelaunch read-only mode is enabled. See [COMMANDS.md](COMMANDS.md) for every signed command, its route, inputs, answers and refusals.
 
-Change a signed command's documentation, description and owning HTTP/OpenAPI contract together. Run the unified CLI's description checker against `commands.json` and `../platform/contracts/api-contract.openapiv3.yaml`, then construct its command tree and exercise the changed commands with intercepted requests. Send the unified CLI owner the tested main commit, changed names, caller impact and deployment status; that owner imports the descriptions and publishes the CLI.
+Change a signed command's documentation, description and owning HTTP/OpenAPI contract together. Run the unified CLI's description checker (`make check-cli`) against `commands.json`, `docs/profile.openapi.json`, `docs/api-contract.openapiv3.yaml` and `docs/covered-calls.openapiv3.yaml`, then construct its command tree and exercise the changed commands with intercepted requests. Send the unified CLI owner the tested main commit, changed names, caller impact and deployment status; that owner imports the descriptions and publishes the CLI.

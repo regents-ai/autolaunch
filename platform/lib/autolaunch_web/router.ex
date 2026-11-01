@@ -248,12 +248,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through [:api, :public_read, :covered_calls]
 
     get "/covered-calls/:symbol", CoveredCallsController, :book
-  end
-
-  scope "/api/v1", AutolaunchWeb do
-    pipe_through [:api, :covered_calls]
-
-    post "/covered-calls/:symbol/quote", CoveredCallsController, :quote
+    get "/covered-calls/:symbol/quote", CoveredCallsController, :quote
   end
 
   scope "/api/v1", AutolaunchWeb do

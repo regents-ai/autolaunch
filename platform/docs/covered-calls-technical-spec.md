@@ -291,7 +291,7 @@ hold this (`CoveredCallsOffTest`, browser walk `switched_off.spec.ts`).
 
 | Address | What it shows |
 | --- | --- |
-| `/covered-calls` | Title "Covered calls on AMZNc", then "Available to eligible people outside the US." A strip of the market's figures (price, next window, for sale, fee), three steps for the tab's side, then two tabs, each its own address. **Sell** (`/covered-calls`, first and the default): amount, strike, exercise window (the next four Fridays), premium; beside it the guide (the result for the trade typed, suggested premiums with Use, the estimate's basis and the terms, folded). **Buy** (`?tab=buy`, with how many are for sale): calls for sale, with strike, premium, exercise window and amount left; a listing's Buy panel opens under its row at `?listing=<id>`. A Contract section at the foot links the verified code on Basescan. |
+| `/covered-calls` | Title "Covered calls on AMZNc", then "Available to eligible people outside the US." A strip of the market's figures (price, next window, for sale, fee), three steps for the tab's side, then two tabs, each its own address. **Sell** (`/covered-calls`, first and the default): amount, exercise window (the next four Fridays), a strike chosen from three with its suggested premium, premium; beside it the guide (the result for the trade chosen, the estimate's basis and the terms, folded). **Buy** (`?tab=buy`, with how many are for sale): calls for sale, with strike, premium, exercise window and amount left; a listing's Buy panel opens under its row at `?listing=<id>`. A Contract section at the foot links the verified code on Basescan. |
 | `/stock-listing/AMZNc` | While on: a "Covered calls on AMZNc" action. |
 | `/portfolio` | A "Covered calls" section: each listing the signed-in wallet sold or holds, with the wallet steps it allows now (Stop selling, Exercise, Collect AMZNc, Collect USDC). |
 
@@ -328,7 +328,7 @@ says why under the button and opens nothing: never a silent press.
 | `Chain` | Reads listings, holdings, `claimable`, balances, allowances, multiplier, `effectiveAt` and the Chainlink price at one block. |
 | `Book` | Each market's listings, read once and shared by every visitor for five minutes, re-read ten seconds after any landed press. Never disables a button. |
 | `Positions` | One wallet's sold listings and holdings, read fresh. |
-| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price, counted to the close of the exercise window; hidden when the price is older than four days. A guide only; never enforced. |
+| `Quote` | The strike set: the Chainlink price plus 1%, 3% and 5%, rounded up to the strike step, for each of the next four windows, with a suggested premium at each (Black-Scholes with a fixed 30% yearly volatility and no interest, counted to the close of the exercise window; withheld when the price is older than four days). A guide only; never enforced. |
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
 | `Market` | The four operations every surface calls (`book`, `quote`, `positions`, `prepare`), with Ash policies. |
@@ -340,7 +340,7 @@ There are no database tables: the contract is the record.
 | Method and path | Who | Purpose |
 | --- | --- | --- |
 | `GET /api/v1/covered-calls/{symbol}` | public | The market's listings with stage and amount left. |
-| `POST /api/v1/covered-calls/{symbol}/quote` | public | Body `{strike_per_token, expiry}`; returns the reference price and suggested premium. |
+| `GET /api/v1/covered-calls/{symbol}/quote` | public | The strike set: for each of the next four weekly windows, three strikes (the reference price plus 1%, 3% and 5%, rounded up to `strike_step`) with the premium suggested at each; `platform/docs/covered-calls-strike-design.md`. |
 | `GET /api/v1/me/covered-calls/{symbol}` | signed-in person | Their own wallet's listings and holdings. |
 | `GET /api/agent/v1/covered-calls/{symbol}/positions` | paired agent (SIWA-signed) | The paired person's listings and holdings. |
 | `POST /api/agent/v1/covered-calls/{symbol}/steps` | paired agent (SIWA-signed) | Body `{kind, listing_id?, amount?, strike_per_token?, premium_per_token?, expiry?, signer?}`, `kind` one of `list`, `fill`, `cancel`, `exercise`, `claim`, `collect_strike`; returns unsigned transactions for a wallet of the paired person's account, and `blocked` with the reason when certain to fail. The site never signs. |
@@ -385,7 +385,7 @@ unsigned transactions; the agent sends them with its own wallet tooling.
 | Command | CLI | Authority | Route | Flags |
 | --- | --- | --- | --- | --- |
 | `covered-calls book <symbol>` | both | public | `GET /api/v1/covered-calls/{symbol}` | — |
-| `covered-calls quote <symbol>` | both | public | `POST /api/v1/covered-calls/{symbol}/quote` | `--strike` (USDC per token, decimal), `--expiry` (a Friday, `YYYY-MM-DD`, or Unix seconds) |
+| `covered-calls quote <symbol>` | both | public | `GET /api/v1/covered-calls/{symbol}/quote` | — |
 | `covered-calls positions <symbol>` | `regents autolaunch` | signed, paired | `GET /api/agent/v1/covered-calls/{symbol}/positions` | — |
 | `covered-calls prepare <symbol>` | `regents autolaunch` | signed, paired | `POST /api/agent/v1/covered-calls/{symbol}/steps` | `--kind` (`list`, `fill`, `cancel`, `exercise`, `claim`, `collect_strike`), `--listing`, `--amount` (tokens, decimal), `--strike`, `--premium`, `--expiry`, `--signer` (one of the person's own wallets) |
 
@@ -3345,25 +3345,25 @@ paths:
         default:
           $ref: '#/components/responses/OtherError'
   /api/v1/covered-calls/{symbol}/quote:
-    post:
+    get:
       operationId: quoteCoveredCall
-      summary: Suggest a covered-call premium
-      description: A suggested premium per whole token for a call at `strike_per_token` expiring at `expiry`,
-        from the stock's reference price, as a guide for a seller. The contract enforces nothing from
-        it. Refused while the reference price is more than four days old. Needs no account; the page tool
-        autolaunch_covered_call_quote calls it.
+      summary: Read a stock's covered-call strikes
+      description: The strikes a seller chooses from on one Base stock token for each of the next four
+        weekly windows, and the premium suggested at each, from the stock's reference price. The strikes
+        are the price plus 1%, 3% and 5%, each rounded up to `strike_step` and each at least one step
+        above the one before; the step is the largest round amount not above 1% of the price, never under
+        a cent. A suggested premium is a standard option price with a fixed yearly volatility
+        (`volatility_bps`) and no interest, counted to the window's close, to the cent and never under
+        $0.10; it is a guide only, and null while the reference price is more than four days old
+        (`price_fresh` false), when the strikes still come from it. The contract takes any strike and
+        enforces nothing from this answer. Prices are micro-USDC per whole token, times Unix seconds.
+        Needs no account; the page tool autolaunch_covered_call_quote calls it.
       security: []
       parameters:
       - $ref: '#/components/parameters/CoveredCallSymbol'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CoveredCallQuoteRequest'
       responses:
         '200':
-          description: The suggested premium
+          description: The strike set
           content:
             application/json:
               schema:
@@ -3375,8 +3375,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
         '422':
-          description: The expiry is not a Friday at 21:00 UTC or has passed, or the body is not the two
-            whole numbers (not_a_weekly_expiry, expiry_passed, invalid_request)
+          description: A query parameter was sent (invalid_request)
           content:
             application/json:
               schema:
@@ -3675,20 +3674,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/CoveredCallListing'
-    CoveredCallQuoteRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - strike_per_token
-      - expiry
-      properties:
-        strike_per_token:
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-        expiry:
-          type: integer
-          description: A Friday at 21:00 UTC, Unix seconds.
     CoveredCallQuoteEnvelope:
       type: object
       additionalProperties: false
@@ -3700,31 +3685,75 @@ components:
           additionalProperties: false
           required:
           - symbol
-          - spot_per_token
-          - strike_per_token
-          - expiry
-          - volatility
-          - suggested_premium_per_token
+          - price_per_token
           - price_updated_at
+          - price_fresh
+          - volatility_bps
+          - strike_step
+          - windows
           properties:
             symbol:
               type: string
-            spot_per_token:
+            price_per_token:
               type: integer
               description: The reference price in micro-USDC per whole token.
-            strike_per_token:
-              type: integer
-            expiry:
-              type: integer
-            volatility:
-              type: number
-              description: The yearly volatility the suggestion assumes.
-            suggested_premium_per_token:
-              type: integer
-              description: Micro-USDC per whole token.
             price_updated_at:
               type: integer
-              description: Unix seconds.
+              description: When the reference price was last updated, Unix seconds.
+            price_fresh:
+              type: boolean
+              description: False while the reference price is more than four days old; no premium is suggested then.
+            volatility_bps:
+              type: integer
+              description: The yearly volatility the suggestion assumes, in basis points (3000 is 30%).
+            strike_step:
+              type: integer
+              description: The amount every strike is a multiple of, in micro-USDC.
+            windows:
+              type: array
+              description: The next four weekly windows, soonest first.
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                - expiry
+                - window_closes_at
+                - strikes
+                properties:
+                  expiry:
+                    type: integer
+                    description: A Friday at 21:00 UTC, Unix seconds; the expiry a listing takes.
+                  window_closes_at:
+                    type: integer
+                    description: The close of the 24-hour exercise window, Unix seconds.
+                  strikes:
+                    type: array
+                    description: Three strikes, lowest first.
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - strike_per_token
+                      - above_bps
+                      - suggested_premium_per_token
+                      - fee_per_token
+                      properties:
+                        strike_per_token:
+                          type: integer
+                          description: Micro-USDC per whole token.
+                        above_bps:
+                          type: integer
+                          description: How far the strike is above the reference price, in basis points, rounded half up.
+                        suggested_premium_per_token:
+                          type:
+                          - integer
+                          - 'null'
+                          description: Micro-USDC per whole token; null while price_fresh is false.
+                        fee_per_token:
+                          type:
+                          - integer
+                          - 'null'
+                          description: The 1% fee on the suggested premium, rounded up, micro-USDC per whole token.
     CoveredCallPositionsEnvelope:
       type: object
       additionalProperties: false
@@ -3926,7 +3955,8 @@ components:
             facts:
               type: object
               description: 'The action''s figures: listing_id, amount, and the premium, fee, strike or
-                unsold amount it involves.'
+                unsold amount it involves. A purchase also gives the strike its calls would cost to
+                exercise and the expiry their window opens at.'
     CoveredCallError:
       type: object
       additionalProperties: false
@@ -3969,7 +3999,7 @@ components:
 
 ```json
 {
-  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input.",
   "tools": [
     {
       "name": "autolaunch_covered_call_listings",
@@ -4004,32 +4034,18 @@ components:
     },
     {
       "name": "autolaunch_covered_call_quote",
-      "title": "Suggest a covered-call premium",
-      "description": "Suggest a premium per whole token for a covered call on one Base stock token at a strike and weekly expiry, from the stock's reference price. A guide for a seller only: the contract enforces nothing from it, and it is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
+      "title": "Read a stock's covered-call strikes",
+      "description": "Read the strikes a seller chooses from on one Base stock token for each of the next four weekly windows, and the premium suggested at each, from the stock's reference price: the price plus 1%, 3% and 5%, rounded up to strike_step. Prices are micro-USDC per whole token, above_bps and volatility_bps are basis points, times are Unix seconds. A suggested premium is a guide from a fixed volatility, not a buyer's offer, and is null while the reference price is more than four days old (price_fresh false). The contract takes any strike; to list one, use autolaunch_covered_call_prepare. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
           "symbol": {
             "type": "string",
             "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
-          },
-          "strike_per_token": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "The strike in micro-USDC (6 decimals) per whole token."
-          },
-          "expiry": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
           }
         },
         "required": [
-          "symbol",
-          "strike_per_token",
-          "expiry"
+          "symbol"
         ],
         "additionalProperties": false
       },
@@ -4041,14 +4057,10 @@ components:
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/v1/covered-calls/{symbol}/quote",
+      "route": "GET /api/v1/covered-calls/{symbol}/quote",
       "scope": "site",
       "request": {
-        "path": "/api/v1/covered-calls/{symbol}/quote",
-        "body": [
-          "strike_per_token",
-          "expiry"
-        ]
+        "path": "/api/v1/covered-calls/{symbol}/quote"
       }
     },
     {

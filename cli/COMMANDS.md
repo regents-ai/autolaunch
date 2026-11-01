@@ -4,7 +4,7 @@ These descriptions belong to the unified `regents autolaunch …` CLI. A command
 there once a regents-cli release takes `commands.json`; `regents autolaunch --help`
 lists what your installed version has.
 
-The seven public reads need no sign-in and change nothing. Every other command requires
+The eight public reads need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
 require a current pairing and an Autolaunch account resolved from the owner's verified
 Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
@@ -72,6 +72,19 @@ Public. Read the stored security report for a launch's treasury. Route:
 `GET /api/v1/treasury-security/{address}` (`getTreasurySecurity`). A supported Safe
 is not a current check; read its verification state. A treasury with no stored report
 answers 404 `not_found`.
+
+## `covered-calls quote <symbol>`
+
+Public. Route: `GET /api/v1/covered-calls/{symbol}/quote` (`quoteCoveredCall`), described in
+`docs/covered-calls.openapiv3.yaml`. The strikes a seller chooses from on one Base stock token,
+for each of the next four Friday windows (21:00 UTC), and the premium suggested at each. The
+strikes are the reference price plus 1%, 3% and 5%, rounded up to `strike_step`. Every figure is
+a whole number: prices in micro-USDC per whole token, `above_bps` and `volatility_bps` in basis
+points, times in Unix seconds. A suggested premium is a guide from a fixed volatility, not a
+buyer's offer; it and its fee are null while `price_fresh` is false (the reference price is more
+than four days old). The contract takes any strike. While covered calls are switched off, or for
+a stock with no market, it answers 404 `unknown_market`; a query parameter answers 422
+`invalid_request`; a chain or price that can't be read answers 503.
 
 ## `agents whoami`
 
@@ -252,3 +265,11 @@ No signed command changed.
 `paired_agent`: the agent's person must have paired it. None carries a condition;
 no command here spends Credits or acts on something its person joins. Routes, inputs,
 answers and refusals are unchanged.
+
+1 November 2026: `covered-calls quote <symbol>` (`quoteCoveredCall`) added, a public read.
+
+CLI change note: Autolaunch; added `covered-calls quote <symbol>`, no other command changed.
+Its operation is in `docs/covered-calls.openapiv3.yaml`, a new reviewed copy pinned beside
+`docs/api-contract.openapiv3.yaml`. For callers: one argument, the stock symbol (AMZNc); no
+flags; the answer is the strike set described above. The route answers only once the site runs
+this commit; the regents-cli owner pins the live commit.

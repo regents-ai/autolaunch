@@ -1,5 +1,5 @@
 {
-  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input.",
   "tools": [
     {
       "name": "autolaunch_covered_call_listings",
@@ -34,32 +34,18 @@
     },
     {
       "name": "autolaunch_covered_call_quote",
-      "title": "Suggest a covered-call premium",
-      "description": "Suggest a premium per whole token for a covered call on one Base stock token at a strike and weekly expiry, from the stock's reference price. A guide for a seller only: the contract enforces nothing from it, and it is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
+      "title": "Read a stock's covered-call strikes",
+      "description": "Read the strikes a seller chooses from on one Base stock token for each of the next four weekly windows, and the premium suggested at each, from the stock's reference price: the price plus 1%, 3% and 5%, rounded up to strike_step. Prices are micro-USDC per whole token, above_bps and volatility_bps are basis points, times are Unix seconds. A suggested premium is a guide from a fixed volatility, not a buyer's offer, and is null while the reference price is more than four days old (price_fresh false). The contract takes any strike; to list one, use autolaunch_covered_call_prepare. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
           "symbol": {
             "type": "string",
             "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
-          },
-          "strike_per_token": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "The strike in micro-USDC (6 decimals) per whole token."
-          },
-          "expiry": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
           }
         },
         "required": [
-          "symbol",
-          "strike_per_token",
-          "expiry"
+          "symbol"
         ],
         "additionalProperties": false
       },
@@ -71,14 +57,10 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/v1/covered-calls/{symbol}/quote",
+      "route": "GET /api/v1/covered-calls/{symbol}/quote",
       "scope": "site",
       "request": {
-        "path": "/api/v1/covered-calls/{symbol}/quote",
-        "body": [
-          "strike_per_token",
-          "expiry"
-        ]
+        "path": "/api/v1/covered-calls/{symbol}/quote"
       }
     },
     {

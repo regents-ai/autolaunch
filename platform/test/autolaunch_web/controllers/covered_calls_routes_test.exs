@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
   @token 100_000_000
   @routes [
     {:get, "/api/v1/covered-calls/AMZNc"},
-    {:post, "/api/v1/covered-calls/AMZNc/quote"},
+    {:get, "/api/v1/covered-calls/AMZNc/quote"},
     {:get, "/api/v1/me/covered-calls/AMZNc"},
     {:get, "/api/agent/v1/covered-calls/AMZNc/positions"},
     {:post, "/api/agent/v1/covered-calls/AMZNc/steps"}
@@ -199,7 +199,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     end
   end
 
-  test "the public book shows each listing's stage and what is left, and the quote suggests a premium",
+  test "the public book shows each listing's stage and what is left, and the quote offers the strike set",
        %{conn: conn} do
     switch(:on)
     chain()
@@ -219,21 +219,69 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert listing["available"] == 8 * @token
     assert listing["seller"] == @seller
 
-    quote =
-      conn
-      |> send_json("POST", "/api/v1/covered-calls/AMZNc/quote", %{
-        "strike_per_token" => 250_000_000,
-        "expiry" => expiry()
-      })
-      |> json_response(200)
+    answer = conn |> get("/api/v1/covered-calls/AMZNc/quote")
+    assert get_resp_header(answer, "access-control-allow-origin") == ["*"]
 
-    assert %{"spot_per_token" => 230_000_000, "suggested_premium_per_token" => premium} =
-             quote["data"]
+    # $230 gives a $1 step: $232.30, $236.90 and $241.50 round up to $233, $237 and $242.
+    assert %{
+             "symbol" => "AMZNc",
+             "price_per_token" => 230_000_000,
+             "price_updated_at" => updated_at,
+             "price_fresh" => true,
+             "volatility_bps" => 3_000,
+             "strike_step" => 1_000_000,
+             "windows" => windows
+           } = json_response(answer, 200)["data"]
 
-    assert premium > 0 and premium < 20_000_000
+    assert updated_at == @now - 600
+    assert Enum.map(windows, & &1["expiry"]) == Terms.expiries(@now)
+
+    for window <- windows do
+      assert window["window_closes_at"] == window["expiry"] + Terms.exercise_window()
+
+      assert [
+               %{"strike_per_token" => 233_000_000, "above_bps" => 130},
+               %{"strike_per_token" => 237_000_000, "above_bps" => 304},
+               %{"strike_per_token" => 242_000_000, "above_bps" => 522}
+             ] = window["strikes"]
+
+      premiums = Enum.map(window["strikes"], & &1["suggested_premium_per_token"])
+      assert premiums == Enum.sort(premiums, :desc)
+
+      for strike <- window["strikes"] do
+        premium = strike["suggested_premium_per_token"]
+        assert premium >= 100_000 and rem(premium, 10_000) == 0
+        assert strike["fee_per_token"] == Terms.fee(premium)
+      end
+    end
+
+    # Later windows are worth more at the same strike.
+    firsts = Enum.map(windows, &hd(&1["strikes"])["suggested_premium_per_token"])
+    assert firsts == Enum.sort(firsts)
   end
 
-  test "the public routes refuse an unknown market, an expiry that is not a Friday close and unknown fields",
+  test "a reference price more than four days old still sets the strikes but suggests no premium",
+       %{conn: conn} do
+    switch(:on)
+    chain(%{}, listing(), @now + 5 * 86_400)
+
+    data =
+      conn |> get("/api/v1/covered-calls/AMZNc/quote") |> json_response(200) |> Map.fetch!("data")
+
+    assert data["price_fresh"] == false
+
+    for window <- data["windows"] do
+      assert Enum.map(window["strikes"], & &1["strike_per_token"]) ==
+               [233_000_000, 237_000_000, 242_000_000]
+
+      assert Enum.all?(
+               window["strikes"],
+               &(&1["suggested_premium_per_token"] == nil and &1["fee_per_token"] == nil)
+             )
+    end
+  end
+
+  test "the public routes refuse an unknown market and unknown parameters",
        %{conn: conn} do
     switch(:on)
     chain()
@@ -241,19 +289,14 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert conn |> get("/api/v1/covered-calls/NOPEc") |> json_response(404) |> code() ==
              "unknown_market"
 
-    quote = fn body ->
-      send_json(build_conn(), "POST", "/api/v1/covered-calls/AMZNc/quote", body)
-    end
+    assert build_conn()
+           |> get("/api/v1/covered-calls/NOPEc/quote")
+           |> json_response(404)
+           |> code() ==
+             "unknown_market"
 
-    assert quote.(%{"strike_per_token" => 250_000_000, "expiry" => expiry() + 3_600})
-           |> json_response(422)
-           |> code() == "not_a_weekly_expiry"
-
-    assert quote.(%{"strike_per_token" => 250_000_000, "expiry" => expiry(), "x" => 1})
-           |> json_response(422)
-           |> code() == "invalid_request"
-
-    assert quote.(%{"strike_per_token" => "250", "expiry" => expiry()})
+    assert build_conn()
+           |> get("/api/v1/covered-calls/AMZNc/quote?strike_per_token=250000000")
            |> json_response(422)
            |> code() == "invalid_request"
   end

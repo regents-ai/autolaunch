@@ -59,9 +59,10 @@ it("a handed public tool makes the request it describes, from its own input", as
   const fetched: Array<{url: string; init: RequestInit}> = []
   const registered = await registeredWith(pageTools.tools, fetched)
   const quote = registered.find(tool => tool.name === "autolaunch_covered_call_quote")!
-  await quote.execute({symbol: "AMZNc", strike_per_token: 260_000_000, expiry: 1_793_394_000}, undefined)
+  await quote.execute({symbol: "AMZNc"}, undefined)
 
   expect(fetched).toHaveLength(1)
   expect(new URL(fetched[0].url, "http://localhost:4000").pathname).toBe("/api/v1/covered-calls/AMZNc/quote")
-  expect(JSON.parse(String(fetched[0].init.body))).toEqual({strike_per_token: 260_000_000, expiry: 1_793_394_000})
+  expect(fetched[0].init.method).toBe("GET")
+  expect(fetched[0].init.body).toBeUndefined()
 })

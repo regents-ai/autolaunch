@@ -48,12 +48,10 @@ function withOperations(entry: Entry, names: string[]): Entry {
   }
 }
 
-// A page tool's own request: its path with each {field} filled from the input,
-// and the input fields it posts.
-function described({path, body}: NonNullable<Entry["request"]>): (input: Input) => Request {
+// A page tool's own request: its path with each {field} filled from the input.
+function described({path}: NonNullable<Entry["request"]>): (input: Input) => Request {
   return input => ({
     path: path.replace(/\{(\w+)\}/g, (_match, field: string) => pathValue(input[field])),
-    ...(body && {body: Object.fromEntries(body.map(field => [field, input[field]]))}),
   })
 }
 
@@ -103,7 +101,7 @@ type Entry = {
   scope: string
   authentication?: string
   // A page tool's own HTTP request (AutolaunchWeb.ToolManifest.page_tools/0).
-  request?: {path: string; body?: string[]}
+  request?: {path: string}
 }
 
 export type PublicTool = {

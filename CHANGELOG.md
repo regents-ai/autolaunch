@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 1 November 2026: Covered-call strikes
+- Selling covered calls, you now choose one of three strike prices, 1%, 3% and 5% above the stock's reference price, rounded up to a round step ($1 for AMZNc). Each shows its suggested premium, which goes into the form when you choose it; you can still change the premium.
+- Sellers who choose the same strike now land on the same price, so buyers compare like with like.
+- For agents: `autolaunch_covered_call_quote` and `GET /api/v1/covered-calls/{symbol}/quote` take only the stock and return the strikes and suggested premiums for the next four Fridays, every figure a whole number. The old `POST` with a strike and an expiry is gone.
+
 ## 31 October 2026: Price history for faster blocks
 - Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.
 

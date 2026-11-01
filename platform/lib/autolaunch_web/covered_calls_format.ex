@@ -84,6 +84,12 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 
+  @doc "How far `price` is above `base`, as a percent to one decimal, rounded half up: \"1.1%\"."
+  def percent_above(price, base) when is_integer(price) and is_integer(base) and price >= base do
+    tenths = div((price - base) * 2_000 + base, 2 * base)
+    "#{div(tenths, 10)}.#{rem(tenths, 10)}%"
+  end
+
   defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
 
   defp parse(text, unit) do

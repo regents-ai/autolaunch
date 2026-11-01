@@ -44,25 +44,25 @@ paths:
         default:
           $ref: '#/components/responses/OtherError'
   /api/v1/covered-calls/{symbol}/quote:
-    post:
+    get:
       operationId: quoteCoveredCall
-      summary: Suggest a covered-call premium
-      description: A suggested premium per whole token for a call at `strike_per_token` expiring at `expiry`,
-        from the stock's reference price, as a guide for a seller. The contract enforces nothing from
-        it. Refused while the reference price is more than four days old. Needs no account; the page tool
-        autolaunch_covered_call_quote calls it.
+      summary: Read a stock's covered-call strikes
+      description: The strikes a seller chooses from on one Base stock token for each of the next four
+        weekly windows, and the premium suggested at each, from the stock's reference price. The strikes
+        are the price plus 1%, 3% and 5%, each rounded up to `strike_step` and each at least one step
+        above the one before; the step is the largest round amount not above 1% of the price, never under
+        a cent. A suggested premium is a standard option price with a fixed yearly volatility
+        (`volatility_bps`) and no interest, counted to the window's close, to the cent and never under
+        $0.10; it is a guide only, and null while the reference price is more than four days old
+        (`price_fresh` false), when the strikes still come from it. The contract takes any strike and
+        enforces nothing from this answer. Prices are micro-USDC per whole token, times Unix seconds.
+        Needs no account; the page tool autolaunch_covered_call_quote calls it.
       security: []
       parameters:
       - $ref: '#/components/parameters/CoveredCallSymbol'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CoveredCallQuoteRequest'
       responses:
         '200':
-          description: The suggested premium
+          description: The strike set
           content:
             application/json:
               schema:
@@ -74,8 +74,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
         '422':
-          description: The expiry is not a Friday at 21:00 UTC or has passed, or the body is not the two
-            whole numbers (not_a_weekly_expiry, expiry_passed, invalid_request)
+          description: A query parameter was sent (invalid_request)
           content:
             application/json:
               schema:
@@ -374,20 +373,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/CoveredCallListing'
-    CoveredCallQuoteRequest:
-      type: object
-      additionalProperties: false
-      required:
-      - strike_per_token
-      - expiry
-      properties:
-        strike_per_token:
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-        expiry:
-          type: integer
-          description: A Friday at 21:00 UTC, Unix seconds.
     CoveredCallQuoteEnvelope:
       type: object
       additionalProperties: false
@@ -399,31 +384,75 @@ components:
           additionalProperties: false
           required:
           - symbol
-          - spot_per_token
-          - strike_per_token
-          - expiry
-          - volatility
-          - suggested_premium_per_token
+          - price_per_token
           - price_updated_at
+          - price_fresh
+          - volatility_bps
+          - strike_step
+          - windows
           properties:
             symbol:
               type: string
-            spot_per_token:
+            price_per_token:
               type: integer
               description: The reference price in micro-USDC per whole token.
-            strike_per_token:
-              type: integer
-            expiry:
-              type: integer
-            volatility:
-              type: number
-              description: The yearly volatility the suggestion assumes.
-            suggested_premium_per_token:
-              type: integer
-              description: Micro-USDC per whole token.
             price_updated_at:
               type: integer
-              description: Unix seconds.
+              description: When the reference price was last updated, Unix seconds.
+            price_fresh:
+              type: boolean
+              description: False while the reference price is more than four days old; no premium is suggested then.
+            volatility_bps:
+              type: integer
+              description: The yearly volatility the suggestion assumes, in basis points (3000 is 30%).
+            strike_step:
+              type: integer
+              description: The amount every strike is a multiple of, in micro-USDC.
+            windows:
+              type: array
+              description: The next four weekly windows, soonest first.
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                - expiry
+                - window_closes_at
+                - strikes
+                properties:
+                  expiry:
+                    type: integer
+                    description: A Friday at 21:00 UTC, Unix seconds; the expiry a listing takes.
+                  window_closes_at:
+                    type: integer
+                    description: The close of the 24-hour exercise window, Unix seconds.
+                  strikes:
+                    type: array
+                    description: Three strikes, lowest first.
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - strike_per_token
+                      - above_bps
+                      - suggested_premium_per_token
+                      - fee_per_token
+                      properties:
+                        strike_per_token:
+                          type: integer
+                          description: Micro-USDC per whole token.
+                        above_bps:
+                          type: integer
+                          description: How far the strike is above the reference price, in basis points, rounded half up.
+                        suggested_premium_per_token:
+                          type:
+                          - integer
+                          - 'null'
+                          description: Micro-USDC per whole token; null while price_fresh is false.
+                        fee_per_token:
+                          type:
+                          - integer
+                          - 'null'
+                          description: The 1% fee on the suggested premium, rounded up, micro-USDC per whole token.
     CoveredCallPositionsEnvelope:
       type: object
       additionalProperties: false
