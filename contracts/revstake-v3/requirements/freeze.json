@@ -1,0 +1,82 @@
+{
+  "note": "What contracts/stocks-v2/bin/freeze.py freezes for the Base Revstake v3 package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
+  "component": "contracts/revstake-v3",
+  "chain": {
+    "name": "base-mainnet",
+    "id": 8453
+  },
+  "frozen_identity": "requirements/frozen-identity.json",
+  "owned_source_prefixes": [
+    "src/"
+  ],
+  "production_contracts": {
+    "ConditionalVestingEscrowV2": {
+      "role": "The per-launch escrow implementation: holds the launch's 70% vesting allocation, vests it and the SUBJECT left over at graduation to the treasury, and retires the whole supply to the dead address when a launch fails. Each launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "not created by this package: version 2's deployed implementation on Base (contracts/revstake-v2/deployments/base-mainnet/deployed-manifest.json), unchanged here; RegentsAutolaunchFactoryV3 takes it as a constructor argument and admits it by runtime code hash; cloned per launch by the factory"
+    },
+    "SubjectSplitterV1": {
+      "role": "The per-launch revenue splitter implementation every graduated launch's fees and payments land in; each graduated launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "not created by this package: version 2's deployed implementation on Base (contracts/revstake-v2/deployments/base-mainnet/deployed-manifest.json), unchanged here; RegentsAutolaunchFactoryV3 takes it as a constructor argument and admits it by runtime code hash; cloned per graduation by the strategy"
+    },
+    "PaymentReceiverV1": {
+      "role": "The per-launch payment receiver implementation that forwards payments into the launch's splitter; cloned per receiver by the factory.",
+      "deployed_by": "not created by this package: version 2's deployed implementation on Base (contracts/revstake-v2/deployments/base-mainnet/deployed-manifest.json), unchanged here; RegentsAutolaunchFactoryV3 takes it as a constructor argument and admits it by runtime code hash; cloned by the factory"
+    },
+    "RegentsAutolaunchFactoryV3": {
+      "role": "The Revstake version 3 launch factory: creates the token, its escrow and its CCA auction for every launch on the version 3 schedule, born paused until the Governance/Regent Safe opens it.",
+      "deployed_by": "deployment script (CREATE from the deployer), the one creation of the deployment"
+    },
+    "RegentLBPStrategyV3": {
+      "role": "The shared migration strategy: graduates a launch that met its required raise into the official v4 pool at the auction's final clearing price, and retires a failed launch.",
+      "deployed_by": "RegentsAutolaunchFactoryV3 constructor (CREATE, factory nonce 1)"
+    },
+    "RevstakeLPLocker": {
+      "role": "Holds every graduated launch's full-range v4 position forever and routes its collected fees to the launch's splitter.",
+      "deployed_by": "RegentLBPStrategyV3 constructor (CREATE, strategy nonce 1)"
+    },
+    "RegentFeeHook": {
+      "role": "The v4 fee hook every official Revstake version 3 pool is initialized with.",
+      "deployed_by": "RegentsAutolaunchFactoryV3 constructor (CREATE2 with the mined hook salt)"
+    }
+  },
+  "clone_targets": [
+    "ConditionalVestingEscrowV2",
+    "SubjectSplitterV1",
+    "PaymentReceiverV1"
+  ],
+  "clone_library_source": "../stocks-v3/lib/solady/src/utils/LibClone.sol",
+  "hook": {
+    "contract": "RegentFeeHook",
+    "create2_deployer": "RegentsAutolaunchFactoryV3",
+    "flags_source": "script/DeployRevstakeV3.s.sol",
+    "flags": [
+      "BEFORE_INITIALIZE",
+      "AFTER_SWAP",
+      "AFTER_SWAP_RETURNS_DELTA"
+    ]
+  },
+  "dependency_contracts": {
+    "ContinuousClearingAuctionFactory": {
+      "source": "../stocks-v3/lib/continuous-clearing-auction/src/ContinuousClearingAuctionFactory.sol",
+      "role": "The pinned CCA factory build; the strategy binds the live Base deployment at BaseBindings.CCA_FACTORY.",
+      "deployed_by": "Uniswap (live on Base)",
+      "deployment_status": "live_base_binding"
+    },
+    "ContinuousClearingAuction": {
+      "source": "../stocks-v3/lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol",
+      "role": "The pinned per-launch auction build the live factory creates for every launch.",
+      "deployed_by": "the live CCA factory, one per launch",
+      "deployment_status": "created_per_launch"
+    },
+    "UERC20Factory": {
+      "source": "../stocks-v3/lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "role": "The pinned token factory build; the factory takes version 2's deployed instance as a constructor argument and admits it by runtime code hash.",
+      "deployed_by": "version 2's deployment (live on Base)",
+      "deployment_status": "live_base_constructor_argument"
+    }
+  },
+  "dependencies": {
+    "lock": "../stocks-v3/dependencies.json",
+    "root": "../stocks-v3/lib"
+  }
+}

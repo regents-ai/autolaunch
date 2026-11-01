@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""The deployment ceremony tool for an Autolaunch v2 contracts package (Base Revstake
-`contracts/revstake-v2`, Base Memestake `contracts/stocks-v2`, Robinhood Memestake
-`contracts/robinhood-v2`), run from the package directory.
+"""The deployment ceremony tool for an Autolaunch contracts package (Base Revstake
+`contracts/revstake-v2` and `contracts/revstake-v3`, Base Memestake `contracts/stocks-v2` and
+`contracts/stocks-v3`, Robinhood Memestake `contracts/robinhood-v2`), run from the package
+directory. A version 3 package builds on version 2's deployment: its inputs are read from version
+2's committed deployed manifest, and what it reuses is observed on the chain, never created again.
 
 The package's production script (`script/Deploy*.s.sol`) consumes ceremony values and creates the
 graph; it has no filesystem permission and writes nothing. This tool is the other half: it turns the
@@ -30,8 +32,10 @@ Modes:
               chain with no signer and no broadcast. Robinhood simulates the exact deployment
               scripts. The Base packages simulate the exact creation transactions in sequence on
               the node itself (`eth_simulateV1`), because Base's stock tokens carry a one-byte
-              `0xef` code that only a Base node executes, and write those transactions to
-              reports/generated/deployment/ for the founder to send.
+              `0xef` code that only a Base node executes, each offered the gas limit of the latest
+              block, read off the node at that run, and write those transactions to
+              reports/generated/deployment/ for the founder to send. Base Memestake version 3 also
+              simulates the Safe's admissions afterwards and writes them as an unsigned Safe batch.
   preflight   Run right before sending creation N (counting from 0): proves the installed packet is
               the committed one, that the deployer's confirmed and pending nonces both equal that
               creation's nonce, and that its predicted address holds no code yet. Sends nothing.
@@ -73,8 +77,8 @@ PACKET_NAME = "mainnet-no-go-packet.json"
 MANIFEST_NAME = "deployed-manifest.json"
 SITE_CONFIG_NAME = "site-config.json"
 REHEARSED_TRANSACTIONS_NAME = "rehearsed-transactions.json"
+SAFE_BATCH_NAME = "safe-batch.json"
 DEPLOYMENT_PROFILE = "deployment"
-SIMULATION_GAS = 20_000_000  # the per-creation gas ceiling of a node rehearsal
 SELECTION_CONTRACT = "DeploymentSelectionTest"
 CEREMONY_CONTRACT = "DeploymentCeremonyTest"
 
@@ -424,7 +428,13 @@ class Package:
         writes the transactions out. The Base packages rehearse this way: forge cannot run the
         Base Memestake ceremony, whose route constructors read stock tokens carrying a one-byte
         `0xef` code only a Base node executes, and Revstake shares the one path. Robinhood
-        simulates its exact scripts instead."""
+        simulates its exact scripts instead.
+
+        Each creation is offered the latest block's gas limit, read off the node at this run, and
+        sits in its own simulated block, since one block's transactions share that limit. A
+        creation that needs more gas than one Base block holds fails the rehearsal. The calls the
+        Governance and Regent Safe makes afterwards, when the package has any, are simulated from
+        the Safe after the readbacks and written out as a Safe batch."""
         selection = packet["selection"]
         artifacts = frozen_artifacts(self.frozen)
         transactions = []
@@ -441,30 +451,47 @@ class Package:
             transactions.append({"index": entry["index"], "nonce": entry["deployer_nonce"], "contract": contract,
                                  "address": entry["address"], "data": "0x" + creation.hex() + arguments.removeprefix("0x")})
 
-        fee = hex(2 * int(self.chain.cast("base-fee", "latest")))
-        creations = [{"from": selection["deployer"], "nonce": hex(t["nonce"]), "data": t["data"], "gas": hex(SIMULATION_GAS),
-                      "maxFeePerGas": fee, "maxPriorityFeePerGas": "0x0"} for t in transactions]
+        head = self.chain.rpc("eth_getBlockByNumber", ["latest", False])
+        head_number, gas_limit = quantity(head["number"]), quantity(head["gasLimit"])
+        print(f"{self.chain.alias}: block {head_number} carries a gas limit of {gas_limit}; each creation is offered all of it")
+        fee = hex(2 * quantity(head["baseFeePerGas"]))
+        creations = [{"calls": [{"from": selection["deployer"], "nonce": hex(t["nonce"]), "data": t["data"],
+                                 "gas": hex(gas_limit), "maxFeePerGas": fee, "maxPriorityFeePerGas": "0x0"}]}
+                     for t in transactions]
         plan = self.readback_plan(selection)
         readbacks = [{"to": to, "data": freeze.keccak256(signature.partition(")")[0].encode() + b")")[:10],
                       "maxFeePerGas": "0x0", "maxPriorityFeePerGas": "0x0"} for _, to, signature, _ in plan]
+        governance = self.governance_plan(packet)
+        safe = self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE")
+        free = {"blockOverrides": {"baseFeePerGas": "0x0"}}
+        governance_blocks = [
+            {**free, "calls": [{"from": safe, "to": c["to"], "data": c["data"], "maxFeePerGas": "0x0",
+                                "maxPriorityFeePerGas": "0x0"} for c in governance]},
+            {**free, "calls": [{"to": c["readback"][0], "data": c["readback"][1], "maxFeePerGas": "0x0",
+                                "maxPriorityFeePerGas": "0x0"} for c in governance]},
+        ] if governance else []
         blocks = self.chain.rpc("eth_simulateV1", [{
-            "blockStateCalls": [{"calls": creations}, {"blockOverrides": {"baseFeePerGas": "0x0"}, "calls": readbacks}],
+            "blockStateCalls": [*creations, {**free, "calls": readbacks}, *governance_blocks],
             "validation": True,
-        }, "latest"])
+        }, hex(head_number)])
 
         problems: list[str] = []
-        for transaction, call in zip(transactions, blocks[0]["calls"]):
+        for transaction, block in zip(transactions, blocks):
+            call = block["calls"][0]
             label = f"transaction {transaction['index']} ({transaction['contract']}, nonce {transaction['nonce']})"
+            transaction["gas_used"] = quantity(call["gasUsed"])
+            if quantity(call["status"]) != 1 and transaction["gas_used"] == gas_limit:
+                problems.append(f"{label} needs more gas than the {gas_limit} one Base block holds (read at block {head_number})")
+                continue
             if quantity(call["status"]) != 1:
                 problems.append(f"{label} reverted: {call.get('error') or call['returnData']}")
                 continue
-            transaction["gas_used"] = quantity(call["gasUsed"])
             runtime = bytes.fromhex(call["returnData"].removeprefix("0x"))
             verification, matches = compare_runtime(self.frozen.contract(transaction["contract"]),
                                                     artifacts[transaction["contract"]], {}, runtime)
             if not matches:
                 problems.append(f"{label}: the created code does not match ({verification})")
-        for (key, _, signature, wanted), call in zip(plan, blocks[1]["calls"]):
+        for (key, _, signature, wanted), call in zip(plan, blocks[len(transactions)]["calls"]):
             word = call["returnData"].removeprefix("0x")
             if quantity(call["status"]) != 1 or len(word) != 64:
                 problems.append(f"readback {key} did not answer one word")
@@ -472,6 +499,13 @@ class Package:
             found = int(word, 16) == 1 if signature.endswith("(bool)") else checksum(word[24:])
             if found != wanted:
                 problems.append(f"readback {key}: expected {wanted}, found {found}")
+        if governance:
+            calls, answers = blocks[len(transactions) + 1]["calls"], blocks[len(transactions) + 2]["calls"]
+            for entry, call, answer in zip(governance, calls, answers):
+                if quantity(call["status"]) != 1:
+                    problems.append(f"Safe call {entry['label']} reverted: {call.get('error') or call['returnData']}")
+                elif answer["returnData"].lower() != entry["readback"][2].lower():
+                    problems.append(f"after Safe call {entry['label']}: expected {entry['readback'][2]}, found {answer['returnData']}")
         if problems:
             raise CeremonyError("the simulated ceremony does not match the packet:\n  " + "\n  ".join(problems))
 
@@ -480,15 +514,25 @@ class Package:
             "packet_digest": packet["digest"]["value"],
             "chain_id": self.chain.chain_id,
             "deployer": selection["deployer"],
-            "simulated_after_block": quantity(blocks[0]["number"]) - 1,
+            "simulated_after_block": head_number,
+            "block_gas_limit": gas_limit,
             "gas_used_total": sum(t["gas_used"] for t in transactions),
             "transactions": transactions,
         }
         candidate = write_candidate(REHEARSED_TRANSACTIONS_NAME, document)
-        print(f"{len(transactions)} creations simulated in order on {self.chain.alias} after block "
-              f"{document['simulated_after_block']}, every created code matches the frozen build and all "
-              f"{len(plan)} readbacks match; {document['gas_used_total']} gas; nothing was broadcast")
+        for transaction in transactions:
+            print(f"transaction {transaction['index']} ({transaction['contract']}) at {transaction['address']}: "
+                  f"{transaction['gas_used']} gas of the {gas_limit} block gas limit")
+        print(f"{len(transactions)} creations simulated in order on {self.chain.alias} after block {head_number}, "
+              f"every created code matches the frozen build and all {len(plan)} readbacks match; "
+              f"{document['gas_used_total']} gas; nothing was broadcast")
         print(f"the exact transactions are written to {candidate}")
+        if governance:
+            batch = safe_batch(self.governance_batch_meta(packet), self.chain.chain_id, safe, governance,
+                               quantity(head["timestamp"]))
+            batch = write_candidate(SAFE_BATCH_NAME, batch)
+            print(f"{len(governance)} Safe calls simulated from {safe} after the ceremony, each with its readback; "
+                  f"the unsigned Safe batch is written to {batch} for the Safe's owners; nothing was sent")
 
     # --- record and site-config --------------------------------------------------------------
 
@@ -502,6 +546,15 @@ class Package:
 
     def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
         """(key, contract, view, expected value) for every wiring fact of the deployed graph."""
+        raise NotImplementedError
+
+    def governance_plan(self, packet: dict) -> list[dict]:
+        """The calls the Governance and Regent Safe makes once the ceremony has landed, each
+        {"label", "to", "data", "readback": (to, data, expected return data)}. None by default."""
+        return []
+
+    def governance_batch_meta(self, packet: dict) -> dict:
+        """The Safe batch's name and description, for a package whose governance plan has calls."""
         raise NotImplementedError
 
     def readbacks(self, selection: dict, problems: list[str]) -> dict:
@@ -525,6 +578,18 @@ class Package:
 
     def abi_artifacts(self) -> dict[str, str]:
         raise NotImplementedError
+
+
+def safe_batch(meta: dict, chain_id: int, safe: str, calls: list[dict], created_at: int) -> dict:
+    """A Safe Transaction Builder batch, unsigned; `created_at` is the rehearsed block's time."""
+    return {
+        "version": "1.0",
+        "chainId": str(chain_id),
+        "createdAt": created_at * 1000,
+        "meta": {**meta, "txBuilderVersion": "1.16.5", "createdFromSafeAddress": safe, "createdFromOwnerAddress": ""},
+        "transactions": [{"to": c["to"], "value": "0", "data": c["data"], "contractMethod": None,
+                          "contractInputsValues": None} for c in calls],
+    }
 
 
 def mined_salt_bits(salt_hex: str) -> None:
@@ -1272,7 +1337,342 @@ class Robinhood(Package):
         }
 
 
-PACKAGES = {Revstake.component: Revstake, Stocks.component: Stocks, Robinhood.component: Robinhood}
+def version_two_record(path: Path) -> dict:
+    """A version 2 package's committed deployed manifest, which a version 3 ceremony builds on."""
+    manifest = load_json(path)
+    if manifest.get("status") != "deployed":
+        raise CeremonyError(f"{path} is not a deployed record; version 3 builds on version 2's deployment")
+    return manifest
+
+
+def abi_word(value: str | int) -> str:
+    """One static ABI word: an address, a bool or an unsigned integer."""
+    return format(int(value, 16) if isinstance(value, str) else int(value), "064x")
+
+
+class RevstakeV3(Revstake):
+    """Base Revstake version 3: one founder-sent creation. The factory's constructor checks the
+    runtime code hashes of the UERC20 factory and of version 2's deployed escrow, splitter and
+    payment receiver implementations, creates the strategy, whose own constructor creates the LP
+    locker, and then the hook at its mined salt. Nothing version 2 deployed is created again; the
+    bindings, the Safe and the staking contract are observed as in version 2."""
+
+    constructor_creator = "RegentsAutolaunchFactoryV3"
+    component = "contracts/revstake-v3"
+    PREDICTED = ("factory", "strategy", "lp_locker", "hook")
+    # (contract, selection key) per version 2 address the factory binds, read from version 2's
+    # deployed manifest by contract name.
+    REUSED = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
+              ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"))
+    VERSION_TWO = Path("../revstake-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+    CREATIONS = ("RegentsAutolaunchFactoryV3", "RegentLBPStrategyV3", "RevstakeLPLocker", "RegentFeeHook")
+    PERMIT2_IDENTITY = Path("../stocks-v3") / FROZEN_IDENTITY
+
+    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
+        deployed = {entry["contract"]: entry["address"] for entry in version_two_record(self.VERSION_TWO)["contracts"]}
+        return {"reused": {key: checksum(deployed[contract]) for contract, key in self.REUSED}}
+
+    def selection_environment(self, selection: dict, salt: str | None) -> dict:
+        env = super().selection_environment(selection, salt)
+        env.update({f"REGENT_DEPLOYMENT_{key.upper()}": address for key, address in selection["reused"].items()})
+        return env
+
+    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
+        for key, address in inputs["reused"].items():
+            if not same_address(logs[key], address):
+                raise CeremonyError(f"the selection suite derived from a different {key}: {logs[key]}, not {address}")
+        return {**super().selection_from_logs(inputs, logs), "reused": inputs["reused"]}
+
+    def observe(self, selection: dict) -> dict:
+        observation = super().observe(selection)
+        reused = {}
+        for contract, key in self.REUSED:
+            address = selection["reused"][key]
+            frozen_hash = self.frozen.contract(contract)["runtime_keccak256"].lower()
+            reused[key] = {"address": address, "codehash": self.chain.codehash(address)}
+            if reused[key]["codehash"] != frozen_hash:
+                raise CeremonyError(f"version 2's {contract} at {address} does not carry the frozen runtime hash {frozen_hash}")
+        return {**observation, "reused": reused}
+
+    def topology(self, selection: dict) -> list[dict]:
+        p, r = selection["predicted_addresses"], selection["reused"]
+        implementations = {"escrowImplementation_": r["escrow_implementation"],
+                           "splitterImplementation_": r["splitter_implementation"],
+                           "receiverImplementation_": r["receiver_implementation"]}
+        order = [{"index": 0, "contract": "RegentsAutolaunchFactoryV3", "mechanism": "transaction", "created_by": "deployer",
+                  "deployer_nonce": selection["starting_nonce"], "address": p["factory"],
+                  "constructor_arguments": {"uerc20Factory_": r["uerc20_factory"], **implementations,
+                                            "hookSalt": selection["hook_salt"]}}]
+        internal = [
+            {"contract": "RegentLBPStrategyV3", "mechanism": "CREATE", "created_by": "RegentsAutolaunchFactoryV3 constructor",
+             "creator_nonce": 1, "address": p["strategy"], "constructor_arguments": {"factory_": p["factory"], **implementations}},
+            {"contract": "RevstakeLPLocker", "mechanism": "CREATE", "created_by": "RegentLBPStrategyV3 constructor",
+             "creator_nonce": 1, "address": p["lp_locker"], "constructor_arguments": {"strategy_": p["strategy"]}},
+            {"contract": "RegentFeeHook", "mechanism": "CREATE2", "created_by": "RegentsAutolaunchFactoryV3 constructor",
+             "salt": selection["hook_salt"], "address": p["hook"],
+             "constructor_arguments": {"manager_": self.frozen.binding("POOL_MANAGER"), "strategy_": p["strategy"]}},
+        ]
+        return [{"chain_id": self.chain.chain_id, "creation_order": order, "internal_creations": internal}]
+
+    def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
+        return [(self.chain, "RegentsAutolaunchFactoryV3", selection["predicted_addresses"]["factory"])]
+
+    def internal_plan(self, selection: dict) -> list[tuple[Chain, str, str, str]]:
+        p = selection["predicted_addresses"]
+        return [
+            (self.chain, "RegentLBPStrategyV3", p["strategy"], "RegentsAutolaunchFactoryV3 constructor"),
+            (self.chain, "RevstakeLPLocker", p["lp_locker"], "RegentLBPStrategyV3 constructor"),
+            (self.chain, "RegentFeeHook", p["hook"], "RegentsAutolaunchFactoryV3 constructor"),
+        ]
+
+    def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
+        return super().readback_plan({**selection, "predicted_addresses": {**selection["predicted_addresses"],
+                                                                           **selection["reused"]}})
+
+    def abi_artifacts(self) -> dict[str, tuple[str, str]]:
+        return {
+            "auction": ("out", "../stocks-v3/lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol:ContinuousClearingAuction"),
+            "escrow": ("out", "src/escrow/ConditionalVestingEscrowV2.sol:ConditionalVestingEscrowV2"),
+            "factory": ("out", "src/factory/RegentsAutolaunchFactoryV3.sol:RegentsAutolaunchFactoryV3"),
+            "hook": ("out", "src/hook/RegentFeeHook.sol:RegentFeeHook"),
+            "lp_locker": ("out", "src/revenue/RevstakeLPLocker.sol:RevstakeLPLocker"),
+            "permit2": ("out", "../stocks-v3/lib/permit2/src/interfaces/IAllowanceTransfer.sol:IAllowanceTransfer"),
+            "receiver": ("out", "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1"),
+            "splitter": ("out", "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1"),
+            "strategy": ("out", "src/strategy/RegentLBPStrategyV3.sol:RegentLBPStrategyV3"),
+            "token": ("out", "../stocks-v3/lib/uerc20-factory/src/tokens/UERC20.sol:UERC20"),
+        }
+
+    def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
+        """Revstake launches are found by the factory's `nextLaunchId`, so no start block is written."""
+        addresses = {
+            **{entry["contract_key"]: entry["address"] for entry in manifest["contracts"]},
+            **manifest["selection"]["reused"],
+            "regent": self.frozen.binding("REGENT"),
+            "cca_factory": self.frozen.binding("CCA_FACTORY"),
+            "pool_manager": self.frozen.binding("POOL_MANAGER"),
+            "position_manager": self.frozen.binding("POSITION_MANAGER"),
+            "governance_safe": self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE"),
+            "permit2": self.frozen.binding("PERMIT2", self.PERMIT2_IDENTITY),
+        }
+        return {
+            "chain_id": self.chain.chain_id,
+            "rpc_url": args.rpc_url,
+            "public_rpc_url": args.public_rpc_url,
+            "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
+            "abis": abis,
+        }
+
+
+class StocksV3(Package):
+    """Base Memestake version 3: two founder-sent creations, the launchpad and the bid adapter bound
+    to it. The launchpad's constructor creates the splitter implementation, the LP locker and the
+    hook at its mined salt. No route is created: after the ceremony the Governance and Regent Safe
+    admits each stock with the route version 2 deployed for it, one `admitStock(stock, route)` per
+    stock, from a Safe batch the rehearsal simulates and writes out."""
+
+    constructor_creator = "StocksLaunchpadV3"
+    component = "contracts/stocks-v3"
+    network = "base-mainnet"
+    chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
+    shared_component = None
+    PREDICTED = ("launchpad", "splitter_implementation", "locker", "hook", "bid_adapter")
+    CREATIONS = ("StocksLaunchpadV3", "StockBidAdapterV1", "MemestockSplitterV1", "MemestockLPLocker", "StocksFeeHookV1")
+    BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
+                "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
+    VERSION_TWO = Path("../stocks-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+
+    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
+        pass
+
+    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
+        """The UERC20 factory version 2's launchpad binds and the stocks it admits with their routes."""
+        manifest = version_two_record(self.VERSION_TWO)
+        return {
+            "uerc20_factory": checksum(manifest["selection"]["uerc20_factory"]),
+            "admissions": [{"symbol": a["symbol"], "stock": checksum(a["stock"]), "route": checksum(a["route"])}
+                           for a in manifest["admissions"]],
+        }
+
+    def selection_environment(self, selection: dict, salt: str | None) -> dict:
+        env = {
+            self.deployer_env: selection["deployer"],
+            self.starting_nonce_env: str(selection["starting_nonce"]),
+            "REGENT_DEPLOYMENT_UERC20_FACTORY": selection["uerc20_factory"],
+        }
+        if salt:
+            env[self.hook_salt_env] = salt
+        return env
+
+    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
+        mined_salt_bits(logs["hook_salt"])
+        if not same_address(logs["uerc20_factory"], inputs["uerc20_factory"]):
+            raise CeremonyError("the selection suite derived from a different UERC20 factory")
+        return {
+            "deployer": checksum(logs["deployer"]),
+            "starting_nonce": int(logs["starting_nonce"]),
+            "hook_salt": logs["hook_salt"],
+            "uerc20_factory": inputs["uerc20_factory"],
+            "admissions": inputs["admissions"],
+            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
+        }
+
+    def predicted_names(self) -> list[str]:
+        return list(self.PREDICTED)
+
+    def observe(self, selection: dict) -> dict:
+        chain = self.chain
+        block = chain.block_number()
+        bindings = {}
+        for constant in self.BINDINGS:
+            address = self.frozen.binding(constant)
+            bindings[constant.lower()] = {"address": address, "codehash": chain.codehash(address)}
+        factory = selection["uerc20_factory"]
+        bindings["uerc20_factory"] = {"address": factory, "codehash": chain.codehash(factory)}
+        frozen_factory = self.frozen.contract("UERC20Factory")["runtime_keccak256"]
+        if bindings["uerc20_factory"]["codehash"] != frozen_factory.lower():
+            raise CeremonyError(f"the UERC20 factory at {factory} does not carry the frozen runtime hash {frozen_factory}")
+        for name, entry in bindings.items():
+            if entry["codehash"] == freeze.keccak256(b""):
+                raise CeremonyError(f"binding {name} at {entry['address']} has no code on Base")
+        usdc = self.frozen.binding("USDC")
+        admissions = []
+        for admission in selection["admissions"]:
+            stock, route = admission["stock"], admission["route"]
+            if not same_address(chain.call_address(route, "stock()(address)"), stock):
+                raise CeremonyError(f"version 2's route {route} for {admission['symbol']} is not bound to {stock}")
+            if not same_address(chain.call_address(route, "usdc()(address)"), usdc):
+                raise CeremonyError(f"version 2's route {route} for {admission['symbol']} is not bound to USDC")
+            admissions.append({
+                "stock": stock,
+                "symbol": chain.call_string(stock, "symbol()(string)"),
+                "decimals": chain.call_uint(stock, "decimals()(uint8)"),
+                "stock_codehash": chain.codehash(stock),
+                "route": route,
+                "route_codehash": chain.codehash(route),
+            })
+        safe = self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE")
+        staking = self.frozen.binding("LIVE_STAKING")
+        return {
+            "observed_at_block": block,
+            "bindings": bindings,
+            "admissions": admissions,
+            "governance_and_regent_safe": chain.safe_surface(safe),
+            "live_staking": {
+                "owner": chain.call_address(staking, "owner()(address)"),
+                "paused": chain.call_bool(staking, "paused()(bool)"),
+            },
+        }
+
+    def topology(self, selection: dict) -> list[dict]:
+        predicted = selection["predicted_addresses"]
+        nonce = selection["starting_nonce"]
+        order = [
+            {"index": 0, "contract": "StocksLaunchpadV3", "mechanism": "transaction", "created_by": "deployer",
+             "deployer_nonce": nonce, "address": predicted["launchpad"],
+             "constructor_arguments": {"uerc20Factory_": selection["uerc20_factory"], "hookSalt": selection["hook_salt"]}},
+            {"index": 1, "contract": "StockBidAdapterV1", "mechanism": "transaction", "created_by": "deployer",
+             "deployer_nonce": nonce + 1, "address": predicted["bid_adapter"],
+             "constructor_arguments": {"launchpad_": predicted["launchpad"]}},
+        ]
+        internal = [
+            {"contract": "MemestockSplitterV1", "mechanism": "CREATE", "created_by": "StocksLaunchpadV3 constructor",
+             "creator_nonce": 1, "address": predicted["splitter_implementation"]},
+            {"contract": "MemestockLPLocker", "mechanism": "CREATE", "created_by": "StocksLaunchpadV3 constructor",
+             "creator_nonce": 2, "address": predicted["locker"]},
+            {"contract": "StocksFeeHookV1", "mechanism": "CREATE2", "created_by": "StocksLaunchpadV3 constructor",
+             "salt": selection["hook_salt"], "address": predicted["hook"],
+             "constructor_arguments": {"manager_": self.frozen.binding("POOL_MANAGER"), "launchpad_": predicted["launchpad"]}},
+        ]
+        return [{"chain_id": self.chain.chain_id, "creation_order": order, "internal_creations": internal}]
+
+    def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
+        predicted = selection["predicted_addresses"]
+        return [(self.chain, "StocksLaunchpadV3", predicted["launchpad"]), (self.chain, "StockBidAdapterV1", predicted["bid_adapter"])]
+
+    def internal_plan(self, selection: dict) -> list[tuple[Chain, str, str, str]]:
+        predicted = selection["predicted_addresses"]
+        return [
+            (self.chain, "MemestockSplitterV1", predicted["splitter_implementation"], "StocksLaunchpadV3 constructor"),
+            (self.chain, "MemestockLPLocker", predicted["locker"], "StocksLaunchpadV3 constructor"),
+            (self.chain, "StocksFeeHookV1", predicted["hook"], "StocksLaunchpadV3 constructor"),
+        ]
+
+    def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
+        predicted = selection["predicted_addresses"]
+        launchpad = predicted["launchpad"]
+        return [
+            ("launchpad.hook", launchpad, "hook()(address)", predicted["hook"]),
+            ("launchpad.locker", launchpad, "locker()(address)", predicted["locker"]),
+            ("launchpad.splitterImplementation", launchpad, "splitterImplementation()(address)", predicted["splitter_implementation"]),
+            ("launchpad.launchesPaused", launchpad, "launchesPaused()(bool)", True),
+            ("bidAdapter.launchpad", predicted["bid_adapter"], "launchpad()(address)", launchpad),
+        ]
+
+    def governance_plan(self, packet: dict) -> list[dict]:
+        """One `admitStock(stock, route)` per stock version 2 admits, each read back through
+        `stockAdmission(stock)` as (admitted, the stock's observed decimals, the route)."""
+        launchpad = packet["selection"]["predicted_addresses"]["launchpad"]
+        admit = freeze.keccak256(b"admitStock(address,address)")[:10]
+        query = freeze.keccak256(b"stockAdmission(address)")[:10]
+        return [{
+            "label": f"admitStock({a['symbol']})",
+            "to": launchpad,
+            "data": admit + abi_word(a["stock"]) + abi_word(a["route"]),
+            "readback": (launchpad, query + abi_word(a["stock"]), "0x" + abi_word(1) + abi_word(a["decimals"]) + abi_word(a["route"])),
+        } for a in packet["external_observation"]["admissions"]]
+
+    def governance_batch_meta(self, packet: dict) -> dict:
+        launchpad = packet["selection"]["predicted_addresses"]["launchpad"]
+        symbols = ", ".join(a["symbol"] for a in packet["selection"]["admissions"])
+        return {
+            "name": "Autolaunch: admit the stocks to StocksLaunchpadV3",
+            "description": (f"admitStock(stock, route) on StocksLaunchpadV3 {launchpad} for {symbols}, each with the "
+                            f"AerodromeStockRouteV2 version 2 deployed for it. Sign only after both version 3 creations "
+                            f"have landed, from the rehearsal of packet {packet['digest']['value']}."),
+        }
+
+    def abi_artifacts(self) -> dict[str, tuple[str, str]]:
+        return {
+            "launchpad": ("out", "src/StocksLaunchpadV3.sol:StocksLaunchpadV3"),
+            "hook": ("out", "src/StocksFeeHookV1.sol:StocksFeeHookV1"),
+            "locker": ("out", "src/MemestockLPLocker.sol:MemestockLPLocker"),
+            "splitter": ("out", "src/MemestockSplitterV1.sol:MemestockSplitterV1"),
+            "bid_adapter": ("out", "src/StockBidAdapterV1.sol:StockBidAdapterV1"),
+            "route": ("out", "src/routes/AerodromeStockRouteV2.sol:AerodromeStockRouteV2"),
+            "auction": ("out", "lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol:ContinuousClearingAuction"),
+            "erc20": ("out", "src/interfaces/IERC20Standard.sol:IERC20Standard"),
+            "permit2": ("out", "lib/permit2/src/interfaces/IAllowanceTransfer.sol:IAllowanceTransfer"),
+        }
+
+    def add_site_config_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_site_config_arguments(parser)
+        parser.add_argument("--agent-factory", required=True, help="the deployed Base Revstake factory, from contracts/revstake-v3/deployments/base-mainnet/deployed-manifest.json")
+
+    def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
+        created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
+        addresses = {
+            **created,
+            "usdc": self.frozen.binding("USDC"),
+            "regent": self.frozen.binding("REGENT"),
+            "permit2": self.frozen.binding("PERMIT2"),
+            "cca_factory": self.frozen.binding("CCA_FACTORY"),
+            "pool_manager": self.frozen.binding("POOL_MANAGER"),
+            "position_manager": self.frozen.binding("POSITION_MANAGER"),
+            "live_staking": self.frozen.binding("LIVE_STAKING"),
+            "governance_safe": self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE"),
+            "agent_factory": checksum(args.agent_factory),
+        }
+        return {
+            "rpc_url": args.rpc_url,
+            "public_rpc_url": args.public_rpc_url,
+            "chain_id": self.chain.chain_id,
+            "addresses": {key: value.lower() for key, value in addresses.items()},
+            "abis": abis,
+        }
+
+
+PACKAGES = {package.component: package for package in (Revstake, Stocks, Robinhood, RevstakeV3, StocksV3)}
 
 
 # =============================================================================
@@ -1610,6 +2010,7 @@ CONTRACT_KEYS = {
     "SubjectSplitterV1": "splitter_implementation", "PaymentReceiverV1": "receiver_implementation",
     "RegentsAutolaunchFactoryV2": "factory", "RegentLBPStrategyV2": "strategy", "RevstakeLPLocker": "lp_locker",
     "RegentFeeHook": "hook",
+    "RegentsAutolaunchFactoryV3": "factory", "RegentLBPStrategyV3": "strategy", "StocksLaunchpadV3": "launchpad",
 }
 
 

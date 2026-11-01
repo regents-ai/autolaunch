@@ -94,8 +94,13 @@ in place of the version 2 launchpad. Added tests:
 | `test/sepolia/StocksSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): the chain runs five blocks a second, and a launch through the real pinned CCA factory (code hash checked) and Permit2 opens 10 minutes after creation, releases version 3's amount at 12 hours, ends after a day, claims after 128 s, migrates at 256 s and not one block earlier, and vests the creator half at 15 days and all at 30. |
 
 `test/fork/AerodromeStockRouteFork.t.sol` runs the stock routes, unchanged from version 2, against
-the local Base-fork lab. Version 2's deployment kit (`script/`, `deployments/`, `bin/`, `requirements/`,
-`reports/frozen/`, `abi/`, `SECURITY.md`) and the lab controller are not carried: a version 3 deployment kit is a separate step.
+the local Base-fork lab; the lab controller is not carried.
+
+The deployment kit follows version 2's, for the two creations version 3 makes:
+`script/DeployStocksV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
+`requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
+`deployments/base-mainnet/`, whose `README.md` describes the ceremony and the Safe's admission of
+version 2's ten routes afterwards. The ceremony tool is the shared `../stocks-v2/bin/ceremony.py`.
 
 ## Checks
 
@@ -105,6 +110,8 @@ python3 bootstrap-deps.py /path/to/hydrated/autolaunch/checkout   # once; fills 
 forge build
 forge test                                     # hermetic, offline
 FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
+./bin/gate.sh                                  # the required gate, offline, on a clean commit
+python3 ../stocks-v2/bin/ceremony.py render    # the deployment packet, offline
 ```
 
 The Sepolia profile forks `https://sepolia.base.org` inside Forge; nothing is signed or sent. The

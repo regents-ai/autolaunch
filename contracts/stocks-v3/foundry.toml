@@ -51,13 +51,29 @@ match_path = "test/sepolia/**"
 no_match_path = "none/**"
 offline = false
 
+# The public Base Sepolia endpoint exists only in this profile, so the required gate's configuration
+# resolves no endpoint.
+[profile.sepolia.rpc_endpoints]
+base_sepolia = "https://sepolia.base.org"
+
+# The deployment-ceremony profile, the only profile `../stocks-v2/bin/ceremony.py` runs. Same frozen
+# build; a separate test root and build directory so ceremony artifacts never touch the set the
+# required gate reconciles. No filesystem access: the graph is emitted as decoded logs and rendered by
+# the tool.
+[profile.deployment]
+test = "test-deployment"
+out = "reports/generated/deployment-out"
+cache_path = "reports/generated/deployment-cache"
+offline = false
+ffi = false
+fs_permissions = []
+
 # The Base endpoint stays an unresolved environment reference in every committed file; the
-# required offline gate never reads it. Base Sepolia is the public endpoint.
+# required offline gate never reads it.
 [rpc_endpoints]
 base = "${REGENT_BASE_RPC_URL}"
-base_sepolia = "https://sepolia.base.org"
 
 # Lint applies to the shipped sources; test doubles and the lab script are exercised, not linted.
 [lint]
-ignore = ["test/**/*.sol", "script/**/*.sol"]
+ignore = ["test/**/*.sol", "script/**/*.sol", "test-deployment/**/*.sol"]
 exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]

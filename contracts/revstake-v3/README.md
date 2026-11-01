@@ -100,9 +100,11 @@ changed or added:
 | `test/invariant/handlers/LifecycleHandler.sol` | The lifecycle invariants now move the chain at five blocks a second. |
 | `test/sepolia/AutolaunchSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): a launch through the real pinned CCA factory (code hash checked against `BaseBindings`) and Permit2 opens 10 minutes after launch, releases version 3's amount at 24 hours, ends after 48 hours, claims after 128 s, migrates at 256 s and not one block earlier, graduates, and vests the escrow half at half a year and all at a year. |
 
-Version 2's deployment kit (`script/`, `test-deployment/`, `deployments/`, `bin/`, `requirements/`,
-`reports/frozen/`, `abi/`, `SECURITY.md`) is not carried: a version 3 deployment kit is a separate
-step.
+The deployment kit follows version 2's, for the one creation version 3 makes:
+`script/DeployRevstakeV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
+`requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
+`deployments/base-mainnet/`, whose `README.md` describes the ceremony. The ceremony tool is the
+shared `../stocks-v2/bin/ceremony.py`.
 
 ## Checks
 
@@ -111,6 +113,8 @@ cd contracts/revstake-v3          # with ../stocks-v3/lib in place
 forge build
 forge test                                     # hermetic, offline
 FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
+./bin/gate.sh                                  # the required gate, offline, on a clean commit
+python3 ../stocks-v2/bin/ceremony.py render    # the deployment packet, offline
 ```
 
 `foundry.toml` sets `isolate = false`: each test runs as one transaction, as under the frozen Forge
