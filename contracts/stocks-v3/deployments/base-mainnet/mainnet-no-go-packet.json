@@ -24,7 +24,7 @@
   "source_identity": {
     "src_tree": "63473582cb1c37c69ebf39b17129300aba06a4e4"
   },
-  "frozen_manifest_sha256": "29385149aaa201a21c9330f52557e771fdd42e34f3e344deabc6a0fd832734da",
+  "frozen_manifest_sha256": "4fbcab2815dab22ee14272e23678c19378c6394ec61b7a77ce17ede417bcde99",
   "code_identity": [
     {
       "contract": "StocksLaunchpadV3",
@@ -106,6 +106,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x85d1c51e7044b7847373c9bddd543ebdd14f05457f0bdab50931617a011580e7"
+    "value": "0xd9bcf7296c183cbf4edce35fb7f90644d3538ca42ca5785ce5715eb472138f64"
   }
 }

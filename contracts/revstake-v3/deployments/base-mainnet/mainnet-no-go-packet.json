@@ -24,7 +24,7 @@
   "source_identity": {
     "src_tree": "0a7974ca78e0cbf863cfeb12d55efaff4dd03318"
   },
-  "frozen_manifest_sha256": "4a8989a08afe5755c25f051b24363005150de77714dedbb8e1a48d6a41793dd5",
+  "frozen_manifest_sha256": "8d14a65aba2ff8ec7a4c33c5ab4a4a194c73a66375e8d67a0766da55aef79a73",
   "code_identity": [
     {
       "contract": "RegentsAutolaunchFactoryV3",
@@ -99,6 +99,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xb80bc03b1553b889a67da2e21ebae0def1613e4632e3934d71d53eb977950860"
+    "value": "0xcd7b1404bab42a061866d69af3f5c885a6a725c30efa7f399c24c36ef10af825"
   }
 }
