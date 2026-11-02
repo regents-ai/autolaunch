@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 2 November 2026: the agent guides name Regents CLI 1.10.22
+- The agent guides and agents.md now name Regents CLI 1.10.22, the newest release, with its source commit and the fingerprint of its published package.
+
 ## 2 November 2026: Home cards open in place
 - Pointing at a product card on the home page shows its button where the line under the title was, inside the card, so it no longer covers the token list below. On a phone, a tap on the title shows the button in place of the picture.
 
