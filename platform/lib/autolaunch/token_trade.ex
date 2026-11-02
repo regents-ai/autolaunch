@@ -39,6 +39,17 @@ defmodule Autolaunch.TokenTrade do
       prepare build(sort: [block_number: :asc, log_index: :asc])
     end
 
+    # The swaps one transaction made, on one chain.
+    read :in_transaction do
+      argument :chain_id, :integer, allow_nil?: false
+      argument :transaction_hash, :string, allow_nil?: false
+
+      filter expr(
+               transaction_hash == ^arg(:transaction_hash) and
+                 token.auction.chain_id == ^arg(:chain_id)
+             )
+    end
+
     create :record do
       accept [
         :token_id,
@@ -69,7 +80,7 @@ defmodule Autolaunch.TokenTrade do
   end
 
   policies do
-    policy action([:recent, :for_token]) do
+    policy action([:recent, :for_token, :in_transaction]) do
       authorize_if always()
     end
 

@@ -142,10 +142,9 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | (none) | Make a payment (Revstake token page): addresses from the launch's own record, read by the Base reader, canonical receiver only, on the launch's own network | `autolaunch/payment_card_test.exs` (all three cases). The wallet press itself: **gap** |
 | `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft_save` | `PATCH /api/agent/v1/drafts/{kind}` | `autolaunch/agent_drafts_test.exs` (all three cases); the create page names every agent-set field: `autolaunch_web/live/agent_draft_review_test.exs` › "the create page names what the agent set, and forgets a field the person changes", › "the launch review names every agent-set field and shows the community links". The signed request itself: **gap** |
 | `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | Refusals: `agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED", › "AGENT_PERSON_UNREAD_IS_503"; `sign_in_read_test.exs` › "a lost sign-in read is a 503 for the signed-in wallet's positions and share video". A working read for the paired person, and the refusal for an unpaired agent, signed by the regents binary: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts`. `wallet_required` for an account with no wallet: **gap** (no one without a wallet can sign in here) |
-| `account_balances` | `GET /api/agent/v1/account/balances` | Answers when paired, refused when not: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts` |
-| `account_credits_history` | `POST /api/agent/v1/account/credits/history` | **Gap** |
-| `account_points` | `GET /api/agent/v1/account/points` | Refused when not paired: `test/journeys/pairing.spec.ts` (P2), `test/journeys/pairing_refusals.spec.ts`. The paired answer: **gap** |
-| `prepare_agent_request` | In the page, sends nothing | **Gap** |
+| `account_balances` | `GET /api/v1/account/balances` | Answers when paired, refused when not: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts` |
+| `account_credits_history` | `POST /api/v1/account/credits/history` | **Gap** |
+| `account_points` | `GET /api/v1/account/points` | Refused when not paired: `test/journeys/pairing.spec.ts` (P2), `test/journeys/pairing_refusals.spec.ts`. The paired answer: **gap** |
 | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/{symbol}` | `autolaunch_web/controllers/covered_calls_routes_test.exs` › "the public book shows each listing's stage and what is left, and the quote suggests a premium", › "the public routes refuse an unknown market, an expiry that is not a Friday close and unknown fields" |
 | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/{symbol}/quote` | As above |
 | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/{symbol}/positions` (and `GET /api/v1/me/covered-calls/{symbol}` signed in) | `autolaunch_web/controllers/covered_calls_routes_test.exs` › "a signed agent's steps are built only for a wallet of the account it acts for" (the agent's read), › "the signed-in route needs a sign-in and reads only the signed-in wallet" |
@@ -173,6 +172,6 @@ and token page tabs; `/create/revstake`, `/stock-listing`, `/how-it-works`, `/ac
 `/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
 Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
-draft routes, the paired Points and Credits history answers, and `prepare_agent_request`; an agent's
+draft routes, the paired Points and Credits history answers; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
 agent journeys; covered calls' hosted MCP and CLI surfaces (`docs/agent-parity.md`).

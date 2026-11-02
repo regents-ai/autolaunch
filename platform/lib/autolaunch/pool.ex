@@ -263,7 +263,8 @@ defmodule Autolaunch.Pool do
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
          currency_symbol: auction.quote_token_symbol,
          currency_decimals: auction.quote_token_decimals,
-         from_block: launch.migration_block
+         from_block: launch.migration_block,
+         splitter: launch.splitter
        }}
     end
   end

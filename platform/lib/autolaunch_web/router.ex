@@ -167,6 +167,12 @@ defmodule AutolaunchWeb.Router do
     get "/drafts/:kind", AgentAccountController, :draft
     patch "/drafts/:kind", AgentAccountController, :save_draft
     get "/positions", AgentAccountController, :positions
+  end
+
+  # A paired agent's reads of its person's account, at the addresses every
+  # Regent site uses.
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :api
     get "/account/balances", AgentAccountController, :balances
     post "/account/credits/history", AgentAccountController, :history
     get "/account/points", AgentAccountController, :points
