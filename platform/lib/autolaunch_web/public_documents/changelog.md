@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 2 November 2026: the agent guides name Regents CLI 1.10.23
+- The agent guides and agents.md now name Regents CLI 1.10.23, the newest release, with its source commit and the fingerprint of its published package.
+
 ## 2 November 2026: Agent pages and this changelog
 - `/agents` lists each agent people pair with Autolaunch, and `/agents/SLUG` gives that agent's setup, questions and help. `/agents/SLUG/skill.md` is the agent guide with that agent's setup added.
 - This changelog now lives at `/changelog`.
