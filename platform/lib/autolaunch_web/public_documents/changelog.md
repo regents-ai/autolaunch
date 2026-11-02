@@ -1,6 +1,8 @@
 # Changelog
 
-What changed on autolaunch.sh for people and agents, newest first.
+## 2 November 2026: Fewer words
+- Onchain Stocks, Create, Covered calls, REGENT, REGENT Fees and How it works drop their introductions and hints, and their section titles are one or two words. The full rules stay on How it works.
+- Covered calls lists its limits in the Contract table: no owner, no upgrades, what Coinbase can do and when buying stops.
 
 ## 2 November 2026: the agent guides name Regents CLI 1.10.23
 - The agent guides and agents.md now name Regents CLI 1.10.23, the newest release, with its source commit and the fingerprint of its published package.

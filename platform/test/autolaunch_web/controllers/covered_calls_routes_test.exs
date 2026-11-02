@@ -192,7 +192,6 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       assert sitemap_md =~ "[Covered calls](" == offered?
       assert home =~ ~s(aria-label="Stocks views") == offered?
       assert stocks =~ ~s(href="/covered-calls") == offered?
-      assert stocks =~ "Covered Call Options coming soon." == not offered?
     end
   end
 

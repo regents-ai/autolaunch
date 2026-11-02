@@ -1,11 +1,10 @@
-/* The Create pages: where the supply and the money go, how the auction runs,
-   what happens when, and the terms. */
+/* The Create pages: supply, proceeds, auction, timeline and terms. */
 
 .create-next { display: grid; gap: 16px; min-width: 0; }
-.create-next__card { container-type: inline-size; display: grid; gap: 12px; min-width: 0; }
+.create-next__card { container-type: inline-size; display: grid; align-content: start; gap: 12px; min-width: 0; }
 .create-next__title { margin: 0; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; }
 .create-next__subtitle { margin: 4px 0 0; font-size: .875rem; font-weight: 600; }
-.create-next__lead, .create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+.create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 
 /* Source on the left, where it goes on the right; stacked in a narrow card. */
 .create-next__flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: stretch; }

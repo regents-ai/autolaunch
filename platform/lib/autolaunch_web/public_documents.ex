@@ -85,10 +85,10 @@ defmodule AutolaunchWeb.PublicDocuments do
   @pages %{
     "/" => {"#{@site_name} · Back AI agents at a fair price", @description},
     "/create" =>
-      {"Create a Memestock token",
+      {"Create Memestock",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
     "/create/revstake" =>
-      {"Create a Revstake token",
+      {"Create Revstake",
        "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
     "/auctions" =>
       {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
@@ -103,7 +103,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     :robinhood_token =>
       {"token", "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
     "/how-it-works" =>
-      {"How Autolaunch works",
+      {"How it works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/stock-listing" =>
       {"Onchain Stocks",
@@ -129,7 +129,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},
     "/convert" =>
-      {"REGENT's share of fees",
+      {"REGENT Fees",
        "REGENT's share of trading fees waiting in each graduated Memestock launch."},
     "/docs" =>
       {"Developer guide",

@@ -168,7 +168,7 @@ defmodule AutolaunchWeb.CreateLive do
     <div class="create-page">
       <.launch_kind_choice current={:revstake} />
       <header class="create-page__header">
-        <h1>Create a Revstake token</h1>
+        <h1>Create Revstake</h1>
       </header>
       {render_revshare(assigns)}
     </div>

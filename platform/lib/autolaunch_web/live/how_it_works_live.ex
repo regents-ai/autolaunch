@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
     <div class="fact-page">
       <header class="autolaunch-heading">
         <div class="fact-page__title">
-          <h1>How Autolaunch works</h1>
+          <h1>How it works</h1>
           <Regent.Primitives.copy_button
             id="copy-agent-guide"
             text={@agent_guide}
@@ -34,7 +34,6 @@ defmodule AutolaunchWeb.HowItWorksLive do
             Copy to Agent
           </Regent.Primitives.copy_button>
         </div>
-        <p>The auction, supply, trading fees and staking rewards for new v2 launches.</p>
       </header>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-auction">

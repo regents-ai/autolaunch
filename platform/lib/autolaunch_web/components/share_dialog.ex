@@ -111,9 +111,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           </div>
           <p :if={@video} class="share-x__note" role="status" data-share-video-status hidden></p>
           <p :if={@video} class="share-x__note" data-share-video-note hidden></p>
-          <p class="share-x__note">
-            X opens with your post ready. Nothing is posted until you post it there.
-          </p>
         </div>
       </dialog>
     </div>
