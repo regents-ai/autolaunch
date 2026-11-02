@@ -5,9 +5,9 @@ nonce and the time to send are the founder's decision, and nothing in this direc
 deployment. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
 confirmed Base receipts.
 
-The tool is `../stocks-v2/bin/ceremony.py`, shared with version 2 and run from this package
-directory (`contracts/revstake-v3`). Version 3 builds on version 2's deployment: `prepare` reads
-the four contracts it reuses from `../revstake-v2/deployments/base-mainnet/deployed-manifest.json`
+The tool is `../stocks-v3/bin/ceremony.py`, shared with Base Memestake version 3 and run from this
+package directory (`contracts/revstake-v3`). Version 3 builds on version 2's deployment: `prepare`
+reads the four contracts it reuses from `../revstake-v2/deployments/base-mainnet/deployed-manifest.json`
 and proves on Base that each carries the frozen runtime code hash.
 
 ## The whole ceremony
@@ -33,12 +33,12 @@ Regent Safe's `unpauseLaunches()`, by its own decision once Base runs 0.2-second
 
 ```sh
 cd contracts/revstake-v3                                         # with ../stocks-v3/lib in place
-python3 ../stocks-v2/bin/ceremony.py render                      # offline
-python3 ../stocks-v2/bin/ceremony.py prepare --deployer 0x…      # read-only, REGENT_BASE_RPC_URL
+python3 ../stocks-v3/bin/ceremony.py render                      # offline
+python3 ../stocks-v3/bin/ceremony.py prepare --deployer 0x…      # read-only, REGENT_BASE_RPC_URL
 # review reports/generated/deployment/mainnet-no-go-packet.json, install it here, commit it
-python3 ../stocks-v2/bin/ceremony.py rehearse                    # read-only
-python3 ../stocks-v2/bin/ceremony.py preflight 0                 # right before the creation
-python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
+python3 ../stocks-v3/bin/ceremony.py rehearse                    # read-only
+python3 ../stocks-v3/bin/ceremony.py preflight 0                 # right before the creation
+python3 ../stocks-v3/bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
 ```
 
 `rehearse` reads the latest Base block's gas limit off the node at that run and offers the

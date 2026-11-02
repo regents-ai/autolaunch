@@ -27,15 +27,3 @@ Noted 28 September 2026 from the ash-template chief's review.
   keys to the other three); it was run on a local copy and `mix ash.codegen --check` is clean.
   Before it runs in production, export all four tables to CSV files in a dated archive folder
   (read-only `\copy`, one file per table), then release.
-
-## Before the version 3 freeze
-
-Noted 2 November 2026, when the version 3 gates got their own body, checker and freezer
-(al/v3-kit-1031, f6245652). Both are done as part of the freeze, before anything in
-`contracts/stocks-v3`, `contracts/robinhood-v3` or `contracts/revstake-v3` is frozen:
-
-- **The ceremony script's version 3 parts move to their own copy.** They still live in
-  `contracts/stocks-v2/bin/ceremony.py`. Move them into `contracts/stocks-v3/bin/ceremony.py`
-  and leave the version 2 script as main has it.
-- **The version 3 READMEs point at their own ceremony script.** They name
-  `../stocks-v2/bin/ceremony.py`; point them at the version 3 copy.

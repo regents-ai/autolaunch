@@ -9,7 +9,7 @@ import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../src/StocksFeeHookV1.sol";
 
 /// @notice The founder-selected ceremony values, derived once and compared ever after.
-/// @dev Run only by the ceremony tool (`../stocks-v2/bin/ceremony.py`), with the selection in the
+/// @dev Run only by the ceremony tool (`bin/ceremony.py`), with the selection in the
 ///      environment: `prepare` supplies the deployer, the nonce it read off Base and the UERC20
 ///      factory, and this mines the hook salt once; `render` and `rehearse` supply the committed salt
 ///      too and re-derive the same graph. Mining lives here rather than in the script on purpose: the

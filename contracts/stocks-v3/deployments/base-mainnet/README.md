@@ -5,7 +5,7 @@ nonce and the time to send are the founder's decision, and nothing in this direc
 deployment. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
 confirmed Base receipts.
 
-The tool is `../stocks-v2/bin/ceremony.py`, shared with version 2 and run from this package
+The tool is `bin/ceremony.py`, shared with Base Revstake version 3 and run from this package
 directory (`contracts/stocks-v3`). Version 3 builds on version 2's deployment: `prepare` reads the
 UERC20 factory and the ten admitted stocks with their routes from
 `../stocks-v2/deployments/base-mainnet/deployed-manifest.json`, and observes each of them on Base.
@@ -54,12 +54,12 @@ batch.
 
 ```sh
 cd contracts/stocks-v3
-python3 ../stocks-v2/bin/ceremony.py render                      # offline
-python3 ../stocks-v2/bin/ceremony.py prepare --deployer 0x…      # read-only, REGENT_BASE_RPC_URL
+python3 bin/ceremony.py render                      # offline
+python3 bin/ceremony.py prepare --deployer 0x…      # read-only, REGENT_BASE_RPC_URL
 # review reports/generated/deployment/mainnet-no-go-packet.json, install it here, commit it
-python3 ../stocks-v2/bin/ceremony.py rehearse                    # read-only
-python3 ../stocks-v2/bin/ceremony.py preflight 0                 # right before each creation
-python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
+python3 bin/ceremony.py rehearse                    # read-only
+python3 bin/ceremony.py preflight 0                 # right before each creation
+python3 bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
 ```
 
 `rehearse` reads the latest Base block's gas limit off the node at that run and offers each

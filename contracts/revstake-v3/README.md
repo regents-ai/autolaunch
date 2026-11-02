@@ -103,8 +103,8 @@ changed or added:
 The deployment kit follows version 2's, for the one creation version 3 makes:
 `script/DeployRevstakeV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
 `requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
-`deployments/base-mainnet/`, whose `README.md` describes the ceremony. The ceremony tool is the
-shared `../stocks-v2/bin/ceremony.py`.
+`deployments/base-mainnet/`, whose `README.md` describes the ceremony. The ceremony tool is
+`../stocks-v3/bin/ceremony.py`, shared with Base Memestake version 3.
 
 ## Checks
 
@@ -114,7 +114,7 @@ forge build
 forge test                                     # hermetic, offline
 FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
 ./bin/gate.sh                                  # the required gate, offline, on a clean commit
-python3 ../stocks-v2/bin/ceremony.py render    # the deployment packet, offline
+python3 ../stocks-v3/bin/ceremony.py render    # the deployment packet, offline
 ```
 
 `foundry.toml` sets `isolate = false`: each test runs as one transaction, as under the frozen Forge

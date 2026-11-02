@@ -9,7 +9,7 @@ import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {Test} from "forge-std/Test.sol";
 
 /// @notice The founder-selected ceremony values, derived once and compared ever after.
-/// @dev Run only by the ceremony tool (`../stocks-v2/bin/ceremony.py`), with the selection in the
+/// @dev Run only by the ceremony tool (`../stocks-v3/bin/ceremony.py`), with the selection in the
 ///      environment: `prepare` supplies the deployer, the nonce it read off Base and the four
 ///      version 2 addresses this deployment reuses, and this mines the hook salt once; `render` and
 ///      `rehearse` supply the committed salt too and re-derive the same graph. Mining lives here

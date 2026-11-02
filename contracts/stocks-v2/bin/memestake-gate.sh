@@ -105,8 +105,7 @@ trap 'cleanup_unpublished_receipt; exit 1' HUP INT TERM
 
 # Compare every tracked file in the repository directly with its indexed blob and reject hidden
 # index flags. The Foundry and report roots of every contracts package, and the exported dependency
-# snapshots under contracts/stocks-v2/lib and contracts/stocks-v3/lib (version 3's, which a checkout
-# may also hold), are the only worktree-state exclusions. Submodules are not
+# snapshot under contracts/stocks-v2/lib, are the only worktree-state exclusions. Submodules are not
 # walked: no v2 package reads a submodule; the dependency bytes the build reads are pinned
 # by content in reports/frozen/dependency-closure.json, which the freezer reconciles.
 repository_snapshot() {
@@ -172,7 +171,7 @@ for path in ignored:
         and (
             (parts[2] + b"/") in scratch_roots
             or (len(parts) == 4 and parts[2] == b"reports" and parts[3].startswith(b"generated/"))
-            or (parts[1] in (b"stocks-v2", b"stocks-v3") and parts[2] == b"lib")
+            or (parts[1] == b"stocks-v2" and parts[2] == b"lib")
         )
     )
     if not scratch:

@@ -100,7 +100,7 @@ The deployment kit follows version 2's, for the two creations version 3 makes:
 `script/DeployStocksV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
 `requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
 `deployments/base-mainnet/`, whose `README.md` describes the ceremony and the Safe's admission of
-version 2's ten routes afterwards. The ceremony tool is the shared `../stocks-v2/bin/ceremony.py`.
+version 2's ten routes afterwards. The ceremony tool is `bin/ceremony.py`.
 
 ## Checks
 
@@ -111,7 +111,7 @@ forge build
 forge test                                     # hermetic, offline
 FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
 ./bin/gate.sh                                  # the required gate, offline, on a clean commit
-python3 ../stocks-v2/bin/ceremony.py render    # the deployment packet, offline
+python3 bin/ceremony.py render    # the deployment packet, offline
 ```
 
 The Sepolia profile forks `https://sepolia.base.org` inside Forge; nothing is signed or sent. The
