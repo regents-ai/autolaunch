@@ -137,6 +137,20 @@ defmodule AutolaunchWeb.AgentCheckInTest do
     assert digest == Siwa.RequestAuth.content_digest_for_body(body)
   end
 
+  test "AGENT_SIWA_DOWN_IS_503: while the sign-in service can't be reached a paired call says so",
+       %{conn: conn} do
+    siwa_verifies()
+    account = TestSupport.register_creator!()
+    pair!(conn, account.privy_user_id)
+    Req.Test.stub(RegentAgents.Broker, &Req.Test.transport_error(&1, :econnrefused))
+
+    for path <- ["/api/agents/v1/whoami", "/api/agent/v1/positions"] do
+      assert %{"error" => %{"code" => "siwa_request_failed"}} =
+               conn |> get(path) |> json_response(503),
+             path
+    end
+  end
+
   test "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
        %{conn: conn} do
     siwa_verifies()
