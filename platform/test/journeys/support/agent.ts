@@ -45,6 +45,8 @@ export class Agent {
       SIWA_AGENT_HOME: this.home,
       SIWA_BROKER: process.env.SIWA_URL,
       AUTOLAUNCH_BASE_URL: process.env.AUTOLAUNCH_URL,
+      // The site's throwaway certificate (scripts/agent-journeys.sh).
+      SSL_CERT_FILE: process.env.SITE_CERT,
       PYTHON_GIL: "0",
     }
   }
