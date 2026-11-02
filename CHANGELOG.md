@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 2 November 2026: Home cards open in place
+- Pointing at a product card on the home page shows its button where the line under the title was, inside the card, so it no longer covers the token list below. On a phone, a tap on the title shows the button in place of the picture.
+
 ## 31 October 2026: Price history for faster blocks
 - Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.
 
