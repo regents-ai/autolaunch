@@ -181,7 +181,14 @@ defmodule AutolaunchWeb.PublicDocuments do
   def skill_guide, do: markdown("skill")
 
   @doc "The browser tool manifest served at `/capabilities.json`: every tool the pages register."
-  def capabilities, do: ToolManifest.current()
+  def capabilities do
+    commit = Application.fetch_env!(:autolaunch, :source_commit)
+
+    Map.put(ToolManifest.current(), "build", %{
+      release: String.slice(commit, 0, 7),
+      commit: commit
+    })
+  end
 
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path) or path in AgentGuides.paths()

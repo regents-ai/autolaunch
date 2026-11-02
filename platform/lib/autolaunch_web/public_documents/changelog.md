@@ -6,7 +6,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - `/agents` lists each agent people pair with Autolaunch, and `/agents/SLUG` gives that agent's setup, questions and help. `/agents/SLUG/skill.md` is the agent guide with that agent's setup added.
 - This changelog now lives at `/changelog`.
 - `GET /api/v1/health`, `GET /api/v1/about` and `GET /api/v1/docs` answer in JSON.
-- The tool manifest moved from `/capabilities` to `/capabilities.json`.
+- The tool manifest moved from `/capabilities` to `/capabilities.json`, and names the release and commit that are running.
 
 ## 2 November 2026: the agent guides name Regents CLI 1.10.22
 - The agent guides and agents.md now name Regents CLI 1.10.22, the newest release, with its source commit and the fingerprint of its published package.
