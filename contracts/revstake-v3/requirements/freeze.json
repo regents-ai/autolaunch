@@ -1,5 +1,5 @@
 {
-  "note": "What contracts/stocks-v2/bin/freeze.py freezes for the Base Revstake v3 package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
+  "note": "What contracts/stocks-v3/bin/freeze.py freezes for the Base Revstake v3 package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
   "component": "contracts/revstake-v3",
   "chain": {
     "name": "base-mainnet",

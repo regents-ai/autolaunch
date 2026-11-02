@@ -286,25 +286,15 @@ def read_frozen_listing(path: Path) -> Counter:
     return listing
 
 
-def checked_tests(signature: str, outcome: dict) -> list[tuple[str, str]]:
-    """Each test a result checked, with its status. Forge 1.8 runs a contract's invariants in one
-    shared campaign and reports them under the first, each with its own predicate status; Forge 1.5
-    reports every invariant as its own result."""
-    if "invariant_predicate_results" in outcome:
-        return [(predicate["name"], predicate["status"]) for predicate in outcome["invariant_predicate_results"]]
-    return [(signature.split("(", 1)[0], outcome.get("status", "Unknown"))]
-
-
 def read_execution(path: Path) -> tuple[Counter, dict[tuple, list[str]]]:
     executed: Counter = Counter()
     statuses: dict[tuple, list[str]] = {}
     for suite, result in load_json(path).items():
         file_path, _, contract = suite.partition(":")
         for signature, outcome in result.get("test_results", {}).items():
-            for name, status in checked_tests(signature, outcome):
-                identity = (file_path, contract, name)
-                executed[identity] += 1
-                statuses.setdefault(identity, []).append(status)
+            identity = (file_path, contract, signature.split("(", 1)[0])
+            executed[identity] += 1
+            statuses.setdefault(identity, []).append(outcome.get("status", "Unknown"))
     return executed, statuses
 
 

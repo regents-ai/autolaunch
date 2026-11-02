@@ -1,7 +1,7 @@
 #!/bin/sh
 # Required gate for the Base Memestake version 3 package (contracts/stocks-v3). This is the sole
-# required entrypoint; the body is shared with every v2 and v3 package in
-# ../stocks-v2/bin/memestake-gate.sh.
+# required entrypoint; the body is shared with the other version 3 package in
+# ../stocks-v3/bin/memestake-gate.sh.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -16,4 +16,4 @@ prepare_slither_root() {
     :
 }
 
-. ../stocks-v2/bin/memestake-gate.sh
+. ../stocks-v3/bin/memestake-gate.sh

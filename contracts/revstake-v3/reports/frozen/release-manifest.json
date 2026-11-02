@@ -1,7 +1,7 @@
 {
   "version": 1,
   "package": "contracts/revstake-v3",
-  "generated_by": "contracts/stocks-v2/bin/freeze.py",
+  "generated_by": "contracts/stocks-v3/bin/freeze.py",
   "release_posture": "local implementation and proof only; mainnet remains NO-GO",
   "chain": {
     "name": "base-mainnet",
