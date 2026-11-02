@@ -74,6 +74,10 @@ test("an unsigned request, or one with a query string, is refused", async () => 
   expect((await query.json()).error.code).toBe("unsupported_query")
 })
 
+// The command line asks the sign-in service which addresses it signs for before it
+// signs anything, so while the service is down it stops there and sends the site
+// nothing. The site's own answer to a sign-in service it cannot reach is
+// AGENT_SIWA_DOWN_IS_503 in test/autolaunch_web/controllers/agent_check_in_test.exs.
 test("while the sign-in service is down a paired call says so, and works once it is back", async ({page}) => {
   await signIn(page, people.a)
   const agent = new Agent("siwa-down")
@@ -81,8 +85,9 @@ test("while the sign-in service is down a paired call says so, and works once it
   const siwa = Number(readFileSync(`${process.env.STACK_STATE}/siwa.pid`, "utf8"))
   process.kill(siwa, "SIGSTOP")
   try {
-    const answer = agent.autolaunch(["agents", "status"])
-    expect(answer.json.error).toMatchObject({code: "siwa_request_failed", status: 503})
+    const answer = agent.autolaunch(["agents", "status", "--timeout-ms", "3000"])
+    expect(answer.status).not.toBe(0)
+    expect(answer.json.error.code).toBe("unreachable")
   } finally {
     process.kill(siwa, "SIGCONT")
   }
