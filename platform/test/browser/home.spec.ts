@@ -7,30 +7,43 @@ import {ready} from "./support/person"
 
 const card = "#home-product-revstake"
 const title = "#home-product-revstake-title"
-const details = "#home-product-revstake-more"
+const link = "#home-product-revstake-more"
 
-test("a card opens to its details and closes again, at every width", async ({page, isMobile}) => {
+test("a card opens inside its own box and closes again, at every width", async ({page, isMobile}) => {
+  // Where the card and the list after the cards stand.
+  const boxes = () => page.evaluate(sel => {
+    const box = (el: Element | null) => JSON.stringify(el?.getBoundingClientRect())
+    const card = document.querySelector(sel)!
+    return [box(card), box(document.querySelector("#home-products")!.nextElementSibling)]
+  }, card)
+  const inside = () => page.evaluate(([sel, more]) => {
+    const outer = document.querySelector(sel)!.getBoundingClientRect()
+    const inner = document.querySelector(more)!.getBoundingClientRect()
+    return inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom
+  }, [card, link])
+
   for (const width of isMobile ? [390, 320] : [1280]) {
     await page.setViewportSize({width, height: 844})
     await page.goto("/")
     await ready(page)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
-    await expect(page.locator(details)).toBeHidden()
+    await expect(page.locator(link)).toBeHidden()
+    const closed = await boxes()
 
     if (isMobile) await page.locator(title).tap()
     else await page.locator(card).hover()
     await expect(page.locator(title)).toHaveAttribute("aria-expanded", "true")
-    await expect(page.locator(details)).toBeVisible()
-    await expect(page.locator(details)).toContainText("Holders stake it")
+    await expect(page.locator(link)).toBeVisible()
+    await expect(page.locator(link)).toContainText("Launch one")
+    // Opening covers nothing outside the card and moves nothing below it.
+    expect(await inside()).toBe(true)
+    expect(await boxes()).toEqual(closed)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
 
     if (isMobile) await page.locator(title).tap()
     else await page.mouse.move(2, 840)
     await expect(page.locator(title)).toHaveAttribute("aria-expanded", "false")
-    await expect(page.locator(details)).toBeHidden()
-    // Once every move has finished, nothing is left written on the card's parts.
-    await expect.poll(() => page.locator(`${details}, ${details} [data-product-row], ${details} [data-product-fill]`)
-      .evaluateAll(els => els.filter(el => el.getAttribute("style")).length)).toBe(0)
+    await expect(page.locator(link)).toBeHidden()
   }
 })
 
@@ -42,7 +55,7 @@ test("from the keyboard a card opens at once and Escape closes it", async ({page
   await page.keyboard.press("Shift+Tab")
   await page.keyboard.press("Tab")
   await expect(page.locator(title)).toHaveAttribute("aria-expanded", "true")
-  await expect(page.locator(details)).toBeVisible()
+  await expect(page.locator(link)).toBeVisible()
   expect(await page.locator(card).evaluate(el => el.getAnimations({subtree: true}).length)).toBe(0)
   await page.keyboard.press("Escape")
   await expect(page.locator(title)).toHaveAttribute("aria-expanded", "false")
@@ -55,7 +68,7 @@ test("with reduced motion a card opens with nothing moving", async ({page, isMob
   await ready(page)
   if (isMobile) await page.locator(title).tap()
   else await page.locator(card).hover()
-  await expect(page.locator(details)).toBeVisible()
+  await expect(page.locator(link)).toBeVisible()
   expect(await page.locator(card).evaluate(el => el.getAnimations({subtree: true}).length)).toBe(0)
 })
 

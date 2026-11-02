@@ -68,10 +68,6 @@ defmodule AutolaunchWeb.StockLive do
       <p :if={@stock["pools"] == []} class="upcoming-details__note">
         Pool 1: address and liquidity not available.
       </p>
-      <p class="upcoming-details__note">
-        Buy opens the pool's market page. Liquidity is a dated observation and may have changed.
-        Research snapshot: 14 October 2026.
-      </p>
     </article>
     """
   end

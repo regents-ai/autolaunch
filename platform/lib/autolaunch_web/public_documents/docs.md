@@ -19,6 +19,8 @@ Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an 
 - `POST /api/v1/auctions/{id}/bid-quote`: an estimate for a bid. It does not place a bid. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET /api/v1/tokens`: tokens whose auctions succeeded, newest first, each with its price and market cap in its own currency and in dollars, and what its auction raised.
 - `GET /api/v1/treasury-security/{address}`: the stored treasury report for a treasury address.
+- `GET /api/v1/health`: `{"status": "ok"}`, or `503` with `unavailable`. The same check as `/healthz`, which answers `ok`.
+- `GET /api/v1/about` and `GET /api/v1/docs`: the About page and this page as JSON, `{"title", "markdown"}`.
 
 The full description, with every parameter and response, is at [{{origin}}/openapi.json]({{origin}}/openapi.json).
 
@@ -75,11 +77,11 @@ RateLimit: "default";r=119;t=42
 
 - The API version is in the path (`/api/v1`) and in `info.version` of the [OpenAPI description]({{origin}}/openapi.json). New endpoints, response fields and optional inputs can appear at any time, so ignore fields you do not recognise.
 - Changes, including ones that break a caller, ship in place under `/api/v1` with a new release of the site. There is no notice period and no `Deprecation` or `Sunset` header, so read the OpenAPI description before relying on a field.
-- The [changelog](https://github.com/regents-ai/autolaunch/blob/main/CHANGELOG.md) lists what changed in each release.
+- The [changelog]({{origin}}/changelog) lists what changed in each release.
 
 ## In the browser (WebMCP)
 
-WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
+WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities.json). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 {{tools}}
 

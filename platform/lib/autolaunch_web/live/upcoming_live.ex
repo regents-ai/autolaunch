@@ -15,10 +15,7 @@ defmodule AutolaunchWeb.UpcomingLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/stock-listing"))
-     |> assign(
-       chains: UpcomingCatalog.chains(),
-       covered_calls: covered_call_symbols()
-     )}
+     |> assign(chains: UpcomingCatalog.chains())}
   end
 
   def render(assigns) do
@@ -26,23 +23,10 @@ defmodule AutolaunchWeb.UpcomingLive do
     <div class="fact-page upcoming">
       <header class="autolaunch-heading">
         <h1>Onchain Stocks</h1>
-        <p :if={@covered_calls == []}>
-          Launch a pair with a meme ticker and earn from trading fees. Covered Call Options coming soon.
-        </p>
-        <p :if={@covered_calls != []}>
-          Launch a pair with a meme ticker and earn from trading fees, or sell
-          <.link navigate={~p"/covered-calls"}>covered calls</.link>
-          on {Enum.join(@covered_calls, ", ")} and keep the premium.
-        </p>
-        <p class="upcoming__hint">
-          Open a stock for its addresses, company links and pool details.
-          Research snapshot: 14 October 2026. Liquidity figures are dated observations, not live quotes.
-        </p>
       </header>
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
         <h2 id="upcoming-eligible">Soon Available</h2>
-        <p>Stocks with a matched Chainlink feed, not yet open for launches on Autolaunch.</p>
         <div class="upcoming__columns">
           <.column
             :for={chain <- @chains}
@@ -76,10 +60,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       </section>
 
       <section class="fact-page__section" aria-labelledby="upcoming-feed-required">
-        <h2 id="upcoming-feed-required">Chainlink Feed Required</h2>
-        <p>
-          A matching Chainlink feed has not been identified. These stocks are not available to pair.
-        </p>
+        <h2 id="upcoming-feed-required">Feed Required</h2>
         <div class="upcoming__columns">
           <.column
             :for={chain <- @chains}
@@ -117,13 +98,5 @@ defmodule AutolaunchWeb.UpcomingLive do
       <p :if={@stocks == []} class="upcoming-column__none">None right now.</p>
     </section>
     """
-  end
-
-  # The stocks with a covered-call market, while the site offers them.
-  defp covered_call_symbols do
-    case Autolaunch.CoveredCalls.Deployment.current() do
-      {:ok, config} -> Enum.map(config.markets, & &1.symbol)
-      {:error, _off_or_undescribed} -> []
-    end
   end
 end

@@ -81,7 +81,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         wallet={@account_control.wallet_address}
         ens_name={@account_control.ens_name}
         manage_href="/account"
-        pair_href="/account#account-pairing"
+        pair_href="/account/agents#account-pairing"
       >
         <:picture>
           <img

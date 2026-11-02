@@ -1,6 +1,27 @@
 # Changelog
 
-What changed on autolaunch.sh for people and agents, newest first.
+## 2 November 2026: Fewer words
+- Onchain Stocks, Create, Covered calls, REGENT, REGENT Fees and How it works drop their introductions and hints, and their section titles are one or two words. The full rules stay on How it works.
+- Covered calls lists its limits in the Contract table: no owner, no upgrades, what Coinbase can do and when buying stops.
+
+## 2 November 2026: the agent guides name Regents CLI 1.10.23
+- The agent guides and agents.md now name Regents CLI 1.10.23, the newest release, with its source commit and the fingerprint of its published package.
+
+## 2 November 2026: Agent pages and this changelog
+- `/agents` lists each agent people pair with Autolaunch, and `/agents/SLUG` gives that agent's setup, questions and help. `/agents/SLUG/skill.md` is the agent guide with that agent's setup added.
+- This changelog now lives at `/changelog`.
+- `GET /api/v1/health`, `GET /api/v1/about` and `GET /api/v1/docs` answer in JSON.
+- The tool manifest moved from `/capabilities` to `/capabilities.json`, and names the release and commit that are running.
+
+## 2 November 2026: the agent guides name Regents CLI 1.10.22
+- The agent guides and agents.md now name Regents CLI 1.10.22, the newest release, with its source commit and the fingerprint of its published package.
+
+## 2 November 2026: Home cards open in place
+- Pointing at a product card on the home page shows its button where the line under the title was, inside the card, so it no longer covers the token list below. On a phone, a tap on the title shows the button in place of the picture.
+
+## 1 November 2026: Agents page
+- Your agents and Pair New Agent have their own page, autolaunch.sh/account/agents. The account menu's Manage and Pair New Agent lead there; the Account page keeps your profile, Credits and connected accounts.
+- An agent's signed tools on a page now take only their input: the agent's browser host signs each request with the agent's own key.
 
 ## 31 October 2026: Price history for faster blocks
 - Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.

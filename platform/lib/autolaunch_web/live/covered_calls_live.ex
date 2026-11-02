@@ -191,7 +191,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </a>
             outside the US.
           </p>
-          <p>Earn USDC on your {@market.symbol}, or buy the right to own it at a set price.</p>
         </div>
         <div class="covered-calls__header-actions">
           <AutolaunchWeb.Components.ShareMarket.share_market
@@ -349,15 +348,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               Verified on Basescan
             </a>
           </dd>
+          <dt>Owner</dt>
+          <dd>None</dd>
+          <dt>Upgrades</dt>
+          <dd>None</dd>
+          <dt>Issuer</dt>
+          <dd>Coinbase can pause or seize {@market.symbol}</dd>
+          <dt>Buying</dt>
+          <dd>Stops while REGENT staking is paused</dd>
         </dl>
-        <p class="covered-calls__note covered-calls__panel-head">
-          No owner. Nobody can change or upgrade it.
-          <P.tip id="covered-calls-limits-tip" label="Limits">
-            It holds each listing's {@market.symbol} until the buyer or the seller collects it.
-            Coinbase controls {@market.symbol} and can pause or seize it, and buying stops while
-            REGENT staking, which takes the 1% fee, is paused.
-          </P.tip>
-        </p>
       </section>
     </article>
     """

@@ -499,10 +499,7 @@ defmodule AutolaunchWeb.HomeLive do
         <svg class="home-next__mark" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="10" cy="10" r="7.25" /><path d="M10 6v4.25l2.75 1.75" />
         </svg>
-        <div>
-          <p><strong>No auction is taking bids</strong></p>
-          <p>New auctions show here as soon as bidding opens.</p>
-        </div>
+        <p><strong>No auction is taking bids</strong></p>
       </div>
     </section>
     """

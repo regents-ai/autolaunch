@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.PairingBox do
   its code, "Make a new code", and the agent's name once it uses the code, in the
   shared pairing box (`Regent.Account.pairing`), as the template's is. Each agent
   keeps its own code until it expires, so choosing another agent and coming back
-  shows the same message. The Account page holds the one box (`#account-pairing`),
+  shows the same message. The Agents page holds the one box (`#account-pairing`),
   where the account menu's Pair New Agent leads.
 
   The parent passes `account` (the signed-in account), its `session_lease` and

@@ -12,7 +12,6 @@
   .upcoming__columns { grid-template-columns: minmax(0, 1fr); }
 }
 
-.upcoming__hint { color: var(--color-fg-muted); font-size: .875rem; }
 .upcoming__pairing { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35em; }
 .upcoming__pairing a { color: inherit; text-underline-offset: .2em; }
 .upcoming__pairing-soon { color: var(--color-fg-muted); cursor: help; }

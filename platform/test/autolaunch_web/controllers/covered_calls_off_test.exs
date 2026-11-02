@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.CoveredCallsOffTest do
   @named ~r/covered[-_ ]?calls?|coveredcall/i
   # The stock list's own line, on main since before covered calls were built.
   @coming_soon "Covered Call Options coming soon."
-  @documents ~w(/llms.txt /llms-full.txt /agents.md /skill.md /openapi.json /capabilities /.well-known/api-catalog /sitemap.xml /sitemap.md)
+  @documents ~w(/llms.txt /llms-full.txt /agents.md /skill.md /openapi.json /capabilities.json /.well-known/api-catalog /sitemap.xml /sitemap.md)
   @pages ~w(/ /auctions /tokens /stock-listing /stock-listing/AMZNc /how-it-works /regent /docs /about)
 
   setup do

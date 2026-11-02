@@ -4,7 +4,7 @@ import {expect, ready} from "./person"
 import {onSite} from "./site"
 
 // What the pairing journeys share: the person's side of the pairing box on their
-// Account page, and unpairing as regents.sh does it.
+// Agents page, and unpairing as regents.sh does it.
 
 // Every harness the pair request accepts here, in the pairing box's order; never ChatGPT.
 export const offered = [
@@ -19,9 +19,9 @@ export function unpair(person: string, wallet: string) {
 
 export const codeIn = (message: string) => message.match(/Pairing code: (\S+)/)![1]
 
-// The Account page's Pair New Agent section.
+// The Agents page's Pair New Agent section.
 export async function openPairing(page: Page) {
-  await page.goto("/account#account-pairing")
+  await page.goto("/account/agents#account-pairing")
   await ready(page)
   await expect(page.locator("#account-pairing")).toBeVisible()
 }
@@ -38,7 +38,7 @@ export async function chooseAgent(page: Page, root: string, label: string) {
   return (await message.textContent())!
 }
 
-/** The signed-in person makes a code on their Account page and `agent` signs in and pairs with it. */
+/** The signed-in person makes a code on their Agents page and `agent` signs in and pairs with it. */
 export async function pairWith(page: Page, agent: Agent, name: string) {
   await openPairing(page)
   const code = codeIn(await chooseAgent(page, "#account-pairing", "Claude Code"))

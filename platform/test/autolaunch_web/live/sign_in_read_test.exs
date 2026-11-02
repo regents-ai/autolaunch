@@ -119,7 +119,7 @@ defmodule AutolaunchWeb.SignInReadTest do
     on_exit(fn -> Application.put_env(:autolaunch, :prelaunch_read_only, previous) end)
 
     {account, conn} = signed_in(conn)
-    {:ok, panel, _html} = live(conn, "/account")
+    {:ok, panel, _html} = live(conn, "/account/agents")
     {:ok, revstake, _html} = live(conn, "/create/revstake")
     {:ok, stocks, _html} = live(conn, "/create")
     lose_reads_of(@ens)

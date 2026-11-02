@@ -5,7 +5,7 @@ import {ready, signedIn, watch} from "./support/person"
 // The account menu, opened by the account's button at the top right of every page.
 // The walk's person has four paired agents (support/agents.exs) and none has been
 // active, so the menu shows the three paired last and leaves out Spare Agent, paired
-// first. Manage beside the heading opens the agents on this site's own Account page.
+// first. Manage beside the heading opens this site's own Agents page.
 // With a mouse it shows while the pointer is over the list or a key has moved into
 // it, and the rows never move when it does; on the touch phone it always shows, 44 px
 // tall.
@@ -32,7 +32,7 @@ test("the account menu shows three agents and Manage", async ({page, hasTouch}) 
 
   const manage = agents.getByRole("link", {name: "Manage your agents"})
   await expect(manage).toHaveText("Manage")
-  await expect(manage).toHaveAttribute("href", "/account#account-agents")
+  await expect(manage).toHaveAttribute("href", "/account/agents")
   const opacity = () => manage.evaluate(link => getComputedStyle(link).opacity)
 
   if (hasTouch) {
@@ -57,7 +57,7 @@ test("the account menu shows three agents and Manage", async ({page, hasTouch}) 
     await expect.poll(opacity).toBe("1")
   }
   await manage.click()
-  await expect(page).toHaveURL(/\/account#account-agents$/)
+  await expect(page).toHaveURL(/\/account\/agents$/)
   await problems.expect()
 })
 
@@ -120,18 +120,18 @@ test("Manage Account opens this site's Account page and the menu closes", async 
   await expect(menu(page).getByRole("button", {name: "Sign out"})).toBeVisible()
   await menu(page).getByRole("link", {name: "Manage Account"}).click()
   await expect(page).toHaveURL(/\/account$/)
-  await expect(page.locator("#account-agents")).toBeVisible()
+  await expect(page.locator("#account-identity")).toBeVisible()
   await expect(menu(page)).toBeHidden()
   await problems.expect()
 })
 
-test("Pair New Agent in the menu lands on the Account page's pairing box", async ({page}) => {
+test("Pair New Agent in the menu lands on the Agents page's pairing box", async ({page}) => {
   const problems = watch(page)
   await page.goto("/auctions")
   await ready(page)
   await openMenu(page)
   await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-  await expect(page).toHaveURL(/\/account#account-pairing$/)
+  await expect(page).toHaveURL(/\/account\/agents#account-pairing$/)
   await expect(menu(page)).toBeHidden()
   await expect(page.locator("#account-pairing")).toBeInViewport()
   // The keyboard starts on the agent choice.
@@ -148,7 +148,7 @@ test("Pair New Agent in the menu lands on the Account page's pairing box", async
   await problems.expect()
 })
 
-// The Account page starts with this site's own sections and has the pairing box, once.
+// The Account page starts with this site's own sections, then the shared ones.
 test("the Account page shows this site's sections first, then the shared ones", async ({page}) => {
   const problems = watch(page)
   await page.goto("/account")
@@ -160,8 +160,19 @@ test("the Account page shows this site's sections first, then the shared ones", 
   expect(at("account-credits-history")).toBeGreaterThanOrEqual(0)
   expect(at("account-credits-history")).toBeLessThan(at("account-identity"))
   expect(at("account-connections")).toBeLessThan(at("account-identity"))
-  expect(at("account-identity")).toBeLessThan(at("account-agents"))
-  expect(at("account-agents")).toBeLessThan(at("account-pairing"))
+  await problems.expect()
+})
+
+// The Agents page lists the agents, then has the pairing box, once.
+test("the Agents page lists the agents, then pairing a new one", async ({page}) => {
+  const problems = watch(page)
+  await page.goto("/account/agents")
+  await ready(page)
+  await expect(page.getByRole("heading", {level: 1, name: "Agents"})).toBeVisible()
+  const order = await page.locator("#account .rg-account-layout__grid > *").evaluateAll(parts =>
+    parts.map(part => part.id || part.querySelector("[id]")?.id),
+  )
+  expect(order.indexOf("account-agents")).toBeLessThan(order.indexOf("account-pairing"))
   await expect(page.locator("#account-pairing")).toHaveCount(1)
   await expect(page.locator("#account-pairing").getByRole("heading", {name: "Pair New Agent"})).toBeVisible()
   await problems.expect()

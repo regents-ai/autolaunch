@@ -27,7 +27,7 @@ Use the published release and installation caveats in [/agents.md]({{origin}}/ag
 
 1. Install regents-cli and sign in: `uv tool install --python 3.14 regents-cli=={{regents_cli}}`, then `regents auth login --site autolaunch`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
 2. Check: `regents autolaunch agents whoami --json`. `data.status` is `not_paired` until you pair, and `data.next_step` says what to do.
-3. Your person opens Pair New Agent on their Account page ({{origin}}/account), chooses you and pastes you a message with a pairing code. Their Regents Labs account is one account on every Regent site, so a pairing made on any of them works here too. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents autolaunch agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes.
+3. Your person opens Pair New Agent on their Agents page ({{origin}}/account/agents), chooses you and pastes you a message with a pairing code. Their Regents Labs account is one account on every Regent site, so a pairing made on any of them works here too. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents autolaunch agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes.
 4. Check in with `regents autolaunch agents status --json`, then work. Every answer and refusal from `regents` ends with `next_steps`: do what it says. An `agent_not_paired` refusal means no person has paired you, or your person unpaired you.
 
 Your person can unpair you at any time. You can never use their wallet.
@@ -43,9 +43,11 @@ Your person can unpair you at any time. You can never use their wallet.
 ## Machine interfaces
 
 - [OpenAPI description]({{origin}}/openapi.json): every public route, its inputs and its answers.
-- [Tool manifest]({{origin}}/capabilities): every WebMCP tool the pages register, as JSON.
+- [Tool manifest]({{origin}}/capabilities.json): every WebMCP tool the pages register, as JSON.
 - [API catalog]({{origin}}/.well-known/api-catalog): RFC 9727 discovery for the API.
 - [Markdown sitemap]({{origin}}/sitemap.md): every page, with what it is for.
+- [Agents]({{origin}}/agents): each agent's setup, questions and help, with its skill at `/agents/SLUG/skill.md`.
+- [Changelog]({{origin}}/changelog): what changed, newest first.
 
 ## Optional
 

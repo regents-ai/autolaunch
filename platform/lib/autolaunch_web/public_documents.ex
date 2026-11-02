@@ -8,11 +8,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   every other address reaches it with its own sessions and policies.
   """
 
+  alias AutolaunchWeb.{AgentGuides, Paths, ToolManifest}
   alias AutolaunchWeb.Components.AutolaunchHelpers
-  alias AutolaunchWeb.{Paths, ToolManifest}
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact privacy terms llms llms-full agents skill)
+  @names ~w(home docs about contact changelog privacy terms llms llms-full agents skill)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -23,6 +23,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/docs" => "docs",
     "/about" => "about",
     "/contact" => "contact",
+    "/changelog" => "changelog",
     "/privacy" => "privacy",
     "/terms" => "terms"
   }
@@ -67,9 +68,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The regents-cli release every public document names: the one these guides
   # were checked against, its source commit and its published wheel.
   @regents_cli %{
-    version: "1.10.21",
-    commit: "8c29aff897fedc11ea8db4ee088f6926a32a8836",
-    wheel_sha256: "81b2a30cb78c24756502fa74bc9520fdbea1aee116cc3f9180046492866e53a4"
+    version: "1.10.23",
+    commit: "8e8f2af47977807e10b6971c7fc9ffe1fd6f64c2",
+    wheel_sha256: "2020d16cb24f8fe634e9d2a6fadacc54f74503ec729aab6f7b6f4c53dd75837f"
   }
 
   # Where security reports go, as the contact page publishes it.
@@ -84,10 +85,10 @@ defmodule AutolaunchWeb.PublicDocuments do
   @pages %{
     "/" => {"#{@site_name} · Back AI agents at a fair price", @description},
     "/create" =>
-      {"Create a Memestock token",
+      {"Create Memestock",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
     "/create/revstake" =>
-      {"Create a Revstake token",
+      {"Create Revstake",
        "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
     "/auctions" =>
       {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
@@ -102,7 +103,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     :robinhood_token =>
       {"token", "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
     "/how-it-works" =>
-      {"How Autolaunch works",
+      {"How it works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/stock-listing" =>
       {"Onchain Stocks",
@@ -122,12 +123,13 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
+    "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
     "/regent" =>
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},
     "/convert" =>
-      {"REGENT's share of fees",
+      {"REGENT Fees",
        "REGENT's share of trading fees waiting in each graduated Memestock launch."},
     "/docs" =>
       {"Developer guide",
@@ -138,6 +140,8 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/contact" =>
       {"Contact",
        "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
+    "/changelog" =>
+      {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."},
     "/privacy" =>
       {"Privacy",
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
@@ -147,9 +151,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   }
 
   # The fixed pages both sitemaps list.
-  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /privacy /terms /blog)
+  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /changelog /privacy /terms /blog)
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
+  def document("/agents" <> _rest = path), do: AgentGuides.document(path)
+
   def document(path) do
     case @paths do
       %{^path => name} -> %{markdown: markdown(name)}
@@ -174,19 +180,33 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "The skill served at `/skill.md`: using Autolaunch for your person."
   def skill_guide, do: markdown("skill")
 
-  @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
-  def capabilities, do: ToolManifest.current()
+  @doc "The browser tool manifest served at `/capabilities.json`: every tool the pages register."
+  def capabilities do
+    commit = Application.fetch_env!(:autolaunch, :source_commit)
+
+    Map.put(ToolManifest.current(), "build", %{
+      release: String.slice(commit, 0, 7),
+      commit: commit
+    })
+  end
 
   @doc "Whether the page at `path` also answers as Markdown."
-  def markdown?(path), do: Map.has_key?(@paths, path)
+  def markdown?(path), do: Map.has_key?(@paths, path) or path in AgentGuides.paths()
 
   @doc """
   The `page_title` and `page_description` assigns the root layout reads. Every
   page that renders in the root layout assigns them from here.
   """
   def page(key) do
-    {title, description} = Map.fetch!(@pages, key)
+    {title, description} = title_and_description(key)
     [page_title: title, page_description: description]
+  end
+
+  @doc "The page's title alone, as the `about` and `docs` reads give it."
+  def title(key), do: key |> title_and_description() |> elem(0)
+
+  defp title_and_description(key) do
+    if key in AgentGuides.paths(), do: AgentGuides.page(key), else: Map.fetch!(@pages, key)
   end
 
   @doc """
@@ -311,7 +331,7 @@ defmodule AutolaunchWeb.PublicDocuments do
      "Install regents-cli, sign in, pair with a person and fill in a launch draft."},
     {"/skill.md", "Skill", "Using Autolaunch for a person, from research to watching a bid."},
     {"/openapi.json", "OpenAPI description", "Every public route, its inputs and its answers."},
-    {"/capabilities", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},
+    {"/capabilities.json", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},
     {"/.well-known/api-catalog", "API catalog", "RFC 9727 discovery for the API."}
   ]
 
@@ -323,7 +343,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   def markdown_sitemap do
     pages =
       Enum.map_join(sitemap_pages(), "\n", fn path ->
-        {title, description} = Map.fetch!(@pages, path)
+        {title, description} = title_and_description(path)
         "- [#{title}](#{url(path)}) | Summary: #{description}"
       end)
 
@@ -542,7 +562,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       if("covered_calls" in ToolManifest.features(),
         do: @sitemap_pages ++ ["/covered-calls"],
         else: @sitemap_pages
-      )
+      ) ++ AgentGuides.paths()
 
   # The contract as the site offers it now: with every feature switched off it is
   # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths

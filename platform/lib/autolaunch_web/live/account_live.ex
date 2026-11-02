@@ -7,17 +7,14 @@ defmodule AutolaunchWeb.AccountLive do
   site's own sections come first: the Credits and Points activity, then the
   accounts they connected, through the Create page's connections component, so an
   account connected here is the same one Create shows. Then the shared sections:
-  who is signed in with which wallet, the agents they paired, the box to pair
-  another (`AutolaunchWeb.PairingBox`, the section the account menu's Pair New
-  Agent leads to, `#account-pairing`), their Credits and Points, bought from the
+  who is signed in with which wallet, their Credits and Points, bought from the
   header's Credits button and managed on regents.sh, and the name people see for
-  them. Autolaunch charges no Credits and Points earning has not opened here;
-  unpairing is on regents.sh.
+  them. Autolaunch charges no Credits and Points earning has not opened here. The
+  agents have their own page (`AutolaunchWeb.AccountAgentsLive`).
 
   Each section is read on its own and shows its own loading and could-not-be-read
   states. The Credits balance is the one every page reads
-  (`AutolaunchWeb.Live.Credits`); a Credits change, or an agent pairing, checking
-  in or unpairing on any Regent site (`AutolaunchWeb.Live.Agents`), reads again.
+  (`AutolaunchWeb.Live.Credits`); a Credits change reads again.
   """
 
   use AutolaunchWeb, :live_view
@@ -27,9 +24,7 @@ defmodule AutolaunchWeb.AccountLive do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Credits
   alias AutolaunchWeb.Read
-  alias RegentAgents.{Harness, Person}
-
-  @reads [:agents_read, :history_read, :points_read]
+  @reads [:history_read, :points_read]
 
   @regents_account_url "https://regents.sh/account"
 
@@ -50,12 +45,6 @@ defmodule AutolaunchWeb.AccountLive do
 
   @doc "The Credits activity follows a change to the balance (`AutolaunchWeb.Live.Credits`)."
   def credits_changed(socket), do: read_history(socket, "")
-
-  @doc "The agents and this page's pairing box follow an agent change (`AutolaunchWeb.Live.Agents`)."
-  def agents_changed(socket) do
-    send_update(AutolaunchWeb.PairingBox, id: "account-pairing-box", agents_changed: true)
-    read_agents(socket)
-  end
 
   def handle_event("credits_history", %{"after" => cursor}, socket) do
     {:noreply, read_history(socket, cursor)}
@@ -164,27 +153,6 @@ defmodule AutolaunchWeb.AccountLive do
             </:picture>
           </Regent.Account.identity>
         </:identity>
-        <:agents>
-          <Regent.Account.agents id="account-agents" agents={agent_rows(@agents_read)}>
-            <:about>
-              A paired agent can read your positions, balances and Points, and fill in your launch
-              drafts for you to check. It can never use your wallet, bid or start a launch.
-            </:about>
-            <:footer>
-              <a href="https://regents.sh/account#account-agents" class="standalone-link">
-                Manage Agents on regents.sh
-              </a>
-            </:footer>
-          </Regent.Account.agents>
-        </:agents>
-        <:pairing>
-          <.live_component
-            module={AutolaunchWeb.PairingBox}
-            id="account-pairing-box"
-            session_lease={@session_lease}
-            account={signed_in_account(@access_context)}
-          />
-        </:pairing>
         <:credits>
           <Regent.Account.credits_summary
             id="account-credits"
@@ -228,15 +196,7 @@ defmodule AutolaunchWeb.AccountLive do
   defp signed_in_account(%{principal: {:human, account}}), do: account
 
   defp read_account(socket) do
-    socket |> read_agents() |> read_history("") |> read_points()
-  end
-
-  defp read_agents(socket) do
-    with_person(socket, fn account ->
-      Read.start(socket, :agents_read, account.privy_user_id, fn ->
-        RegentAgents.list_my_agents(actor: %Person{privy_user_id: account.privy_user_id})
-      end)
-    end)
+    socket |> read_history("") |> read_points()
   end
 
   defp read_points(socket) do
@@ -273,30 +233,6 @@ defmodule AutolaunchWeb.AccountLive do
   defp read_state(%Read{state: state}) when state in [:idle, :loading], do: :loading
   defp read_state(%Read{state: :empty}), do: :ready
   defp read_state(%Read{state: state}), do: state
-
-  defp agent_rows(%Read{state: state}) when state in [:idle, :loading], do: :loading
-  defp agent_rows(%Read{state: :error}), do: :unavailable
-  defp agent_rows(%Read{value: nil}), do: []
-
-  defp agent_rows(%Read{value: agents}) do
-    now = DateTime.utc_now()
-
-    Enum.map(
-      agents,
-      &%{
-        id: &1.id,
-        name: &1.name,
-        kind: to_string(&1.harness),
-        harness: Harness.label(&1.harness),
-        wallet: &1.wallet,
-        backed: not is_nil(&1.human_id),
-        last_contact_iso: DateTime.to_iso8601(&1.last_contact_at),
-        last_contact: RegentFormat.relative_time(&1.last_contact_at, now),
-        light: nil,
-        light_label: nil
-      }
-    )
-  end
 
   defp credits_rows(%Read{value: nil}), do: []
 

@@ -13,7 +13,7 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 - [REGENT](https://autolaunch.sh/regent): the Regents Labs token, with live staking figures.
 - [Source](https://github.com/regents-ai/autolaunch)
 - [Developer guide](https://autolaunch.sh/docs): the public API, errors, versioning, WebMCP tools and what needs a wallet.
-- [Tool manifest](https://autolaunch.sh/capabilities): every WebMCP tool the pages register, as JSON.
+- [Tool manifest](https://autolaunch.sh/capabilities.json): every WebMCP tool the pages register, as JSON.
 
 {{key_facts}}
 
@@ -159,14 +159,14 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 ### Pair with a person's account
 
 1. Sign in with your own key and check signed `GET /api/agents/v1/whoami` for audience `autolaunch`. [agents.md]({{origin}}/agents.md) has the exact commands.
-2. Your person opens Pair New Agent on their Account page (/account), chooses you and pastes you a message with a pairing code. Redeem it with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name` and your real `harness`, what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes. Keep the code and proofs out of command lines and logs.
+2. Your person opens Pair New Agent on their Agents page (/account/agents), chooses you and pastes you a message with a pairing code. Redeem it with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name` and your real `harness`, what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes. Keep the code and proofs out of command lines and logs.
 3. Check in with signed `GET /api/agents/v1/me`, then work.
 
 Your person can unpair you at any time. You can never use their wallet.
 
 ### In the browser (WebMCP)
 
-WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
+WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities.json). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 {{tools}}
 
@@ -180,6 +180,8 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`: an estimate only. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET https://autolaunch.sh/api/v1/tokens`: each token's price (`price_quote`, `price_usd`), market cap (`market_cap`, `market_cap_usd`) and its auction's bid volume (`bid_volume`, `bid_volume_usd`). A dollar figure is null while the quote token has no dollar price.
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
+- `GET https://autolaunch.sh/api/v1/health`: `{"status": "ok"}`, or `503` with `unavailable`.
+- `GET https://autolaunch.sh/api/v1/about` and `GET https://autolaunch.sh/api/v1/docs`: the About page and the developer guide as `{"title", "markdown"}`.
 - `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, the list's price, market cap and bid volume figures, quote-token denomination, nullable supply and, for a Revstake token, `revenue_history` (each payment its splitter recognized, newest first; null for a Memestock token). No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli {{regents_cli}}.
 - `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 

@@ -3,8 +3,10 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   The home page's four products, at the top of the page: covered calls,
   Isolated Exposure to After-hours Stocks, Memestock launches and Revstake
   launches. Each card is a line drawing lit by the shared holographic foil, a
-  title and one line; it opens to show a few details and the link to its page
-  (`ProductCards` and `ProductFoil` in `assets/js/hooks/product_cards.ts`).
+  title and one line. It opens inside its own box: the link to its page takes
+  the line's place, or the drawing's on a phone, so an open card never covers
+  the page below (`ProductCards` and `ProductFoil` in
+  `assets/js/hooks/product_cards.ts`).
 
   A product switched off on this site (covered calls, Exposure) has no card, so
   no card links to a page that answers not found. Before launches open, the two
@@ -56,19 +58,12 @@ defmodule AutolaunchWeb.Components.HomeProducts do
               </button>
             </h2>
             <p class="home-product__summary">{product.summary}</p>
-          </div>
-          <div
-            id={"home-product-#{product.id}-more"}
-            class="home-product__more"
-            data-product-more
-            role="region"
-            aria-labelledby={"home-product-#{product.id}-title"}
-          >
-            <span class="home-product__fill" data-product-fill aria-hidden="true"></span>
-            <ul class="home-product__details">
-              <li :for={detail <- product.details} data-product-row>{detail}</li>
-            </ul>
-            <div class="home-product__action" data-product-row>
+            <div
+              id={"home-product-#{product.id}-more"}
+              class="home-product__more"
+              role="region"
+              aria-labelledby={"home-product-#{product.id}-title"}
+            >
               <.link
                 :if={!product.launch or @launches_open}
                 navigate={product.path}
@@ -98,11 +93,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
           kicker: "Options",
           title: "Call Option Onchain",
           summary: "Earn USDC on stock you hold, or buy the right to own it at a set price.",
-          details: [
-            "Sellers lock a stock token and list calls with a strike and a premium.",
-            "Buyers pay the premium in USDC.",
-            "Exercise in the 24 hours after each Friday expiry, on Base."
-          ],
           action: "Trade calls",
           path: "/covered-calls",
           launch: false
@@ -113,11 +103,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
           kicker: "Isolated",
           title: "Isolated After-hours Exposure",
           summary: "Hold a stock's moves while the market is closed, or only while it is open.",
-          details: [
-            "One stock token splits into two tokens for a week.",
-            "After-hours carries each close to the next open; Market-hours, each open to the close.",
-            "One of each always returns one stock token."
-          ],
           action: "Split stock",
           path: "/after-hour-stocks",
           launch: false
@@ -127,11 +112,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         kicker: "Memestock",
         title: "Memestock Pair",
         summary: "A memecoin paired with a real onchain stock, sold in a 24-hour auction.",
-        details: [
-          "Everyone in the auction pays the same price.",
-          "Holders stake it to receive the stock from its trading fees.",
-          "On Base or Robinhood Chain."
-        ],
         action: "Launch one",
         path: "/create",
         launch: true
@@ -141,11 +121,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         kicker: "Revstake",
         title: "Revenue Share Token",
         summary: "Raise early funds for an agent or service in a 48-hour auction.",
-        details: [
-          "Priced in REGENT, on Base.",
-          "Holders stake it for a share of the stablecoin revenue sent to it.",
-          "Everyone in the auction pays the same price."
-        ],
         action: "Launch one",
         path: "/create/revstake",
         launch: true

@@ -51,10 +51,6 @@ defmodule AutolaunchWeb.RegentLive do
     <div class="fact-page regent-next">
       <header class="autolaunch-heading">
         <h1>REGENT</h1>
-        <p>
-          $REGENT is the value token for all Regents Labs products. Stake it to earn USDC from those
-          products and REGENT emissions. Revstake auctions are priced in REGENT.
-        </p>
       </header>
 
       <p :if={@local_lab?} id="regent-next-scope" class="regent-scope" role="note">
@@ -161,11 +157,7 @@ defmodule AutolaunchWeb.RegentLive do
       </dl>
 
       <section class="fact-page__section" aria-labelledby="regent-next-products">
-        <h2 id="regent-next-products">What each product is set up to pay in</h2>
-        <p>
-          Figures on this page come only from recorded deposits. This list is what each product
-          is set up to pay into staking.
-        </p>
+        <h2 id="regent-next-products">Revenue</h2>
         <table class="fact-table">
           <thead>
             <tr>
