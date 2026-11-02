@@ -43,9 +43,11 @@ Your person can unpair you at any time. You can never use their wallet.
 ## Machine interfaces
 
 - [OpenAPI description]({{origin}}/openapi.json): every public route, its inputs and its answers.
-- [Tool manifest]({{origin}}/capabilities): every WebMCP tool the pages register, as JSON.
+- [Tool manifest]({{origin}}/capabilities.json): every WebMCP tool the pages register, as JSON.
 - [API catalog]({{origin}}/.well-known/api-catalog): RFC 9727 discovery for the API.
 - [Markdown sitemap]({{origin}}/sitemap.md): every page, with what it is for.
+- [Agents]({{origin}}/agents): each agent's setup, questions and help, with its skill at `/agents/SLUG/skill.md`.
+- [Changelog]({{origin}}/changelog): what changed, newest first.
 
 ## Optional
 

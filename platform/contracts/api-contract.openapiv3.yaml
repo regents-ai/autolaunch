@@ -191,6 +191,65 @@ paths:
                 type: object
         "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: Read whether the site and its database answer
+      description: The same check as /healthz, answered in JSON. Responses use Cache-Control no-store.
+      security: []
+      responses:
+        "200":
+          description: The site and its database answer
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Health"}
+        "503":
+          description: The site is up but its database is not answering (unavailable)
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/about:
+    get:
+      operationId: getAbout
+      summary: Read the About page
+      description: The About page's title and its Markdown, the text GET /about serves as Markdown. Anyone may read it; no sign-in.
+      security: []
+      responses:
+        "200":
+          description: The About page
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PublicDocument"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/docs:
+    get:
+      operationId: getDocs
+      summary: Read the developer guide
+      description: The developer guide's title and its Markdown, the text GET /docs serves as Markdown. Anyone may read it; no sign-in.
+      security: []
+      responses:
+        "200":
+          description: The developer guide
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PublicDocument"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions:
     get:
       operationId: listAuctions
@@ -907,6 +966,19 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
   schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: {type: string, const: ok}
+    PublicDocument:
+      type: object
+      additionalProperties: false
+      required: [title, markdown]
+      properties:
+        title: {type: string}
+        markdown: {type: string, description: "The page, as its Markdown address serves it."}
     AgentHarness:
       type: string
       enum: [hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other]

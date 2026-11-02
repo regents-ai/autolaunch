@@ -172,7 +172,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
     for {state, offered?} <- [off: false, on: true] do
       switch(state)
-      capabilities = build_conn() |> get("/capabilities") |> json_response(200)
+      capabilities = build_conn() |> get("/capabilities.json") |> json_response(200)
       names = Enum.map(capabilities["tools"], & &1["name"])
 
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")

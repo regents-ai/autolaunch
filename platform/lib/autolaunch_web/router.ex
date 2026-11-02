@@ -144,11 +144,12 @@ defmodule AutolaunchWeb.Router do
     get "/llms-full.txt", PublicPagesController, :full_agent_guide
     get "/agents.md", PublicPagesController, :signed_agent_guide
     get "/skill.md", PublicPagesController, :skill_guide
+    get "/agents/:agent/skill.md", PublicPagesController, :agent_skill_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/sitemap.md", PublicPagesController, :markdown_sitemap
     get "/openapi.json", PublicPagesController, :openapi
     get "/robots.txt", PublicPagesController, :robots
-    get "/capabilities", PublicPagesController, :capabilities
+    get "/capabilities.json", PublicPagesController, :capabilities
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/.well-known/api-catalog", PublicPagesController, :api_catalog
 
@@ -203,6 +204,9 @@ defmodule AutolaunchWeb.Router do
     pipe_through :api
 
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
+    get "/health", HealthController, :status
+    get "/about", PublicPagesController, :document, assigns: %{document: "/about"}
+    get "/docs", PublicPagesController, :document, assigns: %{document: "/docs"}
   end
 
   # Covered calls' styles, at the address the other styles share; off, nothing is there.
@@ -326,6 +330,9 @@ defmodule AutolaunchWeb.Router do
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
+    get "/changelog", PublicPagesController, :show
+    get "/agents", PublicPagesController, :show
+    get "/agents/:agent", PublicPagesController, :show
     get "/privacy", PublicPagesController, :show
     get "/terms", PublicPagesController, :show
 

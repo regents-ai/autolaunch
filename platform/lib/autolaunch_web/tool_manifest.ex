@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.ToolManifest do
   (`assets/js/public_tools.ts`). While covered calls or Exposure are on, the
   tools in `priv/covered_calls_tools.json` or `priv/exposure_tools.json` join
   it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
-  `/capabilities`, the agent guides and the tools dialog list. Off, nothing
+  `/capabilities.json`, the agent guides and the tools dialog list. Off, nothing
   about them reaches a page, the script or any document.
   """
 

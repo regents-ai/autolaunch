@@ -6,7 +6,7 @@ description: Use autolaunch.sh for your person to understand Revstake and Memest
 # Autolaunch: understand launches and track your person's positions
 
 Start with [/agents.md]({{origin}}/agents.md): install regents-cli, sign in and pair with
-your person's account. [/capabilities]({{origin}}/capabilities) lists every browser tool,
+your person's account. [/capabilities.json]({{origin}}/capabilities.json) lists every browser tool,
 [/openapi.json]({{origin}}/openapi.json) every HTTP operation, and [/docs]({{origin}}/docs)
 the errors and limits.
 
@@ -155,6 +155,6 @@ a portfolio to a room or forum.
 ## References
 
 - [Autolaunch]({{origin}}/), [/agents.md]({{origin}}/agents.md) for install, sign-in and
-  pairing, [/capabilities]({{origin}}/capabilities), [/docs]({{origin}}/docs) and
+  pairing, [/capabilities.json]({{origin}}/capabilities.json), [/docs]({{origin}}/docs) and
   [/llms.txt]({{origin}}/llms.txt).
 - [regents-cli](https://github.com/regents-ai/regents-cli).

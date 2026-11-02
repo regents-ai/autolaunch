@@ -47,4 +47,4 @@
 .document-table { overflow-x: auto; }
 .document-page table { border-collapse: collapse; font-size: .875rem; }
 .document-page :is(th, td) { padding: 8px 12px; border-bottom: 1px solid var(--rg-page-rule); text-align: left; vertical-align: top; }
-.document-page td code { overflow-wrap: anywhere; }
+.document-page :is(p, li, td code) { overflow-wrap: anywhere; }
