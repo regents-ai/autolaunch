@@ -62,6 +62,26 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   secret_key_base: "dE279MxKIvZfbwjSpb4wz+TRnO8doR91/kD/kxxXO9FIFvDeVF132xDj2X5J2/x5",
   server: System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1"
 
+# The agent journeys (scripts/agent-journeys.sh) serve the site at
+# https://autolaunch.localhost too, the address their sign-in service lists for
+# Autolaunch: the regents command line signs only for a listed address, and a
+# listed address is https on a name with no port. The Mac opens port 443 to a
+# program without admin rights only on every address, so the journeys' site
+# answers there on the network for as long as they run.
+journeys_cert = System.get_env("AUTOLAUNCH_JOURNEYS_CERT")
+
+if journeys_cert do
+  config :autolaunch, AutolaunchWeb.Endpoint,
+    url: [scheme: "https", host: "autolaunch.localhost", port: 443],
+    https: [
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      port: 443,
+      certfile: journeys_cert,
+      keyfile: System.fetch_env!("AUTOLAUNCH_JOURNEYS_KEY")
+    ],
+    check_origin: ["https://autolaunch.localhost"]
+end
+
 config :autolaunch, Autolaunch.Repo,
   username: System.get_env("USER"),
   password: nil,
