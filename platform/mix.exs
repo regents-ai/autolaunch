@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "644753647a6e3ab6bf945053e08d084bc665eb4f"
+  @elixir_utils_ref "e37cb01da2376fc95d9b5547132473c28d14130d"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "7a853f854168f208975815286eace8a502ec9aea"
 
@@ -214,13 +214,15 @@ defmodule Autolaunch.MixProject do
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Two more stand as they are: the share video request naming its room
-        # action, and the router naming the errors admin page. Nothing else is
-        # permitted. The ceiling is thirty-six domain-to-resource edges (Accounts
-        # six, Autolaunch twenty-nine, Points one), forty-four resource-to-check
-        # edges, the one endpoint edge and those two, and it is re-based per unit
-        # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 85",
+        # Four more stand as they are: the share video request naming its room
+        # action, the router naming the errors admin page, and the covered-call
+        # market and exposure series naming their steps' kinds in an argument's
+        # constraints. Nothing else is permitted. The ceiling is thirty-nine
+        # domain-to-resource edges (Accounts six, Autolaunch thirty, Points one,
+        # CoveredCalls one, Exposure one), forty-six resource-to-check edges, the
+        # one endpoint edge and those four, and it is re-based per unit when a
+        # domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 90",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

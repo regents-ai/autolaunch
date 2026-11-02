@@ -14,10 +14,11 @@ defmodule AutolaunchWeb.SwapComponent do
   the signed-in wallet's until Privy reports one, and a note names both while
   the wallet app has another one open.
 
-  Nothing is stored. The quote and the balances are public reads; the review
-  lives on this page only, the browser reports a hash and stops, and every
-  outcome on screen is the server's own read of that hash against the review
-  it was sent from.
+  The quote and the balances are public reads; the review lives on this page
+  only, the browser reports a hash and stops, and every outcome on screen is
+  the server's own read of that hash against the review it was sent from. The
+  one thing stored is a swap's hash once the wallet hands it back, with the
+  account and the signing wallet, for Regent Points (`Autolaunch.SiteTrade`).
   """
   use AutolaunchWeb, :live_component
 
@@ -29,6 +30,8 @@ defmodule AutolaunchWeb.SwapComponent do
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths}
   alias RegentChain.{Presses, Review}
+
+  require Logger
 
   @default_protection "6"
 
@@ -296,8 +299,11 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
-  def handle_event("step_sent", params, socket),
-    do: {:noreply, OnchainSteps.sent(socket, params)}
+  def handle_event("step_sent", params, socket) do
+    socket = OnchainSteps.sent(socket, params)
+    report_swap(socket, params)
+    {:noreply, socket}
+  end
 
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
@@ -572,6 +578,29 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
+
+  # The swap the wallet handed back, from a review this server built, saved
+  # with the signed-in account and the review's wallet. Saving it never holds
+  # up, changes or repeats anything on the page.
+  defp report_swap(%{assigns: %{current_human_id: id, presses: presses}} = socket, %{
+         "step" => "swap",
+         "transaction_hash" => hash
+       })
+       when is_integer(id) and is_binary(hash) do
+    hash = String.downcase(hash)
+
+    with %{review: %{signer: wallet, chain: %{chain_id: chain_id}}, step: %{}} <-
+           Enum.find(Presses.shown(presses), &(&1.hash == hash and &1.name == "swap")),
+         {:error, error} <-
+           Autolaunch.report_site_trade(
+             %{chain_id: chain_id, transaction_hash: hash, wallet: wallet},
+             opts(socket)
+           ) do
+      Logger.warning("site trade #{hash} not saved: #{Exception.message(error)}")
+    end
+  end
+
+  defp report_swap(_socket, _params), do: nil
 
   defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
     do: %Human{human_account_id: id}

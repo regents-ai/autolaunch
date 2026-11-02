@@ -17,6 +17,19 @@ defmodule Autolaunch do
 
     resource Autolaunch.TokenTrade do
       define :token_trades, action: :for_token, args: [:token_id]
+      define :transaction_trades, action: :in_transaction, args: [:chain_id, :transaction_hash]
+    end
+
+    resource Autolaunch.TokenStake do
+      define :token_stake,
+        action: :for_log,
+        args: [:token_id, :transaction_hash, :log_index],
+        not_found_error?: false
+    end
+
+    resource Autolaunch.SiteTrade do
+      define :report_site_trade, action: :report
+      define :get_site_trade, action: :read, get_by: [:id], not_found_error?: false
     end
 
     resource Autolaunch.TokenRevenue do

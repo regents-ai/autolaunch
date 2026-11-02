@@ -127,7 +127,8 @@ defmodule Autolaunch.Robinhood.Pool do
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
          currency_symbol: stock.symbol,
          currency_decimals: stock.decimals,
-         from_block: nil
+         from_block: nil,
+         splitter: launch.splitter
        }}
     end
   end

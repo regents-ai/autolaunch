@@ -184,7 +184,7 @@ than a partial success. Cannot bid, trade, settle, stake or claim.
 ## `account balances`
 
 Read canonical Credits and the current spending budget. Route:
-`GET /api/agent/v1/account/balances`; no body inputs. Returns `credits` and
+`GET /api/v1/account/balances`; no body inputs. Returns `credits` and
 `spending_grant`, including `grant_approvals_available`. A `note` explains when
 approving agent spending is off.
 
@@ -196,7 +196,7 @@ schema and pairing. Missing/revoked authority refuses; unavailable data returns
 ## `account credits-history`
 
 Read canonical Credits history. Route:
-`POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`
+`POST /api/v1/account/credits/history`; stdin is `{}` or optional string `after`
 of at most 2,048 characters. Omit `after` for the first page or when the previous
 `pagination.next_cursor` is null; do not send null as a cursor.
 Returns `entries` and `pagination` (`has_more`, `next_cursor`). Pass
@@ -211,7 +211,7 @@ Missing/revoked authority refuses. Creates no account or ledger entry.
 ## `account points`
 
 Read canonical Points without earning rewards. Route:
-`GET /api/agent/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
+`GET /api/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
 `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal
 strings, truncated to at most two decimal places, as on the Points page. `pending`
 is a count of pending events, not an amount. Each allowance has `scope` and
