@@ -38,8 +38,8 @@
 # share one, and they are dropped by those names on the way down.
 set -eu
 
-SIWA_SERVER_REV=2ba5df09f5cb54abf28e96d39ad0b6fb45fa0347
-REGENTS_CLI_REV=8c29aff897fedc11ea8db4ee088f6926a32a8836
+SIWA_SERVER_REV=567b7c4b376b87c237a1bbe1a3108d60b04bb4fd
+REGENTS_CLI_REV=0b08d4a2afbde8d2d07e2548f76a35dcf071b556
 
 # Physical paths, as the system reports a running server's folder.
 root=$(cd "$(dirname "$0")/.." && pwd -P)
