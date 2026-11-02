@@ -59,8 +59,16 @@ defmodule Autolaunch.BidSettlement do
         :block_hash,
         :occurred_at,
         :currency,
-        :tokens
+        :tokens,
+        :human_account_id,
+        :pairing_id
       ]
+
+      change {Autolaunch.Changes.FreezeWalletOwner, wallet: :owner, at: :occurred_at}
+
+      emit Autolaunch.Signals, :bid_settled,
+        fields: [auction_id: :auction_id, bid_id: :bid_id, kind: :kind],
+        where: [present(:human_account_id)]
     end
   end
 
@@ -96,6 +104,12 @@ defmodule Autolaunch.BidSettlement do
     attribute :currency, :decimal, public?: true, constraints: [min: 0]
     # A withdraw's tokens filled, or a claim's tokens delivered.
     attribute :tokens, :decimal, allow_nil?: false, public?: true, constraints: [min: 0]
+
+    # Who the wallet belonged to when the chain says it acted
+    # (`Autolaunch.Changes.FreezeWalletOwner`): the account, and the pairing
+    # when it was that person's agent. Nil when no one, or more than one, held it.
+    attribute :human_account_id, :integer
+    attribute :pairing_id, :uuid
   end
 
   relationships do

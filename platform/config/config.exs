@@ -103,7 +103,16 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{}
+  adapters: %{
+    "autolaunch.auction_bid" => Autolaunch.Points.WalletAction,
+    "autolaunch.auction_created" => Autolaunch.Points.Launch,
+    "autolaunch.first_graduation" => Autolaunch.Points.Launch,
+    "autolaunch.first_launch" => Autolaunch.Points.Launch,
+    "autolaunch.first_settled_auction" => Autolaunch.Points.WalletAction,
+    "autolaunch.token_staked" => Autolaunch.Points.WalletAction,
+    "autolaunch.token_traded" => Autolaunch.Points.Trade,
+    "credits.purchase_settled" => Autolaunch.Points.CreditsPurchase
+  }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 

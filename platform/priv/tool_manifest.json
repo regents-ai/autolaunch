@@ -644,14 +644,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/account/balances",
+      "route": "GET /api/v1/account/balances",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "account_balances",
-        "http": "GET /api/agent/v1/account/balances"
+        "http": "GET /api/v1/account/balances"
       },
       "effect": "read"
     },
@@ -677,14 +677,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/account/credits/history",
+      "route": "POST /api/v1/account/credits/history",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "account_credits_history",
-        "http": "POST /api/agent/v1/account/credits/history"
+        "http": "POST /api/v1/account/credits/history"
       },
       "effect": "read"
     },
@@ -705,14 +705,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/account/points",
+      "route": "GET /api/v1/account/points",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "account_points",
-        "http": "GET /api/agent/v1/account/points"
+        "http": "GET /api/v1/account/points"
       },
       "effect": "read"
     }

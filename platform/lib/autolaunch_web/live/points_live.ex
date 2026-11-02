@@ -246,8 +246,8 @@ defmodule AutolaunchWeb.PointsLive do
 
   defp signed_in?(access_context), do: match?({:human, _}, access_context.principal)
 
-  defp signed_out_text(:signed_out), do: "Sign in to see your points."
-  defp signed_out_text(:expired), do: "Your session ended. Sign in again to see your points."
+  defp signed_out_text(:signed_out), do: "Sign in to see your account."
+  defp signed_out_text(:expired), do: "Your session ended. Sign in again to see your account."
 
   defp listen(%{assigns: %{account_id: id}} = socket) when not is_nil(id) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, "points:#{id}")

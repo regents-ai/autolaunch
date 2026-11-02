@@ -74,8 +74,16 @@ defmodule Autolaunch.BidActivity do
         :amount,
         :display_amount,
         :display_symbol,
-        :max_price
+        :max_price,
+        :human_account_id,
+        :pairing_id
       ]
+
+      change {Autolaunch.Changes.FreezeWalletOwner, wallet: :bidder, at: :occurred_at}
+
+      emit Autolaunch.Signals, :bid_recorded,
+        fields: [auction_id: :auction_id, bid_id: :bid_id],
+        where: [present(:human_account_id)]
     end
   end
 
@@ -105,6 +113,12 @@ defmodule Autolaunch.BidActivity do
     attribute :display_symbol, :string, allow_nil?: false
     # The most the bid pays per token, in the auction's currency.
     attribute :max_price, :decimal, allow_nil?: false, constraints: [min: 0]
+
+    # Who the wallet belonged to when the chain says it acted
+    # (`Autolaunch.Changes.FreezeWalletOwner`): the account, and the pairing
+    # when it was that person's agent. Nil when no one, or more than one, held it.
+    attribute :human_account_id, :integer
+    attribute :pairing_id, :uuid
   end
 
   relationships do

@@ -49,8 +49,7 @@ defmodule AutolaunchWeb.Prelaunch do
   # does preparing covered-call steps, as preparing any wallet step on a page does.
   defp signed_account_request?("POST", ["api", "agents", "v1", "pair"]), do: true
 
-  defp signed_account_request?("POST", ["api", "agent", "v1", "account", "credits", "history"]),
-    do: true
+  defp signed_account_request?("POST", ["api", "v1", "account", "credits", "history"]), do: true
 
   defp signed_account_request?(_, _), do: false
 

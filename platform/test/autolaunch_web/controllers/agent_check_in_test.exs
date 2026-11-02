@@ -18,23 +18,24 @@ defmodule AutolaunchWeb.AgentCheckInTest do
   @wallet "0x2222222222222222222222222222222222222222"
 
   # The sign-in service verifies each signed request as this agent's key.
-  defp siwa_verifies do
-    Req.Test.stub(RegentAgents.Broker, fn conn ->
-      Req.Test.json(conn, %{
-        "code" => "http_envelope_valid",
-        "data" => %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => @wallet,
-            "chain_id" => 8453,
-            "audience" => "autolaunch"
-          },
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
-    end)
+  defp siwa_verifies,
+    do: Req.Test.stub(RegentAgents.Broker, &Req.Test.json(&1, verified()))
+
+  defp verified do
+    %{
+      "code" => "http_envelope_valid",
+      "data" => %{
+        "verified" => true,
+        "principal" => %{
+          "kind" => "wallet",
+          "wallet_address" => @wallet,
+          "chain_id" => 8453,
+          "audience" => "autolaunch"
+        },
+        "agentRegistration" => nil,
+        "agentBook" => nil
+      }
+    }
   end
 
   # Each request stands for one the agent signed; the stub above verifies it.
@@ -123,6 +124,31 @@ defmodule AutolaunchWeb.AgentCheckInTest do
                conn |> get(path) |> json_response(503),
              path
     end
+  end
+
+  test "AGENT_SIGNED_BODY_KEPT: a body sent to the account's address is checked as the agent signed it",
+       %{conn: conn} do
+    siwa_verifies()
+    account = TestSupport.register_creator!()
+    pair!(conn, account.privy_user_id)
+    test = self()
+
+    # Each check also tells the test which body digest the sign-in service was
+    # asked to hold the signature to.
+    Req.Test.stub(RegentAgents.Broker, fn siwa ->
+      {:ok, request, siwa} = Plug.Conn.read_body(siwa)
+      send(test, {:checked, Jason.decode!(request)["body_digest"]})
+      Req.Test.json(siwa, verified())
+    end)
+
+    # Spaced as an agent might send it, so only the exact bytes match.
+    body = ~s({ "after" : "not-a-cursor" })
+
+    assert %{"error" => %{"code" => "invalid_cursor"}} =
+             conn |> post_json("/api/v1/account/credits/history", body) |> json_response(422)
+
+    assert_received {:checked, digest}
+    assert digest == Siwa.RequestAuth.content_digest_for_body(body)
   end
 
   test "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",

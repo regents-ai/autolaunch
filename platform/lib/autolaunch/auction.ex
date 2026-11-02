@@ -340,6 +340,12 @@ defmodule Autolaunch.Auction do
       return_skipped_upsert? true
       change Autolaunch.Auction.Changes.ImageColor
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+
+      emit Autolaunch.Signals, :launch_listed,
+        dynamic?: true,
+        description: "Only when this write inserted the auction for an account."
+
+      change Autolaunch.Auction.Changes.AnnounceListing
     end
 
     update :set_bid_terms do
@@ -365,6 +371,14 @@ defmodule Autolaunch.Auction do
         :floor_price,
         :token_supply
       ]
+
+      emit Autolaunch.Signals, :launch_graduated,
+        fields: [auction_id: :id],
+        where: [
+          changing(:state),
+          attribute_equals(:state, :graduated),
+          present(:creator_human_account_id)
+        ]
     end
 
     # Takes an auction off every public list and page, or puts it back; an

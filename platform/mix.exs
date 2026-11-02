@@ -214,13 +214,15 @@ defmodule Autolaunch.MixProject do
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Two more stand as they are: the share video request naming its room
-        # action, and the router naming the errors admin page. Nothing else is
-        # permitted. The ceiling is thirty-six domain-to-resource edges (Accounts
-        # six, Autolaunch twenty-nine, Points one), forty-four resource-to-check
-        # edges, the one endpoint edge and those two, and it is re-based per unit
-        # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 85",
+        # Four more stand as they are: the share video request naming its room
+        # action, the router naming the errors admin page, and the covered-call
+        # market and exposure series naming their steps' kinds in an argument's
+        # constraints. Nothing else is permitted. The ceiling is thirty-nine
+        # domain-to-resource edges (Accounts six, Autolaunch thirty, Points one,
+        # CoveredCalls one, Exposure one), forty-six resource-to-check edges, the
+        # one endpoint edge and those four, and it is re-based per unit when a
+        # domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 90",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",
