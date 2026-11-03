@@ -1,5 +1,8 @@
 # Changelog
 
+## 3 November 2026: Simpler home cards
+- Each product card on the home page is now one link: its drawing, a short title and what it does. Nothing opens on hover, and a phone needs one tap.
+
 ## 2 November 2026: Fewer words
 - Onchain Stocks, Create, Covered calls, REGENT, REGENT Fees and How it works drop their introductions and hints, and their section titles are one or two words. The full rules stay on How it works.
 - Covered calls lists its limits in the Contract table: no owner, no upgrades, what Coinbase can do and when buying stops.

@@ -41,26 +41,24 @@ defmodule AutolaunchWeb.HomeListsTest do
     {:ok, view, _html} = live(conn, "/")
 
     for {id, title, path} <- [
-          {"calls", "Call Option Onchain", "/covered-calls"},
-          {"after-hours", "Isolated After-hours Exposure", "/after-hour-stocks"},
-          {"memestock", "Memestock Pair", "/create"},
-          {"revstake", "Revenue Share Token", "/create/revstake"}
+          {"calls", "Call Options", "/covered-calls"},
+          {"after-hours", "After-hours", "/after-hour-stocks"},
+          {"memestock", "Memestock", "/create"},
+          {"revstake", "Revstake", "/create/revstake"}
         ] do
-      assert has_element?(view, "#home-product-#{id}-title[aria-expanded=false]", title)
-      assert has_element?(view, "#home-product-#{id}-more a[href='#{path}']")
+      assert has_element?(view, "#home-product-#{id} a[href='#{path}'] h2", title)
     end
 
     assert has_element?(view, "#home-lists a[data-tab=options][href='/?view=options']")
     assert has_element?(view, "#home-lists a[data-tab=auctions][aria-current=page]")
   end
 
-  test "before launches open, the launch cards keep their button, switched off", %{conn: conn} do
+  test "before launches open, the launch cards keep their place, not a link", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     for id <- ~w(memestock revstake) do
-      assert has_element?(view, "#home-product-#{id}-more button[disabled]", "Launch one")
-      assert has_element?(view, "#home-product-#{id}-more", "Opens soon")
-      refute has_element?(view, "#home-product-#{id}-more a")
+      assert has_element?(view, "#home-product-#{id}", "Opens soon")
+      refute has_element?(view, "#home-product-#{id} a")
     end
   end
 

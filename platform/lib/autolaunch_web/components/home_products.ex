@@ -1,17 +1,13 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
-  The home page's four products, at the top of the page: covered calls,
-  Isolated Exposure to After-hours Stocks, Memestock launches and Revstake
-  launches. Each card is a line drawing lit by the shared holographic foil, a
-  title and one line. It opens inside its own box: the link to its page takes
-  the line's place, or the drawing's on a phone, so an open card never covers
-  the page below (`ProductCards` and `ProductFoil` in
-  `assets/js/hooks/product_cards.ts`).
+  The home page's products, at the top of the page: covered calls, After-hours
+  Exposure, Memestock launches and Revstake launches. Each card is one link: a
+  line drawing lit by the shared holographic foil (`ProductFoil` in
+  `assets/js/hooks/product_cards.ts`), a title and what the link does.
 
   A product switched off on this site (covered calls, Exposure) has no card, so
   no card links to a page that answers not found. Before launches open, the two
-  launch cards keep their place with their button switched off and the reason
-  beside it, as the rest of the site does.
+  launch cards keep their place, not a link, and say so where the action would be.
   """
 
   use Phoenix.Component
@@ -22,66 +18,44 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     assigns = assign(assigns, :products, products())
 
     ~H"""
-    <section
-      id="home-products"
-      class="home-products"
-      aria-label="Products"
-      phx-hook="ProductCards"
-      phx-update="ignore"
-      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-ready"])}
-    >
+    <section id="home-products" class="home-products" aria-label="Products" phx-update="ignore">
       <ul class="home-products__row">
         <li
           :for={product <- @products}
           id={"home-product-#{product.id}"}
           class="home-product"
-          data-product={product.id}
           phx-hook="ProductFoil"
         >
-          <div class="home-product__face">
-            <div class="home-product__art rg-technical-figure__art" aria-hidden="true">
-              <Regent.HolographicCard.foil
-                id={"home-product-foil-#{product.id}"}
-                class="rg-holo-foil--ink"
-              />
-              <.drawing id={"home-product-drawing-#{product.id}"} product={product.id} />
-            </div>
-            <p class="home-product__kicker">{product.kicker}</p>
-            <h2 class="home-product__title">
-              <button
-                type="button"
-                id={"home-product-#{product.id}-title"}
-                aria-expanded="false"
-                aria-controls={"home-product-#{product.id}-more"}
-              >
-                {product.title}
-              </button>
-            </h2>
-            <p class="home-product__summary">{product.summary}</p>
-            <div
-              id={"home-product-#{product.id}-more"}
-              class="home-product__more"
-              role="region"
-              aria-labelledby={"home-product-#{product.id}-title"}
-            >
-              <.link
-                :if={!product.launch or @launches_open}
-                navigate={product.path}
-                class="rg-button rg-button--primary"
-              >
-                <span class="rg-button__label">{product.action}</span>
-              </.link>
-              <span :if={product.launch and !@launches_open} class="home-product__closed">
-                <Regent.Primitives.button variant="secondary" disabled class="create-button">
-                  {product.action}
-                </Regent.Primitives.button>
-                <small>Opens soon</small>
-              </span>
-            </div>
+          <.link
+            :if={!product.launch or @launches_open}
+            navigate={product.path}
+            class="home-product__face"
+          >
+            <.face product={product} action={product.action} />
+          </.link>
+          <div :if={product.launch and !@launches_open} class="home-product__face">
+            <.face product={product} action="Opens soon" />
           </div>
         </li>
       </ul>
     </section>
+    """
+  end
+
+  attr :product, :map, required: true
+  attr :action, :string, required: true
+
+  defp face(assigns) do
+    ~H"""
+    <div class="home-product__art rg-technical-figure__art" aria-hidden="true">
+      <Regent.HolographicCard.foil
+        id={"home-product-foil-#{@product.id}"}
+        class="rg-holo-foil--ink"
+      />
+      <.drawing id={"home-product-drawing-#{@product.id}"} product={@product.id} />
+    </div>
+    <h2 class="home-product__title">{@product.title}</h2>
+    <p class="home-product__action">{@action}</p>
     """
   end
 
@@ -90,9 +64,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{
           id: "calls",
-          kicker: "Options",
-          title: "Call Option Onchain",
-          summary: "Earn USDC on stock you hold, or buy the right to own it at a set price.",
+          title: "Call Options",
           action: "Trade calls",
           path: "/covered-calls",
           launch: false
@@ -100,27 +72,21 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       Autolaunch.Exposure.Deployment.enabled?() &&
         %{
           id: "after-hours",
-          kicker: "Isolated",
-          title: "Isolated After-hours Exposure",
-          summary: "Hold a stock's moves while the market is closed, or only while it is open.",
+          title: "After-hours",
           action: "Split stock",
           path: "/after-hour-stocks",
           launch: false
         },
       %{
         id: "memestock",
-        kicker: "Memestock",
-        title: "Memestock Pair",
-        summary: "A memecoin paired with a real onchain stock, sold in a 24-hour auction.",
+        title: "Memestock",
         action: "Launch one",
         path: "/create",
         launch: true
       },
       %{
         id: "revstake",
-        kicker: "Revstake",
-        title: "Revenue Share Token",
-        summary: "Raise early funds for an agent or service in a 48-hour auction.",
+        title: "Revstake",
         action: "Launch one",
         path: "/create/revstake",
         launch: true
