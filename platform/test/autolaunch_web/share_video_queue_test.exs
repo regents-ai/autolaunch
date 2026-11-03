@@ -210,7 +210,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
-  test "SHARE_VIDEO_LOST_RENDER_EXPIRES: a request whose render was lost is failed after an hour, then made anew",
+  test "SHARE_VIDEO_LOST_RENDER_EXPIRES: a request whose render was lost is failed, then made anew",
        %{now: now} do
     auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
     person = 1_000_000_000 + :rand.uniform(1_000_000_000)
@@ -221,7 +221,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     try do
       # Two hours ago a request was queued and the machine rendering it
       # stopped, so its only render is gone. A minute ago another person's was
-      # queued and is still in line.
+      # queued, and is too new to be taken for lost.
       queued(auction, person, wallet, DateTime.add(now, -2 * 3600))
       queued(auction, person + 1, wallet, DateTime.add(now, -60))
       assert {:waiting, _ahead} = ask.(person)
@@ -251,6 +251,33 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
 
       assert auction |> requests() |> theirs(person) |> Enum.map(& &1.state) |> Enum.sort() ==
                [:failed, :queued]
+    after
+      forget(auction)
+    end
+  end
+
+  test "SHARE_VIDEO_IN_LINE_KEEPS_ITS_PLACE: a request still in line is never failed, however long the line",
+       %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    try do
+      # Asked for the way the site asks, so its render job waits in the queue;
+      # then the line ahead of it took two hours.
+      assert {:waiting, _ahead} =
+               unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person, now) end)
+
+      unboxed(fn ->
+        Repo.update_all(
+          from(r in "share_video_requests", where: r.human_account_id == ^person),
+          set: [inserted_at: DateTime.add(now, -2 * 3600)]
+        )
+
+        AshOban.Test.schedule_and_run_triggers({ShareVideoRequest, :expire}, actor: %System{})
+      end)
+
+      assert [%{state: :queued}] = auction |> requests() |> theirs(person)
     after
       forget(auction)
     end

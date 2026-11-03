@@ -62,6 +62,9 @@ defmodule Autolaunch.AuctionActivity do
   @token_decimals 18
   @adapter_bid "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @range 2_000
+  # How far behind the last pass's head a node may answer before the cursor is
+  # taken for another chain's.
+  @behind_blocks 300
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"auction_id" => id}}) do
@@ -245,8 +248,13 @@ defmodule Autolaunch.AuctionActivity do
 
   defp cursor_valid(%{activity_next_block: nil}, _, _), do: :ok
 
-  # A node behind the last pass's head answers again later; only a block whose
-  # hash changed starts the auction's activity over.
+  # A node a little behind the last pass's head answers again later; a chain
+  # far behind it (a lab started over) or a block whose hash changed starts
+  # the auction's activity over.
+  defp cursor_valid(%{activity_next_block: next}, %{number: head}, _)
+       when next > head + 1 + @behind_blocks,
+       do: {:error, :cursor_changed}
+
   defp cursor_valid(%{activity_next_block: next}, %{number: head}, _) when next > head + 1,
     do: {:error, :head_moved}
 

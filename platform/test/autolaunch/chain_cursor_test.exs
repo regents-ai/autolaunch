@@ -172,6 +172,18 @@ defmodule Autolaunch.ChainCursorTest do
     assert %{trades_next_block: 126} = trades(token)
   end
 
+  test "CURSOR_KEPT_WHEN_NODE_BEHIND: a chain far behind the cursor, as a lab started over, starts the token's trades over",
+       %{token: token} do
+    Chain.put(%{fork: :new, latest: 500})
+    assert {:ok, :caught_up} = TokenTrades.read(trades(token))
+    assert {:ok, [_revenue]} = Autolaunch.token_revenue(token.id, actor: nil)
+
+    Chain.put(%{latest: 10})
+    assert {:ok, :behind} = TokenTrades.read(trades(token))
+    assert {:ok, []} = Autolaunch.token_revenue(token.id, actor: nil)
+    assert %{trades_next_block: nil} = trades(token)
+  end
+
   test "CURSOR_KEPT_WHEN_NODE_BEHIND: a node behind the last pass keeps the auction's activity cursor",
        %{auction: auction} do
     Repo.update_all(

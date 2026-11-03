@@ -12,9 +12,9 @@ defmodule Autolaunch.ShareVideoRequest do
   `share_videos` queue renders one at a time, so how many requests are still
   queued before a row is its place in line. A render that succeeds stores the
   video in the row and marks it ready; one that fails marks it failed. A row
-  still queued an hour after it was asked for has lost its render (the machine
-  rendering it stopped) and is marked failed, so asking again makes it anew
-  and it no longer counts in anyone's place in line.
+  still queued half an hour after it was asked for, with no render job left
+  for it (the machine rendering it stopped), is marked failed, so asking
+  again makes it anew and it no longer counts in anyone's place in line.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes
@@ -49,10 +49,18 @@ defmodule Autolaunch.ShareVideoRequest do
       end
 
       # A request whose render was lost with its machine (one attempt, so a
-      # rescued render is discarded) is failed once it has waited an hour.
+      # rescued render is discarded) is failed: queued for half an hour with
+      # no render job still waiting or running for it. One still in line keeps
+      # its place however long the line.
       trigger :expire do
         action :fail
-        where expr(state == :queued and inserted_at < ago(1, :hour))
+        where expr(
+                state == :queued and inserted_at < ago(30, :minute) and
+                  fragment(
+                    "NOT EXISTS (SELECT 1 FROM autolaunch_app.oban_jobs AS job WHERE job.worker = 'Autolaunch.ShareVideoRequest.Workers.Render' AND job.args->'primary_key'->>'id' = (?)::text AND job.state IN ('available', 'scheduled', 'executing', 'retryable'))",
+                    id
+                  )
+              )
         queue :default
         scheduler_cron "*/10 * * * *"
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Expire

@@ -41,6 +41,9 @@ defmodule Autolaunch.TokenTrades do
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
   @range 2_000
+  # How far behind the last pass's head a node may answer before the cursor is
+  # taken for another chain's.
+  @behind_blocks 300
   @token_decimals 18
   @topic "token_trades"
 
@@ -261,8 +264,13 @@ defmodule Autolaunch.TokenTrades do
 
   defp cursor_valid(%{trades_next_block: nil}, _, _), do: :ok
 
-  # A node behind the last pass's head answers again later; only a block whose
-  # hash changed starts the token's trades over.
+  # A node a little behind the last pass's head answers again later; a chain
+  # far behind it (a lab started over) or a block whose hash changed starts
+  # the token's trades over.
+  defp cursor_valid(%{trades_next_block: next}, %{number: head}, _)
+       when next > head + 1 + @behind_blocks,
+       do: {:error, :cursor_changed}
+
   defp cursor_valid(%{trades_next_block: next}, %{number: head}, _) when next > head + 1,
     do: {:error, :head_moved}
 

@@ -1,10 +1,10 @@
 # Changelog
 
 ## 3 November 2026: Share videos, Robinhood listings and trade history hold up
-- A share video that stopped being made part-way no longer shows as in line for the rest of the day. After an hour it is marked failed, and asking again makes a new one.
-- Every new Robinhood launch gets listed, however many earlier launches cannot be shown.
+- A share video that stopped being made part-way no longer shows as in line for the rest of the day. Within the hour it is marked failed, and asking again makes a new one. A video still in line keeps its place.
+- Every Robinhood launch made here gets listed, however many earlier ones cannot be shown.
 - A token's trades and revenue are no longer missed when Base replaces its newest blocks while they are being read.
-- A slow answer from the network no longer clears a launch's bid history or a token's trades until they are read again from the start.
+- A network answer a few blocks behind no longer clears a launch's bid history or a token's trades. They are kept, and reading goes on from where it was.
 
 ## 3 November 2026: Simpler home cards
 - Each product card on the home page is now one link: its drawing, a short title and what it does. Nothing opens on hover, and a phone needs one tap.

@@ -277,8 +277,8 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
   end
 
   test "DISCOVERY_PAGES_ROUND: records that never fit cannot hold a later launch back" do
-    # Two hundred and one launches after the first two that can never be
-    # listed, more than one pass reads, then a launch that can.
+    # After the first two, two hundred and one launches that can never be
+    # listed, more than one pass reads, then one that can.
     stuck =
       for id <- 3..203,
           do: Map.put(launch(id, address("9", id), @outside_launcher, 1, false), :unreadable_name, true)
