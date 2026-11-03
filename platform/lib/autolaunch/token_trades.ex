@@ -35,7 +35,8 @@ defmodule Autolaunch.TokenTrades do
     :logs_unavailable,
     :header_unavailable,
     :headers_unavailable,
-    :history_unavailable
+    :history_unavailable,
+    :head_moved
   ]
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
@@ -117,7 +118,9 @@ defmodule Autolaunch.TokenTrades do
          {:ok, revenue_logs} <- revenue_logs(pool, first, last, venue.opts),
          {:ok, headers} <- headers(logs ++ revenue_logs, last, venue.opts),
          {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
-         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)) do
+         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
+         {:ok, current} <- header(head.number, venue.opts),
+         :ok <- same_head(current, head) do
       trades = Enum.reject(trades, &is_nil/1)
 
       token
@@ -128,6 +131,10 @@ defmodule Autolaunch.TokenTrades do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # The head moved while the pass read, so its blocks are read again.
+  defp same_head(%{hash: hash}, %{hash: hash}), do: :ok
+  defp same_head(_current, _head), do: {:error, :head_moved}
 
   # After a committed pass: how far the furthest-behind cursor among the
   # chain's listed tokens trails the head, so a token that falls behind is not
@@ -254,8 +261,10 @@ defmodule Autolaunch.TokenTrades do
 
   defp cursor_valid(%{trades_next_block: nil}, _, _), do: :ok
 
+  # A node behind the last pass's head answers again later; only a block whose
+  # hash changed starts the token's trades over.
   defp cursor_valid(%{trades_next_block: next}, %{number: head}, _) when next > head + 1,
-    do: {:error, :cursor_changed}
+    do: {:error, :head_moved}
 
   defp cursor_valid(token, _, opts) do
     case header(token.trades_next_block - 1, opts) do

@@ -276,6 +276,23 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     assert length(robinhood_rows()) == 3
   end
 
+  test "DISCOVERY_PAGES_ROUND: records that never fit cannot hold a later launch back" do
+    # Two hundred and one launches after the first two that can never be
+    # listed, more than one pass reads, then a launch that can.
+    stuck =
+      for id <- 3..203,
+          do: Map.put(launch(id, address("9", id), @outside_launcher, 1, false), :unreadable_name, true)
+
+    good = launch(204, @graduated_auction, @outside_launcher, 2, true)
+    Chain.update(&%{&1 | launches: &1.launches ++ stuck ++ [good]})
+
+    # Each pass goes on from where the last stopped, so within two the new
+    # launch has its turn, however the passes before this case left off.
+    assert {:snooze, 300} = discover()
+    assert {:snooze, 300} = discover()
+    assert %{launch_id: 204, state: :graduated} = row(@graduated_auction)
+  end
+
   test "a launch whose name and symbol are the chain's own graduates with its token" do
     name = "A launch named " <> String.duplicate("at length ", 12) <> "on chain, long!"
 
@@ -507,9 +524,7 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     %{
       id: id,
       launcher: String.downcase(launcher),
-      token:
-        "0x60000000000000000000000000000000000000" <>
-          String.pad_leading(Integer.to_string(id), 2, "0"),
+      token: address("6", id),
       auction: auction,
       name: "Launch #{id}",
       symbol: "L#{id}",
@@ -517,6 +532,8 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
       minimum_reached: minimum_reached
     }
   end
+
+  defp address(lead, id), do: "0x" <> lead <> String.pad_leading(Integer.to_string(id), 39, "0")
 
   defp review(creator, name, symbol) do
     Autolaunch.record_robinhood_launch_review!(

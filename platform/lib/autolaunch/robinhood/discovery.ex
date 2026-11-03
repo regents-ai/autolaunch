@@ -17,10 +17,13 @@ defmodule Autolaunch.Robinhood.Discovery do
   have no row yet, at most two hundred a pass, then waits five minutes (a
   second on a lab); a press that lands on the Robinhood chain brings it
   forward to ten seconds away (`refresh/1`). A record that cannot be read is
-  one warning line and is read again on the next pass, as is one the auctions
-  table refuses (metadata outside its limits), which never fits. Launch ids are
-  told apart by number only, so on a lab started over the new run's first
-  launches stay unlisted until its ids pass the old run's.
+  one warning line and is read again on a later pass, as is one the auctions
+  table refuses (metadata outside its limits), which never fits. Each pass
+  starts after the last id the one before it tried on this machine and wraps
+  round, so however many records never fit, every new launch has its turn
+  within a few passes. Launch ids are told apart by number only, so on a lab
+  started over the new run's first launches stay unlisted until its ids pass
+  the old run's.
   """
   use Oban.Worker,
     queue: :chain,
@@ -80,10 +83,22 @@ defmodule Autolaunch.Robinhood.Discovery do
       known = known(head.chain_id)
 
       1..(next - 1)//1
-      |> Stream.reject(&MapSet.member?(known, &1))
-      |> Enum.take(@page)
+      |> Enum.reject(&MapSet.member?(known, &1))
+      |> turn(head.chain_id)
       |> Enum.each(&discover(head, &1))
     end
+  end
+
+  # This pass's ids, in order: up to a page of those with no row, starting
+  # after the last one the pass before tried and wrapping round, so records
+  # that never fit cannot hold every later launch back.
+  defp turn(unknown, chain_id) do
+    last = :persistent_term.get({__MODULE__, chain_id}, 0)
+    {tried, untried} = Enum.split_with(unknown, &(&1 <= last))
+    page = Enum.take(untried ++ tried, @page)
+    turned = List.last(page, last)
+    if turned != last, do: :persistent_term.put({__MODULE__, chain_id}, turned)
+    Enum.sort(page)
   end
 
   defp known(chain_id) do

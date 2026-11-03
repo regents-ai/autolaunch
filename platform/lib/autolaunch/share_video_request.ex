@@ -11,7 +11,10 @@ defmodule Autolaunch.ShareVideoRequest do
   Writing a request queues its `:render` job in the same write. The
   `share_videos` queue renders one at a time, so how many requests are still
   queued before a row is its place in line. A render that succeeds stores the
-  video in the row and marks it ready; one that fails marks it failed.
+  video in the row and marks it ready; one that fails marks it failed. A row
+  still queued an hour after it was asked for has lost its render (the machine
+  rendering it stopped) and is marked failed, so asking again makes it anew
+  and it no longer counts in anyone's place in line.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes
@@ -33,7 +36,7 @@ defmodule Autolaunch.ShareVideoRequest do
 
   oban do
     triggers do
-      # Every request queues its own job as it is written, so there is no sweep.
+      # Every request queues its own job as it is written.
       trigger :render do
         action :render
         where expr(state == :queued)
@@ -43,6 +46,17 @@ defmodule Autolaunch.ShareVideoRequest do
         lock_for_update? false
         scheduler_cron false
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Render
+      end
+
+      # A request whose render was lost with its machine (one attempt, so a
+      # rescued render is discarded) is failed once it has waited an hour.
+      trigger :expire do
+        action :fail
+        where expr(state == :queued and inserted_at < ago(1, :hour))
+        queue :default
+        scheduler_cron "*/10 * * * *"
+        worker_module_name Autolaunch.ShareVideoRequest.Workers.Expire
+        scheduler_module_name Autolaunch.ShareVideoRequest.Schedulers.Expire
       end
 
       # A saved video goes once it is a day old; its request stays.

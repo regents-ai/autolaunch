@@ -210,6 +210,52 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
+  test "SHARE_VIDEO_LOST_RENDER_EXPIRES: a request whose render was lost is failed after an hour, then made anew",
+       %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+    ask = fn who -> unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, who, now) end) end
+    states = fn -> auction |> requests() |> Enum.map(&{&1.human_account_id, &1.state}) end
+
+    try do
+      # Two hours ago a request was queued and the machine rendering it
+      # stopped, so its only render is gone. A minute ago another person's was
+      # queued and is still in line.
+      queued(auction, person, wallet, DateTime.add(now, -2 * 3600))
+      queued(auction, person + 1, wallet, DateTime.add(now, -60))
+      assert {:waiting, _ahead} = ask.(person)
+
+      unboxed(fn ->
+        AshOban.Test.schedule_and_run_triggers({ShareVideoRequest, :expire}, actor: %System{})
+      end)
+
+      assert Enum.sort(states.()) == [{person, :failed}, {person + 1, :queued}]
+
+      # The lost one no longer counts in anyone's place in line.
+      assert ask.(person + 1) == {:waiting, 0}
+
+      # Moments later asking says it failed; after that, asking makes it anew.
+      assert ask.(person) == {:error, :render_failed}
+
+      unboxed(fn ->
+        Repo.update_all(
+          from(r in "share_video_requests",
+            where: r.human_account_id == ^person and r.state == "failed"
+          ),
+          set: [updated_at: DateTime.add(now, -60)]
+        )
+      end)
+
+      assert {:waiting, _ahead} = ask.(person)
+
+      assert auction |> requests() |> theirs(person) |> Enum.map(& &1.state) |> Enum.sort() ==
+               [:failed, :queued]
+    after
+      forget(auction)
+    end
+  end
+
   test "SAVED_VIDEOS_CAP_IS_5_GB: the site saves made videos only up to 5 GB" do
     # Read from the config the site ships with, not from the running tests,
     # where a case may set a smaller space for itself.
@@ -303,6 +349,23 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
             Map.new(fields)
           )
         )
+      ])
+    end)
+  end
+
+  # A person's request, queued at `at`, whose render job is gone.
+  defp queued(auction, person, wallet, at) do
+    unboxed(fn ->
+      Repo.insert_all("share_video_requests", [
+        row(auction, %{
+          key: "#{auction.id}:token:account:#{person}:#{wallet}",
+          kind: "token",
+          human_account_id: person,
+          wallet: wallet,
+          state: "queued",
+          inserted_at: at,
+          updated_at: at
+        })
       ])
     end)
   end

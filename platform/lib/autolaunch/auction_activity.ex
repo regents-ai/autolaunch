@@ -245,8 +245,10 @@ defmodule Autolaunch.AuctionActivity do
 
   defp cursor_valid(%{activity_next_block: nil}, _, _), do: :ok
 
+  # A node behind the last pass's head answers again later; only a block whose
+  # hash changed starts the auction's activity over.
   defp cursor_valid(%{activity_next_block: next}, %{number: head}, _) when next > head + 1,
-    do: {:error, :cursor_changed}
+    do: {:error, :head_moved}
 
   defp cursor_valid(auction, _, opts) do
     case header(auction.activity_next_block - 1, opts) do
