@@ -7,7 +7,7 @@
 
 /* The signed-in picture and name open the account menu, which hangs from this button
    (design-system account.css: `anchor-name: --rg-account-menu`). */
-.account-chip { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 14rem; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-fg); font: inherit; font-weight: 600; cursor: pointer; user-select: none; }
+.account-chip { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 14rem; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-fg); font: inherit; cursor: pointer; user-select: none; }
 .account-avatar { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: 1px solid var(--color-border); object-fit: cover; }
 .account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell-tool { position: relative; display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg-muted); cursor: pointer; }

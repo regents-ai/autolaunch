@@ -5,7 +5,7 @@
 .memestock__paired { display: grid; gap: var(--space-2); }
 .memestock__paired-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .chain-switch { display: inline-flex; padding: 3px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
-.chain-switch__option { min-height: 2.75rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; transition: background-color var(--duration-base) ease, color var(--duration-base) ease; }
+.chain-switch__option { min-height: 2.75rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; cursor: pointer; transition: background-color var(--duration-base) ease, color var(--duration-base) ease; }
 .chain-switch__option:hover { color: var(--color-fg); }
 .chain-switch__option:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .chain-switch__option--base[aria-pressed="true"] { background: var(--memestock-base); color: #fff; }
@@ -32,7 +32,7 @@
 /* The stock list couldn't be read: its line and Try again, where the button was. */
 .stock-select__unread { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-height: 3rem; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
 .stock-select__unread p { flex: 1 1 12rem; margin: 0; color: var(--color-fg-muted); }
-.stock-select__symbol { font-family: var(--font-family-mono); font-size: .875rem; font-weight: 600; }
+.stock-select__symbol { font-family: var(--font-family-ui); font-size: .875rem; }
 .stock-select__name { flex: 1; min-width: 0; overflow: hidden; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 .stock-select__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
 .stock-select__button[aria-expanded="true"] .stock-select__chevron { transform: rotate(180deg); }
@@ -59,9 +59,9 @@
 .stock-card__choice { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px var(--space-2); padding: var(--space-2) var(--space-2) 0; cursor: pointer; }
 .stock-card__choice input { position: absolute; opacity: 0; pointer-events: none; }
 .stock-card__names { display: grid; min-width: 0; }
-.stock-card__volume { grid-column: 1 / -1; color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .6875rem; }
+.stock-card__volume { grid-column: 1 / -1; color: var(--color-fg-muted); font-family: var(--font-family-ui); font-size: .6875rem; }
 .stock-card__site { justify-self: start; padding: 2px var(--space-2) var(--space-2); overflow: hidden; color: var(--color-fg-muted); font-size: .6875rem; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .stock-card__site:hover { color: var(--color-fg); }
 /* Logos sit on a white chip so dark marks read in dark mode too. */
-.stock-logo { display: inline-grid; flex: none; place-items: center; width: 1.75rem; height: 1.75rem; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: #fff; color: #111; font-family: var(--font-family-mono); font-size: .625rem; font-weight: 600; }
+.stock-logo { display: inline-grid; flex: none; place-items: center; width: 1.75rem; height: 1.75rem; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: #fff; color: #111; font-family: var(--font-family-ui); font-size: .625rem; }
 .stock-logo img { width: 72%; height: 72%; object-fit: contain; }

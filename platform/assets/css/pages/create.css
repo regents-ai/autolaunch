@@ -21,17 +21,17 @@
 .no-connections__dialog::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
 .no-connections__dialog form { display: grid; gap: var(--space-2); }
 .no-connections__dialog h2 { margin: 0; font-size: 1.25rem; }
-.no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); font-weight: 600; }
+.no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); }
 .no-connections__dialog textarea { min-height: 7rem; resize: vertical; }
 .no-connections__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); }
 /* A treasury the agent chose, ticked by the creator before the launch card opens. */
 .agent-treasury { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); }
 .agent-treasury > p { margin: 0; }
-.agent-treasury__address { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
-.agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); font-weight: 600; }
+.agent-treasury__address { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
+.agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); }
 /* On the memestock form the accounts fold away under one optional Socials line. */
 .creator-connections--optional { padding-block: 0; }
-.creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+.creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); }
 .creator-connections--optional .rg-disclosure { border-block-end: 0; }
 .creator-connections--optional .rg-disclosure-body { display: grid; gap: var(--space-3); }
 .creator-connections--optional .rg-disclosure-body > p { margin: 0; font-size: .875rem; color: var(--color-fg-muted); }
@@ -39,7 +39,7 @@
 .autolaunch-custody-path label { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); }
 .autolaunch-custody-path .rg-disclosure-body { display: grid; gap: var(--space-2); }
 .autolaunch-custody-path textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
-.autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); font-weight: 600; }
+.autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); }
 /* Connected accounts: one row each, mark · account · buttons, all alike. */
 .connections { display: grid; gap: var(--space-2); }
 [data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
@@ -75,8 +75,8 @@
 /* Fixed terms: label column in the UI face, values in the mono face, one accent rule on top. */
 .stocks-terms-table { width: 100%; border-collapse: collapse; border-top: 2px solid var(--brand-accent); }
 .stocks-terms-table tr + tr { border-top: 1px solid var(--hairline); }
-.stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
-.stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+.stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
+.stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-ui); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
 
 /* What the person's agent filled in, above the wallet steps. */
@@ -89,4 +89,4 @@
 .agent-set dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 30rem) { .agent-set dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 /* In the launch review: which of the values below the person's agent set. */
-.launch-wallet-agent-set dd { color: var(--orange-ink); font-weight: var(--font-weight-semibold); }
+.launch-wallet-agent-set dd { color: var(--orange-ink); }

@@ -12,7 +12,6 @@
 /* A ticker is saved in capitals, so the box shows it that way as it is typed. */
 .create-field input[name$="[symbol]"] { text-transform: uppercase; }
 .create-field__optional { color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
-.create-page__label { font-weight: 600; }
 .create-page__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 /* A line that holds its place while another choice is shown, so choices never change the height. */
 .create-page__held { visibility: hidden; }
@@ -22,7 +21,7 @@
 .create-page .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
 .create-page__more { border-block-end: 0; }
 .create-page__more > summary { min-height: 2.75rem; }
-.create-page__more .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+.create-page__more .rg-disclosure-title { font-family: var(--font-family-ui, inherit); }
 .create-page__more .rg-disclosure-body { display: grid; gap: var(--space-3); }
 /* Community Links and Connect Socials: each dropdown in a box of its own. */
 .create-page .rg-disclosure.create-page__box { padding-inline: var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
@@ -68,4 +67,4 @@
 .create-page .creator-connections > header .autolaunch-kicker { display: none; }
 .create-page .creator-connections .rg-section-bar { min-block-size: 0; padding: 0; border: 0; }
 .create-page .creator-connections :is(.rg-section-bar__diamond, .rg-section-bar__leader) { display: none; }
-.create-page .creator-connections .rg-section-bar__label { font-family: inherit; font-size: 1rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.create-page .creator-connections .rg-section-bar__label { font-family: inherit; font-size: 1rem; letter-spacing: 0; text-transform: none; }

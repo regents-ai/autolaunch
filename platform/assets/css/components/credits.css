@@ -67,7 +67,6 @@
 
 .credits-panel__figures dd {
   margin: 0;
-  font-weight: 600;
   text-align: end;
 }
 
@@ -99,7 +98,6 @@
   border-radius: 0.875rem;
   background: var(--color-bg);
   font-size: 3rem;
-  font-weight: 300;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
 }

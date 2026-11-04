@@ -27,7 +27,7 @@
 .token-figures > div { display: grid; align-content: start; gap: 2px; min-width: 0; }
 .token-figures dt { color: var(--color-fg-muted); font-size: .75rem; }
 .token-figures dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
-.token-figures strong { font-size: 1.25rem; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
+.token-figures strong { font-size: 1.25rem; overflow-wrap: anywhere; }
 .token-figures__price strong { font-size: 1.75rem; line-height: 1.1; }
 .token-figures small { color: var(--color-fg-muted); font-size: .75rem; }
 @media (max-width: 30rem) {
@@ -41,7 +41,7 @@
 /* The trade widget: a sliding selector over one view at a time. */
 .token-trade { position: relative; display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
 .token-trade__tabs { position: relative; display: inline-flex; justify-self: start; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
-.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: var(--font-weight-semibold) .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
 .token-trade__tabs [role="tab"][aria-selected="true"] { color: var(--color-bg); }
 .token-trade__tabs [role="tab"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .token-trade__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
@@ -78,7 +78,7 @@
 .token-claim__rows { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .token-claim__rows > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--space-2); min-width: 0; padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); }
 .token-claim__what { color: var(--color-fg-muted); font-size: .9375rem; }
-.token-claim__amount { font-size: 1.25rem; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-claim__amount { font-size: 1.25rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-claim__amount--missing { color: var(--color-fg-muted); font-size: .9375rem; font-weight: var(--font-weight-regular); }
 .token-claim__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .token-claim__more { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }

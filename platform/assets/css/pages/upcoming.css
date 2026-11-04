@@ -28,7 +28,7 @@
 .upcoming-details :is(h1, h2), .upcoming-details__heading p { margin: 0; }
 .upcoming-details h1 { font-size: 1.75rem; }
 .upcoming-details :is(h1, h2) span, .upcoming-details__heading p { color: var(--color-fg-muted); }
-.upcoming-details__status { margin: var(--space-2) 0; font-size: .875rem; font-weight: 600; }
+.upcoming-details__status { margin: var(--space-2) 0; font-size: .875rem; }
 .upcoming-details__note { color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 .upcoming-details__facts { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .625rem var(--space-2); margin: var(--space-2) 0; font-size: .875rem; }
 .upcoming-details__facts dt { color: var(--color-fg-muted); }

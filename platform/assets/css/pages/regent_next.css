@@ -15,7 +15,7 @@
 .regent-next-card > .regent-next-lead { color: var(--color-fg-muted); font-size: .875rem; }
 .regent-next-card > .regent-next-source { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
 .regent-next-muted, .regent-next-card > .regent-next-muted { color: var(--color-fg-muted); }
-.regent-next-link { display: inline-flex; align-items: center; min-height: 2.75rem; justify-self: start; color: var(--color-fg); font-weight: 600; text-decoration: underline; }
+.regent-next-link { display: inline-flex; align-items: center; min-height: 2.75rem; justify-self: start; color: var(--color-fg); text-decoration: underline; }
 .regent-next-link:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 
 /* The three lifetime figures. */
@@ -43,10 +43,9 @@
 .regent-next-table { width: 100%; border-collapse: collapse; font-size: .875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .regent-next-table :is(th, td) { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--hairline); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
 .regent-next-table :is(th, td):last-child { padding-right: 0; }
-.regent-next-table thead th { color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; border-bottom-color: var(--hairline-strong); }
-.regent-next-table tbody th { font-weight: 600; }
+.regent-next-table thead th { color: var(--color-fg-muted); font-size: .75rem; border-bottom-color: var(--hairline-strong); }
 .regent-next-table tbody th small { display: block; color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
-.regent-next-table tfoot :is(th, td) { font-weight: 600; border-bottom: 0; }
+.regent-next-table tfoot :is(th, td) { border-bottom: 0; }
 .regent-next-table .regent-next-table__amount { text-align: right; white-space: nowrap; }
 @media (max-width: 42rem) {
   .regent-next-table thead { display: none; }

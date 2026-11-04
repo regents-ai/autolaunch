@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
 
   import AutolaunchWeb.ShareVideo.Canvas,
     only: [
-      text!: 4,
+      text!: 3,
       faded: 2,
       flat: 2,
       svg!: 1,
@@ -105,8 +105,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
 
   # The stock over the chart and the time it covers.
   defp phase(story) do
-    ticker = text!(story.ticker, :bold, 40, @platinum)
-    period = text!(period(story.from), :regular, 28, @muted)
+    ticker = text!(story.ticker, 40, @platinum)
+    period = text!(period(story.from), 28, @muted)
 
     [
       {ticker, @x0, 52},
@@ -127,7 +127,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
 
   defp level_words(level, index) do
     words = "#{level.label} · #{expiry(level.expiry)}"
-    %{level: level, index: index, tag: text!(words, :bold, 24, @field)}
+    %{level: level, index: index, tag: text!(words, 24, @field)}
   end
 
   defp expiry(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
@@ -136,12 +136,12 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   # words and the pill saying where the market stands, and the band.
   defp still(story) do
     {:ok, logo} = Draw.stock_logo(story.ticker, @logo)
-    site = text!("autolaunch.sh", :pixel, 52, @field)
+    site = text!("autolaunch.sh", 52, @field)
     name = name(story.title)
-    ticker = text!("$" <> story.symbol, :regular, 34, @muted)
-    badge = text!(story.badge, :bold, 24, @blue)
+    ticker = text!("$" <> story.symbol, 34, @muted)
+    badge = text!(story.badge, 24, @blue)
     pill_w = Image.width(badge) + 36
-    initial = if logo, do: nil, else: text!(String.first(story.ticker), :pixel, 76, @field)
+    initial = if logo, do: nil, else: text!(String.first(story.ticker), 76, @field)
 
     words =
       [
@@ -165,14 +165,14 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
 
   defp name(words) do
     Enum.find_value([54, 48, 42], fn size ->
-      layer = text!(words, :bold, size, @platinum)
+      layer = text!(words, size, @platinum)
       if Image.width(layer) <= 400, do: layer
-    end) || text!(words, :bold, 36, @platinum)
+    end) || text!(words, 36, @platinum)
   end
 
   defp legend(%{kind: :exposure}) do
-    after_hours = text!("After hours", :regular, 26, @muted)
-    market_hours = text!("Market hours", :regular, 26, @muted)
+    after_hours = text!("After hours", 26, @muted)
+    market_hours = text!("Market hours", 26, @muted)
     right = @x1 - Image.width(market_hours)
     middle = right - 44 - Image.width(after_hours)
 
@@ -182,8 +182,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   defp legend(_story), do: []
 
   defp legend_svg(%{kind: :exposure}) do
-    after_w = Image.width(text!("After hours", :regular, 26, @muted))
-    market_w = Image.width(text!("Market hours", :regular, 26, @muted))
+    after_w = Image.width(text!("After hours", 26, @muted))
+    market_w = Image.width(text!("Market hours", 26, @muted))
     market_x = @x1 - market_w - 22
     after_x = market_x - 44 - after_w
 
@@ -238,7 +238,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     figures
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value}, row} ->
-      label = text!(label, :regular, 26, @muted)
+      label = text!(label, 26, @muted)
       value = figure(value, @platinum, @words_w)
       top = @strip_y + 40 + row * 124
 
@@ -256,7 +256,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     tip = tip(story, index)
     price = MarketStory.price_at(story.line, tip)
     {tip_x, tip_y} = {x(story, tip), y(film, price)}
-    tag = text!(dollars(price), :bold, 26, @field)
+    tag = text!(dollars(price), 26, @field)
     tag_box = tag_box(tip_x, tip_y, tag)
 
     svg = """

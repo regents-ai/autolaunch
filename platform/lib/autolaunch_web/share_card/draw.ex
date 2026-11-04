@@ -172,47 +172,41 @@ defmodule AutolaunchWeb.ShareCard.Draw do
   The words on one line no wider than `max`, cut short with an ellipsis where
   they run over.
   """
-  def fit(words, weight, size, color, max) do
-    with {:ok, layer} <- layer(words, weight, size, color) do
+  def fit(words, size, color, max) do
+    with {:ok, layer} <- layer(words, size, color) do
       if Image.width(layer) <= max or String.length(words) <= 1,
         do: {:ok, layer},
-        else: shorter(words, weight, size, color, max, Image.width(layer))
+        else: shorter(words, size, color, max, Image.width(layer))
     end
   end
 
-  defp shorter(words, weight, size, color, max, width) do
+  defp shorter(words, size, color, max, width) do
     graphemes = String.graphemes(words)
     keep = min(floor(length(graphemes) * max / width), length(graphemes) - 1)
-    cut(graphemes, keep, weight, size, color, max)
+    cut(graphemes, keep, size, color, max)
   end
 
-  defp cut(graphemes, keep, weight, size, color, max) do
+  defp cut(graphemes, keep, size, color, max) do
     words = (graphemes |> Enum.take(max(keep, 1)) |> Enum.join() |> String.trim_trailing()) <> "…"
 
-    with {:ok, layer} <- layer(words, weight, size, color) do
+    with {:ok, layer} <- layer(words, size, color) do
       if Image.width(layer) <= max or keep <= 1,
         do: {:ok, layer},
-        else: cut(graphemes, keep - 1, weight, size, color, max)
+        else: cut(graphemes, keep - 1, size, color, max)
     end
   end
 
-  @doc "The words drawn in one of the card's fonts (`:bold`, `:regular`, `:pixel`) and a colour."
-  def layer(words, weight, size, color) do
-    {face, file} = font(weight)
-
+  @doc "The words drawn in the card's face, at a size and in a colour."
+  def layer(words, size, color) do
     with {:ok, {layer, _flags}} <-
            Operation.text(~s|<span foreground="#{color}">#{escape(words)}</span>|,
-             font: "#{face} #{size}",
-             fontfile: file,
+             font: "Geist Serif #{size}",
+             fontfile: share_file("GeistSerif-Regular.ttf"),
              rgba: true,
              dpi: 72
            ),
          do: {:ok, layer}
   end
-
-  defp font(:bold), do: {"Geist SemiBold", share_file("Geist-SemiBold.ttf")}
-  defp font(:regular), do: {"Geist", share_file("Geist-Regular.ttf")}
-  defp font(:pixel), do: {"Geist Pixel Square", share_file("GeistPixel-Square.ttf")}
 
   defp share_file(name), do: Application.app_dir(:autolaunch, ["priv", "share_card", name])
 

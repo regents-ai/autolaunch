@@ -20,8 +20,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   import AutolaunchWeb.ShareVideo.Canvas,
     only: [
-      text!: 4,
-      fit!: 5,
+      text!: 3,
+      fit!: 4,
       faded: 2,
       flat: 2,
       svg!: 1,
@@ -207,8 +207,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         x: x(film, mark.at),
         y: y(film, price),
         color: color,
-        letter: text!(if(mark.side == :buy, do: "B", else: "S"), :bold, 18, @field),
-        note: text!("#{mark.verb} #{mark.amount} · #{fdv} FDV", :regular, 24, @platinum)
+        letter: text!(if(mark.side == :buy, do: "B", else: "S"), 18, @field),
+        note: text!("#{mark.verb} #{mark.amount} · #{fdv} FDV", 24, @platinum)
       }
     end)
   end
@@ -242,7 +242,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
               at: at,
               x: x,
               frame: first_frame(film, at),
-              layer: text!(stamp(at, format), :regular, 24, @muted)
+              layer: text!(stamp(at, format), 24, @muted)
             }
             | kept
           ]
@@ -257,26 +257,25 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp words(story) do
     %{
       phases: %{
-        auction: text!("Auction", :bold, 40, @blue),
-        trading: text!("Trading", :bold, 40, @tangerine),
-        staked: story.stake && text!("Staked · earning " <> story.earn_symbol, :bold, 40, @gold)
+        auction: text!("Auction", 40, @blue),
+        trading: text!("Trading", 40, @tangerine),
+        staked: story.stake && text!("Staked · earning " <> story.earn_symbol, 40, @gold)
       },
-      graduated: text!("Graduated", :bold, 24, @field),
+      graduated: text!("Graduated", 24, @field),
       stake:
         story.stake &&
           text!(
             "You staked #{amount(story.stake.first)} #{story.token_symbol}",
-            :bold,
             24,
             @field
           ),
       labels: %{
         auction: [
-          text!("Clearing price", :regular, 26, @muted),
-          text!("Price", :regular, 26, @muted)
+          text!("Clearing price", 26, @muted),
+          text!("Price", 26, @muted)
         ],
-        trading: [text!("FDV", :regular, 26, @muted), text!("Price", :regular, 26, @muted)],
-        staked: [text!("Staked", :regular, 26, @muted), text!("Earned", :regular, 26, @muted)]
+        trading: [text!("FDV", 26, @muted), text!("Price", 26, @muted)],
+        staked: [text!("Staked", 26, @muted), text!("Earned", 26, @muted)]
       }
     }
   end
@@ -291,8 +290,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     color = Draw.color(auction.image_color)
     {:ok, logo} = Draw.logo(auction, @logo)
     name = name(Draw.plain(auction.title))
-    ticker = fit!(story.ticker, :regular, 34, @muted, @words_w)
-    site = text!("autolaunch.sh", :pixel, 52, @field)
+    ticker = fit!(story.ticker, 34, @muted, @words_w)
+    site = text!("autolaunch.sh", 52, @field)
     initial = if logo, do: nil, else: initial(auction.token_symbol)
 
     words =
@@ -327,7 +326,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp still_pill(nil, _color), do: {[], nil}
 
   defp still_pill(words, color) do
-    badge = text!(words, :bold, 24, color)
+    badge = text!(words, 24, color)
     width = Image.width(badge) + 36
 
     {[{badge, badge_x(), pill_y() + div(@pill_h - Image.height(badge), 2)}],
@@ -337,17 +336,17 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp name(""), do: nil
 
   defp name(words),
-    do: Enum.find_value([54, 48, 42], &fits(words, &1)) || fit!(words, :bold, 42, @platinum, 400)
+    do: Enum.find_value([54, 48, 42], &fits(words, &1)) || fit!(words, 42, @platinum, 400)
 
   defp fits(words, size) do
-    layer = text!(words, :bold, size, @platinum)
+    layer = text!(words, size, @platinum)
     if Image.width(layer) <= 400, do: layer
   end
 
   defp initial(symbol) do
     case symbol |> Draw.plain() |> String.first() do
       nil -> nil
-      letter -> text!(String.upcase(letter), :pixel, 76, @field)
+      letter -> text!(String.upcase(letter), 76, @field)
     end
   end
 
@@ -409,7 +408,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     staked? = film.stake != nil and tip >= film.stake.at
     price = price_at(film, tip)
     {tip_x, tip_y} = {x(film, tip), y(film, price)}
-    tag = text!("#{money(film.story, price * film.story.supply)} FDV", :bold, 26, @field)
+    tag = text!("#{money(film.story, price * film.story.supply)} FDV", 26, @field)
     tag_color = if graduated?, do: @tangerine, else: @blue
     {earned, earned_tag, earned_box} = earnings(film, tip, tip_x, staked?)
 
@@ -478,7 +477,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   defp earnings(film, tip, tip_x, true) do
     earned = earned(film, tip)
-    tag = text!("#{amount(earned)} #{film.story.earn_symbol}", :bold, 24, @field)
+    tag = text!("#{amount(earned)} #{film.story.earn_symbol}", 24, @field)
     box = box_beside({tip_x, earned_y(film, tip)}, tag, 14)
     stake = stake_box(film)
 
@@ -947,7 +946,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         {_label, standing, _color} -> standing
       end
 
-    badge = text!(words, :bold, 24, @blue)
+    badge = text!(words, 24, @blue)
     width = Image.width(badge) + 36
     x = badge_x() - 18 + film.mark_w + 24
 

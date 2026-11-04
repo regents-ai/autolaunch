@@ -1,5 +1,8 @@
 # Changelog
 
+## 4 November 2026: Geist Serif
+- Every page and share picture now uses one typeface, Geist Serif. Code keeps Geist Mono.
+
 ## 4 November 2026: After-hours off the home page
 - After-hours has left the home page and the sidebar now the experiment is over. Its page stays open at /after-hour-stocks, so holders can still sell or redeem, and your portfolio still shows your tokens.
 
