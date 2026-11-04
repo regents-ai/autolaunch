@@ -124,9 +124,18 @@ class Fork:
         log = open(self.run / "base-fork.log", "w")
         process = subprocess.Popen(
             ["anvil", "--fork-url", "base", "--fork-block-number", str(FORK_BLOCK), "--host", "127.0.0.1",
-             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64", "--silent"],
-            stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, cwd=self.alias_dir,
+             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            start_new_session=True, cwd=self.alias_dir,
         )
+        # The log keeps each transaction's result, so a failed journey has them. Anvil
+        # also prints the address it reads Base from; a line with a web address stays out.
+        subprocess.Popen(
+            ["awk", r"/https?:\/\// {next} "
+                    r"/^[[:space:]]*(Transaction|Contract created|Gas used|Block Number|Block Time|Error):/ {print; fflush()}"],
+            stdin=process.stdout, stdout=log, stderr=log, start_new_session=True,
+        )
+        process.stdout.close()
         (self.run / "base-fork.pid").write_text(str(process.pid))
         (self.run / "base-fork.port").write_text(str(port))
         self.url = f"http://127.0.0.1:{port}"

@@ -156,7 +156,7 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
     await nextStep(b).click()
     await expect.poll(() => bids.length, {timeout: 30_000}).toBeGreaterThan(swaps + press)
   }
-  expect(await balanceOf(token, people.b.wallet)).toBeGreaterThan(0n)
+  await expect.poll(() => balanceOf(token, people.b.wallet), {timeout: 60_000}).toBeGreaterThan(0n)
 
   const poolId = (await rpc("eth_call", [{
     to: addresses.launchpad,
