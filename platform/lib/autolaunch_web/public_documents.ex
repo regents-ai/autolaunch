@@ -246,7 +246,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
     markdown
-    |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize)
+    |> MDEx.to_html!(extension: [table: true, inline_code_attributes: false], sanitize: @sanitize)
     |> String.replace(
       "<table>",
       ~s(<div class="document-table" role="region" aria-label="Table" tabindex="0"><table>)
