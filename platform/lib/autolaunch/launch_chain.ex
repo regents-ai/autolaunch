@@ -28,9 +28,11 @@ defmodule Autolaunch.LaunchChain do
     end
   end
 
-  @doc "How many seconds a number of blocks takes on the chain, by its usual block time."
-  def seconds(chain, blocks) when is_integer(blocks) and blocks >= 0,
-    do: blocks * seconds_per_block(chain)
+  @doc """
+  How many seconds a number of blocks takes on the chain, by its usual block
+  time. Blocks already past count as negative seconds.
+  """
+  def seconds(chain, blocks) when is_integer(blocks), do: blocks * seconds_per_block(chain)
 
   defp seconds_per_block(:base), do: 2
   defp seconds_per_block(:robinhood), do: 0.1
