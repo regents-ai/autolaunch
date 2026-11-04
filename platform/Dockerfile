@@ -1,11 +1,11 @@
-# gcc:15.2.0-bookworm
-FROM docker.io/library/gcc@sha256:9ca91b05c7b07d2979f16413e8b2cd6ec8a7c80ffca4121ccab0aeba33f90460 AS native
-# hexpm/elixir:1.20.4-erlang-29.1.2-debian-bookworm-20261020-slim
-FROM docker.io/hexpm/elixir@sha256:11ab449084960993491cdc3493be292464c5a63e8f753ed2afe351486471b69a AS elixir
-# node:26.12.0-bookworm-slim
-FROM docker.io/library/node@sha256:298992629d69bbd5b2b03ad57094d8e4fcb3a8eeb7c4e25d29de656519568913 AS node
-# debian:bookworm-20261020-slim
-FROM docker.io/library/debian@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8 AS slim
+# gcc:16.2.0-trixie
+FROM docker.io/library/gcc@sha256:07280eb2e744f1b7a2d8d4a3894c089ea07266c109758afc388a634bd098e4eb AS native
+# hexpm/elixir:1.20.5-erlang-29.1.2-debian-trixie-20261027-slim
+FROM docker.io/hexpm/elixir@sha256:bb266918bb26de22fb02ff19430f47e76331001601df0fc820806c21cd4164e0 AS elixir
+# node:26.13.0-trixie-slim
+FROM docker.io/library/node@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS node
+# debian:trixie-20261027-slim
+FROM docker.io/library/debian@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS slim
 
 FROM native AS assets
 
@@ -28,9 +28,15 @@ COPY --from=assets /usr/local/bin/node /usr/local/bin/node
 COPY --from=assets /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
-# Shared Regent libraries arrive here from GitHub at the commits mix.lock pins.
-RUN mix local.hex --force && mix local.rebar --force
+# Hex and rebar3 at fixed versions; rebar3 is the build Mix itself would pick
+# for this Elixir and OTP, checked against its published SHA-512.
+RUN mix local.hex 2.6.0 --force && \
+  mix local.rebar rebar3 https://builds.hex.pm/installs/1.18.4/rebar3-3.28.0-otp-29 \
+    --sha512 b51946058fbe4aa823185bfe27204be59be439982ac3a3e1dbd9f8260b9af046fcfdfbd9066283c3fbba5a2a45dc3570550c12a9a548daf223b80cac222a6d0f \
+    --force
 
+# Shared Regent libraries arrive here from GitHub at the commits mix.lock pins;
+# a mix.lock that no longer matches mix.exs stops the build.
 COPY platform/mix.exs platform/mix.lock ./
 COPY platform/config config
 RUN mix deps.get --only prod --check-locked && mix deps.compile
