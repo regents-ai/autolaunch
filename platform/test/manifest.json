@@ -1466,7 +1466,7 @@
       "file": "test/autolaunch_web/trailing_slash_test.exs",
       "line": 9,
       "test_name": "a page address with a slash at the end is the site's not-found page",
-      "keep_because": "Fails if any page address ending in a slash answers 200 (a second address for the page) or crashes with 500, as /contact/ and /docs/ did on the live site on 27 Oct.",
+      "keep_because": "Fails if any page address ending in a slash answers 200 (a second address for the page) or crashes with 500, as /docs/ did on the live site on 27 Oct.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,

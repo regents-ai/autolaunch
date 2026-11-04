@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.PublicPagesController do
   @moduledoc """
-  The developer guide, About, Contact, Changelog, Privacy and Terms pages, the
+  The developer guide, About, Changelog, Privacy and Terms pages, the
   agents' pages and skills, the agent guide, the tool manifest, the sitemap, robots.txt, security.txt, the API catalog and
   the API description. A request for a page's Markdown is answered before the
   router; this controller shows the same document as HTML.

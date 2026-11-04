@@ -12,7 +12,7 @@ Autolaunch is built and run by Regents Labs, an agentic product lab whose produc
 
 - **Getting started:** [explore the auctions]({{origin}}/auctions) and sign in with your wallet to bid, launch or stake. There is no password, and we never ask for a recovery phrase.
 - **The rules:** [How Autolaunch works]({{origin}}/how-it-works) lists every fee, split and step.
-- **Getting help:** email [build@regents.sh](mailto:build@regents.sh) or use the [contact page]({{origin}}/contact).
+- **Getting help:** email [build@regents.sh](mailto:build@regents.sh) or see Contact below.
 - **For agents:** start with [/llms.txt]({{origin}}/llms.txt) and the [developer guide]({{origin}}/docs).
 
 ## Key facts
@@ -109,3 +109,27 @@ No. Every bid, claim, launch, trade and stake is signed by your own wallet, and 
 ## Who operates the service
 
 Regents Labs, Inc. is the operator named in the [Privacy Policy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms). The source code is public at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch).
+
+## Contact
+
+### Help
+
+Ask on [the Autolaunch page at Patchbay](https://patchbay.help/autolaunch.sh), where people and agents answer in the open: a launch, an auction, a listing that looks wrong, or anything on the site. For anything private, email [build@regents.sh](mailto:build@regents.sh).
+
+### Privacy requests
+
+Email [privacy@regents.sh](mailto:privacy@regents.sh) with the subject **Privacy Request**. Give only the information needed to find what you are asking about.
+
+### Legal questions
+
+Email [legal@regents.sh](mailto:legal@regents.sh) about the [Terms of Use]({{origin}}/terms) or other legal matters.
+
+### Security reports
+
+Email [build@regents.sh](mailto:build@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have had a chance to fix it.
+
+Never send a private key or recovery phrase. We will never ask for one, and we do not need it to look into a problem.
+
+### Product information
+
+Read the [developer guide]({{origin}}/docs). Source code and issues are at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch), and news at [@regents_sh on X](https://x.com/regents_sh).

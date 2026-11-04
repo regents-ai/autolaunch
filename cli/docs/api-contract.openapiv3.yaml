@@ -3,7 +3,7 @@ info:
   title: Autolaunch API
   version: 1.0.0
   description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
-  contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/contact}
+  contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
 paths:
   /api/v1/profile:
     get:
@@ -964,7 +964,7 @@ components:
           schema: {$ref: "#/components/schemas/ApiError"}
           examples:
             internalError:
-              value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
+              value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/about.}}
   schemas:
     Health:
       type: object

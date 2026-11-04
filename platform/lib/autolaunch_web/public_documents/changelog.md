@@ -1,5 +1,8 @@
 # Changelog
 
+## 4 November 2026: Contact
+- How to reach us is now part of the About page.
+
 ## 4 November 2026: Geist Serif
 - Every page and share picture now uses one typeface, Geist Serif. Code keeps Geist Mono.
 

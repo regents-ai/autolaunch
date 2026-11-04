@@ -41,7 +41,7 @@ launches.
 | `/regent` | REGENT facts and revenue sources | **Gap** |
 | `/convert` | Memestock fee shares waiting to be sold, for the converter wallet | **Gap** |
 | Search window (⌘ K) | Find an auction or token from any page | **Gap** |
-| `/docs`, `/about`, `/contact`, `/privacy`, `/terms` | Guides and policies | `autolaunch_web/content_negotiation_test.exs` › "HTML pages reject JSON selected by Accept or _format", › "a browser or an Accept header with an HTML fallback still gets LiveView HTML" |
+| `/docs`, `/about`, `/privacy`, `/terms` | Guides and policies | `autolaunch_web/content_negotiation_test.exs` › "HTML pages reject JSON selected by Accept or _format", › "a browser or an Accept header with an HTML fallback still gets LiveView HTML" |
 | `/blog`, `/blog/<slug>` | Posts | **Gap** |
 | Error pages | Not found (404), Try again only for a lost database connection (503), plain error (500) | `market_page_test.exs` (all four cases); `autolaunch_web/controllers/old_link_controller_test.exs` (both cases) |
 

@@ -1,5 +1,5 @@
 defmodule AutolaunchWeb.TrailingSlashTest do
-  # Regression: the router matched /contact/ and /docs/ as /contact and /docs, and
+  # Regression: the router matched /docs/ as /docs, and
   # the page then looked up its document under the slash address and crashed.
   use AutolaunchWeb.ConnCase, async: true
 
@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.TrailingSlashTest do
   import Plug.Test, only: [conn: 2]
 
   test "a page address with a slash at the end is the site's not-found page" do
-    for path <- ["/contact/", "/docs/", "/account/", "/llms.txt/"] do
+    for path <- ["/about/", "/docs/", "/account/", "/llms.txt/"] do
       response = request(path, "text/html")
       assert response.status == 404
       assert response.resp_body =~ "We can’t find that page"

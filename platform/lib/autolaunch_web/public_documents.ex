@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.Components.AutolaunchHelpers
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact changelog privacy terms llms llms-full agents skill)
+  @names ~w(home docs about changelog privacy terms llms llms-full agents skill)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -22,7 +22,6 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/" => "home",
     "/docs" => "docs",
     "/about" => "about",
-    "/contact" => "contact",
     "/changelog" => "changelog",
     "/privacy" => "privacy",
     "/terms" => "terms"
@@ -73,7 +72,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     wheel_sha256: "2020d16cb24f8fe634e9d2a6fadacc54f74503ec729aab6f7b6f4c53dd75837f"
   }
 
-  # Where security reports go, as the contact page publishes it.
+  # Where security reports go, as the About page publishes it.
   @security_contact "mailto:build@regents.sh"
 
   # The documents and the site's fixed pages change only with a release, so the
@@ -136,10 +135,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},
     "/about" =>
       {"About",
-       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts and common questions."},
-    "/contact" =>
-      {"Contact",
-       "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
+       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts, common questions and how to reach us."},
     "/changelog" =>
       {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."},
     "/privacy" =>
@@ -151,7 +147,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   }
 
   # The fixed pages both sitemaps list.
-  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /changelog /privacy /terms /blog)
+  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /changelog /privacy /terms /blog)
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document("/agents" <> _rest = path), do: AgentGuides.document(path)
@@ -376,7 +372,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
     Preferred-Languages: en
     Canonical: #{url("/.well-known/security.txt")}
-    Policy: #{url("/contact")}
+    Policy: #{url("/about")}
     """
   end
 
@@ -433,7 +429,7 @@ defmodule AutolaunchWeb.PublicDocuments do
               "@type" => "ContactPoint",
               "contactType" => "customer support",
               "email" => "build@regents.sh",
-              "url" => url("/contact"),
+              "url" => url("/about"),
               "availableLanguage" => "English"
             },
             %{

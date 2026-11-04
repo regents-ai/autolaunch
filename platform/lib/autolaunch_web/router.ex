@@ -329,7 +329,6 @@ defmodule AutolaunchWeb.Router do
 
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
-    get "/contact", PublicPagesController, :show
     get "/changelog", PublicPagesController, :show
     get "/agents", PublicPagesController, :show
     get "/agents/:agent", PublicPagesController, :show

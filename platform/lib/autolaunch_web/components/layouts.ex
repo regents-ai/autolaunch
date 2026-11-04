@@ -107,7 +107,6 @@ defmodule AutolaunchWeb.Layouts do
             <a href={~p"/llms.txt"}>The whole site in brief</a>
           </div>
         </span>
-        <a href={~p"/contact"}>Contact</a>
         <a href={~p"/changelog"}>Changelog</a>
         <span class="regent-footer__legal">
           <a href={~p"/privacy"}>Privacy policy</a>

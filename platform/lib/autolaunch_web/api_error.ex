@@ -57,8 +57,7 @@ defmodule AutolaunchWeb.ApiError do
   defp hint("account_unavailable"), do: "Try again in a moment."
 
   defp hint("internal_error"),
-    do:
-      "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/contact")}."
+    do: "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/about")}."
 
   defp hint(_code),
     do:
