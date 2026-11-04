@@ -218,11 +218,11 @@
   #home-top .home-search__prompt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   #home-top .home-search__shortcut { display: none; }
 }
-/* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
+/* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls, and never narrower than a short name and its symbol need. */
 @media (max-width: 42rem) {
   #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
   #home-explore .home-backed { margin-bottom: 28px; }
-  #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
+  #home-explore .home-backed__row { grid-auto-columns: max(40%, 8rem); gap: 12px; }
   #home-explore .home-toolbar > .home-switch { flex: 1 0 100%; }
   #home-explore .home-switch a { flex: 1; min-width: 0; }
   #home-explore .home-filter { margin-left: auto; }
