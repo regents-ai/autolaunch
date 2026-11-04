@@ -1,5 +1,5 @@
 {
-  "total": 159,
+  "total": 161,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2069,6 +2069,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f3fa33768852951a22961593693d07ce3a266c5aaa6e02cdb229cba5719655e3"
+    },
+    {
+      "id": 200,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/secure_every_answer_test.exs",
+      "line": 13,
+      "test_name": "the health answer runs under the strict policy",
+      "keep_because": "Every answer must carry the strict policy, nosniff and referrer-policy, including answers given before the router and pages that do not exist; a gap shows only on addresses no page test opens, and Sentinel's same-check reads them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a88f93f0105c1b9f01dd345b9d0dd5d3ca7a7c08f862878d54c952e024d84163"
+    },
+    {
+      "id": 201,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/secure_every_answer_test.exs",
+      "line": 17,
+      "test_name": "a page that does not exist runs under the strict policy",
+      "keep_because": "Every answer must carry the strict policy, nosniff and referrer-policy, including answers given before the router and pages that do not exist; a gap shows only on addresses no page test opens, and Sentinel's same-check reads them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a88f93f0105c1b9f01dd345b9d0dd5d3ca7a7c08f862878d54c952e024d84163"
     }
   ],
   "legacy_folders_to_remove": [

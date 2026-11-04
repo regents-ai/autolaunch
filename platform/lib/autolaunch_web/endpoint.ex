@@ -53,10 +53,11 @@ defmodule AutolaunchWeb.Endpoint do
   plug AutolaunchWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  # Every page, Markdown document, refusal and API answer, including those given
-  # before the router, lets browser agents use the tools this site's pages register and carries the
-  # origin-trial token, so Chrome knows it before reading `tools`.
-  plug :allow_page_tools
+  # Every answer, including the Markdown and refusals given before the router and
+  # pages that do not exist, runs under the strict policy unless its route sets a
+  # wider one. It lets browser agents use the tools this site's pages register and
+  # carries the origin-trial token, so Chrome knows it before reading `tools`.
+  plug :secure_every_answer
 
   # One budget per client address, shared by the health check, the browser's visit
   # reports, every /api address and the share pictures, answered or not. Every
@@ -129,10 +130,14 @@ defmodule AutolaunchWeb.Endpoint do
     end
   end
 
-  defp allow_page_tools(conn, _opts) do
-    conn
-    |> put_resp_header("permissions-policy", "tools=(self)")
-    |> put_resp_header("origin-trial", @webmcp_origin_trial)
+  # The policy is built by ContentSecurityPolicy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  defp secure_every_answer(conn, _opts) do
+    Phoenix.Controller.put_secure_browser_headers(conn, %{
+      "content-security-policy" => AutolaunchWeb.ContentSecurityPolicy.reading(),
+      "permissions-policy" => "tools=(self)",
+      "origin-trial" => @webmcp_origin_trial
+    })
   end
 
   defp limit_rate(%Plug.Conn{method: "GET", path_info: ["api", "v1", "auctions"]} = conn, _opts) do
