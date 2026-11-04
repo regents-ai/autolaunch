@@ -132,7 +132,9 @@ class Fork:
         # also prints the address it reads Base from; a line with a web address stays out.
         subprocess.Popen(
             ["awk", r"/https?:\/\// {next} "
-                    r"/^[[:space:]]*(Transaction|Contract created|Gas used|Block Number|Block Time|Error):/ {print; fflush()}"],
+                    r"/^[[:space:]]*Transaction:/ {sent=1} "
+                    r"/^[[:space:]]*Block Number:/ {if (sent) print; sent=0; fflush(); next} "
+                    r"/^[[:space:]]*(Transaction|Contract created|Gas used|Error):/ {print; fflush()}"],
             stdin=process.stdout, stdout=log, stderr=log, start_new_session=True,
         )
         process.stdout.close()
