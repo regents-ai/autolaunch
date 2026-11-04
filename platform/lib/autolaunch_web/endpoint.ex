@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.Endpoint do
 
   plug AutolaunchWeb.Plugs.Parsers,
     body_reader: {AutolaunchWeb.Plugs.BodyReader, :read_body, []},
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [Plug.Parsers.URLENCODED, Plug.Parsers.MULTIPART, Plug.Parsers.JSON],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
 

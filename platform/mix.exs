@@ -90,7 +90,7 @@ defmodule Autolaunch.MixProject do
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
-      {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
+      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       {:siwa,
        git: @elixir_utils,
@@ -118,7 +118,7 @@ defmodule Autolaunch.MixProject do
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
       # In :test too, because precommit runs in :test and checks the synced block.
-      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 1.3.1", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:logger_json, "~> 7.0"},
