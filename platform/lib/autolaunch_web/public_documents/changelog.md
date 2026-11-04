@@ -1,5 +1,8 @@
 # Changelog
 
+## 4 November 2026: After-hours off the home page
+- After-hours has left the home page and the sidebar now the experiment is over. Its page stays open at /after-hour-stocks, so holders can still sell or redeem, and your portfolio still shows your tokens.
+
 ## 3 November 2026: Simpler home cards
 - Each product card on the home page is now one link: its drawing, a short title and what it does. Nothing opens on hover, and a phone needs one tap.
 

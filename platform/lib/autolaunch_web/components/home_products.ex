@@ -1,11 +1,11 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
-  The home page's products, at the top of the page: covered calls, After-hours
-  Exposure, Memestock launches and Revstake launches. Each card is one link: a
+  The home page's products, at the top of the page: covered calls, Memestock
+  launches and Revstake launches. Each card is one link: a
   line drawing lit by the shared holographic foil (`ProductFoil` in
   `assets/js/hooks/product_cards.ts`), a title and what the link does.
 
-  A product switched off on this site (covered calls, Exposure) has no card, so
+  A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
   launch cards keep their place, not a link, and say so where the action would be.
   """
@@ -69,14 +69,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
           path: "/covered-calls",
           launch: false
         },
-      Autolaunch.Exposure.Deployment.enabled?() &&
-        %{
-          id: "after-hours",
-          title: "After-hours",
-          action: "Split stock",
-          path: "/after-hour-stocks",
-          launch: false
-        },
       %{
         id: "memestock",
         title: "Memestock",
@@ -126,17 +118,6 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         <path d="M52 108H164L256 44" />
         <circle cx="164" cy="108" r="4" fill="var(--home-product-ground)" />
         <path d="M244 44H256V56" />
-      </g>
-      <g :if={@product == "after-hours"}>
-        <rect x="52" y="36" width="44" height="96" fill={"url(##{@id}-hatch)"} />
-        <rect x="148" y="36" width="44" height="96" fill={"url(##{@id}-hatch)"} />
-        <rect x="244" y="36" width="28" height="96" fill={"url(##{@id}-hatch)"} />
-        <path d="M44 132H280M96 36V132M148 36V132M192 36V132M244 36V132" />
-        <path d="M52 100L74 86L96 92L122 70L148 80L170 58L192 66L218 50L244 60L272 46" />
-        <circle cx="96" cy="92" r="3.5" fill="var(--home-product-ground)" />
-        <circle cx="148" cy="80" r="3.5" fill="var(--home-product-ground)" />
-        <circle cx="192" cy="66" r="3.5" fill="var(--home-product-ground)" />
-        <circle cx="244" cy="60" r="3.5" fill="var(--home-product-ground)" />
       </g>
       <g :if={@product == "memestock"}>
         <circle cx="104" cy="84" r="44" fill="var(--home-product-ground)" />

@@ -26,18 +26,17 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.StockLists
   import AutolaunchWeb.Components.SwapModal
-  alias Autolaunch.{CoveredCalls, Exposure, HomeMarket}
+  alias Autolaunch.{CoveredCalls, HomeMarket}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
   alias Phoenix.LiveView.AsyncResult
 
   # What the list shows: auctions, launched tokens, or the covered calls for
-  # sale. Tokens choose a type below it, Isolated being the After-hours tokens.
+  # sale. Tokens choose a type below it.
   @lists [auctions: "Auctions", tokens: "Tokens", options: "Options"]
   @token_kinds [
     {"all", "All"},
     {"memestock", "Memestock"},
-    {"revstake", "Revstake"},
-    {"isolated", "Isolated"}
+    {"revstake", "Revstake"}
   ]
 
   # An auction's status in the filter menu. Each is a set of list options.
@@ -48,10 +47,7 @@ defmodule AutolaunchWeb.HomeLive do
   @no_connection %{x: false, ens: false, github: false}
 
   def mount(_params, _session, socket) do
-    offered = %{
-      options?: CoveredCalls.Deployment.enabled?(),
-      isolated?: Exposure.Deployment.enabled?()
-    }
+    offered = %{options?: CoveredCalls.Deployment.enabled?()}
 
     {:ok,
      socket
@@ -72,17 +68,14 @@ defmodule AutolaunchWeb.HomeLive do
        local_lab: Autolaunch.Lab.test_chain?(),
        listed: nil,
        calls: AsyncResult.loading(),
-       isolated: offered.isolated? && Exposure.Listing.fetch(),
        options?: offered.options?,
-       isolated?: offered.isolated?,
        lists: lists(offered),
-       token_kinds: token_kinds(offered),
+       token_kinds: @token_kinds,
        statuses: @statuses,
        unfiltered: @unfiltered,
        no_connection: @no_connection
      )
      |> LiveListings.subscribe()
-     |> hear_isolated()
      |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
      |> assign_figure_rates()}
@@ -97,7 +90,7 @@ defmodule AutolaunchWeb.HomeLive do
       assign(socket,
         market_options: options,
         list: list,
-        token_kind: token_kind(params, options, socket.assigns),
+        token_kind: options.kind,
         kind: kind(options),
         tab: tab(options),
         filtered?: filtered?(options),
@@ -112,7 +105,6 @@ defmodule AutolaunchWeb.HomeLive do
     {:noreply,
      case {list, socket.assigns.token_kind} do
        {:options, _kind} -> read_calls(socket, first?)
-       {:tokens, "isolated"} -> socket
        _market -> show_market(socket)
      end}
   end
@@ -122,14 +114,8 @@ defmodule AutolaunchWeb.HomeLive do
   defp list(%{"view" => "tokens"}, _assigns), do: :tokens
   defp list(_params, _assigns), do: :auctions
 
-  defp token_kind(%{"kind" => "isolated"}, _options, %{isolated?: true}), do: "isolated"
-  defp token_kind(_params, options, _assigns), do: options.kind
-
   defp lists(%{options?: true}), do: @lists
   defp lists(_assigns), do: Keyword.delete(@lists, :options)
-
-  defp token_kinds(%{isolated?: true}), do: @token_kinds
-  defp token_kinds(_assigns), do: List.keydelete(@token_kinds, "isolated", 0)
 
   # The auctions or tokens the options name, read unless they are the ones
   # already shown.
@@ -164,15 +150,6 @@ defmodule AutolaunchWeb.HomeLive do
   defp put_calls(socket, {:error, error}),
     do:
       assign(socket, :calls, AsyncResult.failed(socket.assigns.calls, CoveredCalls.reason(error)))
-
-  # The After-hours tokens are read once for every page (`Exposure.Listing`);
-  # an open page hears each new reading.
-  defp hear_isolated(%{assigns: %{isolated?: true}} = socket) do
-    if connected?(socket), do: Autolaunch.SharedReading.subscribe(Exposure.Listing.key())
-    socket
-  end
-
-  defp hear_isolated(socket), do: socket
 
   def handle_event(
         "load-more",
@@ -243,10 +220,6 @@ defmodule AutolaunchWeb.HomeLive do
     do: {:noreply, assign(socket, backed: backed, coming: coming)}
 
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
-
-  # A new reading of the After-hours tokens.
-  def handle_info({:shared_reading, {:exposure_tokens, _id}}, socket),
-    do: {:noreply, assign(socket, :isolated, Exposure.Listing.fetch())}
 
   # The Robinhood notice follows whether the site could read Robinhood.
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
@@ -431,30 +404,6 @@ defmodule AutolaunchWeb.HomeLive do
       options.chain != "all" or options.kind != "all" or options.state != "all" or options.x or
         options.ens or options.github
 
-  # The After-hours tokens of the series still running, at the top of every
-  # token, while the filters and search leave room for them: they are on Base,
-  # with no creator.
-  defp isolated_lead(
-         %{list: :tokens, token_kind: "all", isolated: %{tokens: [_ | _] = tokens}} = assigns
-       ) do
-    options = assigns.market_options
-
-    if options.chain in ["all", "base"] and !(options.x or options.ens or options.github),
-      do: Enum.filter(tokens, &(&1.status != :ended and matches?(&1, options.q))),
-      else: []
-  end
-
-  defp isolated_lead(_assigns), do: []
-
-  defp matches?(_token, ""), do: true
-
-  defp matches?(token, q),
-    do:
-      Enum.any?(
-        [token.name, token.symbol],
-        &String.contains?(String.downcase(&1), String.downcase(q))
-      )
-
   # The way in to launching, beside the way in to backing one. Before
   # launches open it stays in place, switched off, with the reason beside it.
   defp launch_button(assigns) do
@@ -506,8 +455,6 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   def render(assigns) do
-    assigns = assign(assigns, :isolated_lead, isolated_lead(assigns))
-
     ~H"""
     <div class="home-page home-explore-page" id="home-explore">
       <h1 class="visually-hidden">Autolaunch</h1>
@@ -744,24 +691,6 @@ defmodule AutolaunchWeb.HomeLive do
       </section>
 
       <section
-        :if={@list == :tokens && @token_kind == "isolated"}
-        id="home-isolated"
-        class="home-market"
-        aria-label="Isolated tokens"
-        aria-busy={to_string(!@isolated)}
-      >
-        <.isolated_list :if={@isolated && @isolated.tokens} tokens={@isolated.tokens} />
-        <.list_loading :if={!@isolated} label="Loading tokens" />
-        <Regent.Primitives.notice
-          :if={@isolated && !@isolated.tokens}
-          tone="error"
-          class="home-market__error"
-        >
-          <p>Isolated tokens can't be shown right now. They are read again every few minutes.</p>
-        </Regent.Primitives.notice>
-      </section>
-
-      <section
         :if={market_list?(assigns)}
         id="home-market"
         class="home-market"
@@ -792,13 +721,12 @@ defmodule AutolaunchWeb.HomeLive do
           </p>
         </Regent.Primitives.notice>
         <div
-          :if={(@records != [] || @isolated_lead != []) && @market_options.display == "grid"}
+          :if={@records != [] && @market_options.display == "grid"}
           id="home-coin-grid"
           class="home-coin-grid"
           phx-hook="MotionCascade"
           data-variant={AutolaunchWeb.Motion.standard("grid")}
         >
-          <.isolated_card :for={token <- @isolated_lead} token={token} />
           <.explore_card
             :for={{record, index} <- Enum.with_index(@records)}
             kind={@records_kind}
@@ -827,18 +755,14 @@ defmodule AutolaunchWeb.HomeLive do
         <.token_list
           :if={
             @market_options.display == "list" && @kind == :token &&
-              (@records != [] || @isolated_lead != [] || @market_loading)
+              (@records != [] || @market_loading)
           }
           creators={@creators}
           records={if @records_kind == :token, do: @records, else: []}
           rates={@rates}
           loading={@market_loading}
           trade_event="open_trade"
-        >
-          <:lead_rows>
-            <.isolated_rows tokens={@isolated_lead} action />
-          </:lead_rows>
-        </.token_list>
+        />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
           <p>
@@ -849,7 +773,7 @@ defmodule AutolaunchWeb.HomeLive do
           <Regent.Primitives.button phx-click="retry" variant="secondary">Try again</Regent.Primitives.button>
         </Regent.Primitives.notice>
         <div
-          :if={!@market_loading && !@market_failed && @records == [] && @isolated_lead == []}
+          :if={!@market_loading && !@market_failed && @records == []}
           class="home-empty"
           role="status"
         >
@@ -885,11 +809,11 @@ defmodule AutolaunchWeb.HomeLive do
           >{if @market_loading, do: "Loading…", else: "Load more"}</Regent.Primitives.button>
         </div>
         <p
-          :if={!@market_loading && !@market_failed && (@records != [] || @isolated_lead != [])}
+          :if={!@market_loading && !@market_failed && @records != []}
           class="home-result-count"
           role="status"
         >
-          Showing {count_label(length(@records) + length(@isolated_lead), @records_kind)}{if !@has_more,
+          Showing {count_label(length(@records), @records_kind)}{if !@has_more,
             do: " · All results loaded"}
         </p>
       </section>
@@ -943,7 +867,7 @@ defmodule AutolaunchWeb.HomeLive do
   # The auctions or launched tokens the site keeps, rather than a list read
   # from Base.
   defp market_list?(%{list: :auctions}), do: true
-  defp market_list?(%{list: :tokens, token_kind: kind}), do: kind != "isolated"
+  defp market_list?(%{list: :tokens}), do: true
   defp market_list?(_assigns), do: false
 
   # A list keeps the filters that apply to it; its type starts again at All.
@@ -952,7 +876,6 @@ defmodule AutolaunchWeb.HomeLive do
   defp list_path(options, list),
     do: HomeMarket.path(options, %{view: to_string(list), kind: "all"})
 
-  defp kind_path(_options, "isolated"), do: "/?kind=isolated&view=tokens"
   defp kind_path(options, kind), do: HomeMarket.path(options, %{view: "tokens", kind: kind})
 
   attr :label, :string, required: true

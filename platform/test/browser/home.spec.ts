@@ -2,8 +2,8 @@ import {expect, test} from "./support/test"
 import {ready} from "./support/person"
 
 // The home page's product cards and the list's choices, as a visitor meets them.
-// The walk's site has covered calls and Exposure switched off, so the two launch
-// cards are the ones shown; the LiveView tests cover the other two and their lists.
+// The walk's site has covered calls switched off, so the two launch cards are the
+// ones shown; the LiveView tests cover the other one and its list.
 
 test("a card fits at every width and says launches open soon", async ({page, isMobile}) => {
   for (const width of isMobile ? [390, 320] : [1280]) {

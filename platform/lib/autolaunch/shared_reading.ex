@@ -77,15 +77,6 @@ defmodule Autolaunch.SharedReading do
       keys: 3,
       bytes: 64,
       within: 330
-    },
-    # The tokens of every Exposure series the site offers, with their pool
-    # prices (`Autolaunch.Exposure.Listing`): one key, "base". Two tokens a
-    # week, about 620 bytes a series: room for years. Read every five minutes.
-    exposure_tokens: %{
-      open: "each series' tokens, supply and pool quotes are public on Base",
-      keys: 1,
-      bytes: 262_144,
-      within: 330
     }
   }
 
