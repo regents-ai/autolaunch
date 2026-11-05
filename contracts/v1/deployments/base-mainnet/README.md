@@ -123,10 +123,10 @@ writes `reports/generated/deployment/site-config.json` in the exact shape the we
 `chain_id` 8453; the two endpoints as passed; `addresses`, the eight deployed contracts plus the
 frozen `cca_factory`, `governance_safe`, `permit2`, `pool_manager`, `position_manager` and `regent`
 from this build's bindings, all lowercase; `abis` for `auction`, `escrow`, `factory`, `hook`,
-`lp_locker`, `permit2`, `receiver`, `splitter`, `strategy` and `token` from the frozen build; and
-`start_blocks.factory`, the block the factory was created in. It refuses to run while the manifest
-is the empty record, carries the endpoints passed on the command line, never prints them, and is
-never committed; the gate wipes `reports/generated/deployment/` on every run.
+`lp_locker`, `permit2`, `receiver`, `splitter`, `strategy` and `token` from the frozen build. It
+refuses to run while the manifest is the empty record, carries the endpoints passed on the command
+line, never prints them, and is never committed; the gate wipes `reports/generated/deployment/` on
+every run.
 
 `docs/audit/deployment-ceremony.md` describes the ceremony, the gate modes, the endpoint boundary,
 the external-state preflight, and the approval boundary in full.

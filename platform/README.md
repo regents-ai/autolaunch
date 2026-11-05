@@ -316,10 +316,9 @@ Fly Sentinel reads them from Prometheus under its site health set.
 Base and Robinhood Chain are read through a paid node, so the background readers run on a
 five-minute clock: each auction's reading job (`Autolaunch.AuctionMarket`, twenty minutes
 once the auction has finished), Robinhood launch discovery, each chain's newest block
-(`Autolaunch.ChainHead`), auction activity, token trades, the Base log ledger, the auction
-finisher and Memestock launch discovery (`*/5` Oban schedules), and the REGENT page's shared
-figures. A reader that fails tries again within a minute; the ledger
-keeps reading until it reaches the safe head before it sleeps again.
+(`Autolaunch.ChainHead`), auction activity, token trades, the auction finisher and Base
+launch discovery (`*/5` Oban schedules), and the REGENT page's shared figures. A reader that
+fails tries again within a minute.
 
 A person's on-chain press that the chain confirms calls `Autolaunch.ChainRefresh.request/1`
 with its chain id (`AutolaunchWeb.OnchainSteps`, `AutolaunchWeb.OnchainCalls`). Every reader
