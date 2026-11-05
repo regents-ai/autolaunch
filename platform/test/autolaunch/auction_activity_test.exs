@@ -10,10 +10,8 @@ defmodule Autolaunch.AuctionActivityTest do
   alias Autolaunch.{
     Auction,
     AuctionActivity,
-    AuctionPricePoint,
-    Bid,
-    BidActivity,
     BaseRpcStub,
+    Bid,
     Lab,
     LabAbi,
     Repo
@@ -72,14 +70,15 @@ defmodule Autolaunch.AuctionActivityTest do
     assert Decimal.equal?(saved.bid_volume, 2)
 
     assert [%{bid_id: "7", bidder: @bidder, block_number: @bid_block} = bid] =
-             Repo.all(from b in BidActivity, where: b.auction_id == ^auction.id)
+             Autolaunch.auction_bids!(auction.id)
 
     assert Decimal.equal?(bid.amount, 2)
     assert DateTime.to_unix(bid.occurred_at) == @now - 100
 
     assert [%{block_number: @bid_block, clock_block: @bid_block}] =
-             Repo.all(from p in AuctionPricePoint, where: p.auction_id == ^auction.id)
+             Autolaunch.auction_price_points!(auction.id)
 
+    # A saved position has no read without a signed-in wallet, so this reads the row back.
     assert [%{onchain_bid_id: "7", owner_address: @bidder}] =
              Repo.all(from b in Bid, where: b.auction_id == ^auction.id)
   end
