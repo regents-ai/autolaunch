@@ -29,6 +29,7 @@ defmodule Autolaunch.AuctionActivityTest do
   @start_block 900
   @end_block 2_000
   @now 1_800_000_000
+  @opened 1_799_990_000
   @atomic 2_000_000_000_000_000_000
   @q96 79_228_162_514_264_337_593_543_950_336
 
@@ -65,8 +66,8 @@ defmodule Autolaunch.AuctionActivityTest do
     saved = Ash.get!(Auction, auction.id, actor: %System{})
     assert saved.activity_next_block == @head + 1
     assert saved.activity_last_hash == @head_hash
-    assert DateTime.to_unix(saved.opened_at) == @now - (@head - @start_block) * 2
-    assert DateTime.to_unix(saved.estimated_end_at) == @now + (@end_block - @head) * 2
+    assert DateTime.to_unix(saved.opened_at) == @opened
+    assert DateTime.to_unix(saved.estimated_end_at) == @now + 200
     assert Decimal.equal?(saved.bid_volume, 2)
 
     assert [%{bid_id: "7", bidder: @bidder, block_number: @bid_block} = bid] =
@@ -95,6 +96,11 @@ defmodule Autolaunch.AuctionActivityTest do
       blocks: %{
         "latest" => head,
         hex(@head) => head,
+        hex(@start_block) => %{
+          "number" => hex(@start_block),
+          "hash" => @bid_hash,
+          "timestamp" => hex(@opened)
+        },
         hex(@bid_block) => %{
           "number" => hex(@bid_block),
           "hash" => @bid_hash,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 5 November 2026: Faster blocks
+- Base's move to five blocks a second leaves ended auctions' dates as they were: each date comes from the block's own time.
+- The REGENT page's USDC keeps covering seven full days.
+
 ## 5 November 2026: the agent guides name Regents CLI 1.10.24
 - The agent guides and agents.md now name Regents CLI 1.10.24, the newest release, with its source commit and the fingerprint of its published package.
 

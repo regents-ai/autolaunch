@@ -14,7 +14,8 @@ defmodule Autolaunch.RegentFacts do
   taken inside this process, so visitors who ask while it is being taken wait for that
   one reading instead of each starting their own. The seven days of USDC and
   the price are read beside the rest; either one that does not answer is
-  `:unavailable` and the rest of the reading stands.
+  `:unavailable` and the rest of the reading stands. A new reading asks only for
+  the blocks after the last one, and drops the deposits now older than seven days.
 
   The seven days of deposits are also kept as each deposit's own split, as
   the staking contract recorded it (to stakers, to the treasury), grouped by
@@ -73,17 +74,20 @@ defmodule Autolaunch.RegentFacts do
   # stakerRewardsCredited, treasuryResidualIncrease and sourceTag.
   @usdc_deposited "0x1a150e3db61cdcdf841d24acf00159c2e184f84c02c7ec5ab3507766dae59e51"
 
-  # Base makes a block about every two seconds, so seven days is 302,400 of
-  # them, counted back from the block the rest of the reading was taken at. A
-  # public Base endpoint answers `eth_getLogs` over at most ten thousand blocks,
-  # so the window is asked for in that many at a time, a few at a time.
-  @window_blocks 302_400
+  # Seven days by each block's own time, counted back from the block the rest of
+  # the reading was taken at: Base makes up to five blocks a second, so no count of
+  # blocks stands for them, and blocks older than that rate reaches are never asked
+  # for. A public Base endpoint answers `eth_getLogs` over at most ten thousand
+  # blocks, so the window is asked for in that many at a time, a few at a time.
+  @window_seconds 604_800
+  @most_blocks 5 * @window_seconds
   @chunk_blocks 10_000
   @chunk_concurrency 8
 
   @base_chain_id 8453
   @ttl_ms 300_000
   @read_timeout 30_000
+  @reading_timeout 120_000
 
   def start_link(options \\ []),
     do: GenServer.start_link(__MODULE__, nil, name: Keyword.get(options, :name, __MODULE__))
@@ -93,7 +97,7 @@ defmodule Autolaunch.RegentFacts do
 
   @doc "The shared REGENT reading, at most five minutes old."
   @spec read() :: {:ok, map()} | {:error, atom()}
-  def read, do: GenServer.call(__MODULE__, :read, @read_timeout)
+  def read, do: GenServer.call(__MODULE__, :read, @reading_timeout)
 
   @impl Autolaunch.ChainRefresh
   def refresh(@base_chain_id), do: GenServer.cast(__MODULE__, :refresh)
@@ -118,13 +122,16 @@ defmodule Autolaunch.RegentFacts do
   def handle_call(:read, _from, nil), do: reread(nil)
 
   defp reread(kept) do
-    case read_base() do
+    case read_base(kept_deposits(kept)) do
       {:ok, reading} -> {:reply, {:ok, reading}, {reading, now()}}
       {:error, reason} -> {:reply, {:error, reason}, kept}
     end
   end
 
-  defp read_base do
+  defp kept_deposits({%{deposits_7d: %{} = deposits}, _read_at}), do: deposits
+  defp kept_deposits(_kept), do: nil
+
+  defp read_base(kept) do
     token = Abi.regent_address()
     staking = @staking["address"]
 
@@ -147,7 +154,7 @@ defmodule Autolaunch.RegentFacts do
       circulating =
         max(total_supply - vault_held - treasury_held - redeemer_held - inventory, 0)
 
-      deposits_7d = deposits_7d(staking, block.number)
+      deposits_7d = deposits_7d(staking, block, kept)
 
       {:ok,
        %{
@@ -164,7 +171,6 @@ defmodule Autolaunch.RegentFacts do
          revenue_share_denominator: regent(denominator),
          staked_denominator_share: share(total_staked, denominator),
          deposits_7d: deposits_7d,
-         window_blocks: @window_blocks,
          emission_apr_percent: Rpc.format_units(apr_bps, 2),
          price_usd: price_usd(token),
          clanker_vault: %{
@@ -204,13 +210,61 @@ defmodule Autolaunch.RegentFacts do
   end
 
   # Every USDC deposit the staking contract recorded over the seven days ending
-  # at `to_block`, added up from its own logs: what arrived, what was credited
+  # at `block`, added up from its own logs: what arrived, what was credited
   # to stakers and what went to the treasury, in total and by source. The
   # first stretch that fails ends the sum: a total made from the stretches that
-  # happened to answer would understate what the contract received.
-  defp deposits_7d(staking, to_block) do
-    from_block = max(to_block - @window_blocks + 1, 0)
+  # happened to answer would understate what the contract received. A `safe`
+  # block never changes, so what the last reading saw stands.
+  defp deposits_7d(staking, block, kept) do
+    since = block.timestamp - @window_seconds
 
+    with {:ok, first} <- first_after(lowest(kept, block), block.number, since),
+         {:ok, new} <- new_deposits(staking, next(kept, first), block.number) do
+      deposits = new ++ held(kept, first)
+
+      %{
+        from_block: first,
+        to_block: block.number,
+        deposits: deposits,
+        count: length(deposits),
+        total: allocation(deposits),
+        sources:
+          for source <- sources(deposits) do
+            {source, deposits |> Enum.filter(&(&1.source == source)) |> allocation()}
+          end
+      }
+    else
+      failed ->
+        Logger.warning("REGENT seven-day USDC unavailable: #{inspect(failed)}")
+        :unavailable
+    end
+  end
+
+  defp lowest(nil, block), do: max(block.number - @most_blocks + 1, 0)
+  defp lowest(kept, _block), do: kept.from_block
+
+  defp next(nil, first), do: first
+  defp next(kept, _first), do: kept.to_block + 1
+
+  defp held(nil, _first), do: []
+  defp held(kept, first), do: Enum.filter(kept.deposits, &(&1.block >= first))
+
+  # The first block stamped after `since`. Block times never go back and several
+  # blocks can share a second, so this finds the lowest of them by halving the range.
+  defp first_after(low, high, _since) when low >= high, do: {:ok, low}
+
+  defp first_after(low, high, since) do
+    middle = div(low + high, 2)
+
+    with {:ok, %{"timestamp" => "0x" <> stamp}} <-
+           Rpc.request("eth_getBlockByNumber", [quantity(middle), false]) do
+      if String.to_integer(stamp, 16) > since,
+        do: first_after(low, middle, since),
+        else: first_after(middle + 1, high, since)
+    end
+  end
+
+  defp new_deposits(staking, from_block, to_block) do
     from_block
     |> Stream.iterate(&(&1 + @chunk_blocks))
     |> Stream.take_while(&(&1 <= to_block))
@@ -219,27 +273,10 @@ defmodule Autolaunch.RegentFacts do
       timeout: @read_timeout,
       on_timeout: :kill_task
     )
-    |> Enum.reduce_while({:deposits, []}, fn
-      {:ok, {:ok, deposits}}, {:deposits, all} -> {:cont, {:deposits, deposits ++ all}}
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, deposits}}, {:ok, all} -> {:cont, {:ok, deposits ++ all}}
       failed, _deposits -> {:halt, {:failed, failed}}
     end)
-    |> case do
-      {:deposits, deposits} ->
-        %{
-          from_block: from_block,
-          to_block: to_block,
-          count: length(deposits),
-          total: allocation(deposits),
-          sources:
-            for source <- sources(deposits) do
-              {source, deposits |> Enum.filter(&(&1.source == source)) |> allocation()}
-            end
-        }
-
-      {:failed, failed} ->
-        Logger.warning("REGENT seven-day USDC unavailable: #{inspect(failed)}")
-        :unavailable
-    end
   end
 
   # The three Autolaunch sources always, each other tag and the unattributed
@@ -283,7 +320,10 @@ defmodule Autolaunch.RegentFacts do
     Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, deposits} ->
       case Abi.one_event([log], @usdc_deposited, staking, 3, 4) do
         {:ok, {_indexed, [received, stakers, treasury, tag]}} ->
+          "0x" <> number = log["blockNumber"]
+
           deposit = %{
+            block: String.to_integer(number, 16),
             received: received,
             stakers: stakers,
             treasury: treasury,

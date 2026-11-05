@@ -13,9 +13,9 @@ defmodule Autolaunch.LaunchChain do
   def label(:robinhood), do: "Robinhood"
 
   @doc """
-  How long a number of blocks takes on the chain, in words. Base makes a block
-  every two seconds and Robinhood's auctions count ten blocks a second, so this
-  is always an estimate, never a promise.
+  How long a number of blocks takes on the chain, in words. Base makes five
+  blocks a second and Robinhood's auctions count ten blocks a second, so this is
+  always an estimate, never a promise.
   """
   def time_estimate(chain, blocks) when is_integer(blocks) and blocks >= 0 do
     seconds = seconds(chain, blocks)
@@ -34,7 +34,7 @@ defmodule Autolaunch.LaunchChain do
   """
   def seconds(chain, blocks) when is_integer(blocks), do: blocks * seconds_per_block(chain)
 
-  defp seconds_per_block(:base), do: 2
+  defp seconds_per_block(:base), do: 0.2
   defp seconds_per_block(:robinhood), do: 0.1
 
   defp about(amount, unit) do

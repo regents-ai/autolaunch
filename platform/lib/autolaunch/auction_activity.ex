@@ -139,8 +139,9 @@ defmodule Autolaunch.AuctionActivity do
          {:ok, headers} <- headers(logs, last, venue.opts),
          {:ok, bids, points, settlements} <- events(auction, venue, logs, headers, first),
          {:ok, current} <- header(head.number, venue.opts),
-         :ok <- same_head(current, head) do
-      timestamp = DateTime.from_unix!(current.timestamp, :second)
+         :ok <- same_head(current, head),
+         {:ok, opening} <- at(start_block, clock, head, venue),
+         {:ok, ending} <- at(end_block, clock, head, venue) do
       rate = rate(auction, venue.chain)
 
       auction
@@ -149,7 +150,7 @@ defmodule Autolaunch.AuctionActivity do
         last,
         headers[last].hash,
         {bids, points, settlements},
-        {at(timestamp, clock, start_block, venue), at(timestamp, clock, end_block, venue)},
+        {opening, ending},
         rate,
         last == head.number
       )
@@ -224,9 +225,17 @@ defmodule Autolaunch.AuctionActivity do
     with {:ok, contracts} <- module.contracts(config, version), do: {:ok, contracts.bid_adapter}
   end
 
-  # When the contract clock reaches the block, estimated from the head's time.
-  defp at(timestamp, clock, block, venue),
-    do: DateTime.add(timestamp, round(LaunchChain.seconds(venue.chain, block - clock)))
+  # When the contract clock reaches the block. A Base block already made carries
+  # its own time; any other is estimated from the head's time.
+  defp at(block, clock, _head, %{chain: :base, opts: opts}) when block <= clock do
+    with {:ok, %{timestamp: seconds}} <- header(block, opts),
+         do: {:ok, DateTime.from_unix!(seconds)}
+  end
+
+  defp at(block, clock, head, venue) do
+    estimate = round(LaunchChain.seconds(venue.chain, block - clock))
+    {:ok, head.timestamp |> DateTime.from_unix!() |> DateTime.add(estimate)}
+  end
 
   defp clock(%{chain: :base}, head), do: {:ok, head.number}
   defp clock(venue, head), do: Autolaunch.Robinhood.BlockClock.read(head, venue.opts)
