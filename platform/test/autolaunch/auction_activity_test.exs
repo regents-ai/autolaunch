@@ -122,7 +122,7 @@ defmodule Autolaunch.AuctionActivityTest do
     })
   end
 
-  defp call(data, _state) do
+  defp call(%{data: data}, _state) do
     cond do
       data == LabAbi.selector("startBlock()") -> BaseRpcStub.uint(@start_block)
       data == LabAbi.selector("endBlock()") -> BaseRpcStub.uint(@end_block)
