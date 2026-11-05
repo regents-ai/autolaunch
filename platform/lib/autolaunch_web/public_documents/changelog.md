@@ -1,5 +1,8 @@
 # Changelog
 
+## 5 November 2026: the agent guides name Regents CLI 1.10.24
+- The agent guides and agents.md now name Regents CLI 1.10.24, the newest release, with its source commit and the fingerprint of its published package.
+
 ## 4 November 2026: Contact
 - How to reach us is now part of the About page.
 
