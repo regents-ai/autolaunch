@@ -7,9 +7,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   its liquidity stands. Liquidity reads as deposited only once the launch is
   recorded as launched, and as locked only once the pool has been read from
   the chain. Shown on auction pages on both chains (`launch_trust/1`); a
-  token's page shows the same creator and a short list of the launch's facts
-  (`token_facts/1`), the rest going into the details its page copies for an
-  agent (`supply_rows/1` and `AutolaunchWeb.TokenDetails`).
+  token's page shows the same creator and the launch's contracts
+  (`token_facts/1`), its launch type and supply among its market figures, and
+  the rest in the details its page copies for an agent (`supply_rows/1` and
+  `AutolaunchWeb.TokenDetails`).
   """
   use Phoenix.Component
 
@@ -113,13 +114,11 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   attr :auction, :map, required: true, doc: "the launch's auction record"
   attr :connections, :map, default: nil
   attr :pool, :map, default: nil, doc: "the launched pool as read from the chain, once read"
-  attr :price, :string, default: nil, doc: "its stored price to every digit"
-  attr :unit, :string, default: nil, doc: "the currency the price is in"
 
   @doc """
-  A launched token's facts on its own page: who launched it, then a short list
-  of its launch type, price to every digit, contracts, total supply and its
-  Uniswap Liquidity Pool.
+  A launched token's facts on its own page: who launched it, then its
+  contracts and its pool, each shortened with a copy button and, for a
+  contract, a link to it on the chain's explorer.
   """
   def token_facts(assigns) do
     auction = assigns.auction
@@ -127,57 +126,63 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     assigns =
       assign(assigns,
         chain: chain(auction),
-        name: split(auction).name,
-        contracts: contracts(auction, assigns.pool),
-        supply: supply(auction.token_supply),
-        uniswap: assigns.pool && uniswap_url(assigns.pool)
+        contracts: contracts(auction, assigns.pool)
       )
 
     ~H"""
-    <div class="launch-trust">
+    <div class="launch-trust token-facts">
       <.creator auction={@auction} connections={@connections} />
 
-      <section class="launch-trust__block" aria-labelledby="launch-trust-launch">
-        <h2 id="launch-trust-launch">Additional Details</h2>
-        <dl class="launch-trust__rows">
-          <div>
-            <dt>Launch type</dt>
-            <dd>{@name}</dd>
-          </div>
-          <div :if={@price}>
-            <dt>Price to 18 decimals</dt>
-            <dd class="autolaunch-exact-value">{@price} {@unit}</dd>
-          </div>
-          <div :for={{label, address} <- @contracts}>
-            <dt>{label}</dt>
-            <dd>
+      <section aria-labelledby="token-contracts">
+        <h2 id="token-contracts" class="token-page__title">Contracts</h2>
+        <ul class="token-facts__list">
+          <li :for={{label, address} <- @contracts}>
+            <span class="token-facts__label">{label}</span>
+            <span class="token-facts__value">{RegentFormat.short_address(address)}</span>
+            <span class="token-facts__actions">
+              <Regent.Primitives.copy_button
+                id={"token-facts-copy-#{String.downcase(label)}-#{address}"}
+                text={address}
+                variant="quiet"
+                class="token-facts__icon"
+                aria-label={"Copy the #{label} address"}
+              >
+                <Regent.Icons.icon name="copy" />
+              </Regent.Primitives.copy_button>
               <a
-                class="autolaunch-exact-value"
+                class="token-facts__icon"
                 href={BidPlaced.address_url(@chain, address)}
                 target="_blank"
                 rel="noopener noreferrer"
-              >{address}</a>
-            </dd>
-          </div>
-          <div :if={@pool}>
-            <dt>Pool</dt>
-            <dd class="autolaunch-exact-value">{@pool.pool_id}</dd>
-          </div>
-          <div :if={@supply}>
-            <dt>Total supply</dt>
-            <dd><span class="figure__value">{@supply}</span></dd>
-          </div>
-          <div :if={@uniswap}>
-            <dt>Uniswap Liquidity Pool</dt>
-            <dd>
-              <a href={@uniswap} target="_blank" rel="noopener noreferrer">View on Uniswap ↗</a>
-            </dd>
-          </div>
-        </dl>
+                aria-label={"Open the #{label} on the explorer"}
+              >
+                <Regent.Icons.icon name="external-link" />
+              </a>
+            </span>
+          </li>
+          <li :if={@pool}>
+            <span class="token-facts__label">Pool</span>
+            <span class="token-facts__value">{RegentFormat.short_hash(@pool.pool_id)}</span>
+            <span class="token-facts__actions">
+              <Regent.Primitives.copy_button
+                id="token-facts-copy-pool"
+                text={@pool.pool_id}
+                variant="quiet"
+                class="token-facts__icon"
+                aria-label="Copy the pool id"
+              >
+                <Regent.Icons.icon name="copy" />
+              </Regent.Primitives.copy_button>
+            </span>
+          </li>
+        </ul>
       </section>
     </div>
     """
   end
+
+  @doc "A launch's type, Revstake or Memestock."
+  def launch_type(auction), do: split(auction).name
 
   @doc """
   How a launch's supply is split, as `{label, amount, what happens to it}`
@@ -261,14 +266,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       </p>
     </section>
     """
-  end
-
-  # The pool on Uniswap's public site; a test network's pool is on none.
-  defp uniswap_url(%{uniswap_url: url}), do: url
-
-  defp uniswap_url(%{chain: :robinhood, pool_id: pool_id}) do
-    unless RobinhoodLab.test_chain?(),
-      do: "https://app.uniswap.org/explore/pools/robinhood/#{pool_id}"
   end
 
   defp chain(auction), do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)

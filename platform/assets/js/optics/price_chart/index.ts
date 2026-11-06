@@ -1,9 +1,11 @@
 /**
  * A launch's price line, drawn with WebGPU from the points the page carries:
  * a soft fill in the image's colour under a round-capped line, and a dot on
- * the latest price. Loaded on demand by the PriceChart hook, so the
- * application entry never carries WebGPU. Drawn once, and again when the
- * points change, the chart changes size or the site switches theme.
+ * the latest price. The chart's "Trades / Time" choice picks the line, one
+ * point per trade or points evenly spread in time, and either is spread
+ * evenly across. Loaded on demand by the PriceChart hook, so the application
+ * entry never carries WebGPU. Drawn once, and again when the points or the
+ * choice change, the chart changes size or the site switches theme.
  *
  * Every segment is one instanced quad spawned from its index, with no vertex
  * buffers: the fill quad runs from the segment down to the chart's foot, and
@@ -105,21 +107,17 @@ function channels(css: string): Channels {
   return [0, 2, 4].map(at => Number.parseInt(hex.slice(at, at + 2), 16) / 255).concat(1) as Channels
 }
 
-// The page's [block, price] pairs, spread 0–1 across by block and 0–1 up by
-// price with room above and below; a flat price sits in the middle.
+// The chosen line's prices, spread 0–1 across evenly and 0–1 up by price with
+// room above and below; a flat price sits in the middle.
 function normalized(root: HTMLElement): Float32Array<ArrayBuffer> {
-  const pairs = JSON.parse(root.dataset.points!) as [number, number][]
-  const first = pairs[0][0]
-  const blocks = pairs[pairs.length - 1][0] - first || 1
-  const prices = pairs.map(([, price]) => price)
+  const line = root.querySelector<HTMLInputElement>("input:checked")?.value === "times" ? "times" : "points"
+  const prices = (JSON.parse(root.dataset[line]!) as [number, number][]).map(([, price]) => price)
+  const last = prices.length - 1
   const low = Math.min(...prices)
   const range = Math.max(...prices) - low
 
   return new Float32Array(
-    pairs.flatMap(([block, price]) => [
-      (block - first) / blocks,
-      range ? 0.12 + ((price - low) / range) * 0.76 : 0.5,
-    ]),
+    prices.flatMap((price, index) => [index / last, range ? 0.12 + ((price - low) / range) * 0.76 : 0.5]),
   )
 }
 

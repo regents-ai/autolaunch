@@ -1,5 +1,11 @@
 # Changelog
 
+## 6 November 2026: Token page layout
+- A token's page opens with its picture, name, chain, launch type and creator across the top, with Share, its address, Uniswap Pool and View Chart beside them.
+- The price is shown large with its move since the pool opened, then the chart, then the market figures: market cap, price, change, total supply, trades and launch type.
+- The chart shows its line by Trades, one step per trade, or by Time, about 100 points spread evenly from the pool's opening to now.
+- The creator and the contracts are plain lists, each contract with a copy button and a link to the explorer. The trade panel and Claim Rewards stay in view beside them on a wide screen.
+
 ## 6 November 2026: Token page
 - A token's card keeps its name, price, market cap and change readable at every width, with the trade panel beside it only where there is room.
 

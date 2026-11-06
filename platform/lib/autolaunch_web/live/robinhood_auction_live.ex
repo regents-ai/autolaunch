@@ -342,10 +342,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     ~H"""
     <section class="auction-info" aria-labelledby="robinhood-auction-info-title">
       <h2 id="robinhood-auction-info-title" class="auction-info__title">About this token</h2>
-      <.detail_card
-        kind={:auction}
-        record={@launch}
-      >
+      <.detail_card record={@launch}>
         <:price_note>
           <UsdValue.usd
             amount={@launch.current_clearing_price}

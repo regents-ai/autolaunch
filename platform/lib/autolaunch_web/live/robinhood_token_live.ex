@@ -14,7 +14,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.AutolaunchHelpers,
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
-  import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
   import AutolaunchWeb.Components.TokenFigures
@@ -23,7 +22,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
+  alias AutolaunchWeb.Components.{ChainIcon, CreatorLabel, LaunchTrust, ShareLaunch, TokenTrade}
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard, UsdValue}
 
   def mount(%{"auction_id" => auction_id}, _session, socket),
@@ -107,28 +106,40 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       id="autolaunch-robinhood-token"
       class="autolaunch-page token-page"
     >
-      <header class="autolaunch-heading">
-        <.link navigate="/tokens" class="market-back">← Tokens</.link>
+      <.link navigate="/tokens" class="market-back">← Tokens</.link>
+      <header class="token-page__head">
         <.token_heading
           name={@token.name}
           symbol={@token.symbol}
+          image={@token.auction.image}
           currency={@token.auction.quote_token_symbol}
           chain_id={@token.auction.chain_id}
           address={@token.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
           own_chart={own_chart(@pool, "robinhood-token-price-chart")}
-        />
-        <CreatorLabel.creator
-          :if={@creator_connections.ok?}
-          auction={@token.auction}
-          connections={@creator_connections.result}
-        />
-        <ShareLaunch.share_launch
-          id="share-launch"
-          auction={@token.auction}
-          account_control={@account_control}
-        />
-        <p :if={Lab.test_chain?()}>Robinhood test network. Test assets have no real value.</p>
+        >
+          <:tags>
+            <ChainIcon.chain_chip chain="Robinhood" label="Robinhood" />
+            <Regent.Primitives.status>
+              {LaunchTrust.launch_type(@token.auction)}
+            </Regent.Primitives.status>
+            <CreatorLabel.creator
+              :if={@creator_connections.ok?}
+              auction={@token.auction}
+              connections={@creator_connections.result}
+            />
+          </:tags>
+          <:actions>
+            <ShareLaunch.share_launch
+              id="share-launch"
+              auction={@token.auction}
+              account_control={@account_control}
+            />
+          </:actions>
+        </.token_heading>
+        <p :if={Lab.test_chain?()} class="token-page__note">
+          Robinhood test network. Test assets have no real value.
+        </p>
       </header>
       <p :if={@robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this token shows what was last read.
@@ -138,29 +149,36 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       </p>
       <div class="token-page__layout">
         <div class="token-page__overview">
-          <.detail_card kind={:token} record={@token}>
-            <:figures>
-              <.token_figures
-                id="token-figures"
-                price={@token.price_quote}
-                market_cap={@token.market_cap}
-                unit={@token.auction.quote_token_symbol}
-                rate={@usd_rate}
-                pool={@pool}
-              />
-            </:figures>
-            <:chart :if={@pool.ok? || @pool.loading}>
-              <.price_chart_reading :if={!@pool.ok?} />
-              <.price_chart
-                :if={@pool.ok?}
-                id="robinhood-token-price-chart"
-                label="Price since the pool opened"
-                history={@pool.result.prices}
-                unit={@pool.result.currency.symbol}
-                color={@token.auction.image_color}
-              />
-            </:chart>
-          </.detail_card>
+          <.token_figures
+            id="token-figures"
+            price={@token.price_quote}
+            unit={@token.auction.quote_token_symbol}
+            rate={@usd_rate}
+            pool={@pool}
+          />
+          <Regent.Structure.panel
+            :if={@pool.loading || own_chart(@pool, "robinhood-token-price-chart")}
+            class="token-page__chart"
+          >
+            <.price_chart_reading :if={@pool.loading} />
+            <.price_chart
+              :if={@pool.ok?}
+              id="robinhood-token-price-chart"
+              label="Since the pool opened"
+              history={@pool.result.prices}
+              unit={@pool.result.currency.symbol}
+              color={@token.auction.image_color}
+            />
+          </Regent.Structure.panel>
+          <.market_stats
+            id="token-market"
+            auction={@token.auction}
+            price={@token.price_quote}
+            market_cap={@token.market_cap}
+            unit={@token.auction.quote_token_symbol}
+            rate={@usd_rate}
+            pool={@pool}
+          />
         </div>
         <.buttons_stage id="token-side" class="token-page__side">
           <.trade_widget id="trade" tab={@trade} swap={@swap?} staked={@staked?}>
@@ -227,8 +245,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             auction={@token.auction}
             connections={@creator_connections.result}
             pool={if(@pool.ok?, do: @pool.result)}
-            price={@token.price_quote}
-            unit={@token.auction.quote_token_symbol}
           />
         </div>
       </div>

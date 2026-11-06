@@ -1163,11 +1163,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom,
-    required: true,
-    values: [:auction, :token]
-
-  attr :record, :map, required: true
+  attr :record, :map, required: true, doc: "the auction"
 
   attr :trade_path, :string,
     default: nil,
@@ -1179,15 +1175,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   slot :price_note, doc: "shown after the price, such as its dollar value"
 
-  slot :figures,
-    doc:
-      "a token page's own figures, in the price's place (`AutolaunchWeb.Components.TokenFigures`)"
-
-  slot :chart, doc: "the price chart, across the card under the image and the price"
-
   def detail_card(assigns) do
-    assigns =
-      assign(assigns, :view, view(assigns.kind, assigns.record, %{}))
+    assigns = assign(assigns, :view, view(:auction, assigns.record, %{}))
 
     ~H"""
     <section
@@ -1227,16 +1216,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <div class="market-identity__meta">
           <ChainIcon.chain_chip chain={@view.chain} label={@view.chain} />
           <Regent.Primitives.status
-            :if={@kind == :auction}
             tone={state_tone(@status || @view.status)}
             class={graduated(@status || @view.status)}
           >
             {@status || @view.status}
           </Regent.Primitives.status>
-          <span :if={@kind == :auction && @view.age}>{@view.age}</span>
+          <span :if={@view.age}>{@view.age}</span>
         </div>
-        {render_slot(@figures)}
-        <div :if={@figures == []} class="market-identity__price">
+        <div class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price
             amount={@view.metric.amount}
             unit={@view.metric.unit}
@@ -1257,7 +1244,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           {@view.description}
         </p>
       </div>
-      <div :if={@chart != []} class="market-identity__chart">{render_slot(@chart)}</div>
     </section>
     """
   end
