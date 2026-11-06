@@ -64,9 +64,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
           </Regent.Primitives.copy_button>
         </div>
         <button type="button" class="code-card__close" aria-label="Close" data-agent-tools-close>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />
-          </svg>
+          <Regent.Icons.icon name="x" />
         </button>
       </header>
       <div class="code-card__body">

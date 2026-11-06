@@ -50,15 +50,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         aria-haspopup="dialog"
         aria-controls="search-dialog"
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        ><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
+        <Regent.Icons.icon name="search" />
         <span class="home-search__prompt">Search</span>
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
       </button>
@@ -71,9 +63,10 @@ defmodule AutolaunchWeb.Components.TopBar do
         <.account_control account_control={@account_control} />
       </div>
       <%!-- Signed in, the account's picture and name open this menu: the person's
-           name and wallet, their three most recently active agents, Pair New Agent,
-           Manage Account and Sign out. Narrower than 22.5rem it holds the Credits
-           balance the bar has no room for. The browser opens and closes it. --%>
+           name and wallet, their three most recently active agents, Pair New Agent
+           (which opens the pairing window), Manage Account and Sign out. Narrower
+           than 22.5rem it holds the Credits balance the bar has no room for. The
+           browser opens and closes it. --%>
       <Regent.Account.menu
         :if={@account_control.kind == :signed_in}
         id="account-menu"
@@ -81,7 +74,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         wallet={@account_control.wallet_address}
         ens_name={@account_control.ens_name}
         manage_href="/account"
-        pair_href="/account/agents#account-pairing"
+        pair_window="shell-pairing"
       >
         <:picture>
           <img
@@ -144,11 +137,12 @@ defmodule AutolaunchWeb.Components.TopBar do
   end
 
   # The other Regents Products, each shown with the crown in its own pair of
-  # brand colours, as the template's menu has them, less this site.
+  # brand colours, in the template's order (Patchbay, Autolaunch, Techtree,
+  # Keyfleet, $REGENT Staking), less this site.
   @regents_apps [
     %{name: "Patchbay", url: "https://patchbay.help", tone: "patchbay"},
-    %{name: "Keyfleet", url: "https://keyfleet.ai", tone: "keyfleet"},
     %{name: "Techtree", url: "https://techtree.sh", tone: "techtree"},
+    %{name: "Keyfleet", url: "https://keyfleet.ai", tone: "keyfleet"},
     %{name: "$REGENT Staking", url: "https://regents.sh/stake", tone: "protocol"}
   ]
 
@@ -166,11 +160,7 @@ defmodule AutolaunchWeb.Components.TopBar do
       popovertarget="shell-apps"
       aria-label="Regents Products"
     >
-      <svg class="shell-icon shell-icon--apps" viewBox="0 0 24 24" aria-hidden="true">
-        <g fill="currentColor">
-          <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
-        </g>
-      </svg>
+      <Regent.Icons.icon name="grip" class="shell-icon shell-icon--apps" />
       <span class="shell-tool__tip" aria-hidden="true">Regents Products</span>
     </button>
     <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
@@ -195,8 +185,6 @@ defmodule AutolaunchWeb.Components.TopBar do
     </svg>
     """
   end
-
-  defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
 
   # The site's mark, drawn as its favicon is: the crown's thirteen blocks on black.
   defp mark_blocks do

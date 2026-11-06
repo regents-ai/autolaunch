@@ -460,7 +460,7 @@ defmodule AutolaunchWeb.ConvertComponent do
         aria-label="Dismiss"
         title="Dismiss"
       >
-        <StakeComponent.cross size="18" />
+        <Regent.Icons.icon name="x" class="dismiss-icon" />
       </Regent.Primitives.button>
     </aside>
     """

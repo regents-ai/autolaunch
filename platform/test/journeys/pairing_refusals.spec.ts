@@ -28,7 +28,7 @@ test("a code works once, for the agent that used it and for any other", async ({
 test("two agents redeeming one code at the same moment: exactly one pairs", async ({page}) => {
   await signIn(page, people.a)
   await openPairing(page)
-  const code = codeIn(await chooseAgent(page, "#account-pairing", "Pi"))
+  const code = codeIn(await chooseAgent(page, "Pi"))
   const agents = [new Agent("race-one"), new Agent("race-two"), new Agent("race-three")]
   for (const agent of agents) expect(agent.signIn().status).toBe(0)
   const answers = await Promise.all(agents.map(agent =>
@@ -43,7 +43,7 @@ test("two agents redeeming one code at the same moment: exactly one pairs", asyn
 test("ChatGPT and made-up harnesses are refused before the code is spent", async ({page}) => {
   await signIn(page, people.a)
   await openPairing(page)
-  const code = codeIn(await chooseAgent(page, "#account-pairing", "Codex"))
+  const code = codeIn(await chooseAgent(page, "OpenAI Codex"))
   const agent = new Agent("harness")
   expect(agent.signIn().status).toBe(0)
   for (const harness of ["chatgpt", "made_up"]) {

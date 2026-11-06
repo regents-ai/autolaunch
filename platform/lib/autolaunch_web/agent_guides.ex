@@ -97,7 +97,7 @@ defmodule AutolaunchWeb.AgentGuides do
 
     Your agent pairs with your Autolaunch account and works for you: it reads your bids, tokens, Credits and Points, and fills in your launch drafts for you to review. It can never use your wallet, change your account or pair other agents.
 
-    1. Sign in, open [Pair New Agent]({{origin}}/account/agents#account-pairing) on your Agents page and choose your agent. Its pairing code works once, for ten minutes.
+    1. Sign in, open [Pair New Agent]({{origin}}/pair) and choose your agent. Its pairing code works once, for ten minutes.
     2. Paste the message to your agent wherever you chat with it.
     3. It shows in your account menu under its name, and asks you before it saves a launch draft.
 

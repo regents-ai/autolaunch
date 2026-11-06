@@ -124,6 +124,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
+    "/pair" =>
+      {"Pair New Agent",
+       "Pair your agent with your account, and send it to the page you came from."},
     "/regent" =>
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},

@@ -29,6 +29,7 @@
 }
 .token-swap__gear { min-width: 44px; min-height: 44px; padding: .5rem; color: var(--color-fg-muted); }
 .token-swap__gear[aria-expanded="true"] { color: var(--color-fg); }
+.token-swap__gear svg { display: block; width: 22px; height: 22px; }
 .token-swap__popover {
   position: absolute;
   top: calc(100% + var(--space-1));
@@ -169,7 +170,7 @@
 .token-convert__floor input { flex: 0 0 auto; width: 1.125rem; height: 1.125rem; margin-top: .15rem; accent-color: var(--color-fg); }
 .token-swap__direction { display: flex; justify-content: center; margin-block: -1.25rem; z-index: 1; }
 .token-swap__direction .rg-button { padding: .5rem; }
-.token-swap__direction svg { display: block; }
+.token-swap__direction svg { display: block; width: 24px; height: 24px; }
 /* The arrow it draws is its whole label, so the button adds no arrow of its own. */
 .token-swap__direction .rg-button::after { content: none; }
 .token-swap__submit { width: 100%; margin-top: var(--space-1); }
@@ -198,7 +199,7 @@
 .token-swap__review-side { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; }
 .token-swap__review-side p { min-width: 0; margin: 0; font-size: clamp(1.375rem, 5vw, 1.75rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-swap__review-side img { flex: 0 0 auto; width: 36px; height: 36px; object-fit: contain; }
-.token-swap__review-arrow { color: var(--color-fg-muted); }
+svg.token-swap__review-arrow { width: 20px; height: 20px; color: var(--color-fg-muted); }
 .token-swap__review-facts { display: grid; gap: var(--space-1); margin: var(--space-2) 0 0; font-size: .875rem; }
 .token-swap__review-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
 .token-swap__review-facts dt { color: var(--color-fg-muted); }

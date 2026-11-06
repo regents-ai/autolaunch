@@ -125,26 +125,33 @@ test("Manage Account opens this site's Account page and the menu closes", async 
   await problems.expect()
 })
 
-test("Pair New Agent in the menu lands on the Agents page's pairing box", async ({page}) => {
+// On a LiveView page and on one drawn without LiveView (About), the window opens over
+// the page the person is on.
+test("Pair New Agent in the menu opens the pairing window over the page", async ({page}) => {
   const problems = watch(page)
-  await page.goto("/auctions")
-  await ready(page)
-  await openMenu(page)
-  await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-  await expect(page).toHaveURL(/\/account\/agents#account-pairing$/)
-  await expect(menu(page)).toBeHidden()
-  await expect(page.locator("#account-pairing")).toBeInViewport()
-  // The keyboard starts on the agent choice.
-  await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+  for (const path of ["/auctions", "/about"]) {
+    await page.goto(path)
+    // About is drawn without LiveView; there the window's own view is what connects.
+    if (path === "/about") await expect(page.locator("#shell-pairing .phx-connected")).toBeAttached()
+    else await ready(page)
+    await openMenu(page)
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+    await expect(menu(page)).toBeHidden()
+    const pairing = page.locator("#shell-pairing")
+    await expect(pairing).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe(path)
+    // The keyboard starts in the window, on the agent dropdown.
+    await expect(pairing.locator("summary")).toBeFocused()
 
-  // Pressed again from the same address after scrolling away, it moves there again.
-  await page.evaluate(() => window.scrollTo({top: 0}))
-  await expect(page.locator("#account-pairing").getByRole("heading", {name: "Pair New Agent"})).not.toBeInViewport()
-  await openMenu(page)
-  await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-  await expect(menu(page)).toBeHidden()
-  await expect(page.locator("#account-pairing")).toBeInViewport()
-  await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+    // Closed, focus goes back to the account button; pressed again, it opens again.
+    await pairing.getByRole("button", {name: "Close"}).click()
+    await expect(pairing).toBeHidden()
+    await expect(page.locator("#account-chip")).toBeFocused()
+    await openMenu(page)
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+    await expect(pairing).toBeVisible()
+    await pairing.getByRole("button", {name: "Close"}).click()
+  }
   await problems.expect()
 })
 
@@ -163,18 +170,15 @@ test("the Account page shows this site's sections first, then the shared ones", 
   await problems.expect()
 })
 
-// The Agents page lists the agents, then has the pairing box, once.
-test("the Agents page lists the agents, then pairing a new one", async ({page}) => {
+// The Agents page lists the agents, with Pair New Agent under them, once.
+test("the Agents page lists the agents, then Pair New Agent", async ({page}) => {
   const problems = watch(page)
   await page.goto("/account/agents")
   await ready(page)
   await expect(page.getByRole("heading", {level: 1, name: "Agents"})).toBeVisible()
-  const order = await page.locator("#account .rg-account-layout__grid > *").evaluateAll(parts =>
-    parts.map(part => part.id || part.querySelector("[id]")?.id),
-  )
-  expect(order.indexOf("account-agents")).toBeLessThan(order.indexOf("account-pairing"))
-  await expect(page.locator("#account-pairing")).toHaveCount(1)
-  await expect(page.locator("#account-pairing").getByRole("heading", {name: "Pair New Agent"})).toBeVisible()
+  const agents = page.locator("#account-agents")
+  await expect(agents.getByRole("button", {name: "Pair New Agent"})).toHaveCount(1)
+  await expect(agents.locator(".rg-account__pair")).toHaveCount(0)
   await problems.expect()
 })
 

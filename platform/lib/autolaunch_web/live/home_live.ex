@@ -375,9 +375,7 @@ defmodule AutolaunchWeb.HomeLive do
       aria-label={@label}
       title={@label}
     >
-      <svg class="home-filter__check" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="m3 8.5 3.2 3L13 4.5" />
-      </svg>
+      <Regent.Icons.icon name="check" class="home-filter__check" />
       {render_slot(@inner_block)}
     </.link>
     """
@@ -450,9 +448,7 @@ defmodule AutolaunchWeb.HomeLive do
         </li>
       </ol>
       <div :if={@coming == []} class="home-next__empty">
-        <svg class="home-next__mark" viewBox="0 0 20 20" aria-hidden="true">
-          <circle cx="10" cy="10" r="7.25" /><path d="M10 6v4.25l2.75 1.75" />
-        </svg>
+        <Regent.Icons.icon name="clock" class="home-next__mark" />
         <p><strong>No auction is taking bids</strong></p>
       </div>
     </section>
@@ -617,15 +613,7 @@ defmodule AutolaunchWeb.HomeLive do
             aria-label="List"
             title="List"
           >
-            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <rect x="1" y="2" width="14" height="2.5" rx="1.25" /><rect
-                x="1"
-                y="6.75"
-                width="14"
-                height="2.5"
-                rx="1.25"
-              /><rect x="1" y="11.5" width="14" height="2.5" rx="1.25" />
-            </svg>
+            <Regent.Icons.icon name="list" />
           </.link>
           <.link
             patch={HomeMarket.path(@market_options, %{display: "grid"})}
@@ -633,21 +621,7 @@ defmodule AutolaunchWeb.HomeLive do
             aria-label="Grid"
             title="Grid"
           >
-            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" /><rect
-                x="9"
-                y="1"
-                width="6"
-                height="6"
-                rx="1.5"
-              /><rect x="1" y="9" width="6" height="6" rx="1.5" /><rect
-                x="9"
-                y="9"
-                width="6"
-                height="6"
-                rx="1.5"
-              />
-            </svg>
+            <Regent.Icons.icon name="layout-grid" />
           </.link>
         </nav>
       </div>

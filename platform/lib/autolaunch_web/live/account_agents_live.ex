@@ -1,11 +1,10 @@
 defmodule AutolaunchWeb.AccountAgentsLive do
   @moduledoc """
-  `/account/agents`: the signed-in person's Agents page, in the layout every Regent
-  site shares (`Regent.Account.agents_layout`): the agents they paired, then the box
-  to pair another (`AutolaunchWeb.PairingBox`, the section the account menu's Pair
-  New Agent leads to, `#account-pairing`). Signed out, it shows the shared
-  signed-out section with the site's own Sign in button, and says the sign-in ended
-  when it lapsed while the page was open. Unpairing is on regents.sh.
+  `/account/agents`: the signed-in person's Agents page: the agents they paired,
+  whose Pair New Agent opens the pairing window over the page, as the account
+  menu's does (`AutolaunchWeb.PairingBox` in the app layout). Signed out, it shows
+  the shared signed-out section with the site's own Sign in button, and says the
+  sign-in ended when it lapsed while the page was open. Unpairing is on regents.sh.
 
   The agents are read on their own and show their own loading and could-not-be-read
   states. An agent pairing, checking in or unpairing on any Regent site
@@ -33,11 +32,8 @@ defmodule AutolaunchWeb.AccountAgentsLive do
   def handle_async({Read, _, _} = name, result, socket),
     do: {:noreply, Read.settle(socket, name, result)}
 
-  @doc "The agents and this page's pairing box follow an agent change (`AutolaunchWeb.Live.Agents`)."
-  def agents_changed(socket) do
-    send_update(AutolaunchWeb.PairingBox, id: "account-pairing-box", agents_changed: true)
-    read_agents(socket)
-  end
+  @doc "The agents follow an agent change (`AutolaunchWeb.Live.Agents`)."
+  def agents_changed(socket), do: read_agents(socket)
 
   def render(assigns) do
     assigns = assign(assigns, :current_human_id, current_human_id(assigns.access_context))
@@ -58,34 +54,34 @@ defmodule AutolaunchWeb.AccountAgentsLive do
           </Regent.Primitives.button>
         </:sign_in>
       </Regent.Account.signed_out>
-      <Regent.Account.agents_layout :if={@current_human_id} id="account">
-        <:agents>
-          <Regent.Account.agents id="account-agents" agents={agent_rows(@agents_read)}>
-            <:about>
-              A paired agent can read your positions, balances and Points, and fill in your launch
-              drafts for you to check. It can never use your wallet, bid or start a launch.
-            </:about>
-            <:footer>
-              <a href="https://regents.sh/account#account-agents" class="standalone-link">
-                Manage Agents on regents.sh
-              </a>
-            </:footer>
-          </Regent.Account.agents>
-        </:agents>
-        <:pairing>
-          <.live_component
-            module={AutolaunchWeb.PairingBox}
-            id="account-pairing-box"
-            session_lease={@session_lease}
-            account={signed_in_account(@access_context)}
-          />
-        </:pairing>
-      </Regent.Account.agents_layout>
+      <Regent.Account.agents
+        :if={@current_human_id}
+        id="account-agents"
+        agents={agent_rows(@agents_read)}
+      >
+        <:about>
+          A paired agent can read your positions, balances and Points, and fill in your launch
+          drafts for you to check. It can never use your wallet, bid or start a launch.
+        </:about>
+        <:footer>
+          <Regent.Primitives.button
+            type="button"
+            variant="secondary"
+            arrow={false}
+            aria-haspopup="dialog"
+            aria-controls="shell-pairing"
+            data-pair-open
+          >
+            Pair New Agent
+          </Regent.Primitives.button>
+          <a href="https://regents.sh/account#account-agents" class="standalone-link">
+            Manage Agents on regents.sh
+          </a>
+        </:footer>
+      </Regent.Account.agents>
     </article>
     """
   end
-
-  defp signed_in_account(%{principal: {:human, account}}), do: account
 
   defp read_agents(socket) do
     case socket.assigns.access_context.principal do

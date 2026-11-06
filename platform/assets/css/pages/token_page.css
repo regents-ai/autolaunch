@@ -57,6 +57,7 @@
 /* Refresh balances ends the selector's row, with the swap's settings before it. */
 .token-trade__refresh { position: absolute; top: 2px; right: 0; min-width: 44px; min-height: 44px; padding: .5rem; color: var(--color-fg-muted); }
 .token-trade__refresh:hover { color: var(--color-fg); }
+.token-trade__refresh svg { width: 20px; height: 20px; }
 .token-trade__refresh--turn svg { animation: token-trade-turn 600ms var(--ease-out); }
 @keyframes token-trade-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .token-trade__refresh--turn svg { animation: none; } }

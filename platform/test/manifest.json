@@ -1,5 +1,5 @@
 {
-  "total": 160,
+  "total": 161,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -365,7 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48cf3ce1fff1c59b0933f152d7df68dbc7732b9d8be72db7abb02db649a2c291"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 145,
@@ -378,7 +378,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48cf3ce1fff1c59b0933f152d7df68dbc7732b9d8be72db7abb02db649a2c291"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 56,
@@ -1509,7 +1509,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 158,
@@ -1522,7 +1522,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 159,
@@ -1535,7 +1535,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 160,
@@ -1548,7 +1548,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 161,
@@ -1561,7 +1561,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 162,
@@ -1574,7 +1574,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "51af2c8f37027979fbe5d7f22102a20640972d07a5dc99ebf08dd9006a09c48c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 163,
@@ -1912,7 +1912,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48cf3ce1fff1c59b0933f152d7df68dbc7732b9d8be72db7abb02db649a2c291"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 190,
@@ -1984,13 +1984,13 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 125,
+      "line": 126,
       "test_name": "ACCOUNT_MENU_ON_EVERY_PAGE",
-      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent link does not lead to /account/agents#account-pairing, if the Agents page has the pairing box twice or before the agents list, or if the Account page puts this site's sections after the shared ones.",
+      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent does not open the pairing window (#shell-pairing), if the window on a page served without LiveView cannot make a code, if the Agents page's Pair New Agent does not open the same window or the page holds a second pairing box, or if the Account page puts this site's sections after the shared ones.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48cf3ce1fff1c59b0933f152d7df68dbc7732b9d8be72db7abb02db649a2c291"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 196,
@@ -2072,6 +2072,19 @@
     },
     {
       "id": 202,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/pair_live_test.exs",
+      "line": 9,
+      "test_name": "PAIR_LINK_STAYS_ON_SITE",
+      "keep_because": "A pairing link's page is printed in the message a person pastes to their agent. The case fails if /pair takes anything but a page on this site, such as //example.com, /\\example.com, another site's address, a script address, a page with spaces or control characters, or one over 512 characters, so an agent is never sent elsewhere.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "12097c0fbf01331ae8d506d058d122ab1b544582f78240661333ebb350e5b8fe"
+    },
+    {
+      "id": 203,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points/start_awards_test.exs",

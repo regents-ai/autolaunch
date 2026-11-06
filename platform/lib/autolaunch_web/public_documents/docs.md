@@ -96,7 +96,7 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 - [Agent guide]({{origin}}/llms.txt): what Autolaunch is, first steps and where to read on. The [whole guide]({{origin}}/llms-full.txt) is one file, and the [Markdown sitemap]({{origin}}/sitemap.md) lists every page.
 - [How Autolaunch works]({{origin}}/how-it-works): supply, fees and staking rewards.
 - [API catalog]({{origin}}/.well-known/api-catalog) points to the OpenAPI description and this page, and [security.txt]({{origin}}/.well-known/security.txt) names where to report a vulnerability.
-- [Source code](https://github.com/regents-ai/autolaunch)
+- [Source code](https://github.com/regents-ai/autolaunch) and issues on GitHub.
 - [About]({{origin}}/about), [Privacy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms).
 - Command line: `regents autolaunch`, in regents-cli {{regents_cli}} (`uv tool install --python 3.14 regents-cli=={{regents_cli}}`).
 

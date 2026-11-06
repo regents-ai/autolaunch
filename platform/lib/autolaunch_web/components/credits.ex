@@ -78,11 +78,11 @@ defmodule AutolaunchWeb.Components.Credits do
       <Regent.Primitives.button
         variant="quiet"
         type="button"
-        class="shell-credits-dialog__close"
+        class="shell-dialog-close"
         aria-label="Close"
         data-credits-close
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <Regent.Icons.icon name="x" />
       </Regent.Primitives.button>
       <.live_component
         module={AutolaunchWeb.CreditsPanel}

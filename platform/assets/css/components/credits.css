@@ -1,23 +1,6 @@
 @layer regents-product {
-/* Regent Credits: the header's balance and the Buy Credits dialog it opens. */
-
-.shell-credits-dialog {
-  --shell-credits-pad-top: 1.5rem;
-  --shell-credits-pad-side: 1.5rem;
-  box-sizing: border-box;
-  width: min(30rem, calc(100% - 2rem));
-  max-height: calc(100dvh - 4rem);
-  padding: var(--shell-credits-pad-top) var(--shell-credits-pad-side) 1rem;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 1.25rem;
-  background: var(--color-surface);
-  color: var(--color-fg);
-  overflow-y: auto;
-}
-
-.shell-credits-dialog::backdrop {
-  background: color-mix(in oklch, var(--palette-charcoal) 30%, transparent);
-}
+/* Regent Credits: the header's balance and the Buy Credits window it opens,
+   in the shell's window frame (shell_dialogs.css). */
 
 .shell-credits-dialog .credits-panel__head {
   padding-inline-end: 3rem;
@@ -233,48 +216,10 @@
 }
 
 @media (max-width: 47.99rem) {
-  .shell-credits-dialog {
-    width: calc(100% - 1rem);
-    --shell-credits-pad-top: 1rem;
-    --shell-credits-pad-side: 0.75rem;
-    max-height: calc(100dvh - 1rem);
-    padding-block-end: 0.75rem;
-  }
-
   .credits-panel__amount {
     font-size: 2.25rem;
   }
 }
-}
-
-/* The Buy Credits dialog's close button, square in the dialog's top right
-   corner, and kept there while the dialog scrolls. Its margins give back the
-   room it takes, so the panel keeps its place. It sits here, outside the
-   product layer, so it wins over the shared button's padding. */
-.shell-credits-dialog__close {
-  position: sticky;
-  inset-block-start: calc(-1 * var(--shell-credits-pad-top));
-  z-index: var(--rg-layer-card);
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  min-height: 0;
-  margin-block: calc(-1 * var(--shell-credits-pad-top))
-    calc(var(--shell-credits-pad-top) - 2.75rem);
-  margin-inline: auto calc(-1 * var(--shell-credits-pad-side));
-  padding: 0;
-  border: 0;
-  border-radius: 0 calc(1.25rem - 1px) 0 0.75rem;
-}
-
-.shell-credits-dialog__close svg {
-  width: 1.5rem;
-  height: 1.5rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
 }
 
 /* The Credits balance, which opens Buy Credits, in the top bar; narrower than
