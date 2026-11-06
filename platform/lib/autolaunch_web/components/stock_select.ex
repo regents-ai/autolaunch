@@ -1,16 +1,15 @@
 defmodule AutolaunchWeb.Components.StockSelect do
   @moduledoc """
-  The paired stock as a gallery: the chosen stock's logo, ticker and name on a
-  button, and under it every stock the chain offers as a card with its logo,
-  company website and past week's trading volume. Each card is a radio choice,
+  The paired stock as a dropdown: the chosen stock's logo, ticker and name on a
+  button, and under it every stock the chain offers as a row with its logo,
+  company website and past week's trading volume. Each row is a radio choice,
   so the choice saves with the form it names like any other field.
 
-  Search narrows the cards in the browser as it is typed. Sorting is the
-  page's: it puts the cards in order, so keyboard and screen-reader order
+  Search narrows the rows in the browser as it is typed. Sorting is the
+  page's: it puts the rows in order, so keyboard and screen-reader order
   match what is seen. Opening and closing happen in the browser; execution
-  admission remains server-owned. A press anywhere outside the picker closes
-  it, except on its `head` (the page's chain switch), so an open gallery stays
-  open while it fills with the other chain's stocks.
+  admission remains server-owned. A press anywhere outside the picker, or
+  Escape, closes it.
   """
   use Phoenix.Component
 
@@ -50,14 +49,12 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :sort_event, :string, required: true
   attr :form, :string, required: true, doc: "the id of the form the choice saves with"
   attr :retry_event, :string, required: true, doc: "reads the stock list again"
-  slot :head, doc: "shown above the button, inside the picker"
 
-  # A stock list that couldn't be read is said so in place of the gallery, with
-  # Try again; the head (the chain switch) stays, so another chain can be chosen.
+  # A stock list that couldn't be read is said so in place of the dropdown, with
+  # Try again; the page's chain menu stays, so another chain can be chosen.
   def stock_select(%{stocks: :unread} = assigns) do
     ~H"""
     <div id={"#{@id}-unread"} class="stock-select">
-      {render_slot(@head)}
       <div class="stock-select__unread" role="alert">
         <p>The stock list couldn’t be read right now.</p>
         <button type="button" class="rg-button rg-button--secondary" phx-click={@retry_event}>
@@ -90,7 +87,6 @@ defmodule AutolaunchWeb.Components.StockSelect do
       phx-window-keydown={close(@id)}
       phx-key="Escape"
     >
-      {render_slot(@head)}
       <button
         type="button"
         id={"#{@id}-button"}
@@ -108,7 +104,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
         <% else %>
           <span class="stock-select__placeholder">Choose a stock</span>
         <% end %>
-        <span class="stock-select__chevron" aria-hidden="true">⌄</span>
+        <Regent.Icons.icon name="chevron-down" class="stock-select__chevron" />
       </button>
       <div
         id={"#{@id}-list"}

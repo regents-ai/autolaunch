@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.CreateLive do
   @moduledoc """
-  Create a Revstake token, at /create/revstake: the Revstake launch form on
+  Create a Revstake token, at /agent-business: the Revstake launch form on
   Base. Memestock launches have their own page at /create.
 
   A signed-out visitor explores the same form against an unsaved draft that
@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.CreateLive do
 
     socket =
       socket
-      |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
+      |> assign(AutolaunchWeb.PublicDocuments.page("/agent-business"))
       |> assign_defaults(actor)
       |> UsdValue.assign_rate(:regent_rate, :base, fn ->
         {:ok, %{regent_rate: UsdValue.rate(%{kind: :agent})}}
@@ -166,9 +166,9 @@ defmodule AutolaunchWeb.CreateLive do
   def render(assigns) do
     ~H"""
     <div class="create-page">
-      <.launch_kind_choice current={:revstake} />
       <header class="create-page__header">
         <h1>Create Revstake</h1>
+        <.launch_kind_choice current={:revstake} />
       </header>
       {render_revshare(assigns)}
     </div>

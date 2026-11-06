@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   use AutolaunchWeb, :html
 
   import AutolaunchWeb.Components.CreateNext
+  import AutolaunchWeb.Components.CreateForm
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
 
@@ -75,12 +76,36 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   @treasury_field %{
     key: :treasury,
     param: "treasury",
-    label: "Immutable treasury recipient",
+    label: "Treasury address",
     kind: :text,
     hint: nil,
     placeholder: nil,
     optional: false
   }
+
+  @custody_options [
+    %{value: "safe", name: "Safe", sub: "2-of-3 Safe on Base", icon: "shield-check"},
+    %{
+      value: "contract",
+      name: "Contract",
+      sub: "Existing contract, never checked",
+      icon: "file-text"
+    },
+    %{value: "eoa", name: "Single key", sub: "One private key, highest risk", icon: "key-round"}
+  ]
+
+  @terms [
+    {"Total supply", "100 billion tokens"},
+    {"Sold in the auction", "20% (20 billion tokens)"},
+    {"Opening price", "The lowest the auction accepts"},
+    {"Minimum raise",
+     "About 0.000000001 REGENT, the whole sale at the floor price, so any real bid reaches it. If bids fall short, bidders get their REGENT back."},
+    {"Trading pool", "Up to 10% of the tokens, paired with up to half the raise"},
+    {"Your treasury",
+     "At least half the raise at graduation, and 70% of the tokens, plus unpaired reserve and auction rounding leftovers, over 365 days from graduation"},
+    {"Trading fees",
+     "2% enters the launch’s revenue splitter; 1% goes to REGENT staking when collected in REGENT, or to the Regent Safe when collected in launch tokens. The 0.30% LP fee is separate"}
+  ]
 
   @stored_params Enum.map(@token_detail_fields, & &1.param) ++
                    ["image", "treasury", "treasury_path", "eoa_acknowledgement"]
@@ -163,6 +188,13 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           treasury_ready?(draft, assigns.treasury_check)
       )
       |> assign(:confirm_treasury?, draft && LaunchDraft.treasury_confirmation_needed?(draft))
+      |> assign(
+        :missing,
+        LaunchDraft.missing_token_details(draft || %{}) ++
+          if(draft && treasury_ready?(draft, assigns.treasury_check), do: [], else: [:treasury])
+      )
+      |> assign(:custody, custody(assigns.draft_values["treasury_path"]))
+      |> assign(:terms, @terms)
       |> assign(:marks, marks(assigns.draft_errors, assigns.draft_values))
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
       |> assign(:opening, LaunchActions.opening())
@@ -171,7 +203,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     <div :if={@status == :error} class="autolaunch-empty" role="alert">
       <h2>Your draft didn’t open</h2>
       <p>It could not be read just now. Nothing you saved is lost.</p>
-      <a href="/create/revstake" class="rg-button rg-button--primary">
+      <a href="/agent-business" class="rg-button rg-button--primary">
         <span class="rg-button__label">Try again</span>
       </a>
     </div>
@@ -182,15 +214,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       class="create-page__layout"
     >
       <section class="create-page__form rg-panel rg-panel--surface" aria-label="Your Revstake token">
-        <.live_component
-          :if={@current_human_id}
-          module={AutolaunchWeb.CreatorConnectionsComponent}
-          id="creator-connections"
-          current_human_id={@current_human_id}
-          session_lease={@session_lease}
-          notify
+        <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
+          :if={@active_draft}
+          draft={@active_draft}
         />
-
         <fieldset class="create-page__lock" disabled={@reviewing?}>
           <form
             id="launch-token-details"
@@ -198,102 +225,149 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             phx-change="autosave_launch_token_details"
             phx-submit="autosave_launch_token_details"
           >
-            <div class="create-page__pair">
-              <.draft_field
-                field={token_field(:name)}
-                form_id="launch-token-details"
-                value={@draft_values["name"]}
-                error={@marks["name"]}
+            <div class="create-page__identity">
+              <.image_upload
+                upload={@launch_image_upload}
+                image={@draft_values["image"]}
+                notice={@image_notice}
               />
-              <.draft_field
-                field={token_field(:symbol)}
-                form_id="launch-token-details"
-                value={@draft_values["symbol"]}
-                error={@marks["symbol"]}
-                warning={@ticker_taken? && "Another launch already uses this ticker."}
-              />
-            </div>
-            <.draft_field
-              field={token_field(:description)}
-              form_id="launch-token-details"
-              value={@draft_values["description"]}
-              error={@marks["description"]}
-            />
-            <.image_upload
-              upload={@launch_image_upload}
-              image={@draft_values["image"]}
-              notice={@image_notice}
-            />
-            <.draft_field
-              field={token_field(:website)}
-              form_id="launch-token-details"
-              value={@draft_values["website"]}
-              error={@marks["website"]}
-            />
-            <Regent.Primitives.disclosure
-              id="launch-token-links"
-              summary="Community Links"
-              class="create-page__more create-page__box"
-              open={@links_given?}
-              phx-mounted={JS.ignore_attributes(["open"])}
-            >
-              <div class="create-page__pair">
+              <div class="create-page__stack">
                 <.draft_field
-                  :for={key <- [:telegram, :discord]}
+                  field={token_field(:name)}
+                  form_id="launch-token-details"
+                  value={@draft_values["name"]}
+                  error={@marks["name"]}
+                />
+                <.draft_field
+                  field={token_field(:symbol)}
+                  form_id="launch-token-details"
+                  value={@draft_values["symbol"]}
+                  error={@marks["symbol"]}
+                  warning={@ticker_taken? && "Another launch already uses this ticker."}
+                />
+                <div class="create-menu">
+                  <span class="create-page__label">Chain</span>
+                  <span class="create-menu__button create-menu__button--fixed">
+                    <span class="create-chain create-chain--base" aria-hidden="true"></span>
+                    <span class="create-menu__value">Base</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="create-page__folds">
+              <.fold id="launch-token-about" icon="file-text" title="Description & website" open>
+                <.draft_field
+                  field={token_field(:description)}
+                  form_id="launch-token-details"
+                  value={@draft_values["description"]}
+                  error={@marks["description"]}
+                />
+                <.draft_field
+                  field={token_field(:website)}
+                  form_id="launch-token-details"
+                  value={@draft_values["website"]}
+                  error={@marks["website"]}
+                />
+              </.fold>
+              <.fold id="launch-token-links" icon="link" title="Links" open={@links_given?}>
+                <div class="create-page__pair">
+                  <.draft_field
+                    :for={key <- [:telegram, :discord]}
+                    field={token_field(key)}
+                    form_id="launch-token-details"
+                    value={@draft_values[Atom.to_string(key)]}
+                    error={@marks[Atom.to_string(key)]}
+                  />
+                </div>
+                <.draft_field
+                  :for={key <- [:other_link_1, :other_link_2, :other_link_3]}
                   field={token_field(key)}
                   form_id="launch-token-details"
                   value={@draft_values[Atom.to_string(key)]}
                   error={@marks[Atom.to_string(key)]}
                 />
-              </div>
-              <.draft_field
-                :for={key <- [:other_link_1, :other_link_2, :other_link_3]}
-                field={token_field(key)}
-                form_id="launch-token-details"
-                value={@draft_values[Atom.to_string(key)]}
-                error={@marks[Atom.to_string(key)]}
-              />
-            </Regent.Primitives.disclosure>
+              </.fold>
+            </div>
           </form>
 
-          <form
-            id="launch-treasury-details"
-            class="create-page__fields"
-            phx-change="autosave_launch_treasury"
-            phx-submit="autosave_launch_treasury"
-          >
-            <.custody_path
-              form_id="launch-treasury-details"
-              path={@draft_values["treasury_path"]}
-              acknowledgement={@draft_values["eoa_acknowledgement"]}
-              error={@draft_errors["eoa_acknowledgement"]}
+          <.fold id="launch-socials" icon="user" title="Socials">
+            <.live_component
+              :if={@current_human_id}
+              module={AutolaunchWeb.CreatorConnectionsComponent}
+              id="creator-connections"
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+              bare
+              notify
             />
-            <.draft_field
-              field={treasury_field()}
-              form_id="launch-treasury-details"
-              note={custody_note(@draft_values["treasury_path"])}
-              value={@draft_values["treasury"]}
-              error={@marks["treasury"]}
+            <.signed_out_socials :if={!@current_human_id} />
+          </.fold>
+
+          <p class="create-page__section">Settings</p>
+          <.fold id="launch-treasury" icon="shield-check" title="Treasury" open>
+            <form
+              id="launch-treasury-details"
+              class="create-page__fields"
+              phx-change="autosave_launch_treasury"
+              phx-submit="autosave_launch_treasury"
             >
-              <p
-                id="launch-treasury-details-check"
-                class="create-page__hint create-page__check"
-                role="status"
+              <.custody_menu form_id="launch-treasury-details" path={@custody} />
+              <.draft_field
+                field={treasury_field()}
+                form_id="launch-treasury-details"
+                value={@draft_values["treasury"]}
+                error={@marks["treasury"]}
               >
-                {safe_line(@treasury_check)}
-              </p>
-            </.draft_field>
-          </form>
+                <p
+                  id="launch-treasury-details-check"
+                  class="create-page__hint create-page__check"
+                  role="status"
+                >
+                  {safe_line(@treasury_check)}
+                </p>
+              </.draft_field>
+              <.eoa_warning
+                :if={@custody.value == "eoa"}
+                form_id="launch-treasury-details"
+                acknowledgement={@draft_values["eoa_acknowledgement"]}
+                error={@draft_errors["eoa_acknowledgement"]}
+              />
+            </form>
+          </.fold>
         </fieldset>
+      </section>
+
+      <aside id="create-preview" class="create-page__side" aria-label="Your launch">
+        <.summary_card
+          id="revstake-summary"
+          name={@draft_values["name"]}
+          symbol={@draft_values["symbol"]}
+          image={@draft_values["image"]}
+          color={@image_color}
+          pair="REGENT"
+          chain={:base}
+          sold="20%"
+          connections={@creator_connections}
+          terms={@terms}
+        >
+          <:row label="Opening price">
+            <MarketCard.price_figure
+              amount={@opening.price}
+              unit="REGENT"
+              rate={regent_rate(@regent_rate)}
+            />
+          </:row>
+          <:row label="FDV">
+            {MarketCard.money(@opening.fdv, regent_rate(@regent_rate), "REGENT")}
+          </:row>
+          <:row label="Raises in">REGENT</:row>
+          <:row label="Treasury">{@custody.name}</:row>
+        </.summary_card>
 
         <div id="launch-transactions" class="create-page__launch">
           <p :if={@launches_paused?} class="create-page__notice" role="status">
             New launches are paused until the new version opens.
           </p>
-          <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
-            :if={@active_draft}
-            draft={@active_draft}
-          />
           <.agent_treasury
             :if={@launch_ready? && !@reviewing? && @confirm_treasury?}
             treasury={@active_draft.treasury}
@@ -318,14 +392,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             current_human_id={@current_human_id}
             session_lease={@session_lease}
           />
-          <Regent.Primitives.button
-            :if={@current_human_id && !@launch_ready? && !@reviewing? && !@launched?}
-            type="button"
-            class="create-page__launch-button"
-            disabled
-          >
-            Complete token details and treasury
-          </Regent.Primitives.button>
+          <%= if @current_human_id && !@launch_ready? && !@reviewing? && !@launched? do %>
+            <Regent.Primitives.button type="button" class="create-page__launch-button" disabled>
+              Review launch
+            </Regent.Primitives.button>
+            <p class="create-page__need">Still needed: {DraftMarks.still_needed(@missing)}</p>
+          <% end %>
           <Regent.Primitives.button
             :if={!@current_human_id}
             type="button"
@@ -342,27 +414,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             {@draft_notice.message}
           </p>
         </div>
-      </section>
-
-      <aside
-        id="create-preview"
-        class="create-page__preview"
-        aria-label="Your auction as the gallery will show it"
-      >
-        <MarketCard.draft_card
-          name={@draft_values["name"]}
-          symbol={String.upcase(@draft_values["symbol"])}
-          image={@draft_values["image"]}
-          color={@image_color}
-          website={@draft_values["website"]}
-          chain="Base"
-          unit="REGENT"
-          price={@opening.price}
-          fdv={@opening.fdv}
-          raise?
-          rate={regent_rate(@regent_rate)}
-          creator_connections={@creator_connections}
-        />
       </aside>
     </div>
 
@@ -379,56 +430,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           {"Treasury", present(@draft_values["treasury"], "Not set yet")}
         ]}
       />
-      <div class="create-next__card">
-        <Regent.Primitives.disclosure
-          id="launch-terms"
-          summary="Every term"
-          class="create-page__more"
-          phx-mounted={JS.ignore_attributes(["open"])}
-        >
-          <table class="stocks-terms-table">
-            <tbody>
-              <tr>
-                <th scope="row">Total supply</th>
-                <td>100 billion tokens</td>
-              </tr>
-              <tr>
-                <th scope="row">Sold in the auction</th>
-                <td>20% (20 billion tokens)</td>
-              </tr>
-              <tr>
-                <th scope="row">Opening price</th>
-                <td>The lowest the auction accepts</td>
-              </tr>
-              <tr>
-                <th scope="row">Minimum raise</th>
-                <td>
-                  About 0.000000001 REGENT, the whole sale at the floor price, so any real bid reaches it
-                  <br />If bids fall short, bidders get their REGENT back.
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Trading pool</th>
-                <td>Up to 10% of the tokens, paired with up to half the raise</td>
-              </tr>
-              <tr>
-                <th scope="row">Your treasury</th>
-                <td>
-                  At least half the raise at graduation, and 70% of the tokens, plus unpaired reserve
-                  and auction rounding leftovers, over 365 days from graduation
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Trading fees</th>
-                <td>
-                  2% enters the launch’s revenue splitter; 1% goes to REGENT staking when collected in
-                  REGENT, or to the Regent Safe when collected in launch tokens. The 0.30% LP fee is separate
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </Regent.Primitives.disclosure>
-      </div>
     </section>
     <.draft_carry_over
       id="launch-carry-over"
@@ -443,17 +444,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   defp regent_rate(%{ok?: true, result: %Decimal{} = rate}), do: rate
   defp regent_rate(_unread), do: nil
 
-  # Names the custody choice above the address field so the two read as one
-  # decision. Naming a path is not verification of the address.
-  defp custody_note(path) when path in [nil, "", "safe", :safe],
-    do: "Treasury type: 2-of-3 Safe. Paste the Safe address below."
-
-  defp custody_note(path) when path in ["contract", :contract],
-    do: "Treasury type: existing contract or distribution destination. Never verified."
-
-  defp custody_note(path) when path in ["eoa", :eoa],
-    do: "Treasury type: single-key EOA. Never verified."
-
   # What Base shows at the Safe address, once it has answered.
   defp safe_line(%{state: :two_of_three_safe}), do: "2-of-3 Safe found"
   defp safe_line(%{state: :wallet}), do: "This is a wallet, not a Safe"
@@ -462,97 +452,94 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   defp safe_line(%{state: :unread}), do: "Base could not be read just now"
   defp safe_line(_nothing_yet), do: nil
 
+  # The chosen treasury type; a draft that names none yet is a Safe.
+  defp custody(path) do
+    value = if path in [nil, ""], do: "safe", else: to_string(path)
+    Enum.find(@custody_options, &(&1.value == value))
+  end
+
   attr :form_id, :string, required: true
-  attr :path, :string, default: "safe"
+  attr :path, :map, required: true, doc: "the chosen treasury type"
+
+  defp custody_menu(assigns) do
+    assigns = assign(assigns, :options, @custody_options)
+
+    ~H"""
+    <.menu id={"#{@form_id}-custody"} label="Treasury type">
+      <:current>
+        <span class="create-menu__icon"><Regent.Icons.icon name={@path.icon} /></span>
+        <span class="create-menu__value">{@path.name}<small>{@path.sub}</small></span>
+      </:current>
+      <label :for={option <- @options} class="create-menu__option">
+        <input
+          type="radio"
+          name="launch_draft[treasury_path]"
+          value={option.value}
+          checked={option.value == @path.value}
+          class="visually-hidden"
+        />
+        <span class="create-menu__icon"><Regent.Icons.icon name={option.icon} /></span>
+        <span class="create-menu__name">{option.name}</span>
+        <span class="create-menu__sub">{option.sub}</span>
+        <Regent.Icons.icon name="check" class="create-menu__check" />
+      </label>
+    </.menu>
+    <a
+      :if={@path.value == "safe"}
+      href="https://app.safe.global/new-safe/create?chain=base"
+      class="standalone-link"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Create a Safe
+    </a>
+    """
+  end
+
+  attr :form_id, :string, required: true
   attr :acknowledgement, :string, default: ""
   attr :error, :string, default: nil
 
-  def custody_path(assigns) do
+  # A single-key treasury goes ahead only once its creator types the warning
+  # character for character.
+  defp eoa_warning(assigns) do
     id = "#{assigns.form_id}-eoa-acknowledgement"
 
     assigns =
       assign(assigns,
         id: id,
         warning_copy: @eoa_acknowledgement,
-        acknowledged?:
-          assigns.path in ["eoa", :eoa] and assigns.acknowledgement == @eoa_acknowledgement,
+        acknowledged?: assigns.acknowledgement == @eoa_acknowledgement,
         described_by:
-          Enum.join(
-            ["#{id}-warning", assigns.error && "#{id}-error"] |> Enum.filter(& &1),
-            " "
-          )
+          Enum.join(Enum.filter(["#{id}-warning", assigns.error && "#{id}-error"], & &1), " ")
       )
 
     ~H"""
-    <fieldset class="autolaunch-custody-path">
-      <legend>Choose treasury custody</legend>
-      <strong>Create a 2-of-3 Safe on Base</strong>
-      <a
-        href="https://app.safe.global/new-safe/create?chain=base"
-        class="standalone-link"
-        target="_blank"
-        rel="noopener noreferrer"
+    <div class="rg-field create-field autolaunch-custody-eoa">
+      <label for={@id}>Type this warning exactly to use a single key</label>
+      <p id={"#{@id}-warning"} class="autolaunch-custody-warning">{@warning_copy}</p>
+      <textarea
+        id={@id}
+        name="launch_draft[eoa_acknowledgement]"
+        class={@acknowledged? && "autolaunch-custody-ack--matched"}
+        autocomplete="off"
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+      >{@acknowledgement}</textarea>
+      <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
+        <Regent.Icons.icon name="check" /> Warning typed exactly. Risk acknowledged.
+      </p>
+      <p
+        :if={@error}
+        id={"#{@id}-error"}
+        class="autolaunch-draft-error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
       >
-        Open the official Safe creation flow
-      </a>
-      <label>
-        <input
-          type="radio"
-          name="launch_draft[treasury_path]"
-          value="safe"
-          checked={@path in [nil, "", "safe", :safe]}
-        />
-        <span>Use existing Safe</span>
-      </label>
-      <Regent.Primitives.disclosure
-        id={"#{@form_id}-advanced-custody"}
-        summary="Advanced, high-risk treasury choices"
-        open={@path in ["contract", :contract, "eoa", :eoa]}
-        phx-mounted={JS.ignore_attributes(["open"])}
-      >
-        <label>
-          <input
-            type="radio"
-            name="launch_draft[treasury_path]"
-            value="contract"
-            checked={@path in ["contract", :contract]}
-          /> Existing contract or distribution destination — never verified
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="launch_draft[treasury_path]"
-            value="eoa"
-            checked={@path in ["eoa", :eoa]}
-          /> Single-key EOA — never verified
-        </label>
-        <label for={@id}>
-          To use an EOA, type this warning character-for-character:
-        </label>
-        <p id={"#{@id}-warning"} class="autolaunch-custody-warning">{@warning_copy}</p>
-        <textarea
-          id={@id}
-          name="launch_draft[eoa_acknowledgement]"
-          class={@acknowledged? && "autolaunch-custody-ack--matched"}
-          autocomplete="off"
-          aria-invalid={@error && "true"}
-          aria-describedby={@described_by}
-        >{@acknowledgement}</textarea>
-        <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
-          <span aria-hidden="true">✓</span> Warning typed exactly. Risk acknowledged.
-        </p>
-        <p
-          :if={@error}
-          id={"#{@id}-error"}
-          class="autolaunch-draft-error"
-          role="alert"
-          phx-hook="MotionRefusal"
-          data-refused
-        >
-          {@error}
-        </p>
-      </Regent.Primitives.disclosure>
-    </fieldset>
+        {@error}
+      </p>
+    </div>
     """
   end
 
@@ -593,7 +580,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     ~H"""
     <div id="launch-no-connections" class="no-connections">
       <p>
-        You haven't connected X, GitHub or ENS. Connect one above, or launch without them.
+        You haven't connected X, GitHub or ENS. Connect one under Socials, or launch without them.
       </p>
       <Regent.Primitives.button
         type="button"
@@ -645,7 +632,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   attr :field, :map, required: true
   attr :form_id, :string, required: true
-  attr :note, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
   attr :warning, :string, default: nil
@@ -666,7 +652,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         {@field.label}
         <span :if={@field.optional} class="create-field__optional">optional</span>
       </label>
-      <p :if={@note} class="create-page__hint">{@note}</p>
       <textarea
         :if={@field.kind == :long_text}
         id={@id}

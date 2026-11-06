@@ -1,12 +1,13 @@
-/* Both Create pages: one narrow form beside the auction's gallery card as it will be listed. */
-.create-page { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
+/* Both Create pages: the form beside its summary card and launch button, which stay in view while the form scrolls. */
+.create-page { display: grid; gap: var(--space-4); width: min(100%, 64rem); min-width: 0; margin-inline: auto; }
 .create-page__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 .create-page__header h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 
-.create-page__layout { display: grid; grid-template-columns: minmax(0, 35rem) minmax(0, 15rem); gap: var(--space-4); align-items: start; justify-content: center; }
-.create-page__form { display: grid; gap: var(--space-2); padding: var(--space-4); }
-.create-page__fields { display: grid; gap: var(--space-2); min-width: 0; }
+.create-page__layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 20rem); gap: var(--space-4); align-items: start; }
+.create-page__form { display: grid; gap: var(--space-4); padding: var(--space-4); min-width: 0; }
+.create-page__fields { display: grid; gap: var(--space-4); min-width: 0; }
 .create-page__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.create-page__label, .create-field > label { display: block; color: var(--color-fg-muted); font-size: .8125rem; }
 .create-field { min-width: 0; align-content: start; }
 .create-field textarea { min-height: 4.5rem; resize: vertical; }
 /* A ticker is saved in capitals, so the box shows it that way as it is typed. */
@@ -19,52 +20,105 @@
 .create-page__check { min-block-size: 1.5em; }
 .create-page__hint a { color: var(--color-link, var(--brand-accent)); }
 .create-page .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
-.create-page__more { border-block-end: 0; }
-.create-page__more > summary { min-height: 2.75rem; }
-.create-page__more .rg-disclosure-title { font-family: var(--font-family-ui, inherit); }
-.create-page__more .rg-disclosure-body { display: grid; gap: var(--space-3); }
-/* Community Links and Connect Socials: each dropdown in a box of its own. */
-.create-page .rg-disclosure.create-page__box { padding-inline: var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
-/* Creator connections sit inside the form, without a card of their own. */
-.create-page .creator-connections { padding: 0; border: 0; border-radius: 0; }
-.create-page .creator-connections::before, .create-page .creator-connections::after { display: none; }
-.create-page .creator-connections > p { margin: 0; }
-.create-page .creator-connections--optional .rg-disclosure > summary { min-height: 2.75rem; }
+.create-page__section { margin: var(--space-2) 0 calc(var(--space-2) * -1); color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; }
+
+/* The picture beside the name, ticker and chain. */
+.create-page__identity { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.create-page__stack { display: grid; gap: var(--space-3); min-width: 0; }
+
+/* Folds: one titled row each, joined into one block; each opens to its fields. */
+.create-page__folds { display: grid; }
+.create-fold { border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.create-fold + .create-fold { margin-top: -1px; }
+.create-fold__head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 3.5rem; padding: var(--space-2) var(--space-3); cursor: pointer; list-style: none; }
+.create-fold__head::-webkit-details-marker { display: none; }
+.create-fold__head:hover .create-fold__title { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.create-fold__head:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+.create-fold__icon { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--hairline-strong); font-size: 1rem; }
+.create-fold__chevron { color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
+.create-fold[open] .create-fold__chevron { transform: rotate(180deg); }
+.create-fold__body { display: grid; gap: var(--space-3); padding: var(--space-1) var(--space-3) var(--space-4); }
+
+/* Menus: a button like a text box that opens a short list under it. */
+.create-menu { position: relative; display: grid; gap: var(--space-1); min-width: 0; }
+.create-menu__button { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--duration-fast) ease; }
+.create-menu__button:hover { border-color: color-mix(in srgb, var(--color-fg) 45%, transparent); }
+.create-menu__button[aria-expanded="true"] { border-color: var(--color-fg); box-shadow: inset 0 0 0 1px var(--color-fg); }
+.create-menu__button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+.create-menu__button--fixed { cursor: default; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.create-menu__button--fixed:hover { border-color: var(--hairline-strong); }
+.create-menu__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.create-menu__value small { margin-left: var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; }
+.create-menu__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
+.create-menu__button[aria-expanded="true"] .create-menu__chevron { transform: rotate(180deg); }
+.create-menu__list { position: absolute; z-index: var(--rg-layer-tip); inset-inline: 0; top: calc(100% + 4px); display: grid; min-width: 14rem; padding: 4px; border: 1px solid var(--color-fg); background: var(--color-surface-elevated); box-shadow: var(--rg-layer-tip-shadow); transform-origin: top center; }
+.create-menu__list[hidden] { display: none; }
+.create-menu__option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0 var(--space-2); min-height: 2.75rem; padding: 6px var(--space-2); border: 0; background: none; color: var(--color-fg); font: inherit; text-align: left; cursor: pointer; }
+.create-menu__option:hover, .create-menu__option:focus-visible, .create-menu__option:has(input:focus-visible) { background: color-mix(in srgb, var(--color-fg) 6%, transparent); outline: none; }
+.create-menu__option > :first-child:not(input), .create-menu__option > input + * { grid-row: 1 / span 2; }
+.create-menu__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.create-menu__sub { grid-column: 2; color: var(--color-fg-muted); font-size: .75rem; }
+.create-menu__check { grid-row: 1 / span 2; grid-column: 3; visibility: hidden; }
+.create-menu__option[aria-pressed="true"] .create-menu__check, .create-menu__option:has(input:checked) .create-menu__check { visibility: visible; }
+.create-menu__icon { display: grid; flex: none; place-items: center; width: 1.625rem; height: 1.625rem; border: 1px solid var(--hairline-strong); font-size: .875rem; }
+.create-chain { flex: none; width: 1rem; height: 1rem; background: var(--chain-base); }
+.create-chain--robinhood { border-radius: 50%; background: var(--chain-robinhood); }
 
 /* The details forms, grayed and still while a launch review is open, so the
    review always matches them. The launch card is never inside. */
-.create-page__lock { display: grid; gap: var(--space-2); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.create-page__lock { display: grid; gap: var(--space-4); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
 .create-page__lock:disabled { opacity: .5; filter: grayscale(1); pointer-events: none; user-select: none; }
 
+/* Beside the form: the summary card, then the launch button and what it still needs. */
+.create-page__side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); min-width: 0; }
 .create-page__launch { display: grid; gap: var(--space-2); }
 .create-page__launch > p { margin: 0; }
-.create-page__launch-button { width: 100%; }
+.create-page__launch-button { width: 100%; min-height: 3.25rem; font-size: 1.0625rem; }
+.create-page__need { color: var(--color-fg-muted); font-size: .8125rem; text-align: center; }
 .create-page__notice { font-size: .8125rem; color: var(--color-fg-muted); }
 .create-page__notice--error { color: var(--color-error, var(--color-fg)); }
 
-/* Beside the form, only the auction's gallery card as it will be listed, at a gallery card's width and
-   in view while the form scrolls; under both, what the launch does, as cards. */
-.create-page__preview { position: sticky; top: var(--space-4); min-width: 0; }
-.create-page__info { display: grid; gap: var(--space-3); width: min(100%, calc(50rem + var(--space-4))); margin: var(--space-5) auto 0; }
+/* The launch at a glance: picture, name and pair, chain, share sold, figures, every term. */
+.create-card { display: grid; gap: var(--space-4); padding: var(--space-4); }
+.create-card__top { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+.create-card__tile { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; overflow: hidden; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--image-color, var(--color-fg)) 8%, var(--color-surface)); color: var(--color-fg-muted); font-size: 1.5rem; }
+.create-card__tile img { width: 100%; height: 100%; object-fit: cover; }
+.create-card__names { display: grid; min-width: 0; }
+.create-card__names strong { font-size: 1.25rem; font-weight: 400; line-height: 1.15; overflow-wrap: anywhere; }
+.create-card__names span { color: var(--color-fg-muted); font-size: .875rem; overflow-wrap: anywhere; }
+.create-card__chain { display: inline-flex; justify-self: start; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--hairline-strong); font-size: .75rem; }
+.create-card__chain .create-chain { width: .625rem; height: .625rem; }
+.create-card__sold p { display: flex; justify-content: space-between; margin: 6px 0 0; color: var(--color-fg-muted); font-size: .75rem; }
+.create-card__meter { position: relative; display: block; height: 6px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--color-fg) 4%, transparent); }
+.create-card__meter i { position: absolute; inset: 0 auto 0 0; background: var(--brand-accent); }
+.create-card__rows { display: grid; margin: 0; }
+.create-card__rows > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--space-3); padding: 9px 0; border-top: 1px solid var(--hairline); font-size: .875rem; }
+.create-card__rows dt { color: var(--color-fg-muted); white-space: nowrap; }
+/* A long figure keeps its digits together and drops under its label when it must. */
+.create-card__rows dd { margin: 0 0 0 auto; min-width: 0; text-align: right; overflow-wrap: break-word; }
+.create-card__rows--terms > div { display: grid; gap: 2px; justify-content: stretch; font-size: .8125rem; }
+.create-card__rows--terms dd { margin: 0; text-align: left; line-height: 1.5; }
+.create-card__terms { border-block-end: 0; }
+.create-card__terms > summary { min-height: 2.75rem; }
+.create-card__terms .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-size: .875rem; }
+
+/* Under both, what the launch does, as cards. */
+.create-page__info { display: grid; gap: var(--space-3); width: 100%; margin: var(--space-5) auto 0; }
 .create-page__info-title { margin: 0; font-family: var(--font-family-title); font-size: 1.375rem; font-weight: 400; }
 .create-page__info .create-next { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.create-page__info .create-page__more > summary { min-height: 0; }
 
 @media (max-width: 61.99rem) {
-  .create-page__layout { grid-template-columns: minmax(0, 35rem); }
-  .create-page__preview { position: relative; top: auto; width: min(100%, 15rem); }
-  .create-page__info { width: min(100%, 35rem); }
+  .create-page__layout { grid-template-columns: minmax(0, 1fr); }
+  .create-page__side { position: relative; top: auto; }
   .create-page__info .create-next { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 30rem) {
   .create-page__pair { grid-template-columns: minmax(0, 1fr); }
   .create-page__form { padding: var(--space-3); }
+  /* On a phone the picture sits beside the name and ticker, and the chain takes the row under them. */
+  .create-page__identity { grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--space-3); }
+  .create-page__identity > .image-upload { grid-row: span 2; }
+  .create-page__stack { display: contents; }
+  .create-page__stack > :last-child { grid-column: 1 / -1; }
 }
-
-/* Signed in on Revstake, the connections heading reads as one field label. */
-.create-page .creator-connections > header { margin: 0; }
-.create-page .creator-connections > header .autolaunch-kicker { display: none; }
-.create-page .creator-connections .rg-section-bar { min-block-size: 0; padding: 0; border: 0; }
-.create-page .creator-connections :is(.rg-section-bar__diamond, .rg-section-bar__leader) { display: none; }
-.create-page .creator-connections .rg-section-bar__label { font-family: inherit; font-size: 1rem; letter-spacing: 0; text-transform: none; }

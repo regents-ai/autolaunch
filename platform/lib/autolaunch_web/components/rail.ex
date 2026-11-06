@@ -7,7 +7,9 @@ defmodule AutolaunchWeb.Components.Rail do
   # also covers their search and detail pages; Docs covers the persistent
   # information-page navigation. Stocks has one to covered calls and one to
   # After-hours, each while the site offers it. Launch is the last, orange
-  # destination.
+  # destination, and covers both Create pages.
+  @launch %{label: "Launch", path: "/create", covers: ["/agent-business"]}
+
   @items [
     %{
       label: "Explore",
@@ -21,7 +23,7 @@ defmodule AutolaunchWeb.Components.Rail do
       path: "/docs",
       covers: []
     },
-    %{label: "Launch", path: "/create", covers: []}
+    @launch
   ]
 
   attr :current_path, :string, required: true
@@ -77,7 +79,8 @@ defmodule AutolaunchWeb.Components.Rail do
   def drawer(assigns) do
     assigns =
       assign(assigns,
-        rows: Enum.reject(@items, &(&1.path == "/create"))
+        rows: Enum.reject(@items, &(&1 == @launch)),
+        launch_current?: current?(assigns.current_path, @launch)
       )
 
     ~H"""
@@ -116,7 +119,7 @@ defmodule AutolaunchWeb.Components.Rail do
         <.link
           href={~p"/create"}
           class="rg-button rg-button--primary shell-rail__launch shell-drawer__launch"
-          aria-current={if under?(@current_path, "/create"), do: "page"}
+          aria-current={if @launch_current?, do: "page"}
         >
           Launch
         </.link>

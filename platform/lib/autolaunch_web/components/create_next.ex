@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.Components.CreateNext do
   @moduledoc """
   The Create page's launch plan, shown beside the form at /create and
-  /create/revstake: where the supply goes, where the money goes, how the
+  /agent-business: where the supply goes, where the money goes, how the
   auction runs, when each part of the launch happens, and the terms at a glance.
 
   Every figure is the launch type's final v2 profile from the 1 and 5 October terms:

@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         id: "revstake",
         title: "Revstake",
         action: "Launch one",
-        path: "/create/revstake",
+        path: "/agent-business",
         launch: true
       }
     ]

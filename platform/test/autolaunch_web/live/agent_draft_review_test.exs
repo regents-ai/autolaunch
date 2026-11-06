@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/create/revstake")
+      |> live("/agent-business")
 
     review = view |> element("#agent-set-fields") |> render()
     assert review =~ "Agent Chosen"
@@ -88,7 +88,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/create/revstake")
+      |> live("/agent-business")
 
     assert has_element?(view, "#agent-set-fields [data-copy-text='#{@treasury}']")
 
@@ -122,7 +122,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     {:ok, agent, _account} = Agents.resolve(@wallet)
     session = signed_in_session(account.id)
 
-    for {kind, path} <- [{"revstake", "/create/revstake"}, {"memestock", "/create"}] do
+    for {kind, path} <- [{"revstake", "/agent-business"}, {"memestock", "/create"}] do
       {:ok, view, _html} =
         conn
         |> Phoenix.ConnTest.init_test_session(session)

@@ -113,71 +113,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :name, :string, required: true
-  attr :symbol, :string, required: true
-  attr :image, :string, default: nil
-  attr :color, :string, default: nil, doc: "the image's colour, which tints the card"
-  attr :website, :string, default: nil
-  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
-
-  attr :unit, :string,
-    default: nil,
-    doc: "the currency bids are paid in: REGENT, or the paired stock, nil before one is chosen"
-
-  attr :price, :string, default: nil, doc: "the auction's starting price, in the unit"
-  attr :fdv, :any, default: nil, doc: "the whole supply at the starting price, in the unit"
-  attr :rate, :any, default: nil, doc: "the USD price of one unit"
-
-  attr :raise?, :boolean, default: false, doc: "a Revstake draft, which shows its bid volume"
-
-  attr :creator_connections, :map, default: %{}
-
-  @doc """
-  A draft as the gallery will show its auction when it is listed: the same
-  card as `explore_card/1`, at the starting price, with no bids and none of
-  its time passed. Nothing on it can be pressed or followed. The creator's wallet is
-  not among the links: which wallet launches is not known until it signs.
-  """
-  def draft_card(assigns) do
-    assigns =
-      assign(assigns,
-        view: %{
-          name: present(assigns.name, "Your token"),
-          symbol: present(assigns.symbol, "TICKER"),
-          image: assigns.image,
-          color: assigns.color,
-          website: assigns.website,
-          metric: metric(assigns.price, assigns.unit, "No price yet"),
-          path: nil,
-          creator_address: nil,
-          connections: connection_list(assigns.creator_connections),
-          bid: %{unavailable: nil},
-          record_id: nil,
-          chain: assigns.chain
-        },
-        figures: %{
-          fdv: money(assigns.fdv, assigns.rate, assigns.unit) || "No price yet",
-          volume: money(Decimal.new(0), assigns.rate, assigns.unit),
-          unpriced: if(is_nil(assigns.rate), do: assigns.unit),
-          short_from: nil,
-          ends_at: nil,
-          id: "draft"
-        },
-        bar: %{progress: 0, opens_at: nil, label: state_label(:created)}
-      )
-
-    ~H"""
-    <.auction_card view={@view} figures={@figures} bar={@bar} raise?={@raise?} preview />
-    """
-  end
-
   attr :view, :map, required: true
   attr :figures, :map, required: true
   attr :bar, :map, required: true
   attr :raise?, :boolean, default: false, doc: "a Revstake auction, which shows its bid volume"
   attr :trade_event, :string, default: nil
   attr :settle, :string, default: nil, doc: "the card's half-width button shows its first word"
-  attr :preview, :boolean, default: false, doc: "a draft's card: shown whole, and inert"
   attr :lead, :boolean, default: false
 
   defp auction_card(assigns) do
@@ -185,7 +126,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
     <article
       class={["home-coin", @view.color && "home-coin--tinted"]}
       style={tint(@view.color)}
-      inert={@preview}
     >
       <.card_head view={@view} lead={@lead} />
       <div class="home-coin__metric">
@@ -219,7 +159,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           aria-label={"Details for #{@view.name}"}
         >Details</.link>
         <Regent.Primitives.button
-          :if={(@trade_event || @preview) && @view.bid}
+          :if={@trade_event && @view.bid}
           class="home-coin__action"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}

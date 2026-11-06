@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     for {id, title, path} <- [
           {"calls", "Call Options", "/covered-calls"},
           {"memestock", "Memestock", "/create"},
-          {"revstake", "Revstake", "/create/revstake"}
+          {"revstake", "Revstake", "/agent-business"}
         ] do
       assert has_element?(view, "#home-product-#{id} a[href='#{path}'] h2", title)
     end
