@@ -160,7 +160,7 @@ test("the Account page shows this site's sections first, then the shared ones", 
   const problems = watch(page)
   await page.goto("/account")
   await ready(page)
-  const order = await page.locator("#account .rg-account-layout__grid > *").evaluateAll(parts =>
+  const order = await page.locator("#account > *").evaluateAll(parts =>
     parts.map(part => part.id || part.querySelector("[id]")?.id),
   )
   const at = (id: string) => order.findIndex(entry => entry === id)
