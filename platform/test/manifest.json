@@ -1457,7 +1457,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ed83526fc510af14062566abd9ba7c6dfe4d3c0b777b2438acfc3bf69f04b9e2"
+      "source_sha256": "5ff6058d9cce963261a0797381f09745a7b83fa31611990797a7a2e5b97b0d71"
     },
     {
       "id": 157,
@@ -1561,7 +1561,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ed83526fc510af14062566abd9ba7c6dfe4d3c0b777b2438acfc3bf69f04b9e2"
+      "source_sha256": "5ff6058d9cce963261a0797381f09745a7b83fa31611990797a7a2e5b97b0d71"
     },
     {
       "id": 166,
@@ -1574,7 +1574,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ed83526fc510af14062566abd9ba7c6dfe4d3c0b777b2438acfc3bf69f04b9e2"
+      "source_sha256": "5ff6058d9cce963261a0797381f09745a7b83fa31611990797a7a2e5b97b0d71"
     },
     {
       "id": 167,
@@ -1672,13 +1672,13 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
-      "line": 158,
+      "line": 163,
       "test_name": "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
       "keep_because": "A paired person's account read that fails for a reason other than a lost connection (42P01) is the plain 500 from the check-in, whoami and the agent routes, not the try-again 503. It fails while every failed read answered 503 account_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ed83526fc510af14062566abd9ba7c6dfe4d3c0b777b2438acfc3bf69f04b9e2"
+      "source_sha256": "5ff6058d9cce963261a0797381f09745a7b83fa31611990797a7a2e5b97b0d71"
     },
     {
       "id": 176,

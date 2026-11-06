@@ -141,6 +141,11 @@ defmodule AutolaunchWeb.AgentCheckInTest do
       Req.Test.json(siwa, verified())
     end)
 
+    # Draft saves are refused until the site opens.
+    previous = Application.get_env(:autolaunch, :prelaunch_read_only)
+    on_exit(fn -> Application.put_env(:autolaunch, :prelaunch_read_only, previous) end)
+    Application.put_env(:autolaunch, :prelaunch_read_only, false)
+
     # Spaced as an agent might send it, so only the exact bytes match; a field
     # the draft does not take is refused whole, so nothing is saved.
     body = ~s({ "not_a_field" : "text" })
