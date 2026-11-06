@@ -1,5 +1,8 @@
 # Changelog
 
+## 6 November 2026: Token page
+- A token's card keeps its name, price, market cap and change readable at every width, with the trade panel beside it only where there is room.
+
 ## 6 November 2026: Pair New Agent
 - Pair New Agent, in the account menu and on the Agents page, opens one window over the page you are on: choose your agent, copy the message, and a tick shows once it has paired. Escape closes the agent list first, then the window.
 - A Pair New Agent link in the agent guides opens /pair, the same steps on a page of their own.
