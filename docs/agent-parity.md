@@ -11,6 +11,12 @@ the **Autolaunch MCP lane**. The Claude connector is served from hosted MCP, so 
 exist here either; every Claude connector cell is a gap owned by the same lane. The checks
 that prove each surface are in `operations/FEATURES.md`.
 
+## Account
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane. The site names regents-cli 1.10.24, whose `account points` asks `/api/agent/v1/account/points`, an address the site no longer answers; it closes when the site names 1.10.25 |
+
 ## Covered calls
 
 Offered only while the site's covered-call switch is on (`AUTOLAUNCH_COVERED_CALLS=true`).

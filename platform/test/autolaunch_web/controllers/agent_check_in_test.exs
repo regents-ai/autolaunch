@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.AgentCheckInTest do
     end
   end
 
-  test "AGENT_SIGNED_BODY_KEPT: a body sent to the account's address is checked as the agent signed it",
+  test "AGENT_SIGNED_BODY_KEPT: a signed body is checked as the agent sent it",
        %{conn: conn} do
     siwa_verifies()
     account = TestSupport.register_creator!()
@@ -141,11 +141,15 @@ defmodule AutolaunchWeb.AgentCheckInTest do
       Req.Test.json(siwa, verified())
     end)
 
-    # Spaced as an agent might send it, so only the exact bytes match.
-    body = ~s({ "after" : "not-a-cursor" })
+    # Spaced as an agent might send it, so only the exact bytes match; a field
+    # the draft does not take is refused whole, so nothing is saved.
+    body = ~s({ "not_a_field" : "text" })
 
-    assert %{"error" => %{"code" => "invalid_cursor"}} =
-             conn |> post_json("/api/v1/account/credits/history", body) |> json_response(422)
+    assert %{"error" => %{"code" => "invalid_draft"}} =
+             conn
+             |> put_req_header("content-type", "application/json")
+             |> patch("/api/agent/v1/drafts/revstake", body)
+             |> json_response(422)
 
     assert_received {:checked, digest}
     assert digest == Siwa.RequestAuth.content_digest_for_body(body)

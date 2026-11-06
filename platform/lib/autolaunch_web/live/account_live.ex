@@ -4,49 +4,19 @@ defmodule AutolaunchWeb.AccountLive do
   site shares (`Regent.Account.layout`) with this site's own sections first. Signed
   out, it shows the shared signed-out section with the site's own Sign in button, and
   says the sign-in ended when it lapsed while the page was open. Signed in, this
-  site's own sections come first: the Credits activity, then the accounts they
-  connected, through the Create page's connections component, so an account
-  connected here is the same one Create shows. Then the shared sections: who is
-  signed in with which wallet, their Credits, bought from the header's Credits
-  button and managed on regents.sh, and the name people see for them. Autolaunch
-  charges no Credits. The agents have their own page
+  site's own section comes first: the accounts they connected, through the Create
+  page's connections component, so an account connected here is the same one
+  Create shows. Then the shared sections: who is signed in with which wallet, and
+  the name people see for them. The agents have their own page
   (`AutolaunchWeb.AccountAgentsLive`), and so do Points (`AutolaunchWeb.PointsLive`).
-
-  Each section is read on its own and shows its own loading and could-not-be-read
-  states. The Credits balance is the one every page reads
-  (`AutolaunchWeb.Live.Credits`); a Credits change reads again.
   """
 
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  alias Autolaunch.Credits
-  alias AutolaunchWeb.Read
-
-  @regents_account_url "https://regents.sh/account"
-
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/account"))
-     |> assign(regents_account_url: @regents_account_url)
-     |> assign(history_read: %Read{})}
-  end
-
-  def handle_params(_params, _uri, socket), do: {:noreply, read_history(socket, "")}
-
-  # The session hook re-reads the lease before a result lands here, and a
-  # lapsed one never reaches this page (`AutolaunchWeb.Live.Session`).
-  def handle_async({Read, _, _} = name, result, socket),
-    do: {:noreply, Read.settle(socket, name, result)}
-
-  @doc "The Credits activity follows a change to the balance (`AutolaunchWeb.Live.Credits`)."
-  def credits_changed(socket), do: read_history(socket, "")
-
-  def handle_event("credits_history", %{"after" => cursor}, socket) do
-    {:noreply, read_history(socket, cursor)}
-  end
+  def mount(_params, _session, socket),
+    do: {:ok, assign(socket, AutolaunchWeb.PublicDocuments.page("/account"))}
 
   # The name was saved from the browser. The session hook reads the account again
   # before this event (`AutolaunchWeb.Live.Session`), so the page already shows the
@@ -84,29 +54,6 @@ defmodule AutolaunchWeb.AccountLive do
       </Regent.Account.signed_out>
       <Regent.Account.layout :if={@current_human_id} id="account">
         <:site>
-          <section>
-            <Regent.Account.history
-              id="account-credits-history"
-              title="Credits activity"
-              rows={credits_rows(@history_read)}
-              state={read_state(@history_read)}
-              empty_message="No Credits activity yet."
-            />
-            <Regent.Primitives.button
-              :if={@history_read.value && @history_read.value.more?}
-              variant="secondary"
-              phx-click="credits_history"
-              phx-value-after={@history_read.value.next}
-            >Older activity</Regent.Primitives.button>
-            <Regent.Primitives.button
-              :if={@history_read.owner && elem(@history_read.owner, 1) != ""}
-              variant="secondary"
-              phx-click="credits_history"
-              phx-value-after=""
-            >Latest activity</Regent.Primitives.button>
-          </section>
-        </:site>
-        <:site>
           <.live_component
             module={AutolaunchWeb.CreatorConnectionsComponent}
             id="account-connections"
@@ -133,20 +80,6 @@ defmodule AutolaunchWeb.AccountLive do
             </:picture>
           </Regent.Account.identity>
         </:identity>
-        <:credits>
-          <Regent.Account.credits_summary
-            id="account-credits"
-            available={
-              @credits_read.value && RegentCredits.Amount.format(@credits_read.value.available)
-            }
-            held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
-            state={read_state(@credits_read)}
-          >
-            <a href="https://regents.sh/account" class="standalone-link">
-              Manage Credits on regents.sh
-            </a>
-          </Regent.Account.credits_summary>
-        </:credits>
         <:profile>
           <%!-- The name is saved from the browser with the sign-in's own proof. --%>
           <div id="account-profile" phx-hook="PublicName" phx-update="ignore">
@@ -162,42 +95,4 @@ defmodule AutolaunchWeb.AccountLive do
   end
 
   defp signed_in_account(%{principal: {:human, account}}), do: account
-
-  defp read_history(socket, cursor) do
-    with_person(socket, fn account ->
-      actor = Credits.person(account)
-      args = if cursor == "", do: %{}, else: %{after: cursor}
-
-      Read.start(socket, :history_read, {account.privy_user_id, cursor}, fn ->
-        RegentCredits.history(args, actor: actor)
-      end)
-    end)
-  end
-
-  defp with_person(socket, read) do
-    case socket.assigns.access_context.principal do
-      {:human, account} -> read.(account)
-      _signed_out -> Read.clear(socket, :history_read)
-    end
-  end
-
-  defp read_state(%Read{state: state}) when state in [:idle, :loading], do: :loading
-  defp read_state(%Read{state: :empty}), do: :ready
-  defp read_state(%Read{state: state}), do: state
-
-  defp credits_rows(%Read{value: nil}), do: []
-
-  defp credits_rows(%Read{value: page}) do
-    Enum.map(page.entries, fn entry ->
-      %{
-        label: RegentCredits.History.Words.line(entry),
-        amount: signed(entry.direction) <> RegentCredits.Amount.format(entry.amount),
-        occurred_at: Calendar.strftime(entry.at, "%d %b %Y %H:%M UTC")
-      }
-    end)
-  end
-
-  defp signed(:in), do: "+"
-  defp signed(:out), do: "−"
-  defp signed(:none), do: ""
 end

@@ -49,8 +49,8 @@ person (`Autolaunch.Accounts.HumanAccount`). `mix autolaunch.schema.create`
 creates the schema on a freshly created database (the `setup` and `test` aliases
 run it between creating the database and migrating), and the release's
 `/app/bin/migrate` creates it the same way, so a new database needs no separate
-initialisation. The shared account table and Regents' identity, agents, Credits
-and Points tables live in their own schemas; `mix autolaunch.shared.migrate`
+initialisation. The shared account table and Regents' identity, agents and
+Points tables live in their own schemas; `mix autolaunch.shared.migrate`
 installs them locally, and `mix db.setup` runs it before this site's own
 migrations, which point at the shared account table.
 
@@ -73,7 +73,7 @@ in one site independently. AshPostgres comes from Regent's copy of 2.15.2 with
 the upsert fix that keeps upserts in each site's own schema.
 
 Before deploying, `Autolaunch.Release.pending_migrations/0` must report no missing
-shared Agents, Credits or Points migrations. This release also needs Agents'
+shared Agents or Points migrations. This release also needs Agents'
 `20261014150000` migration. The release checks their ledgers and refuses missing
 prerequisites; it does not apply shared migrations. Publishing a dependency update
 does not enable Points earning.
@@ -278,15 +278,14 @@ verification and the remaining release checks.
 | `BASE_READ_RPC_URL` | Yes in production | The Base endpoint the site reads one canonical `safe` block through. |
 | `ETHEREUM_READ_RPC_URL` | Yes in production | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
-| `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
+| `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, of the site's admins: they read the saved errors at `/admin/errors` and may remove an agent's picture. Unset means nobody can. The variable keeps its name until its secret is renamed. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using
 `autolaunch-runtime`; wrong-cluster, wrong-database and administrative runtime logins
 fail before connecting. Serving and migration both refuse the PgBouncer endpoint, because
-transaction pooling keeps neither the site's listeners for shared Credits and agent
-changes nor the session-level advisory locks migrations take.
+transaction pooling keeps neither the site's listeners for shared agent changes nor the session-level advisory locks migrations take.
 
 The serving connection uses the direct endpoint with Ecto's bounded client pool.
 TLS verifies both the certificate chain and hostname. Connections rotate after a

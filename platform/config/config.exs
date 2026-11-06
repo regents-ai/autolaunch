@@ -17,8 +17,7 @@ config :ash_oban, pro?: false
 # (Autolaunch.ChainWatch makes sure each has its job every minute); the
 # default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
-# to read; and Regent Credits' minute-by-minute checks of purchases and Base
-# deposits (application.ex adds the RegentCredits domain); Regent Points' checks
+# to read; and Regent Points' checks
 # of what may earn, its wallet reads, and from the Points start the hourly
 # one-time points for what accounts already had. The finishing queue
 # stays paused unless the site has the finisher switched on (runtime.exs); its
@@ -44,8 +43,7 @@ config :autolaunch, Oban,
     share_videos: 1,
     default: 1,
     points: 5,
-    points_chain: 2,
-    regent_credits: 3
+    points_chain: 2
   ],
   cron: [
     crontab: [
@@ -83,29 +81,17 @@ config :regent_agents,
       "Check your status here at any time, and check in for your person.",
       "Read your person's Revstake and Memestock drafts, and save their text while launches are open.",
       "Read your person's bids and tokens.",
-      "Read your person's Credits and Points.",
+      "Read your person's Points.",
       "Signing with a wallet, launching, bidding, trading, staking and claiming stay with your person."
     ]
   },
   ash_domains: [RegentAgents],
   siwa: [url: "https://siwa.regents.sh", audience: "autolaunch"]
 
-config :regent_credits,
-  repo: Autolaunch.Repo,
-  pubsub: Autolaunch.PubSub,
-  notifications: Autolaunch.Notifications,
-  ash_domains: [RegentCredits],
-  admins: [],
-  agent_grants_enabled: false,
-  chain_client: Autolaunch.Chain.NodeClient,
-  chains: %{
-    base: %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
-    ethereum: %{chain_id: 1, name: "Ethereum", rpc_url: "https://ethereum-rpc.publicnode.com"}
-  }
-
-config :ex_money,
-  custom_currencies: [{:XRC, name: "Credits", digits: 6}],
-  auto_start_exchange_rate_service: false
+# The Privy accounts that run this site: they see the saved errors at
+# /admin/errors and may remove an agent's picture (`RegentAgents.Checks.Admin`).
+# Set at runtime (config/runtime.exs).
+config :autolaunch, :admins, []
 
 config :regent_points,
   repo: Autolaunch.Repo,
@@ -208,10 +194,7 @@ config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 # The node the shared libraries read each chain through, by chain id
 # (Autolaunch.Chain.NodeClient): the Points bonus reads Base. A wallet adds a
 # chain with its public address; this one never reaches the browser.
-config :autolaunch, :chain_nodes, %{
-  8453 => "https://mainnet.base.org",
-  1 => "https://ethereum-rpc.publicnode.com"
-}
+config :autolaunch, :chain_nodes, %{8453 => "https://mainnet.base.org"}
 
 # Robinhood Chain mainnet, read for the stock prices the create page shows.
 config :autolaunch, :robinhood_read_rpc_url, "https://rpc.mainnet.chain.robinhood.com"
@@ -240,11 +223,9 @@ config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 30
 # made, handed over once and not saved (AutolaunchWeb.ShareVideo.Render).
 config :autolaunch, :share_video_saved_bytes, 5_000_000_000
 
-# How often one account's wallet figures may be read from the chain, and how
-# often it may report a Credits purchase, each window (Autolaunch.Limits).
-config :autolaunch, :limits,
-  wallet_read: [limit: 30, window_seconds: 60],
-  credits_report: [limit: 120, window_seconds: 60]
+# How often one account's wallet figures may be read from the chain, each
+# window (Autolaunch.Limits).
+config :autolaunch, :limits, wallet_read: [limit: 30, window_seconds: 60]
 
 # The API and health check budgets key on the direct peer. Production turns on
 # Fly's client header.
@@ -311,7 +292,7 @@ config :logger, :default_formatter,
   metadata: [:request_id, :visit, :actor, :surface, :event]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
-# to Credits admins at /admin/errors. Only server faults are saved
+# to the site's admins at /admin/errors. Only server faults are saved
 # (Autolaunch.ErrorIgnorer), only where each one happened is kept
 # (Autolaunch.ErrorFilter), and Autolaunch.ErrorPruner clears each one a week
 # after it was last seen.

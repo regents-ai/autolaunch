@@ -6,8 +6,6 @@ defmodule AutolaunchWeb.Layouts do
   import AutolaunchWeb.Components.Rail
   import AutolaunchWeb.Components.TopBar
 
-  alias AutolaunchWeb.Read
-
   embed_templates("layouts/*")
 
   @doc """
@@ -51,16 +49,6 @@ defmodule AutolaunchWeb.Layouts do
     </section>
     """
   end
-
-  @doc """
-  The signed-in account and its Credits reading, for the header's Credits button
-  and the Buy Credits window; nil signed out, and on a page served without
-  LiveView, which has no window to open.
-  """
-  def credits(%Phoenix.LiveView.Socket{}, %{principal: {:human, account}}, %Read{} = read),
-    do: %{account: account, read: read}
-
-  def credits(_socket, _access_context, _read), do: nil
 
   @doc """
   The signed-in account, for the account menu's agents: a LiveView page's access

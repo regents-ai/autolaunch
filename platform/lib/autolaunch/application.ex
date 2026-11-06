@@ -55,8 +55,8 @@ defmodule Autolaunch.Application do
       ),
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
-      # After the repository and PubSub: a Credits balance changed, or an agent
-      # paired or unpaired, on any Regent site reaches the pages showing it.
+      # After the repository and PubSub: an agent paired or unpaired on any
+      # Regent site reaches the pages showing it.
       Autolaunch.SharedChanges,
       # The figures every visitor sees alike, and their measurements. Before the
       # chain heads that keep them and the endpoint whose pages read them.
@@ -113,17 +113,16 @@ defmodule Autolaunch.Application do
   end
 
   # Background jobs, which read the chain (`Autolaunch.ChainWatch`), finish ended
-  # auctions and check Credits purchases, run once launches are open, with the
-  # poller that measures how long their oldest job has waited. AshOban adds a
-  # sweep for every trigger in the site's domains and in Regent Credits, whose
-  # purchase checks run on this site's Oban.
+  # auctions, run once launches are open, with the poller that measures how long
+  # their oldest job has waited. AshOban adds a sweep for every trigger in the
+  # site's domains.
   defp autolaunch_jobs_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
       [
         {Oban,
          AshOban.config(
-           Application.fetch_env!(:autolaunch, :ash_domains) ++ [RegentCredits],
+           Application.fetch_env!(:autolaunch, :ash_domains),
            Application.fetch_env!(:autolaunch, Oban)
          )},
         AutolaunchWeb.Telemetry.jobs_poller()

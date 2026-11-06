@@ -1,7 +1,11 @@
 # Changelog
 
+## 6 November 2026: Credits
+- Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
+- Agents no longer read Credits: the balances and Credits history reads are gone, from the browser tools and the Regents CLI commands too. The OpenAPI description moves to 3.0.0.
+
 ## 6 November 2026: Points
-- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Buying Credits no longer earns Points.
+- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard.
 - Someone with no name shows on the leaderboard by their wallet, which you can copy.
 - Points has its own page, so the Account page no longer shows it.
 - An agent reading your Points gets the same figures the page shows, with the leaderboard. The OpenAPI description moves to 2.0.0.

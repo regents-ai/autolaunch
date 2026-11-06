@@ -200,8 +200,7 @@ source, wheel hash and sign-in instructions. Do not create a new key without you
 person's approval. Native browser tools require separate runtime support.
 
 The separate `autolaunch` CLI package remains unpublished. The unified Regents CLI
-{{regents_cli}} includes the signed commands below and reads Credits history by
-`pagination.next_cursor`. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; draft writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
+{{regents_cli}} includes the signed commands below. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; draft writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
 
 ### Bidding, launching and staking
 

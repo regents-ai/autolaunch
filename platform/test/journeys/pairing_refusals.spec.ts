@@ -57,7 +57,7 @@ test("ChatGPT and made-up harnesses are refused before the code is spent", async
 test("an agent no one paired is refused every private route", async () => {
   const agent = new Agent("never-paired")
   expect(agent.signIn().status).toBe(0)
-  for (const command of [["agents", "status"], ["drafts", "memestock", "show"], ["positions"], ["account", "balances"], ["account", "points"]]) {
+  for (const command of [["agents", "status"], ["drafts", "memestock", "show"], ["positions"]]) {
     const answer = agent.autolaunch(command)
     expect(answer.json.error, command.join(" ")).toMatchObject({code: "agent_not_paired", status: 403})
   }

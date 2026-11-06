@@ -37,49 +37,6 @@ defmodule AutolaunchWeb.AccountLiveTest do
     assert has_element?(view, "#account-agents-agent-#{agent.id}-wallet")
   end
 
-  # ACCOUNT_SHOWS_CREDITS_HISTORY: the shared Credits library names each history
-  # entry by `kind`, `amount` and `direction`; this page still read the earlier
-  # entry fields, so /account crashed and reloaded every second for everyone
-  # who had bought Credits (v180), and no case had any Credits history.
-  test "ACCOUNT_SHOWS_CREDITS_HISTORY", %{conn: conn} do
-    account = TestSupport.register_creator!()
-
-    # A paid purchase, recorded and credited as the chain check does once the
-    # payment lands; there is no chain in tests to check.
-    purchase =
-      RegentCredits.Purchase
-      |> Ash.Changeset.for_create(
-        :record,
-        %{
-          privy_user_id: account.privy_user_id,
-          wallet: String.downcase(account.wallet_address),
-          chain: :base,
-          amount: 5,
-          number: Ecto.UUID.generate(),
-          tx_hash: "0x" <> String.duplicate("cd", 32)
-        },
-        authorize?: false
-      )
-      |> Ash.create!()
-
-    RegentCredits.Purchase
-    |> Ash.ActionInput.for_action(:credit, %{id: purchase.id}, authorize?: false)
-    |> Ash.run_action!()
-
-    session = signed_in_session(account.id)
-
-    {:ok, view, _html} =
-      conn
-      |> Phoenix.ConnTest.init_test_session(session)
-      |> connects_with(session)
-      |> live("/account")
-
-    render_async(view, 1_000)
-    history = view |> element("#account-credits-history") |> render()
-    assert history =~ "Bought Credits"
-    assert history =~ "+5"
-  end
-
   # PAIRING_CODE_KEPT_PER_AGENT: the pairing box held one code and made a new one
   # on every agent choice, so choosing Codex, then Hermes, then Codex again showed
   # a third code and the message already pasted to Codex no longer matched the
@@ -185,9 +142,9 @@ defmodule AutolaunchWeb.AccountLiveTest do
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
     render_async(page, 1_000)
     html = render(page)
-    {history, _} = :binary.match(html, ~s(id="account-credits-history"))
+    {connections, _} = :binary.match(html, ~s(id="account-connections"))
     {identity, _} = :binary.match(html, ~s(id="account-identity"))
-    assert history < identity
+    assert connections < identity
   end
 
   # The code in the message the box shows for the chosen agent.

@@ -8,7 +8,6 @@ defmodule AutolaunchWeb.AgentAccountController do
   alias RegentPoints.Rules
 
   @points_off "Earning Points is off on this site."
-  @spending_off "Approving agent spending is off on this site."
 
   plug AutolaunchWeb.Plugs.AgentAccess
 
@@ -54,40 +53,6 @@ defmodule AutolaunchWeb.AgentAccountController do
     end
   end
 
-  def balances(conn, _params) do
-    actor = credit_actor(conn)
-
-    case RegentCredits.agent_budget(actor: actor) do
-      {:ok, budget} ->
-        answer = %{credits: RegentCredits.balance(actor.privy_user_id), spending_grant: budget}
-        json(conn, with_note(answer, not RegentCredits.agent_grants_enabled?(), @spending_off))
-
-      _ ->
-        unavailable(conn)
-    end
-  end
-
-  def history(conn, _params) do
-    case conn.body_params do
-      args when is_map(args) and map_size(args) == 0 ->
-        history_reply(conn, %{})
-
-      %{"after" => cursor} = args when map_size(args) == 1 and is_binary(cursor) ->
-        history_reply(conn, %{after: cursor})
-
-      %{"after" => _cursor} = args when map_size(args) == 1 ->
-        invalid_cursor(conn)
-
-      _ ->
-        ApiError.send(
-          conn,
-          :unprocessable_entity,
-          "invalid_request",
-          "Send an optional after cursor only."
-        )
-    end
-  end
-
   def points(conn, _params) do
     actor = conn.assigns.actor
 
@@ -99,47 +64,6 @@ defmodule AutolaunchWeb.AgentAccountController do
     else
       _unavailable -> unavailable(conn)
     end
-  end
-
-  defp history_reply(conn, args) do
-    case RegentCredits.history(args, actor: credit_actor(conn)) do
-      {:ok, page} ->
-        json(conn, %{
-          entries: page.entries,
-          pagination: %{has_more: page.more?, next_cursor: page.next}
-        })
-
-      {:error, error} ->
-        if cursor_error?(error), do: invalid_cursor(conn), else: unavailable(conn)
-    end
-  end
-
-  defp cursor_error?(%Ash.Error.Action.InvalidArgument{field: :after}), do: true
-  defp cursor_error?(%Ash.Error.Page.InvalidKeyset{}), do: true
-
-  defp cursor_error?(%Ash.Error.Invalid{errors: [_ | _] = errors}),
-    do: Enum.all?(errors, &cursor_error?/1)
-
-  defp cursor_error?(_error), do: false
-
-  defp invalid_cursor(conn),
-    do:
-      ApiError.send(
-        conn,
-        :unprocessable_entity,
-        "invalid_cursor",
-        "That history cursor is invalid."
-      )
-
-  defp credit_actor(conn) do
-    actor = conn.assigns.actor
-
-    RegentCredits.Actor.agent(
-      actor.privy_user_id,
-      actor.wallet_address,
-      "autolaunch",
-      actor.pairing_id
-    )
   end
 
   defp with_note(answer, true, note), do: Map.put(answer, :note, note)
