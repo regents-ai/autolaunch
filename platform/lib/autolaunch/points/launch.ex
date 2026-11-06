@@ -2,10 +2,9 @@ defmodule Autolaunch.Points.Launch do
   @moduledoc """
   Regent Points' check of a launch: it reads the saved auction and answers with
   what Points records for the account whose review carried the launch out. A
-  listed auction counts for `autolaunch.auction_created` and
-  `autolaunch.first_launch`; a graduated one for `autolaunch.first_graduation`,
-  at the time its token was recorded. An auction the site has taken off its
-  lists earns nothing.
+  listed auction counts for `autolaunch.auction_created`; a graduated one for
+  `autolaunch.first_graduation`, at the time its token was recorded. An auction
+  the site has taken off its lists earns nothing.
   """
 
   alias Autolaunch.Actors.System

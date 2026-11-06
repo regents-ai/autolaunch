@@ -30,6 +30,17 @@ defmodule Autolaunch.Accounts.HumanAccount do
       filter expr(id == ^arg(:id))
     end
 
+    # The accounts made before a moment, such as the Points start.
+    read :created_before do
+      argument :at, :utc_datetime_usec, allow_nil?: false
+      filter expr(created_at < ^arg(:at))
+    end
+
+    read :by_privy_dids do
+      argument :privy_dids, {:array, :string}, allow_nil?: false
+      filter expr(privy_user_id in ^arg(:privy_dids))
+    end
+
     read :by_privy_did do
       get? true
       argument :privy_did, :string, allow_nil?: false
@@ -56,7 +67,16 @@ defmodule Autolaunch.Accounts.HumanAccount do
       accept [:privy_user_id, :wallet_address, :wallet_addresses]
       upsert? true
       upsert_identity :unique_privy_user_id
-      upsert_fields []
+      # A sign-in to an existing account writes nothing to it, and the account
+      # comes back marked as skipped.
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+
+      emit Autolaunch.Accounts.Signals, :account_registered,
+        dynamic?: true,
+        description: "Only when the sign-in inserted the account."
+
+      change Autolaunch.Accounts.HumanAccount.AnnounceRegistration
       change load([:display_name])
     end
 
@@ -74,6 +94,8 @@ defmodule Autolaunch.Accounts.HumanAccount do
     policy action([
              :read,
              :points_account,
+             :created_before,
+             :by_privy_dids,
              :by_privy_did,
              :by_signed_in_wallets,
              :register_verified,

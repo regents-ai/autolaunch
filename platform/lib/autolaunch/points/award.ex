@@ -8,10 +8,18 @@ defmodule Autolaunch.Points.Award do
       now holds (`credits.purchase_settled`), from `RegentCredits.Signals`.
       Credits is one Regents ledger, so every site names it "regents" and a
       purchase earns once.
+    * A new Regent account (`account.activated`), from
+      `Autolaunch.Accounts.Signals`. The account is one Regents account on
+      every site, so it is named "regents" too.
+    * A social account linked to an account (`social.x`, `social.github`,
+      `social.farcaster`), from `Autolaunch.Accounts.Signals`, keyed by the
+      provider and its subject so one social account earns once.
+    * An agent paired with its person (`agent.activated`), from
+      `RegentAgents.Signals`, keyed by the pairing.
     * An auction listed for the account whose review carried out its launch
-      (`autolaunch.auction_created` and `autolaunch.first_launch`), and its
-      graduation (`autolaunch.first_graduation`), from `Autolaunch.Signals`,
-      keyed by the auction.
+      (`autolaunch.auction_created`), and its graduation
+      (`autolaunch.first_graduation`), from `Autolaunch.Signals`, keyed by the
+      auction.
     * A confirmed bid (`autolaunch.auction_bid`), and a bid's confirmed
       withdraw or claim (`autolaunch.first_settled_auction`), from a wallet
       that belonged to an account or its paired agent when it acted, from
@@ -30,12 +38,39 @@ defmodule Autolaunch.Points.Award do
   alias Autolaunch.Actors.System
 
   actions do
+    action :account_registered do
+      argument :signal, Autolaunch.Accounts.Signals.AccountRegistered, allow_nil?: false
+
+      run fn %{arguments: %{signal: signal}}, _context ->
+        record("account.activated", "account", to_string(signal.account_id), "regents")
+      end
+    end
+
+    action :social_linked do
+      argument :signal, Autolaunch.Accounts.Signals.SocialLinked, allow_nil?: false
+
+      run fn %{arguments: %{signal: signal}}, _context ->
+        record(
+          "social.#{signal.provider}",
+          "linked_identity",
+          "#{signal.provider}:#{signal.subject}"
+        )
+      end
+    end
+
+    action :agent_paired do
+      argument :signal, RegentAgents.Signals.AgentPaired, allow_nil?: false
+
+      run fn %{arguments: %{signal: signal}}, _context ->
+        record("agent.activated", "pairing", signal.paired_agent_id)
+      end
+    end
+
     action :launch_listed do
       argument :signal, Autolaunch.Signals.LaunchListed, allow_nil?: false
 
       run fn %{arguments: %{signal: signal}}, _context ->
-        with :ok <- record("autolaunch.auction_created", "auction", signal.auction_id),
-             do: record("autolaunch.first_launch", "auction", signal.auction_id)
+        record("autolaunch.auction_created", "auction", signal.auction_id)
       end
     end
 
@@ -99,6 +134,15 @@ defmodule Autolaunch.Points.Award do
   end
 
   signals_in do
+    from Autolaunch.Accounts.Signals do
+      on :account_registered, :account_registered
+      on :social_linked, :social_linked
+    end
+
+    from RegentAgents.Signals do
+      on :agent_paired, :agent_paired
+    end
+
     from Autolaunch.Signals do
       on :launch_listed, :launch_listed
       on :launch_graduated, :launch_graduated

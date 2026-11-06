@@ -18,7 +18,9 @@ config :ash_oban, pro?: false
 # default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
 # to read; and Regent Credits' minute-by-minute checks of purchases and Base
-# deposits (application.ex adds the RegentCredits domain). The finishing queue
+# deposits (application.ex adds the RegentCredits domain); Regent Points' checks
+# of what may earn, its wallet reads, and from the Points start the hourly
+# one-time points for what accounts already had. The finishing queue
 # stays paused unless the site has the finisher switched on (runtime.exs); its
 # jobs are unique, so a paused queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
@@ -41,9 +43,18 @@ config :autolaunch, Oban,
     stock_admissions: 1,
     share_videos: 1,
     default: 1,
+    points: 5,
+    points_chain: 2,
     regent_credits: 3
   ],
-  cron: [crontab: [{"* * * * *", Autolaunch.ChainWatch}, {"17 4 * * *", Autolaunch.ErrorPruner}]],
+  cron: [
+    crontab: [
+      {"* * * * *", Autolaunch.ChainWatch},
+      {"17 4 * * *", Autolaunch.ErrorPruner},
+      # From the Points start, the one-time points for what accounts already had.
+      {"@hourly", RegentPoints.StartAwards}
+    ]
+  ],
   pruner: [max_age: {7, :days}],
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
@@ -104,14 +115,18 @@ config :regent_points,
   starts_at: nil,
   approved_rules: [],
   adapters: %{
+    "account.activated" => Autolaunch.Points.AccountActivated,
+    "agent.activated" => Autolaunch.Points.PairedAgent,
     "autolaunch.auction_bid" => Autolaunch.Points.WalletAction,
     "autolaunch.auction_created" => Autolaunch.Points.Launch,
     "autolaunch.first_graduation" => Autolaunch.Points.Launch,
-    "autolaunch.first_launch" => Autolaunch.Points.Launch,
     "autolaunch.first_settled_auction" => Autolaunch.Points.WalletAction,
     "autolaunch.token_staked" => Autolaunch.Points.WalletAction,
     "autolaunch.token_traded" => Autolaunch.Points.Trade,
-    "credits.purchase_settled" => Autolaunch.Points.CreditsPurchase
+    "credits.purchase_settled" => Autolaunch.Points.CreditsPurchase,
+    "social.farcaster" => Autolaunch.Points.LinkedSocial,
+    "social.github" => Autolaunch.Points.LinkedSocial,
+    "social.x" => Autolaunch.Points.LinkedSocial
   }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
