@@ -2,19 +2,26 @@
    Claim Rewards. On a phone the card comes first, with its figures and chart,
    then the widget, then the details. */
 .token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
-.token-page__overview { grid-area: overview; min-width: 0; }
+/* The card lays itself out by its own width, so the trade widget beside it never squeezes it. */
+.token-page__overview { grid-area: overview; min-width: 0; container: token-overview / inline-size; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
 .token-page__details { grid-area: details; min-width: 0; }
 /* While the token is first read, the page holds a screen's height, so the
    footer does not sit under the reading card and jump when the token arrives. */
 .token-page__reading { min-height: 100svh; }
 /* The token's picture sits small beside its name and figures, so the price,
-   market cap and change are on the first screen, a phone's included. */
+   market cap and change are on the first screen. */
 .token-page .market-identity { grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-3) var(--space-4); }
 .token-page .market-identity__image { width: 120px; }
-@media (max-width: 42rem) {
+@container token-overview (max-width: 36rem) {
   .token-page .market-identity { grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); }
   .token-page .market-identity__image { width: 88px; }
+}
+/* Too narrow for the figures beside the picture: the picture goes above. */
+@container token-overview (max-width: 26rem) {
+  .token-page .market-identity { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 42rem) {
   /* Uniswap and the chart share one row under the address. */
   .token-page .token-heading__links { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .token-page .token-heading__copy { grid-column: 1 / -1; justify-self: start; }
@@ -30,11 +37,12 @@
 .token-figures strong { font-size: 1.25rem; overflow-wrap: anywhere; }
 .token-figures__price strong { font-size: 1.75rem; line-height: 1.1; }
 .token-figures small { color: var(--color-fg-muted); font-size: .75rem; }
-@media (max-width: 30rem) {
+@container token-overview (max-width: 40rem) {
   .token-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .token-figures__price { grid-column: 1 / -1; }
 }
-@media (min-width: 64rem) {
+/* The widget sits beside the card only where the page leaves the card room. */
+@container shell-page (min-width: 60rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
 }
 
