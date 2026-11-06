@@ -2,8 +2,10 @@ defmodule AutolaunchWeb.AgentAccountController do
   @moduledoc "Signed private reads and launch draft edits; no wallet, signing or launch authority."
   use AutolaunchWeb, :controller
   alias Autolaunch.AgentDrafts
-  alias AutolaunchWeb.ApiError
-  alias RegentPoints.{Amount, Rules}
+  alias Autolaunch.Points.Board
+  alias Autolaunch.SharedReading
+  alias AutolaunchWeb.{ApiError, PointsEntries}
+  alias RegentPoints.Rules
 
   @points_off "Earning Points is off on this site."
   @spending_off "Approving agent spending is off on this site."
@@ -87,34 +89,15 @@ defmodule AutolaunchWeb.AgentAccountController do
   end
 
   def points(conn, _params) do
-    case RegentPoints.summary(actor: conn.assigns.actor) do
-      {:ok, summary} ->
-        answer = %{
-          points: Amount.format(summary.balance_micro),
-          earned_today: Amount.format(summary.earned_today_micro),
-          pending: summary.pending,
-          daily_allowances:
-            Enum.map(
-              summary.allowances,
-              &%{scope: &1.scope, remaining: Amount.format(&1.remaining)}
-            ),
-          entries:
-            Enum.map(
-              summary.entries,
-              &%{
-                points: Amount.format(&1.points_micro_delta),
-                source: &1.source_app,
-                by: &1.actor_kind,
-                earned_at: &1.earned_at
-              }
-            ),
-          more: summary.more?
-        }
+    actor = conn.assigns.actor
 
-        json(conn, with_note(answer, Rules.active() == [], @points_off))
-
-      _ ->
-        unavailable(conn)
+    with {:ok, summary} <- RegentPoints.summary(actor: actor),
+         {:ok, %{reading: %{} = board}} <- SharedReading.fetch(Board.key()) do
+      earning = Rules.active()
+      answer = PointsEntries.answer(summary, board, actor.human_account_id, earning != [])
+      json(conn, with_note(answer, earning == [], @points_off))
+    else
+      _unavailable -> unavailable(conn)
     end
   end
 

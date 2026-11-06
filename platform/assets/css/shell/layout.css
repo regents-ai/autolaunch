@@ -78,9 +78,6 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
   .autolaunch-account-page .rg-account-identity__who { flex-wrap: wrap; row-gap: var(--space-2); }
   .autolaunch-account-page .rg-account-identity__name { flex: 1 1 100%; }
 }
-.autolaunch-account-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.autolaunch-account-balances > * { min-width: 0; }
-@media (max-width: 42rem) { .autolaunch-account-balances { grid-template-columns: minmax(0, 1fr); } }
 .autolaunch-error { min-height: 60dvh; display: grid; align-content: center; gap: var(--space-4); }
 .autolaunch-error .rg-button { justify-self: start; }
 .autolaunch-error__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

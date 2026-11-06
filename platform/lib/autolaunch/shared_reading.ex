@@ -1,11 +1,13 @@
 defmodule Autolaunch.SharedReading do
   @moduledoc """
-  A figure every visitor sees alike, read once and shared by every open page.
+  A figure every reader it admits sees alike, read once and shared by every open
+  page.
 
   It is for a reading no saved row carries (a chain's newest block) or one built
-  from many rows (a list of the latest trades). A public row saved through Ash
-  reaches pages through its own `pub_sub` publication instead, and anything that
-  differs by viewer is reread under that viewer's scope: neither belongs here.
+  from many rows (a list of the latest trades, the Points board). A public row
+  saved through Ash reaches pages through its own `pub_sub` publication instead,
+  and anything that differs by viewer is reread under that viewer's scope: neither
+  belongs here.
   The rule and its reasons are in the `ash-frontend` skill,
   `references/public-figures.md`.
   This module is ash-template's `AshTemplate.SharedReading` as it stands, with
@@ -37,17 +39,18 @@ defmodule Autolaunch.SharedReading do
 
   A key is `{kind, id}`. `kind` is one of `@kinds` and `id` is an integer or a
   short string the site already holds in its own rows or settings, never text
-  from a request. Each kind states why every visitor may see it, the most keys
-  it may hold and the largest reading it accepts, so adding one is a reviewed
-  change. A reading is small plain data: numbers, strings, atoms, dates,
+  from a request. Each kind states who may see it and why, the most keys it may
+  hold and the largest reading it accepts, so adding one is a reviewed change.
+  Nothing hands out a reading by its kind: each page or answer fetches the keys it
+  shows, and shows a kind only to the readers its `audience` names. A reading is small plain data: numbers, strings, atoms, dates,
   `Decimal`s, and maps, lists or tuples of them. An Ash record or any other
   struct is refused, as is a reading over its kind's size.
 
   Every kind also states `within`: the seconds inside which a working producer
   reads each of its keys again, whether or not anything changed. A reader of an
   outside clock does so on its own interval. A producer that rereads on notice
-  does so when `heal/1` asks, which is also what mends a notice that was lost;
-  this site has none yet. A key older than its kind's
+  does so when `heal/1` asks, each minute (`Autolaunch.SharedReading.Heal`),
+  which is also what mends a notice that was lost. A key older than its kind's
   `within` is late, whatever the kind.
 
   ## Measurements
@@ -56,7 +59,9 @@ defmodule Autolaunch.SharedReading do
   each kind, how many keys it holds, how many of them have never been read, how
   many are late and how long ago its oldest reading was taken
   (`[:autolaunch, :shared_reading, :kind]`), and the table's size in memory
-  (`[:autolaunch, :shared_reading, :table]`). Every `degraded/1` is counted
+  (`[:autolaunch, :shared_reading, :table]`). Every reading offered to `put/2`
+  reports its `bytes` and its kind's `limit` (`[:autolaunch, :shared_reading, :size]`),
+  so a reading growing towards its limit shows before it is refused. Every `degraded/1` is counted
   (`[:autolaunch, :shared_reading, :degraded]`), as is every refused reading
   (`[:autolaunch, :shared_reading, :refused]`) and every wake-up sent to pages
   (`[:autolaunch, :shared_reading, :woken]`), by kind.
@@ -66,14 +71,14 @@ defmodule Autolaunch.SharedReading do
 
   @table __MODULE__
 
-  # open: why a signed-out visitor may see it. keys: the most this kind holds.
+  # audience: who may see it, and why. keys: the most this kind holds.
   # bytes: the largest reading, measured as `:erlang.external_size/1`.
   # within: the seconds inside which a working producer reads every key again.
   @kinds %{
     # One for each auction deployment (`Autolaunch.ChainHead`): "base", "stocks"
     # and "robinhood". Read every five minutes on mainnet.
     chain_head: %{
-      open: "a chain's newest block number is public on the chain itself",
+      audience: "every visitor: a chain's newest block number is public on the chain itself",
       keys: 3,
       bytes: 64,
       within: 330
@@ -82,11 +87,24 @@ defmodule Autolaunch.SharedReading do
     # has recorded (`Autolaunch.LaunchDiscovery.Count`): "base_revstake" and
     # "base_memestock". Read every five minutes.
     launch_count: %{
-      open:
-        "a launchpad's launch count is public on Base, and the site's count says only how far its lists have got",
+      audience:
+        "every visitor: a launchpad's launch count is public on Base, and the site's count " <>
+          "says only how far its lists have got",
       keys: 2,
       bytes: 128,
       within: 330
+    },
+    # Ten rows of about 3.6 KB at most (a name, a 2.3 KB square pattern and a
+    # picture address) and 8 bytes for each account with points: 10,000 such
+    # accounts take about 116 KB.
+    points_board: %{
+      audience:
+        "signed-in people and paired agents, the readers the Points page and the agent's " <>
+          "Points answer admit; each gets the rows without account ids and their own place, " <>
+          "never the list of totals (Autolaunch.Points.Board)",
+      keys: 1,
+      bytes: 131_072,
+      within: 150
     }
   }
 
@@ -292,9 +310,20 @@ defmodule Autolaunch.SharedReading do
     refused
   end
 
+  # Every offered reading's size is reported against its kind's limit, so one
+  # that grows shows nearing the limit well before it is refused.
   defp fits(kind, reading) do
+    bytes = :erlang.external_size(reading)
+    limit = @kinds[kind].bytes
+
+    :telemetry.execute(
+      [:autolaunch, :shared_reading, :size],
+      %{bytes: bytes, limit: limit},
+      %{kind: kind}
+    )
+
     cond do
-      :erlang.external_size(reading) > @kinds[kind].bytes -> {:error, :too_large}
+      bytes > limit -> {:error, :too_large}
       not plain?(reading) -> {:error, :not_plain}
       true -> :ok
     end

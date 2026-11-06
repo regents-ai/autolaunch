@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Autolaunch API
-  version: 1.0.0
+  version: 2.0.0
   description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
 paths:
@@ -1081,33 +1081,85 @@ components:
     AccountPoints:
       type: object
       additionalProperties: false
-      required: [points, earned_today, pending, daily_allowances, entries, more]
+      required: [points, earned_today, earned_yesterday, rank, activity_being_verified, to_do, daily_limits, leaderboard, entries, period_bonuses, more]
       properties:
         points: {$ref: "#/components/schemas/PointsAmount"}
         earned_today: {$ref: "#/components/schemas/PointsAmount"}
-        pending: {type: integer, minimum: 0, description: "Number of pending events, not a Points amount."}
-        more: {type: boolean}
+        earned_yesterday: {$ref: "#/components/schemas/PointsAmount"}
+        rank: {type: [integer, "null"], minimum: 1, description: "The account's place on the leaderboard; null with no points."}
+        activity_being_verified: {type: integer, minimum: 0, description: "Number of actions still being checked, not a Points amount."}
+        more: {type: boolean, description: "Older entries exist beyond these."}
         note: {type: string}
-        daily_allowances:
+        to_do:
+          type: array
+          description: Every action this site lists, done or not.
+          items:
+            type: object
+            additionalProperties: false
+            required: [label, repeats, points, done, left, today]
+            properties:
+              label: {type: string}
+              repeats: {type: string, enum: [once, daily]}
+              points: {type: [string, boolean], description: "The whole points the action earns, as text; false until earning opens."}
+              done: {type: boolean}
+              left: {type: boolean, description: "The action can still earn: today, for a daily one."}
+              today:
+                type: [object, "null"]
+                description: For a daily action done more than once a day, how many times today out of how many; else null.
+                additionalProperties: false
+                required: [done, of]
+                properties:
+                  done: {type: integer, minimum: 0}
+                  of: {type: integer, minimum: 1}
+        daily_limits:
           type: array
           items:
             type: object
             additionalProperties: false
-            required: [scope, remaining]
+            required: [name, limit, remaining]
             properties:
-              scope: {type: string}
+              name: {type: string}
+              limit: {$ref: "#/components/schemas/PointsAmount"}
               remaining: {$ref: "#/components/schemas/PointsAmount"}
+        leaderboard:
+          type: array
+          description: The highest totals. A row's name is null when the person shows by their wallet, under its ens_name when it has one.
+          items:
+            type: object
+            additionalProperties: false
+            required: [rank, name, wallet, ens_name, points, you]
+            properties:
+              rank: {type: integer, minimum: 1}
+              name: {type: [string, "null"]}
+              wallet: {type: [string, "null"], pattern: '^0x[0-9a-fA-F]{40}$'}
+              ens_name: {type: [string, "null"]}
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              you: {type: boolean}
         entries:
           type: array
           items:
             type: object
             additionalProperties: false
-            required: [points, source, by, earned_at]
+            required: [label, points, status, allowance_reduction, by, agent, earned_at]
             properties:
+              label: {type: string}
               points: {$ref: "#/components/schemas/PointsAmount"}
-              source: {type: string}
-              by: {type: string}
+              status: {type: string, enum: [counted, allowance_reached, correction]}
+              allowance_reduction: {$ref: "#/components/schemas/PointsAmount"}
+              by: {type: string, enum: [person, agent]}
+              agent: {type: [string, "null"], description: "The name the person gave the agent that earned it; null when the person did."}
               earned_at: {type: string, format: date-time}
+        period_bonuses:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [period, points, nft_count, bonus_percent]
+            properties:
+              period: {type: integer, minimum: 1}
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              nft_count: {type: integer, minimum: 0}
+              bonus_percent: {type: integer, minimum: 0}
     CreditsHistory:
       type: object
       additionalProperties: false

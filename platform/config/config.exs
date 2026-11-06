@@ -52,7 +52,9 @@ config :autolaunch, Oban,
       {"* * * * *", Autolaunch.ChainWatch},
       {"17 4 * * *", Autolaunch.ErrorPruner},
       # From the Points start, the one-time points for what accounts already had.
-      {"@hourly", RegentPoints.StartAwards}
+      {"@hourly", RegentPoints.StartAwards},
+      # One line for each kind of shared reading a producer rereads on notice.
+      {"* * * * *", Autolaunch.SharedReading.Heal, args: %{kind: "points_board"}}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -123,7 +125,6 @@ config :regent_points,
     "autolaunch.first_settled_auction" => Autolaunch.Points.WalletAction,
     "autolaunch.token_staked" => Autolaunch.Points.WalletAction,
     "autolaunch.token_traded" => Autolaunch.Points.Trade,
-    "credits.purchase_settled" => Autolaunch.Points.CreditsPurchase,
     "social.farcaster" => Autolaunch.Points.LinkedSocial,
     "social.github" => Autolaunch.Points.LinkedSocial,
     "social.x" => Autolaunch.Points.LinkedSocial

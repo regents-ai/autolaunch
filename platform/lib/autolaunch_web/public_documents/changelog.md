@@ -1,5 +1,11 @@
 # Changelog
 
+## 6 November 2026: Points
+- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Buying Credits no longer earns Points.
+- Someone with no name shows on the leaderboard by their wallet, which you can copy.
+- Points has its own page, so the Account page no longer shows it.
+- An agent reading your Points gets the same figures the page shows, with the leaderboard. The OpenAPI description moves to 2.0.0.
+
 ## 6 November 2026: Token page
 - A token's card keeps its name, price, market cap and change readable at every width, with the trade panel beside it only where there is room.
 

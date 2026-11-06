@@ -606,7 +606,7 @@
     },
     {
       "command": "account points",
-      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: the command signs its own HTTP request with your SIWA key.",
+      "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: the command signs its own HTTP request with your SIWA key.",
       "operation_id": "account_points",
       "method": "GET",
       "path": "/api/v1/account/points",
