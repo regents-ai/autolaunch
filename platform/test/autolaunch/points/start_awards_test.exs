@@ -75,6 +75,7 @@ defmodule Autolaunch.Points.StartAwardsTest do
     assert Enum.flat_map(@rules, &offers/1) == []
   end
 
+  # Oban's jobs are not an Ash resource; this reads the offers Points queued.
   defp offers(rule) do
     Repo.all(
       from j in Oban.Job,
@@ -104,6 +105,7 @@ defmodule Autolaunch.Points.StartAwardsTest do
   defp run(jobs, worker) do
     for job <- jobs, do: assert(worker.perform(%{job | attempt: 1}) == :ok)
 
+    # Oban's jobs are not an Ash resource; the test marks the jobs it ran as done.
     Repo.update_all(from(j in Oban.Job, where: j.id in ^Enum.map(jobs, & &1.id)),
       set: [state: "completed"]
     )
