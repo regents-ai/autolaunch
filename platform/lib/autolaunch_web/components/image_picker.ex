@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.Components.ImagePicker do
   @moduledoc """
   The token image on both create pages: one box that shows the saved image, or
-  the file being uploaded, beside the prompt. Choosing a file or dropping one
+  the file being uploaded, with the prompt under it. Choosing a file or dropping one
   on the box both work. It sits inside the token details form, whose change
   event carries the upload. Images are only stored for a signed-in account,
   so a page without an upload offers sign-in in the box instead.
@@ -19,9 +19,11 @@ defmodule AutolaunchWeb.Components.ImagePicker do
     <div class="image-upload">
       <span class="image-upload__label">Token image</span>
       <button type="button" class="image-upload__box" data-account-target="sign-in">
+        <Regent.Icons.icon name="image-plus" class="image-upload__mark" />
         <span class="image-upload__text">
           <strong>Sign in to add an image</strong>
-          <span>PNG, JPEG or WebP, up to 2 MB · 400x400 optimal</span>
+          <span class="image-upload__hint">PNG, JPEG or WebP, up to 2 MB</span>
+          <span class="image-upload__hint">400x400 optimal</span>
         </span>
       </button>
     </div>
@@ -48,17 +50,19 @@ defmodule AutolaunchWeb.Components.ImagePicker do
         />
         <img
           :if={@upload.entries == [] && @image != ""}
-          src={StoredImage.sized(@image, 96)}
+          src={StoredImage.sized(@image, 320)}
           alt="Saved token image"
-          width="44"
-          height="44"
+          width="160"
+          height="160"
           decoding="async"
           class="image-upload__preview"
         />
+        <Regent.Icons.icon name="image-plus" class="image-upload__mark" />
         <span class="image-upload__text">
           <strong>{if @image == "", do: "Choose image", else: "Replace image"}</strong>
           <span :for={entry <- @upload.entries}>Uploading · {entry.progress}%</span>
-          <span :if={@upload.entries == []}>PNG, JPEG or WebP, up to 2 MB · 400x400 optimal</span>
+          <span :if={@upload.entries == []} class="image-upload__hint">PNG, JPEG or WebP, up to 2 MB</span>
+          <span :if={@upload.entries == []} class="image-upload__hint">400x400 optimal</span>
         </span>
         <.live_file_input upload={@upload} class="visually-hidden" />
       </label>

@@ -21,11 +21,11 @@ defmodule AutolaunchWeb.LaunchesPausedTest do
   test "LAUNCHES_PAUSED_FROM_CHAIN: the Revstake create page names the pause only while Base reads it",
        %{conn: conn} do
     LaunchFixture.install(paused: true)
-    {:ok, view, _html} = live(conn, "/create/revstake")
+    {:ok, view, _html} = live(conn, "/agent-business")
     assert render_async(view) =~ @note
 
     LaunchFixture.install(paused: false)
-    {:ok, view, _html} = live(build_conn(), "/create/revstake")
+    {:ok, view, _html} = live(build_conn(), "/agent-business")
     refute render_async(view) =~ @note
   end
 end

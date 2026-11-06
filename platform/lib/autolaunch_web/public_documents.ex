@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/create" =>
       {"Create Memestock",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
-    "/create/revstake" =>
+    "/agent-business" =>
       {"Create Revstake",
        "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
     "/auctions" =>

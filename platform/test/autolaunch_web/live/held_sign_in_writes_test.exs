@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
         agent
       )
 
-    {view, session} = open(conn, "/create/revstake", account.id)
+    {view, session} = open(conn, "/agent-business", account.id)
     assert view |> element("#launch-agent-treasury") |> render() =~ @contract
     render_async(view, 5_000)
     for child <- live_children(view), do: render_async(child, 5_000)
@@ -116,7 +116,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
     account = TestSupport.register_creator!()
 
     for {path, table, message} <- [
-          {"/create/revstake", "launch_drafts", {:launch_review, :launched}},
+          {"/agent-business", "launch_drafts", {:launch_review, :launched}},
           {"/create", "stock_launch_drafts", {:launch_review, :closed}},
           {"/create", "stock_launch_drafts", {:agent_draft_saved, "memestock"}}
         ] do
@@ -172,7 +172,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
   end
 
   test "IMAGE_UPLOAD_HELD_SAYS_TRY_AGAIN_OR_SIGNS_OUT: a picture saved on a held page" do
-    for {path, field} <- [{"/create/revstake", :launch_image}, {"/create", :stocks_image}] do
+    for {path, field} <- [{"/agent-business", :launch_image}, {"/create", :stocks_image}] do
       account = TestSupport.register_creator!()
       {view, session} = open(build_conn(), path, account.id)
       render_async(view, 2_000)
