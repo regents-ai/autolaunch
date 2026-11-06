@@ -1,11 +1,10 @@
 defmodule Autolaunch.ChainRefreshTest do
-  use Autolaunch.IndexerCase, async: false
+  use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
 
   alias Autolaunch.{AuctionActivity, ChainRefresh}
-  alias Autolaunch.Indexer.ReadChain
 
-  @source "0x" <> String.duplicate("ab", 20)
+  @chain_id 8453
 
   # The site starts its jobs only once launches open; a press queues or moves
   # jobs here, and no queue runs under ExUnit.
@@ -19,30 +18,6 @@ defmodule Autolaunch.ChainRefreshTest do
     )
 
     :ok
-  end
-
-  # The ledger wakes every five minutes and reads at most a few blocks a pass,
-  # so a wake that stopped after one pass would fall further behind Base with
-  # every wake. One wake keeps passing until it reaches the safe head.
-  test "one wake reads the ledger up to the safe head, however far behind it is" do
-    start_endpoint(chain(blocks(100..130)))
-    admit(@source, 100)
-
-    assert {:ok, _committed} = pass()
-    assert cursor().next_block_to_fetch == 131
-  end
-
-  # A landed press asks the chain's ledger to read again: its waiting job moves
-  # from five minutes away to the end of the ten-second gap.
-  test "a refresh brings the ledger's five-minute read forward" do
-    open_launches()
-    Oban.insert!(ReadChain.new(%{chain_id: chain_id()}, schedule_in: 300))
-
-    :ok = ChainRefresh.request(chain_id() + 1)
-    assert seconds_until(ReadChain, %{chain_id: chain_id()}) > 290
-
-    :ok = ChainRefresh.request(chain_id())
-    assert seconds_until(ReadChain, %{chain_id: chain_id()}) <= ChainRefresh.gap_s()
   end
 
   # A landed press brings each listed auction's next activity read on that
@@ -64,25 +39,28 @@ defmodule Autolaunch.ChainRefreshTest do
     assert seconds_until(AuctionActivity, %{auction_id: due.id}) <= 2
   end
 
-  # Once launches are open, a creator's Memestock launch press runs discovery at
-  # once, so the launch is listed without waiting for the five-minute schedule.
-  test "a refresh on a chain with a Memestock launchpad runs its discovery at once" do
+  # Once launches are open, a creator's Revstake or Memestock launch press runs
+  # discovery at once, so the launch is listed without waiting for the
+  # five-minute schedule.
+  test "a refresh on a chain with a Base launchpad runs its discovery at once" do
     :ok = ChainRefresh.request(chain_id())
-    refute_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock)
+    refute_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.Discover)
 
     open_launches()
 
     :ok = ChainRefresh.request(chain_id() + 1)
-    refute_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock)
+    refute_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.Discover)
 
     :ok = ChainRefresh.request(chain_id())
-    assert_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock)
+    assert_enqueued(worker: Autolaunch.LaunchDiscovery.Workers.Discover)
   end
 
   defp open_launches do
     Application.put_env(:autolaunch, :prelaunch_read_only, false)
     on_exit(fn -> Application.delete_env(:autolaunch, :prelaunch_read_only) end)
   end
+
+  defp chain_id, do: @chain_id
 
   defp seconds_until(worker, args) do
     [job] = all_enqueued(worker: worker, args: args)

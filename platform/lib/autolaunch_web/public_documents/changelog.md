@@ -1,5 +1,8 @@
 # Changelog
 
+## 5 November 2026: Launch lists
+- New Base launches are found by each launchpad's own count, and the lists say when they are catching up.
+
 ## 5 November 2026: Faster blocks
 - Base's move to five blocks a second leaves ended auctions' dates as they were: each date comes from the block's own time.
 - The REGENT page's USDC keeps covering seven full days.
@@ -41,6 +44,10 @@
 ## 1 November 2026: Agents page
 - Your agents and Pair New Agent have their own page, autolaunch.sh/account/agents. The account menu's Manage and Pair New Agent lead there; the Account page keeps your profile, Credits and connected accounts.
 - An agent's signed tools on a page now take only their input: the agent's browser host signs each request with the agent's own key.
+
+## 31 October 2026: Revstake launches found by count
+- A Revstake launch made outside this page is now found the way Memestock launches are: every five minutes, and within seconds of a launch press, the site asks Base how many launches have been made and reads each new one. It no longer keeps its own copy of every Base block.
+- While Base shows a launch the site has not added yet, or Base could not be read for several minutes, the home page and the auctions and tokens lists say they are catching up with the chain.
 
 ## 31 October 2026: Price history for faster blocks
 - Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.

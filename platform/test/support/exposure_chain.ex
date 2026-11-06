@@ -75,7 +75,7 @@ defmodule Autolaunch.ExposureChain do
     Application.put_env(:autolaunch, :exposure, :on)
     Application.put_env(:autolaunch, :autolaunch_base_exposure_deployment, path)
 
-    BaseRpcStub.install(:autolaunch_lab_http_client, fn _data, _state -> "0x" end)
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn _call, _state -> "0x" end)
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, __MODULE__)
 
     put(overrides)

@@ -4,12 +4,10 @@ defmodule Autolaunch.LaunchDiscovery do
   this site's accounts reviewed.
 
   A launch is listed from chain evidence alone. The creator's browser may never
-  report its hash, and nothing here waits for it:
-
-  - the Base ledger records every Revstake factory `LaunchCreated` it stores;
-  - every five minutes, and at once after a press on its chain,
-    `:discover_memestock` records each new Memestock launchpad launch and the
-    transaction that created it.
+  report its hash, and nothing here waits for it: every five minutes, and at
+  once after a press on its chain, `:discover` records each new Revstake
+  factory and Memestock launchpad launch and the transaction that created it
+  (`Autolaunch.LaunchDiscovery.Discover`).
 
   Every minute the `:resolve` trigger takes each launch still `pending` and
   looks for the saved review it carried out (`Autolaunch.LaunchReviews`): one
@@ -53,10 +51,10 @@ defmodule Autolaunch.LaunchDiscovery do
     end
 
     scheduled_actions do
-      schedule :discover_memestock, "*/5 * * * *" do
-        action :discover_memestock
+      schedule :discover, "*/5 * * * *" do
+        action :discover
         queue :launch_listing
-        worker_module_name Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock
+        worker_module_name Autolaunch.LaunchDiscovery.Workers.Discover
       end
     end
   end
@@ -82,8 +80,8 @@ defmodule Autolaunch.LaunchDiscovery do
       prepare build(sort: [launch_id: :desc], limit: 1)
     end
 
-    # A replayed log or record finds the launch already recorded and changes
-    # nothing about it, however far its resolution has got.
+    # A launch read again finds it already recorded and changes nothing about
+    # it, however far its resolution has got.
     create :record do
       accept [
         :launchpad,
@@ -100,9 +98,9 @@ defmodule Autolaunch.LaunchDiscovery do
       upsert_fields []
     end
 
-    action :discover_memestock do
+    action :discover do
       run fn input, context ->
-        Autolaunch.LaunchDiscovery.DiscoverMemestock.run(input, context)
+        Autolaunch.LaunchDiscovery.Discover.run(input, context)
       end
     end
 

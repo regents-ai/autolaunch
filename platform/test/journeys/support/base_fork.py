@@ -197,7 +197,6 @@ class Fork:
             )
             document = json.loads((root / "reports/generated/deployment/site-config.json").read_text())
             document["chain_id"] = CHAIN_ID
-            document.pop("start_blocks", None)  # the ledger stays off on the copy
             document.pop("public_rpc_url")  # a loopback chain is the browser's door too
             if package == "stocks-v2":
                 document["faucet"] = FAUCET

@@ -3,7 +3,8 @@ defmodule AutolaunchWeb.LabMarket do
   What a page takes from the chain readings every visitor sees alike: each
   auction's reading (`Autolaunch.AuctionReading`), which its own public
   publication carries to open pages, and each deployment's newest block
-  (`Autolaunch.ChainHead`), held in `Autolaunch.SharedReading`.
+  (`Autolaunch.ChainHead`) and each Base launchpad's launch count
+  (`Autolaunch.LaunchDiscovery.Count`), held in `Autolaunch.SharedReading`.
 
   A page subscribes to what it shows, then reads it once as a signed-out
   visitor. An auction's reading arrives as `%{topic: topic, payload: payload}` on its
@@ -16,6 +17,7 @@ defmodule AutolaunchWeb.LabMarket do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [signed_in_wallet: 1]
 
   alias Autolaunch.{AuctionReading, ChainHead, SharedReading}
+  alias Autolaunch.LaunchDiscovery.Count
 
   @feeds ["base", "stocks", "robinhood"]
 
@@ -39,6 +41,22 @@ defmodule AutolaunchWeb.LabMarket do
   @doc "Reads `robinhood_stale?` again."
   def robinhood_stale(socket),
     do: assign(socket, :robinhood_stale?, ChainHead.stale?("robinhood"))
+
+  @doc """
+  Assigns `launches_catching_up?`, whether the Base launch lists are behind the
+  chain (`Autolaunch.LaunchDiscovery.Count`), and has the connected page told
+  when that may have changed (`{:shared_reading, {:launch_count, launchpad}}`).
+  """
+  def assign_launches_catching_up(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: Enum.each(Count.keys(), &SharedReading.subscribe/1)
+
+    launches_catching_up(socket)
+  end
+
+  @doc "Reads `launches_catching_up?` again."
+  def launches_catching_up(socket),
+    do: assign(socket, :launches_catching_up?, Count.catching_up?())
 
   @doc """
   Has the connected page told of each new block of every deployment

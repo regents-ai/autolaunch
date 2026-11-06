@@ -85,7 +85,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       LabAbi.selector("allowance(address,address)") => [funds.allowance]
     }
 
-    BaseRpcStub.install(:autolaunch_lab_http_client, fn data, _state ->
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn %{data: data}, _state ->
       "0x" <>
         Enum.map_join(Map.fetch!(answers, String.slice(data, 0, 10)), &BaseRpcStub.hex_word/1)
     end)
