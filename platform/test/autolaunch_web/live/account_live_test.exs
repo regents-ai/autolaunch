@@ -96,7 +96,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       |> live("/account/agents")
 
     render_async(view, 1_000)
-    box = form(view, "#account-pairing-box")
+    box = form(view, "#shell-pairing-box")
     shown = fn -> pairing_code(view) end
 
     render_change(box, %{harness: "codex"})
@@ -120,8 +120,9 @@ defmodule AutolaunchWeb.AccountLiveTest do
 
   # ACCOUNT_MENU_ON_EVERY_PAGE: the account's button opens one menu on every page,
   # a LiveView page and one served without LiveView alike, listing at most three of
-  # the person's agents, newest paired first, and leading to the one pairing box on
-  # the Agents page. A page without the menu leaves people no way to pair.
+  # the person's agents, newest paired first, and its Pair New Agent opens the one
+  # pairing window over that page, which holds the pairing box. A page without the
+  # menu or the window leaves people no way to pair.
   test "ACCOUNT_MENU_ON_EVERY_PAGE", %{conn: conn} do
     account = TestSupport.register_creator!()
     person = %RegentAgents.Person{privy_user_id: account.privy_user_id}
@@ -142,33 +143,43 @@ defmodule AutolaunchWeb.AccountLiveTest do
     session = signed_in_session(account.id)
     signed_in = conn |> Phoenix.ConnTest.init_test_session(session)
 
-    # A page served without LiveView lists the newest three, without activity lines.
+    # A page served without LiveView lists the newest three, without activity lines,
+    # and holds the pairing window's box in a LiveView of its own.
     html = signed_in |> get("/about") |> html_response(200)
     assert html =~ ~s(id="account-menu")
-    assert html =~ ~s(href="/account/agents#account-pairing")
+    assert html =~ ~s(aria-controls="shell-pairing")
+    assert html =~ ~s(<form id="shell-pairing-box")
     refute html =~ "Menu One"
     for name <- ["Menu Two", "Menu Three", "Menu Four"], do: assert(html =~ name)
+
+    # The page drew the window's nested view for this browser's session.
+    {:ok, window, _html} =
+      signed_in
+      |> connects_with(session)
+      |> live_isolated(AutolaunchWeb.PairWindowLive,
+        session: %{"render_topic" => session["live_socket_id"]}
+      )
+
+    window |> form("#shell-pairing-box") |> render_change(%{harness: "codex"})
+    assert render(window) =~ "Pairing code:"
 
     # A LiveView page reads them in the menu's own component, the same three.
     {:ok, view, _html} = signed_in |> connects_with(session) |> live("/auctions")
     menu = view |> element("#account-menu") |> render()
-    assert menu =~ ~s(href="/account/agents#account-pairing")
+    assert menu =~ ~s(aria-controls="shell-pairing")
     assert menu =~ "Manage Account"
     assert menu =~ "Sign out"
     refute menu =~ "Menu One"
     for name <- ["Menu Two", "Menu Three", "Menu Four"], do: assert(menu =~ name)
 
-    # The Agents page has the pairing box once, as the section the menu leads to,
-    # after the agents list.
+    assert has_element?(view, "#shell-pairing #shell-pairing-box")
+
+    # The Agents page's Pair New Agent opens the same window; the page holds no
+    # second box.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account/agents")
     render_async(page, 1_000)
-    html = render(page)
-    assert length(Regex.scan(~r/id="account-pairing"/, html)) == 1
-    assert has_element?(page, "#account-pairing #account-pairing-box")
-
-    {agents, _} = :binary.match(html, ~s(id="account-agents"))
-    {pairing, _} = :binary.match(html, ~s(id="account-pairing"))
-    assert agents < pairing
+    assert has_element?(page, ~s(#account-agents button[aria-controls="shell-pairing"]))
+    assert length(Regex.scan(~r/class="rg-account__pair"/, render(page))) == 1
 
     # The Account page puts this site's own sections before the account card.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
@@ -181,7 +192,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
 
   # The code in the message the box shows for the chosen agent.
   defp pairing_code(view) do
-    message = view |> element("#account-pairing-box pre:not([data-unused])") |> render()
+    message = view |> element("#shell-pairing-box pre") |> render()
     [_, code] = Regex.run(~r/Pairing code:\s*([^\s<]+)/, message)
     code
   end

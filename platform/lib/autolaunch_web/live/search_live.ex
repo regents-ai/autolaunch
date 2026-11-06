@@ -120,15 +120,7 @@ defmodule AutolaunchWeb.SearchLive do
            the form, LiveView would send the whole form on Enter. Enter opens
            the first result instead (SearchDialog hook). --%>
       <form id="search-dialog-form" class="search-dialog__field" role="search">
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        ><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
+        <Regent.Icons.icon name="search" />
         <label for="search-dialog-q" class="visually-hidden">
           Search coins, stocks, creators and addresses
         </label>

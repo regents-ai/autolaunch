@@ -188,3 +188,8 @@
     bottom: calc(var(--market-ticker-height) + var(--space-2));
   }
 }
+
+/* The close mark of a review panel (Close) and of the note after a trade
+   (Dismiss), from the shared icon set. */
+svg.close-icon { width: 20px; height: 20px; }
+svg.dismiss-icon { width: 18px; height: 18px; }

@@ -97,7 +97,7 @@
 #home-explore .home-filter__row { display: flex; gap: 2px; }
 #home-explore .home-filter__option { display: flex; align-items: center; gap: 6px; min-height: 2.75rem; padding: 0 10px 0 6px; border-radius: var(--radius); color: var(--color-fg); text-decoration: none; white-space: nowrap; }
 #home-explore .home-filter__option .chain-icon, #home-explore .home-filter__option .link-icon { width: 15px; height: 15px; }
-#home-explore .home-filter__check { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; visibility: hidden; }
+#home-explore .home-filter__check { width: 12px; height: 12px; visibility: hidden; }
 #home-explore .home-filter__option[aria-current] .home-filter__check { visibility: visible; }
 @media (hover: hover) and (pointer: fine) {
   #home-explore .home-filter__option:hover { background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
@@ -204,7 +204,7 @@
 #home-top .home-search { display: flex; align-items: center; gap: 10px; flex: 1 1 34rem; max-width: 40rem; min-width: 0; padding: 0 12px; min-height: 44px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg-muted); font: inherit; font-size: .875rem; text-align: left; cursor: text; }
 #home-top .home-search:hover, #home-top .home-search:focus-visible { border-color: var(--color-fg); }
 #home-top .home-search__prompt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-top .home-search svg { flex-shrink: 0; }
+#home-top .home-search svg { flex-shrink: 0; width: 20px; height: 20px; }
 #home-top .home-search__shortcut { flex-shrink: 0; padding: 2px 5px; border: 1px solid var(--hairline); border-radius: var(--radius); font-size: .6875rem; font-family: inherit; }
 #home-top .home-top__actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 @media (max-width: 100rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
@@ -274,7 +274,7 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 #home-explore .home-next__card small { color: var(--color-fg-muted); font-size: .8125rem; }
 /* A dashed outline, with no fill, so the empty line never reads as a card to press. */
 #home-explore .home-next__empty { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); }
-#home-explore .home-next__mark { flex: none; width: 20px; height: 20px; fill: none; stroke: var(--color-fg-muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#home-explore .home-next__mark { flex: none; width: 20px; height: 20px; color: var(--color-fg-muted); }
 #home-explore .home-next__empty > div { display: grid; gap: 2px; min-width: 0; }
 #home-explore .home-next__empty p { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; }
 #home-explore .home-next__empty strong { color: var(--color-fg); font-size: .9375rem; }

@@ -1,12 +1,12 @@
 defmodule AutolaunchWeb.Live.Agents do
   @moduledoc """
-  The account menu's agents (`AutolaunchWeb.MenuAgents`) hear when an agent
-  pairs, checks in or is unpaired on any Regent site (`RegentAgents.topic/1`,
-  which `RegentAgents.Listener` feeds), as the template's shell does, on every
-  LiveView page. The Agents page, which also holds the pairing box
-  (`AutolaunchWeb.PairingBox`), reads its agents again too
-  (`AutolaunchWeb.AccountAgentsLive.agents_changed/1`), so a code on screen gives
-  way to the agent that used it.
+  The account menu's agents (`AutolaunchWeb.MenuAgents`) and the pairing window's
+  box (`AutolaunchWeb.PairingBox`) hear when an agent pairs, checks in or is
+  unpaired on any Regent site (`RegentAgents.topic/1`, which
+  `RegentAgents.Listener` feeds), as the template's shell does, on every LiveView
+  page, so a code on screen gives way to the agent that used it. The Agents page
+  reads its agents again (`AutolaunchWeb.AccountAgentsLive.agents_changed/1`), and
+  the pairing link's page updates its own box.
 
   It runs after the session hook, so it listens for the account the mount
   proved, and the session hook re-reads the sign-in before each change lands
@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.Live.Agents do
 
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, send_update: 2]
 
-  alias AutolaunchWeb.{AccountAgentsLive, MenuAgents}
+  alias AutolaunchWeb.{AccountAgentsLive, MenuAgents, PairingBox, PairLive, PairWindowLive}
 
   def on_mount(:agents, _params, _session, socket) do
     {:cont,
@@ -36,11 +36,26 @@ defmodule AutolaunchWeb.Live.Agents do
     socket
   end
 
+  # The window's box on a page drawn without LiveView is the only one there.
+  defp changed(%{view: PairWindowLive} = socket) do
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
+    socket
+  end
+
   defp changed(socket) do
     send_update(MenuAgents, id: "shell-agents", agents_changed: true)
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
 
-    if socket.view == AccountAgentsLive,
-      do: AccountAgentsLive.agents_changed(socket),
-      else: socket
+    case socket.view do
+      AccountAgentsLive ->
+        AccountAgentsLive.agents_changed(socket)
+
+      PairLive ->
+        send_update(PairingBox, id: "pair-pairing-box", agents_changed: true)
+        socket
+
+      _other ->
+        socket
+    end
   end
 end

@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         aria-label={"Copy the #{@symbol} token address"}
       >
         <span class="token-heading__address">{RegentFormat.short_address(@address)}</span>
-        <span class="regent-token-menu__copy-icon" aria-hidden="true"><.copy_icon /></span>
+        <span class="regent-token-menu__copy-icon" aria-hidden="true"><Regent.Icons.icon name="copy" /></span>
       </Regent.Primitives.copy_button>
       <a
         :if={@network && @pool}
@@ -88,14 +88,6 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   defp network(chain_id) do
     if RobinhoodLab.chain?(chain_id) and not RobinhoodLab.test_chain?(chain_id),
       do: "robinhood"
-  end
-
-  defp copy_icon(assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" />
-    </svg>
-    """
   end
 
   # The Uniswap unicorn, from Web3 Icons (MIT).

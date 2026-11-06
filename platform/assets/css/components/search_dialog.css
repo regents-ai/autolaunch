@@ -5,7 +5,7 @@
 .search-dialog::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
 
 .search-dialog__field { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--hairline); color: var(--color-fg-muted); }
-.search-dialog__field svg { flex-shrink: 0; }
+.search-dialog__field svg { flex-shrink: 0; width: 20px; height: 20px; }
 .search-dialog__field input { flex: 1; min-width: 0; padding: 12px 0; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--color-fg); font: inherit; font-size: 1rem; }
 .search-dialog__field input::-webkit-search-cancel-button { display: none; }
 .search-dialog__close { flex-shrink: 0; min-height: 32px; padding: 0 6px; border: 0; background: transparent; color: inherit; font: inherit; font-size: .75rem; cursor: pointer; }

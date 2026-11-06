@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
             >
               <span class="regent-token-menu__copy-label">$REGENT</span>
               <span class="regent-token-menu__copy-icon" aria-hidden="true">
-                <.source_icon kind={:copy} />
+                <Regent.Icons.icon name="copy" />
               </span>
             </Regent.Primitives.copy_button>
             <a
@@ -96,14 +96,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
       <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />
       <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="82" width="34" height="34" />
       <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="118" width="34" height="34" />
-    </svg>
-    """
-  end
-
-  defp source_icon(%{kind: :copy} = assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" />
     </svg>
     """
   end

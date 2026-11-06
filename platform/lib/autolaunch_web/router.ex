@@ -363,6 +363,7 @@ defmodule AutolaunchWeb.Router do
       live "/account", AccountLive, :account
       live "/account/agents", AccountAgentsLive, :agents
       live "/account/points", PointsLive, :points
+      live "/pair", PairLive, :pair
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
     end

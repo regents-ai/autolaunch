@@ -126,10 +126,10 @@ defmodule AutolaunchWeb.SignInReadTest do
 
     # The page keeps showing the account it holds, but makes no pairing code.
     panel
-    |> element("#account-pairing-box")
+    |> element("#shell-pairing-box")
     |> render_change(%{"harness" => "codex"})
 
-    assert has_element?(panel, "#account-pairing", "A pairing code couldn’t be made right now.")
+    assert has_element?(panel, "#shell-pairing", "No code right now. Try again.")
     assert has_element?(panel, "#account-control [data-account-target=profile]")
 
     assert Repo.one(

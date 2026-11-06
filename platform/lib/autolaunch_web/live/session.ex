@@ -156,9 +156,7 @@ defmodule AutolaunchWeb.Live.Session do
     socket
     |> assign_principal(account)
     |> Phoenix.Component.assign(:session_lease, lease)
-    |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
-      recheck(socket, lease, &redirect(&1, to: @public_root))
-    end)
+    |> recheck_on_params(lease)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
       recheck(socket, lease, & &1)
     end)
@@ -272,6 +270,16 @@ defmodule AutolaunchWeb.Live.Session do
 
   # A lease that could not be read just then has not lapsed: the page keeps the
   # account it holds, and the next event or result reads it again.
+  # A view drawn inside a page rather than at a route (the pairing window on the
+  # pages drawn without LiveView) never handles params.
+  defp recheck_on_params(%{router: nil} = socket, _lease), do: socket
+
+  defp recheck_on_params(socket, lease),
+    do:
+      attach_hook(socket, :session_authority_params, :handle_params, fn _params, _uri, socket ->
+        recheck(socket, lease, &redirect(&1, to: @public_root))
+      end)
+
   defp recheck(socket, lease, lapsed) do
     case leased(lease) do
       {:ok, nil} -> {:halt, socket |> lapse() |> lapsed.()}

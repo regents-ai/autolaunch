@@ -73,6 +73,39 @@
     credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
     session_lease={assigns[:session_lease]}
   />
+  <%!-- Every Pair New Agent opens this one window over the page
+       (assets/js/shell_panels.ts). A page drawn without LiveView holds its box in
+       a LiveView of its own. --%>
+  <dialog
+    :if={menu_account(assigns)}
+    id="shell-pairing"
+    class="shell-pairing-dialog"
+    aria-labelledby="shell-pairing-title"
+    phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+  >
+    <Regent.Primitives.button
+      variant="quiet"
+      type="button"
+      class="shell-dialog-close"
+      aria-label="Close"
+      data-pair-close
+    >
+      <Regent.Icons.icon name="x" />
+    </Regent.Primitives.button>
+    <h2 id="shell-pairing-title">Pair New Agent</h2>
+    <.live_component
+      :if={assigns[:socket]}
+      module={AutolaunchWeb.PairingBox}
+      id="shell-pairing-box"
+      session_lease={@session_lease}
+      account={menu_account(assigns)}
+    />
+    {if !assigns[:socket],
+      do:
+        Phoenix.Component.live_render(@conn, AutolaunchWeb.PairWindowLive,
+          session: AutolaunchWeb.Live.Session.render_context(@conn)
+        )}
+  </dialog>
 </Regent.Structure.frame>
 
 {Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.MarketTickerLive,

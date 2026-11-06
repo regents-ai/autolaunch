@@ -970,7 +970,7 @@ defmodule AutolaunchWeb.StakeComponent do
           aria-label="Close"
           title="Close"
         >
-          <.cross size="20" />
+          <Regent.Icons.icon name="x" class="close-icon" />
         </Regent.Primitives.button>
       </header>
 
@@ -1066,7 +1066,7 @@ defmodule AutolaunchWeb.StakeComponent do
         aria-label="Dismiss"
         title="Dismiss"
       >
-        <.cross size="18" />
+        <Regent.Icons.icon name="x" class="dismiss-icon" />
       </Regent.Primitives.button>
     </aside>
     """
@@ -1124,16 +1124,5 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp done_line(%{"kind" => "collect"} = result) do
     "#{result["token_units"]} #{result["token_symbol"]} · #{result["currency_units"]} #{result["currency_symbol"]} moved to the staking contract"
-  end
-
-  attr :size, :string, required: true
-
-  @doc "The close mark on a review panel or a toast."
-  def cross(assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" width={@size} height={@size} fill="none" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
-    """
   end
 end
