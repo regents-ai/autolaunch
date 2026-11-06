@@ -38,7 +38,9 @@ test("P1-P10: an agent signs in, its person pairs it in the pairing window, it c
   await signIn(page, people.a)
   for (const path of ["/", "/auctions", "/create", "/docs"]) {
     await page.goto(path)
-    await ready(page)
+    // The developer guide has no page view; the pairing window's own view connects there.
+    if (path === "/docs") await expect(page.locator("#shell-pairing .phx-connected")).toBeAttached()
+    else await ready(page)
     await fitsAndPresses(page, touch)
     await page.locator("#account-chip").click()
     await page.locator("#account-menu").getByRole("button", {name: "Pair New Agent"}).click()
