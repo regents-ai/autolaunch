@@ -1,5 +1,5 @@
 {
-  "total": 159,
+  "total": 160,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2069,6 +2069,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "a88f93f0105c1b9f01dd345b9d0dd5d3ca7a7c08f862878d54c952e024d84163"
+    },
+    {
+      "id": 202,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points/start_awards_test.exs",
+      "line": 33,
+      "test_name": "what an account had before the start earns once, at the start",
+      "keep_because": "An account, its linked social account and its paired agent from before the Points start earn their one-time awards at the start, once, through Autolaunch's own checks; a broken check hands out nothing or twice, and points are hard to take back.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8bf29f3a6dd1b0e84ca8312be917599ef8b58039397d0470f0917b631ebbfecf"
     }
   ],
   "legacy_folders_to_remove": [
