@@ -53,11 +53,11 @@ defmodule Autolaunch.LabPositions do
     |> Ash.read(domain: @domain, authorize?: false)
   end
 
-  @doc "Writes the readings whose status differs from the stored one. Returns whether anything changed."
+  @doc "Writes the readings that move a stored status forward. Returns whether any was written."
   @spec project([reading()]) :: {:ok, boolean()} | {:error, term()}
   def project(readings) do
     readings
-    |> Enum.filter(&(&1.status != &1.position.status))
+    |> Enum.filter(&Bid.forward?(&1.position.status, &1.status))
     |> Enum.reduce_while({:ok, false}, fn reading, {:ok, _changed} ->
       case write(reading) do
         {:ok, _bid} -> {:cont, {:ok, true}}
@@ -67,18 +67,19 @@ defmodule Autolaunch.LabPositions do
   end
 
   # The feed's reading was taken before this write, and a wallet verification
-  # may have recorded the same settlement meanwhile. The row is re-read under a
-  # lock inside the write transaction and its recorded amounts are kept; only a
-  # status the chain now contradicts is corrected. One Ash transaction, so any
-  # notification of the write goes out once it is committed.
+  # may have recorded a later step of the same settlement meanwhile. The row is
+  # re-read under a lock inside the write transaction and its recorded amounts
+  # are kept; the status only moves forward (`Autolaunch.Bid.forward?/2`), so a
+  # reading older than the page's own receipt never undoes it. One Ash
+  # transaction, so any notification of the write goes out once it is committed.
   defp write(%{position: stale, status: status} = reading) do
     Ash.transaction(Bid, fn ->
       with {:ok, position} <- locked(stale.bid_id),
-           false <- position.status == status,
+           true <- Bid.forward?(position.status, status),
            {:ok, bid} <- upsert(position, status, reading) do
         bid
       else
-        true -> stale
+        false -> stale
         {:error, reason} -> Ash.DataLayer.rollback(Bid, reason)
       end
     end)

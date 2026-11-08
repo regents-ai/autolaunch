@@ -18,6 +18,17 @@ defmodule Autolaunch.Bid do
 
   @type status :: :active | :returnable | :awaiting_claim | :claimable | :returned | :claimed
 
+  # How far each status is along a bid's settlement; `returned` and `claimed`
+  # are both finished.
+  @rank %{active: 0, returnable: 1, awaiting_claim: 2, claimable: 3, returned: 4, claimed: 4}
+
+  @doc """
+  Whether a stored status may become `next`: only to a later step, never back
+  and never out of a finished one.
+  """
+  @spec forward?(status(), status()) :: boolean()
+  def forward?(current, next), do: @rank[next] > @rank[current]
+
   use Ash.Resource,
     otp_app: :autolaunch,
     domain: Autolaunch,
@@ -82,7 +93,6 @@ defmodule Autolaunch.Bid do
       filter expr(bid_id == ^arg(:bid_id))
       prepare build(load: [:auction, :token])
     end
-
 
     create :project_lab do
       accept [
@@ -152,7 +162,6 @@ defmodule Autolaunch.Bid do
         :onchain_bid_id
       ]
     end
-
   end
 
   policies do

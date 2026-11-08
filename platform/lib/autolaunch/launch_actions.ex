@@ -44,7 +44,6 @@ defmodule Autolaunch.LaunchActions do
     "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
   ]
 
-
   # A Base read that may answer differently later never settles anything.
   @transient [
     :chain_unavailable,
@@ -118,7 +117,6 @@ defmodule Autolaunch.LaunchActions do
       {:error, reason} -> {:error, reason}
     end
   end
-
 
   @doc """
   A saved review as the page uses it: its id, signer, chain, step and facts. The

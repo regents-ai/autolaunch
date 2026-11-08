@@ -90,7 +90,6 @@ defmodule Autolaunch.Auction do
       prepare build(sort: [inserted_at: :desc, id: :asc], limit: 5_000, load: [:path_tail])
     end
 
-
     read :home_market do
       argument :x, :boolean, default: false
       argument :ens, :boolean, default: false
@@ -191,8 +190,6 @@ defmodule Autolaunch.Auction do
           |> Autolaunch.Search.rank(query.arguments.query, order)
       end
     end
-
-
 
     read :public_by_id do
       get? true

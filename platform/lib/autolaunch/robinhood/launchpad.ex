@@ -16,7 +16,6 @@ defmodule Autolaunch.Robinhood.Launchpad do
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Assets
 
-
   def head do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),

@@ -83,7 +83,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end
-
   end
 
   policies do

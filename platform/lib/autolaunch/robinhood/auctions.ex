@@ -94,7 +94,8 @@ defmodule Autolaunch.Robinhood.Auctions do
          stock_address: stock.address,
          stock_symbol: stock.symbol,
          stock_decimals: stock.decimals,
-         state: MarketState.observed(record.lifecycle, clock, record.start_block, record.end_block),
+         state:
+           MarketState.observed(record.lifecycle, clock, record.start_block, record.end_block),
          minimum_reached: minimum_reached,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
          clearing_price_q96: clearing,
