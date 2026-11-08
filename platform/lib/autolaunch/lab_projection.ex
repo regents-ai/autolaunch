@@ -69,7 +69,7 @@ defmodule Autolaunch.LabProjection do
         max_price: context.max_price,
         current_clearing_price: "0",
         estimated_tokens_if_end_now: nil,
-        status: "active",
+        status: :active,
         auction_address: context.auction_address,
         onchain_bid_id: result["onchain_bid_id"]
       })
@@ -80,9 +80,10 @@ defmodule Autolaunch.LabProjection do
   Projects one verified settlement step onto the bid position it settled.
 
   A verified exit records the refund and the fill and leaves the position
-  `claimable` when the reviewed sequence continues with a claim, `returned`
-  otherwise; a verified claim records the tokens delivered and marks it
-  `claimed`.
+  `claimable` when the reviewed sequence continues with a claim,
+  `awaiting_claim` when it filled but the claim is not open yet, and `returned`
+  when it filled nothing; a verified claim records the tokens delivered and
+  marks it `claimed`.
   """
   def project_settlement(context, step, result)
       when step in ["exit", "claim"] and is_map(result) do
@@ -298,12 +299,10 @@ defmodule Autolaunch.LabProjection do
 
   defp project_launch_records(error, _chain_id, _signer, _facts, _result), do: error
 
-  defp settled_status("claim", _result, _claim_next?), do: "claimed"
-
-  defp settled_status("exit", %{"tokens_filled" => filled}, true) when filled != "0",
-    do: "claimable"
-
-  defp settled_status("exit", _result, _claim_next?), do: "returned"
+  defp settled_status("claim", _result, _claim_next?), do: :claimed
+  defp settled_status("exit", %{"tokens_filled" => "0"}, _claim_next?), do: :returned
+  defp settled_status("exit", _result, true), do: :claimable
+  defp settled_status("exit", _result, false), do: :awaiting_claim
 
   defp present({:ok, nil}, reason), do: {:error, reason}
   defp present(result, _reason), do: result

@@ -396,25 +396,6 @@ defmodule Autolaunch do
       define :list_wallet_bid_positions, action: :mine_by_wallet, args: [:wallet_address]
       define :list_wallet_bids_to_settle, action: :to_settle_by_wallet, args: [:wallet_address]
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
-
-      define :import_bid_position,
-        action: :import_position,
-        args: [
-          :bid_id,
-          :auction_id,
-          :owner_address,
-          :amount,
-          :max_price,
-          :current_clearing_price,
-          :estimated_tokens_if_end_now,
-          :status,
-          :exited_at,
-          :claimed_at
-        ]
-
-      define :set_bid_chain_identity,
-        action: :set_chain_identity,
-        args: [:auction_address, :onchain_bid_id]
     end
 
     resource Autolaunch.TreasurySecurityReport do

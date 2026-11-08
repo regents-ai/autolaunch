@@ -334,11 +334,11 @@ defmodule AutolaunchWeb.BidLive do
   # nothing to press.
   defp next(%{chain: :base, position: position, listing: auction} = bid, book) do
     case position.status do
-      "active" when auction.state == :active -> open(position, auction, book)
-      "active" -> {"Bidding has ended.", {:wait, "Nothing to do until the auction settles"}}
-      "returnable" -> settle(bid, auction.state, BidSettlementComponent.spent?(position))
-      "claimable" -> {"Your tokens are ready to claim.", {:press, claim(bid)}}
-      "returned" when position.tokens_filled not in [nil, "", "0"] -> claims_later()
+      :active when auction.state == :active -> open(position, auction, book)
+      :active -> {"Bidding has ended.", {:wait, "Nothing to do until the auction settles"}}
+      :returnable -> settle(bid, auction.state, BidSettlementComponent.spent?(position))
+      :claimable -> {"Your tokens are ready to claim.", {:press, claim(bid)}}
+      :awaiting_claim -> claims_later()
       _settled -> settled()
     end
   end
@@ -514,7 +514,7 @@ defmodule AutolaunchWeb.BidLive do
   # The price book of an open Base bid's auction, after the page; a new read
   # keeps the last book on screen until it lands.
   defp read_book(
-         %{assigns: %{bid: %{result: %{position: %{status: "active"}, listing: auction}}}} =
+         %{assigns: %{bid: %{result: %{position: %{status: :active}, listing: auction}}}} =
            socket
        )
        when auction.state == :active do
@@ -582,8 +582,8 @@ defmodule AutolaunchWeb.BidLive do
              max_price: Decimal.new(position.max_price, max_digits: :infinity),
              done:
                done(
-                 position.status in ~w(claimable returned claimed),
-                 position.status == "claimed"
+                 position.status in [:awaiting_claim, :claimable, :returned, :claimed],
+                 position.status == :claimed
                )
            })}
         end

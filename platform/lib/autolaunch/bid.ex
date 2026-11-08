@@ -1,5 +1,22 @@
 defmodule Autolaunch.Bid do
+  @moduledoc """
+  One bid position on a Base auction, and where its settlement stands.
+
+  `status` follows the auction's own record of the bid:
+
+    * `:active` while bidding is open, and until its end block has passed;
+    * `:returnable` once the end block has passed and the bid has not exited;
+    * `:awaiting_claim` once it exited with tokens filled, before the claim block;
+    * `:claimable` once it exited with tokens filled and the claim block has passed;
+    * `:returned` once it exited with nothing filled (finished);
+    * `:claimed` once its tokens have been claimed (finished).
+  """
+
   alias Autolaunch.BidIdentity
+
+  @statuses [:active, :returnable, :awaiting_claim, :claimable, :returned, :claimed]
+
+  @type status :: :active | :returnable | :awaiting_claim | :claimable | :returned | :claimed
 
   use Ash.Resource,
     otp_app: :autolaunch,
@@ -11,6 +28,13 @@ defmodule Autolaunch.Bid do
   postgres do
     table "bids"
     repo Autolaunch.Repo
+
+    check_constraints do
+      check_constraint :status, "bids_status_known",
+        check:
+          "status IN ('active', 'returnable', 'awaiting_claim', 'claimable', 'returned', 'claimed')",
+        message: "is not a bid status"
+    end
 
     custom_indexes do
       index [:owner_address]
@@ -40,7 +64,7 @@ defmodule Autolaunch.Bid do
 
       filter expr(
                owner_address == ^arg(:wallet_address) and
-                 status in ["returnable", "claimable"]
+                 status in [:returnable, :claimable]
              )
 
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
@@ -59,22 +83,6 @@ defmodule Autolaunch.Bid do
       prepare build(load: [:auction, :token])
     end
 
-    create :import_position do
-      accept [
-        :bid_id,
-        :auction_id,
-        :owner_address,
-        :amount,
-        :max_price,
-        :current_clearing_price,
-        :estimated_tokens_if_end_now,
-        :status,
-        :exited_at,
-        :claimed_at
-      ]
-
-      change Autolaunch.Bid.Changes.NormalizeOwnerAddress
-    end
 
     create :project_lab do
       accept [
@@ -145,10 +153,6 @@ defmodule Autolaunch.Bid do
       ]
     end
 
-    update :set_chain_identity do
-      require_atomic? false
-      accept [:auction_address, :onchain_bid_id]
-    end
   end
 
   policies do
@@ -168,7 +172,7 @@ defmodule Autolaunch.Bid do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:import_position, :project_lab, :record_from_chain, :set_chain_identity]) do
+    policy action([:project_lab, :record_from_chain]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -219,11 +223,11 @@ defmodule Autolaunch.Bid do
       constraints max_length: 100, trim?: true
     end
 
-    attribute :status, :string do
+    attribute :status, :atom do
       allow_nil? false
       public? true
-      default "active"
-      constraints min_length: 1, max_length: 100, trim?: true
+      default :active
+      constraints one_of: @statuses
     end
 
     attribute :exited_at, :utc_datetime_usec do

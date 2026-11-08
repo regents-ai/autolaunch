@@ -98,7 +98,7 @@ defmodule AutolaunchWeb.MyPositionsController do
   # in; a book that cannot be read leaves its bids' standing unread.
   defp books(positions) do
     auctions =
-      for %{status: "active", auction: %{state: :active} = auction} <- positions,
+      for %{status: :active, auction: %{state: :active} = auction} <- positions,
           uniq: true,
           do: auction
 
@@ -127,25 +127,23 @@ defmodule AutolaunchWeb.MyPositionsController do
     }
   end
 
-  defp base_standing(%{status: "active", auction: %{state: :active}}, nil),
+  defp base_standing(%{status: :active, auction: %{state: :active}}, nil),
     do: {"bidding_open", nil}
 
-  defp base_standing(%{status: "active", auction: %{state: :active} = auction} = position, book),
+  defp base_standing(%{status: :active, auction: %{state: :active} = auction} = position, book),
     do: live_standing(AuctionBook.bid_standing(position, auction, book))
 
-  defp base_standing(%{status: "active"}, _book), do: {"bidding_ended", nil}
+  defp base_standing(%{status: :active}, _book), do: {"bidding_ended", nil}
 
-  defp base_standing(%{status: "returnable"} = position, _book) do
+  defp base_standing(%{status: :returnable} = position, _book) do
     if BidSettlementComponent.spent?(position),
       do: {"claim_ready", "claim"},
       else: {"withdraw_ready", "withdraw"}
   end
 
-  defp base_standing(%{status: "claimable"}, _book), do: {"claim_ready", "claim"}
+  defp base_standing(%{status: :claimable}, _book), do: {"claim_ready", "claim"}
 
-  defp base_standing(%{status: "returned", tokens_filled: filled}, _book)
-       when is_binary(filled) and filled not in ["", "0"],
-       do: {"claim_later", nil}
+  defp base_standing(%{status: :awaiting_claim}, _book), do: {"claim_later", nil}
 
   defp base_standing(_settled, _book), do: {"done", nil}
 

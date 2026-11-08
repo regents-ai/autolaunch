@@ -82,30 +82,23 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
   end
 
   defp position!(%{auction: auction, wallet: wallet}) do
-    {:ok, bid} =
-      Autolaunch.import_bid_position(
-        "lab:settle-press:#{Elixir.System.unique_integer([:positive])}",
-        auction.id,
-        wallet,
-        "12",
-        "0.00003",
-        "0.00002",
-        nil,
-        "returnable",
-        nil,
-        nil,
-        actor: %System{}
-      )
-
-    {:ok, bid} =
-      Autolaunch.set_bid_chain_identity(
-        bid,
-        Autolaunch.BidFixture.auction_address(),
-        Integer.to_string(@bid_id),
-        actor: %System{}
-      )
-
-    bid
+    Autolaunch.Bid
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        bid_id: "lab:settle-press:#{Elixir.System.unique_integer([:positive])}",
+        auction_id: auction.id,
+        owner_address: wallet,
+        amount: "12",
+        max_price: "0.00003",
+        current_clearing_price: "0.00002",
+        status: :returnable,
+        auction_address: Autolaunch.BidFixture.auction_address(),
+        onchain_bid_id: Integer.to_string(@bid_id)
+      },
+      actor: %System{}
+    )
+    |> Ash.create!()
   end
 
   # A failed auction: the bid exits with its whole amount and there is nothing to claim.
