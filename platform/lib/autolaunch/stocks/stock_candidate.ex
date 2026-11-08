@@ -116,11 +116,16 @@ defmodule Autolaunch.Stocks.StockCandidate do
     end
 
     # A stock feed Chainlink lists; what an earlier read found is kept.
+    # A ticker listed again keeps what its last read found. One whose feed has
+    # changed starts over unread, so the old feed's answer is never shown as
+    # the new one's.
     create :list do
       accept [:chain_id, :ticker, :feed]
       upsert? true
       upsert_identity :chain_ticker
-      upsert_fields [:feed]
+      upsert_fields [:feed, :status, :token, :pool, :venue, :liquidity_usd, :read_at, :tried_at]
+      upsert_condition expr(feed != upsert_conflict(:feed))
+      return_skipped_upsert? true
     end
 
     destroy :unlist

@@ -184,7 +184,10 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
   def handle_info({:launch_review, news}, socket) when news in [:closed, :launched] do
-    socket = assign(socket, reviewing?: false, launched?: news == :launched)
+    socket =
+      socket
+      |> assign(reviewing?: false, launched?: news == :launched)
+      |> waiver_after(news)
 
     case human_actor(socket) do
       nil -> {:noreply, socket}
@@ -233,6 +236,13 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign(socket, launches_paused?: paused)}
 
   def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
+
+  # The typed "no connections" waiver belongs to the launch it was typed for: a
+  # launch made starts the next one without it.
+  defp waiver_after(socket, :launched),
+    do: assign(socket, connections_waived: false, no_connections_typed: "")
+
+  defp waiver_after(socket, :closed), do: socket
 
   defp render_revshare(assigns) do
     assigns = assign(assigns, launch_image_upload: assigns[:uploads][:launch_image])
