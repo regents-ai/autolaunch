@@ -1,4 +1,4 @@
-/* /after-hour-stocks, the portfolio's Isolated Exposure to After-hours Stocks and the wallet panel. Built as its own
+/* /stock/isolated-afters, the portfolio's Isolated Exposure to After-hours Stocks and the wallet panel. Built as its own
    stylesheet outside the public files (config :esbuild, exposure), and served and linked only while
    Exposure is on. */
 .exposure { display: grid; gap: var(--space-5, 2rem); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }

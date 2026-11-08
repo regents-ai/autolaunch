@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
       {:ok,
        %{
          kind: :covered_calls,
-         title: title("/covered-calls"),
+         title: title("/stock/covered-call"),
          badge: open_badge(length(open)),
          symbol: market.symbol,
          ticker: PriceFeeds.ticker(market.symbol),
@@ -101,7 +101,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
       {:ok,
        %{
          kind: :exposure,
-         title: title("/after-hour-stocks"),
+         title: title("/stock/isolated-afters"),
          badge: status_badge(series.status),
          symbol: series.stock.symbol,
          ticker: PriceFeeds.ticker(series.stock.symbol),

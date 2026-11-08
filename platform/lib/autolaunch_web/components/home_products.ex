@@ -8,14 +8,18 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
   launch cards keep their place, not a link, and say so where the action would be.
+
+
+  `/stocks` shows the stock products' cards, Memestock and covered calls, with `only`.
   """
 
   use Phoenix.Component
 
   attr :launches_open, :boolean, required: true
+  attr :only, :list, default: ~w(calls memestock revstake), doc: "product ids, in order"
 
   def product_cards(assigns) do
-    assigns = assign(assigns, :products, products())
+    assigns = assign(assigns, :products, products(assigns.only))
 
     ~H"""
     <section id="home-products" class="home-products" aria-label="Products" phx-update="ignore">
@@ -59,14 +63,14 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     """
   end
 
-  defp products do
+  defp products(only) do
     [
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{
           id: "calls",
           title: "Call Options",
           action: "Trade calls",
-          path: "/covered-calls",
+          path: "/stock/covered-call",
           launch: false
         },
       %{
@@ -84,7 +88,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         launch: true
       }
     ]
-    |> Enum.filter(& &1)
+    |> Enum.filter(&(&1 && &1.id in only))
+    |> Enum.sort_by(&Enum.find_index(only, fn id -> id == &1.id end))
   end
 
   attr :id, :string, required: true

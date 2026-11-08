@@ -1,5 +1,10 @@
 # Changelog
 
+## 8 November 2026: Stock addresses
+- Covered calls are now at /stock/covered-call, and Isolated Exposure to After-hours Stocks at /stock/isolated-afters. Their share pictures, videos and series terms moved with them.
+- The stock list is now at /stocks, and each stock's page at /stocks/<symbol>. It opens on the Memestock and Call Options cards.
+- The addresses agents use to read and prepare covered-call and After-hours steps are unchanged.
+
 ## 6 November 2026: Token page
 - A token's card keeps its name, price, market cap and change readable at every width, with the trade panel beside it only where there is room.
 

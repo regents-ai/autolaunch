@@ -129,11 +129,11 @@ defmodule AutolaunchWeb.ShareCard do
     }
   end
 
-  defp page_path(:covered_calls), do: "/covered-calls"
-  defp page_path(:exposure), do: "/after-hour-stocks"
+  defp page_path(:covered_calls), do: "/stock/covered-call"
+  defp page_path(:exposure), do: "/stock/isolated-afters"
 
-  defp page_url(:covered_calls, _symbol), do: url(~p"/covered-calls")
-  defp page_url(:exposure, series), do: url(~p"/after-hour-stocks?#{[series: series]}")
+  defp page_url(:covered_calls, _symbol), do: url(~p"/stock/covered-call")
+  defp page_url(:exposure, series), do: url(~p"/stock/isolated-afters?#{[series: series]}")
 
   @doc "The page details for How Autolaunch works."
   @spec how_it_works_meta() :: map()

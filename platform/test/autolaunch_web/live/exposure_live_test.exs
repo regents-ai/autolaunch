@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureLiveTest do
   @moduledoc """
-  `/after-hour-stocks` shows what the series holds: both tokens with what each
+  `/stock/isolated-afters` shows what the series holds: both tokens with what each
   is worth now and its pool price, every price applied so far, the deposits
   against the cap, and the Mint, Return and Record panels; with After-hours
   Exposure switched off the address is not found.
@@ -19,13 +19,13 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   @async 2_000
 
   test "switched off, the page is not found", %{conn: conn} do
-    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/after-hour-stocks") end)
+    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/stock/isolated-afters") end)
   end
 
   test "the page shows each token's ledger, stock claim, leverage and pool, and every price applied",
        %{conn: conn} do
     ExposureChain.install()
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     html = render_async(view, @async)
 
     # Close 250 then open 256: After-hours 131, Market-hours 125.
@@ -44,7 +44,11 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert html =~ "0.1 of 0.4 AMZNc"
     assert html =~ "Live, 2 of 11 prices applied"
     assert html =~ "Fri 30 Oct, 4:00pm to Fri 6 Nov, 4:00pm"
-    assert has_element?(view, "a[href='/after-hour-stocks/terms/#{ExposureChain.terms_hash()}']")
+
+    assert has_element?(
+             view,
+             "a[href='/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}']"
+           )
   end
 
   # The light follows the series' own opens and closes, which the page's tests
@@ -52,14 +56,14 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "each token's light is green only in its own window", %{conn: conn} do
     # Monday 11:00 New York, after the open: Market-hours runs.
     ExposureChain.install()
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
     assert has_element?(view, "#exposure-session-light[data-running='true']")
     assert has_element?(view, "#exposure-overnight-light[data-running='false']")
 
     # Saturday, between Friday's close and Monday's open: After-hours runs.
     ExposureChain.install(%{now: ExposureChain.now() - 2 * 86_400})
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
     assert has_element?(view, "#exposure-overnight-light[data-running='true']")
     assert has_element?(view, "#exposure-session-light[data-running='false']")
@@ -67,12 +71,12 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
   test "the page offers Share, and a link to it previews the series", %{conn: conn} do
     ExposureChain.install()
-    html = conn |> get("/after-hour-stocks") |> html_response(200)
+    html = conn |> get("/stock/isolated-afters") |> html_response(200)
 
     assert html =~ ~s(content="Isolated Exposure to After-hours Stocks on Autolaunch")
-    assert html =~ "/after-hour-stocks?series=#{@series}"
+    assert html =~ "/stock/isolated-afters?series=#{@series}"
 
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
     assert has_element?(view, "#exposure-share")
   end
@@ -81,7 +85,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     conn: conn
   } do
     ExposureChain.install(%{status: 0, prices: [], accounted: 0, held: 0, supply: 0, pools: %{}})
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     html = render_async(view, @async)
 
     # No pool has liquidity yet, so the page leads with Split.
@@ -107,7 +111,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       pools: %{ExposureChain.session() => {"0x4444444444444444444444444444444444444444", nil}}
     })
 
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
 
     assert view |> element("#exposure-overnight") |> render() =~
@@ -121,14 +125,14 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
   test "the Redeem tab redeems pairs before the end and each token after it", %{conn: conn} do
     ExposureChain.install()
-    {:ok, view, _html} = live(conn, "/after-hour-stocks?tab=redeem")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters?tab=redeem")
     render_async(view, @async)
 
     assert has_element?(view, "#exposure-redeem-#{@series} input[name=pairs]")
     assert has_element?(view, "#exposure-redeem-#{@series} [data-onchain-step=redeem]")
 
     ExposureChain.put(%{status: 2, end_reason: 1})
-    {:ok, view, _html} = live(conn, "/after-hour-stocks?tab=redeem")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters?tab=redeem")
     render_async(view, @async)
 
     assert has_element?(view, "#exposure-redeem-#{@series} input[name=overnight]")
@@ -228,7 +232,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
     assert has_element?(
              view,
-             "#{row} a[href='/after-hour-stocks?series=#{@series}&tab=redeem']",
+             "#{row} a[href='/stock/isolated-afters?series=#{@series}&tab=redeem']",
              "Redeem"
            )
   end
@@ -239,7 +243,11 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     render_async(view, @async)
 
     assert has_element?(view, "#portfolio-exposure", "No tokens yet")
-    assert has_element?(view, "#portfolio-exposure a[href='/after-hour-stocks']")
+    assert has_element?(view, "#portfolio-exposure a[href='/stock/isolated-afters']")
+
+    # A page in another live session is loaded fresh, not swapped in over the socket.
+    assert {:error, {:redirect, %{to: "http://www.example.com/stock/isolated-afters"}}} =
+             live_redirect(view, to: "/stock/isolated-afters")
   end
 
   # Found by the logic review: after the end the tokens showed dollars frozen at the
@@ -251,7 +259,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       wallet: %{stock: 0, allowance: 0, overnight: 10_000_000, session: 5_000_000}
     })
 
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
 
     # After-hours ends at $131 of the $256 price: 131/256 of one AMZNc.
@@ -311,7 +319,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     conn: conn
   } do
     ExposureChain.install()
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
 
     send(view.pid, {:exposure_done, %{kind: "mint", lines: ["You received 0.05 of each."]}})
@@ -326,7 +334,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
   test "with liquid pools the page leads with Buy, and picks which token to buy", %{conn: conn} do
     ExposureChain.install()
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
 
     assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
@@ -335,7 +343,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     refute has_element?(view, "#exposure-no-liquidity")
 
     view |> element("#exposure-leg-market-hours") |> render_click()
-    assert_patch(view, "/after-hour-stocks?leg=market-hours&tab=buy")
+    assert_patch(view, "/stock/isolated-afters?leg=market-hours&tab=buy")
     render_async(view, @async)
     assert has_element?(view, "#exposure-buy-session-#{@series} [data-onchain-step=buy]")
   end
@@ -377,7 +385,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       }
     })
 
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
     assert has_element?(view, "#exposure-act-tab-mint[aria-selected=true]")
 
@@ -391,7 +399,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       }
     })
 
-    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters")
     render_async(view, @async)
     assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
     assert has_element?(view, "#exposure-leg-market-hours[aria-pressed=true]")
@@ -401,10 +409,10 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   defp signed_in_panel(conn, selector) do
     path =
       cond do
-        selector =~ "redeem" -> "/after-hour-stocks?tab=redeem"
-        selector =~ "mint" -> "/after-hour-stocks?tab=split"
-        selector =~ "buy" -> "/after-hour-stocks?tab=buy"
-        true -> "/after-hour-stocks"
+        selector =~ "redeem" -> "/stock/isolated-afters?tab=redeem"
+        selector =~ "mint" -> "/stock/isolated-afters?tab=split"
+        selector =~ "buy" -> "/stock/isolated-afters?tab=buy"
+        true -> "/stock/isolated-afters"
       end
 
     {view, account} = signed_in(conn, path)

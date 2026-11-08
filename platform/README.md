@@ -153,14 +153,14 @@ and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Details are in
 [docs/stocks.md](docs/stocks.md).
 
-Covered calls (`/covered-calls`, the portfolio's Covered calls section and their agent routes and
+Covered calls (`/stock/covered-call`, the portfolio's Covered calls section and their agent routes and
 tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=/abs/path/covered-calls.json` is required, naming one
 `CoveredCallsV1` contract per stock on the Base description's chain (`chain_id` and `markets` of
 `symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
 (`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 
-Isolated Exposure to After-hours Stocks (`/after-hour-stocks`, the portfolio's section and their
+Isolated Exposure to After-hours Stocks (`/stock/isolated-afters`, the portfolio's section and their
 agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
 `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=/abs/path/exposure.json` is required, naming the
 `ExposureSeriesV1` series the site offers, oldest first, on the Base description's chain (`chain_id`,

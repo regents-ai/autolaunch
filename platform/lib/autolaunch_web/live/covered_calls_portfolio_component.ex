@@ -278,7 +278,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     <div :if={@rows == []} class="market-list__scroll market-list__empty">
       <h2>No covered calls yet</h2>
       <p>Calls you sell or buy on {@symbol} appear here.</p>
-      <.link navigate={~p"/covered-calls"} class="rg-button rg-button--secondary">Covered calls</.link>
+      <.link navigate={~p"/stock/covered-call"} class="rg-button rg-button--secondary">Covered calls</.link>
     </div>
     """
   end
