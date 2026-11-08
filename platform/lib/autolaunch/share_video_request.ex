@@ -11,7 +11,9 @@ defmodule Autolaunch.ShareVideoRequest do
   Writing a request queues its `:render` job in the same write. The
   `share_videos` queue renders one at a time, so how many requests are still
   queued before a row is its place in line. A render that succeeds stores the
-  video in the row and marks it ready; one that fails marks it failed.
+  video in the row and marks it ready; one that fails twice marks it failed. A
+  render cut off by a stopped machine is tried again once Lifeline hands its job
+  back, so no request stays queued with no job behind it.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes
@@ -34,11 +36,13 @@ defmodule Autolaunch.ShareVideoRequest do
   oban do
     triggers do
       # Every request queues its own job as it is written, so there is no sweep.
+      # A render cut off by a stopped machine is handed back by Lifeline and
+      # made once more; one that fails twice marks its request failed.
       trigger :render do
         action :render
         where expr(state == :queued)
         queue :share_videos
-        max_attempts 1
+        max_attempts 2
         on_error :fail
         lock_for_update? false
         scheduler_cron false
@@ -153,16 +157,19 @@ defmodule Autolaunch.ShareVideoRequest do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare build(select: [:id, :mp4, :saved])
+      prepare build(select: [:id, :state, :mp4, :saved])
     end
 
     # A video made but not saved, handed over: its bytes are let go.
     update :hand_over do
+      validate attribute_equals(:state, :ready)
+      validate attribute_equals(:saved, false)
       change set_attribute(:mp4, nil)
     end
 
-    # A saved video a day old: its bytes are let go and its request stays.
+    # A video a day old: its bytes are let go and its request stays.
     update :forget_video do
+      validate attribute_equals(:state, :ready)
       change set_attribute(:mp4, nil)
     end
 
@@ -174,7 +181,9 @@ defmodule Autolaunch.ShareVideoRequest do
       change AutolaunchWeb.ShareVideo.Render
     end
 
+    # A render that failed on its last try: only a queued request fails.
     update :fail do
+      validate attribute_equals(:state, :queued)
       change set_attribute(:state, :failed)
     end
   end
