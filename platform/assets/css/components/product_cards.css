@@ -1,0 +1,25 @@
+/* The product cards, each one link (`HomeProducts`): the home page's front
+   door, and the stock products on /stocks. */
+#home-products { margin: 8px 0 32px; }
+#home-products .home-products__row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+#home-products .home-product { --home-product-ground: var(--color-surface); display: grid; min-width: 0; border: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg); transition: border-color var(--duration-fast) ease; }
+#home-products .home-product:has(a.home-product__face:is(:hover, :focus-visible)) { border-color: var(--hairline-strong); }
+#home-products .home-product__face { display: grid; grid-template-rows: auto 1fr auto; gap: 4px; min-width: 0; padding: 12px 12px 16px; color: inherit; text-decoration: none; }
+#home-products a.home-product__face:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+#home-products .home-product__art { position: relative; aspect-ratio: 320 / 168; margin: 0 0 8px; color: color-mix(in srgb, var(--color-fg) 72%, var(--color-surface)); }
+#home-products .home-product__drawing { display: block; width: 100%; height: 100%; }
+#home-products .home-product__title { margin: 0; font-family: var(--font-family-title); font-size: 1.1875rem; font-weight: 400; line-height: 1.2; }
+#home-products .home-product__action { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; transition: color var(--duration-fast) ease; }
+#home-products a.home-product__face:is(:hover, :focus-visible) .home-product__action { color: var(--color-fg); }
+@media (prefers-reduced-motion: reduce) {
+  #home-products .home-product,
+  #home-products .home-product__action { transition-property: none; }
+}
+@media (max-width: 64rem) { #home-products .home-products__row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 42rem) {
+  #home-products { margin-bottom: 24px; }
+  #home-products .home-products__row { gap: 10px; }
+  #home-products .home-product__face { padding: 8px 8px 12px; }
+  #home-products .home-product__art { margin-bottom: 6px; }
+  #home-products .home-product__title { font-size: 1rem; }
+}

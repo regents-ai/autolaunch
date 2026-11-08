@@ -553,7 +553,7 @@
           "field": "stock_address",
           "type": "string",
           "required": false,
-          "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
+          "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
         },
         {
           "field": "image",

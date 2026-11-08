@@ -1,5 +1,10 @@
 # Changelog
 
+## 8 November 2026: Stock addresses
+- Covered calls are now at /stock/covered-call, and Isolated Exposure to After-hours Stocks at /stock/isolated-afters. Their share pictures, videos and series terms moved with them.
+- The stock list is now at /stocks, and each stock's page at /stocks/<symbol>. It opens on the Memestock and Call Options cards.
+- The addresses agents use to read and prepare covered-call and After-hours steps are unchanged.
+
 ## 6 November 2026: Credits
 - Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
 - Agents no longer read Credits: the balances and Credits history reads are gone, from the browser tools and the Regents CLI commands too. The OpenAPI description moves to 3.0.0.

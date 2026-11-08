@@ -18,6 +18,7 @@
 @import "./components/agent_tools.css";
 @import "./components/site_buttons.css";
 @import "./components/surfaces.css";
+@import "./components/product_cards.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

@@ -1,6 +1,6 @@
 ## Covered calls
 
-Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/covered-calls]({{origin}}/covered-calls).
+Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/stock/covered-call]({{origin}}/stock/covered-call).
 
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 

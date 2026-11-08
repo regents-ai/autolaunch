@@ -1,4 +1,4 @@
-/* /covered-calls, the covered-call panel and the portfolio's covered-calls rows. Built as its
+/* /stock/covered-call, the covered-call panel and the portfolio's covered-calls rows. Built as its
    own stylesheet outside the public files (config :esbuild, covered_calls), and served and
    linked only while covered calls are on. */
 .covered-calls { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
@@ -117,6 +117,6 @@
   .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }
 }
 
-/* The action on /stock-listing/<symbol>. */
+/* The action on /stocks/<symbol>. */
 .upcoming-details__action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; }
 .upcoming-details__action > span { color: var(--color-fg-muted); font-size: .875rem; }

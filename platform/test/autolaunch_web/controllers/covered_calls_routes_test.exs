@@ -178,7 +178,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
       home = build_conn() |> get("/") |> html_response(200)
-      stocks = build_conn() |> get("/stock-listing") |> html_response(200)
+      stocks = build_conn() |> get("/stocks") |> html_response(200)
       sitemap = build_conn() |> get("/sitemap.xml") |> response(200)
       sitemap_md = build_conn() |> get("/sitemap.md") |> response(200)
 
@@ -188,10 +188,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       assert guide =~ "autolaunch_covered_call_prepare" == offered?
       assert home =~ ~s(id="agent-feature-tools") == offered?
       assert home =~ "#{length(capabilities["tools"])} Agent Tools"
-      assert sitemap =~ "/covered-calls</loc>" == offered?
+      assert sitemap =~ "/stock/covered-call</loc>" == offered?
       assert sitemap_md =~ "[Covered calls](" == offered?
       assert home =~ ~s(aria-label="Stocks views") == offered?
-      assert stocks =~ ~s(href="/covered-calls") == offered?
+      assert stocks =~ ~s(href="/stock/covered-call") == offered?
     end
   end
 

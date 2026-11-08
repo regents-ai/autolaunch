@@ -4,9 +4,13 @@ defmodule AutolaunchWeb.UpcomingLive do
   page (`AutolaunchWeb.StockLive`) with its addresses, links and dated pool
   research. The established Available to Pair list is preserved; new research
   remains in its preview sections and never changes launchpad admission.
+
+  Above the lists, the stock products as the home page's cards: Memestock and
+  covered calls.
   """
   use AutolaunchWeb, :live_view
 
+  import AutolaunchWeb.Components.HomeProducts, only: [product_cards: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
   alias Autolaunch.Stocks.UpcomingCatalog
@@ -14,7 +18,7 @@ defmodule AutolaunchWeb.UpcomingLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/stock-listing"))
+     |> assign(AutolaunchWeb.PublicDocuments.page("/stocks"))
      |> assign(chains: UpcomingCatalog.chains())}
   end
 
@@ -24,6 +28,11 @@ defmodule AutolaunchWeb.UpcomingLive do
       <header class="autolaunch-heading">
         <h1>Onchain Stocks</h1>
       </header>
+
+      <.product_cards
+        launches_open={!Autolaunch.Prelaunch.read_only?()}
+        only={~w(memestock calls)}
+      />
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
         <h2 id="upcoming-eligible">Soon Available</h2>
@@ -85,7 +94,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       <ul :if={@stocks != []} class="upcoming-column__stocks">
         <li :for={stock <- @stocks}>
           <.link
-            navigate={~p"/stock-listing/#{stock["symbol"]}"}
+            navigate={~p"/stocks/#{stock["symbol"]}"}
             class="upcoming-stock"
             aria-label={"#{stock["symbol"]} on #{@chain.name}: stock details"}
           >
