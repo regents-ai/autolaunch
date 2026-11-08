@@ -116,7 +116,7 @@ defmodule Autolaunch.Accounts.HumanAccount do
     calculate :ens_name,
               :string,
               expr(
-                if ens_identity.wallet_address == wallet_address do
+                if ens_identity.named_wallet == wallet_address do
                   ens_identity.ens_name
                 end
               )
@@ -124,7 +124,7 @@ defmodule Autolaunch.Accounts.HumanAccount do
     calculate :ens_avatar_url,
               :string,
               expr(
-                if ens_identity.wallet_address == wallet_address do
+                if ens_identity.named_wallet == wallet_address do
                   ens_identity.ens_avatar_url
                 end
               )

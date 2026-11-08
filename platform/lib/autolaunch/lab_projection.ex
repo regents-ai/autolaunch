@@ -99,7 +99,7 @@ defmodule Autolaunch.LabProjection do
           estimated_tokens_if_end_now: current.estimated_tokens_if_end_now,
           status: forward(current.status, settled_status(step, result, context.claim_next?)),
           exited_at: current.exited_at || DateTime.utc_now(),
-          claimed_at: if(step == "claim", do: current.claimed_at || DateTime.utc_now()),
+          claimed_at: current.claimed_at || if(step == "claim", do: DateTime.utc_now()),
           auction_address: current.auction_address,
           onchain_bid_id: current.onchain_bid_id,
           currency_refunded: result["currency_refunded_units"] || current.currency_refunded,

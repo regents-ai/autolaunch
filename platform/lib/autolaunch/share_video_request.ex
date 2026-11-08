@@ -13,7 +13,7 @@ defmodule Autolaunch.ShareVideoRequest do
   queued before a row is its place in line. A render that succeeds stores the
   video in the row and marks it ready; one that fails twice marks it failed. A
   render cut off by a stopped machine is tried again once Lifeline hands its job
-  back, so no request stays queued with no job behind it.
+  back; only a render cut off twice leaves its request queued with no job.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes

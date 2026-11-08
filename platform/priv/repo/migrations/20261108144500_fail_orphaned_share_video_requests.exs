@@ -18,6 +18,17 @@ defmodule Autolaunch.Repo.Migrations.FailOrphanedShareVideoRequests do
   use Ecto.Migration
 
   def up do
+    # Render jobs the release before queued carry one try in their own rows;
+    # they get the second try too, so one cut off by this release's own
+    # switchover is handed back by Lifeline and made again.
+    execute ~s"""
+    UPDATE "#{prefix()}".oban_jobs
+    SET max_attempts = 2
+    WHERE worker = 'Autolaunch.ShareVideoRequest.Workers.Render'
+    AND state IN ('available', 'scheduled', 'executing', 'retryable')
+    AND max_attempts < 2
+    """
+
     execute ~s"""
     UPDATE "#{prefix()}".share_video_requests AS request
     SET state = 'failed'
