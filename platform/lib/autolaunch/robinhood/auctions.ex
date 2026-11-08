@@ -20,8 +20,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   only. Nothing here writes, signs or caches.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.Auction.MarketState
+  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
