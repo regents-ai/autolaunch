@@ -300,6 +300,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp what(:sold, listing, _holding), do: {:sold, listing.filled, listing.amount}
   defp what(:held, _listing, %{held: held}), do: {:held, held}
 
+  defp describe({:sold, 0, 0}, _unit, symbol), do: "Stopped before any #{symbol} sold"
+
   defp describe({:sold, filled, amount}, unit, symbol),
     do: "Sold #{F.tokens(filled, unit)} of #{F.tokens(amount, unit)} #{symbol}"
 
@@ -308,19 +310,21 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   # Each stage as a short status and its tone: the exercise window is the one that asks for action.
   defp status(_side, :open), do: %{label: "Open", tone: "info"}
   defp status(_side, :sold), do: %{label: "Sold out", tone: "neutral"}
+  defp status(_side, :stopped), do: %{label: "Stopped", tone: "neutral"}
   # Only a holder has something to do in the window.
   defp status(:held, :exercise), do: %{label: "Exercise", tone: "warning"}
   defp status(:sold, :exercise), do: %{label: "Exercising", tone: "neutral"}
   defp status(_side, :closed), do: %{label: "Closed", tone: "neutral"}
 
   # Every action of the wallet's side of a listing that the chain may still
-  # allow, each disabled with its reason while it is certain to fail now:
+  # allow, each disabled with its reason while it is certain to fail now (a
+  # listing stopped before any sale offers only the claim of its stock):
   # Exercise while calls are held and the window has not closed, Stop selling
   # while some is unsold, and each Collect until the window has closed with
   # nothing left to collect. A listing with nothing left for this wallet
   # shows none.
   defp actions(side, stage, listing, holding, claimable) do
-    open? = stage != :closed
+    open? = stage in [:open, :sold, :exercise]
 
     for {kind, offered?} <- [
           exercise: open? and holding != nil and holding.held > 0,

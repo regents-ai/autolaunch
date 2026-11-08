@@ -40,12 +40,17 @@ defmodule Autolaunch.CoveredCalls.Terms do
   def fee(premium), do: ceil_div(premium * @fee_bps, @bps)
 
   @doc """
-  Where a listing stands at `now`: `:open` while it can be bought, `:sold` when
-  it is open but nothing is left, `:exercise` during the 24 hours after expiry,
-  and `:closed` after them.
+  Where a listing stands at `now`: `:stopped` once its seller stopped it before
+  any was bought (`cancel` leaves its amount at the zero filled), `:open` while
+  it can be bought, `:sold` when it is open but nothing is left, `:exercise`
+  during the 24 hours after expiry, and `:closed` after them.
+
+  A listing stopped after some was bought keeps the bought part for its buyers
+  and reads as sold: the contract keeps no other record of the stop.
   """
   def stage(%{expiry: expiry} = listing, now) do
     cond do
+      listing.amount == 0 -> :stopped
       now < expiry and listing.amount > listing.filled -> :open
       now < expiry -> :sold
       now < expiry + @window -> :exercise
