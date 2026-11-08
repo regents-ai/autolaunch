@@ -212,11 +212,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
-  # The saved review is withdrawn too, so nothing is later listed from it.
-  def handle_event("cancel_review", _params, %{assigns: %{prepared: prepared}} = socket) do
-    if prepared, do: LaunchActions.cancel(prepared.action_id, opts(socket))
-    {:noreply, LaunchSteps.withdrawn(socket)}
-  end
+  def handle_event("cancel_review", _params, socket),
+    do: {:noreply, LaunchSteps.withdrawn(socket)}
 
   def handle_event("clear_launch", _params, socket),
     do: {:noreply, socket |> assign(launched: nil) |> LaunchSteps.withdrawn()}
