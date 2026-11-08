@@ -115,6 +115,12 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 | Share video, everyone's or a wallet's own | `autolaunch_web/controllers/share_video_test.exs`; `share_video_failures_test.exs` (all ten cases); `autolaunch_web/share_video_queue_test.exs` (all six); `autolaunch_web/share_video_render_test.exs` |
 | Old links (`/auctions/<id>`, `/tokens/<id>`, `/robinhood/...`) move to today's page | `old_link_controller_test.exs` (both cases) |
 
+## Background reads
+
+| Action | Check |
+| --- | --- |
+| The stock list's market read: a chain node that does not answer is one warning, the stock's turn moves on and nothing it found before is changed; an answer in another shape fails the read | `autolaunch/stocks/stock_candidate_read_market_test.exs` (both cases) |
+
 ## Agents
 
 Each WebMCP tool calls the HTTP route beside it, and the matching CLI command (`cli/commands.json`)
