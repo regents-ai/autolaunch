@@ -22,7 +22,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Client, Rpc}
+  alias Autolaunch.Chain.{Abi, Client, Lifecycle, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
@@ -46,7 +46,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @migration_delay_blocks 2_560
   @creator_vesting_blocks 25_920_000
   @tick_divisor 100
-  @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
@@ -431,7 +430,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
              Address.equal?(auction, created.auction) and
              record.start_block == created.start_block and
              record.end_block == created.end_block,
-         {:ok, lifecycle} <- Map.fetch(@lifecycles, record.lifecycle) do
+         {:ok, lifecycle} <- Lifecycle.fetch(record.lifecycle) do
       {:ok,
        %{
          "launch_id" => Integer.to_string(created.launch_id),
@@ -443,7 +442,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          "end_block" => Integer.to_string(record.end_block),
          "claim_block" => Integer.to_string(record.claim_block),
          "migration_block" => Integer.to_string(record.migration_block),
-         "lifecycle" => lifecycle
+         "lifecycle" => Atom.to_string(lifecycle)
        }}
     else
       _ -> :error

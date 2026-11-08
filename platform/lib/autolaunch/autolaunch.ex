@@ -128,9 +128,6 @@ defmodule Autolaunch do
     end
 
     resource Autolaunch.Auction do
-      define :list_auctions, action: :list_public
-      define :list_recent_auctions, action: :recent_public
-      define :list_featured_auctions, action: :featured_public
       define :sitemap_auctions, action: :sitemap
 
       define :get_public_auction,

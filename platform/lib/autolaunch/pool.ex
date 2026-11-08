@@ -18,7 +18,7 @@ defmodule Autolaunch.Pool do
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, Lifecycle, Rpc}
 
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PoolRange, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
@@ -713,7 +713,7 @@ defmodule Autolaunch.Pool do
   # A launch that has not graduated has no splitter or pool yet, so its record
   # is read only once its lifecycle says the pool exists.
   defp stocks_launch(record) do
-    with 2 <- record.lifecycle,
+    with true <- Lifecycle.graduated?(record.lifecycle),
          {:ok, new_token} <- Abi.word_address(record.new_token),
          {:ok, stock} <- Abi.word_address(record.stock),
          {:ok, splitter} <- Abi.word_address(record.splitter) do

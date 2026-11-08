@@ -421,7 +421,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     end
 
     assert [] = Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
-    assert [] = Auction |> Ash.Query.for_read(:list_public, %{}, actor: nil) |> Ash.read!()
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
