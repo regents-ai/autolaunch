@@ -38,7 +38,10 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
 
   defp prepare(context, kind, request),
     do:
-      CoveredCalls.prepare_covered_call("AMZNc", kind, Map.put(request, :signer, context.wallet),
+      CoveredCalls.prepare_covered_call_steps(
+        "AMZNc",
+        kind,
+        Map.put(request, :signer, context.wallet),
         actor: context.actor
       )
 
@@ -203,13 +206,16 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
     chain(%{})
 
     assert {:error, error} =
-             CoveredCalls.prepare_covered_call("AMZNc", :claim, %{listing_id: 1, signer: @seller},
+             CoveredCalls.prepare_covered_call_steps(
+               "AMZNc",
+               :claim,
+               %{listing_id: 1, signer: @seller},
                actor: context.actor
              )
 
     assert CoveredCalls.reason(error) == :wrong_signer
 
     assert {:error, _forbidden} =
-             CoveredCalls.prepare_covered_call("AMZNc", :claim, %{listing_id: 1})
+             CoveredCalls.prepare_covered_call_steps("AMZNc", :claim, %{listing_id: 1})
   end
 end

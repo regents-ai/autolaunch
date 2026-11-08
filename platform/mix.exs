@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "f8801d79228282459ede9421a51260c3bd292f44"
+  @elixir_utils_ref "d89c69df697f81d2a56a43124eada843d1682303"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "d3845c6d9fe34b7131937bafa051e6e04c9b09dd"
 
@@ -87,6 +87,7 @@ defmodule Autolaunch.MixProject do
        ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
        override: true},
       {:ash_oban, "~> 0.10.0"},
+      {:ash_ai, "~> 1.5"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -104,7 +105,14 @@ defmodule Autolaunch.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/identity"},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
-      {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_agent_access,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access", override: true},
+      # regent_mcp_agents names regent_oauth, regent_agents and regent_agent_access
+      # by sibling paths; these pins replace them.
+      {:regent_oauth,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "oauth", override: true},
+      # The Claude connector's identity tools at /mcp (Autolaunch.Agents.Connection).
+      {:regent_mcp_agents, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "mcp_agents"},
       {:regent_agents,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
@@ -215,15 +223,18 @@ defmodule Autolaunch.MixProject do
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Four more stand as they are: the share video request naming its room
-        # action, the router naming the errors admin page, and the covered-call
-        # market and exposure series naming their steps' kinds in an argument's
-        # constraints. Nothing else is permitted. The ceiling is thirty-nine
-        # domain-to-resource edges (Accounts six, Autolaunch thirty, Points one,
-        # CoveredCalls one, Exposure one), forty-six resource-to-check edges, the
-        # one endpoint edge and those four, and it is re-based per unit when a
-        # domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 90",
+        # Five more stand as they are: the share video request naming its room
+        # action, the router naming the errors admin page and the hosted MCP
+        # server's input check (AshAi takes it only as a function), and the
+        # covered-call market and exposure series naming their steps' kinds in an
+        # argument's constraints. Nothing else is permitted. The ceiling is
+        # thirty-six domain-to-resource edges (Accounts six, Autolaunch
+        # twenty-six, Agents, Points, CoveredCalls and Exposure one each),
+        # forty-five resource-to-check edges (the identity tools' check,
+        # `Agents.Connection.Caller`, among them), the one endpoint edge and those
+        # five, and it is re-based per unit when a domain, resource or check
+        # module lands.
+        "xref graph --label compile-connected --fail-above 87",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

@@ -15,6 +15,10 @@ defmodule Autolaunch.Application do
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = RegentHttp.ErrorSaving.attach()
+    # The Claude connector stays off until its one switch turns it on
+    # (config/runtime.exs); these only check and store its settings.
+    :ok = RegentOAuth.configure(Autolaunch.OAuth)
+    :ok = RegentMCPAgents.configure!()
     :ok = AutolaunchWeb.VisitLog.Events.attach()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -54,7 +58,17 @@ defmodule Autolaunch.Application do
         id: Autolaunch.Agents.ActivityReading.cache()
       ),
       Autolaunch.Repo,
+      # The connector's sign-in store: the site's database with a small pool of
+      # its own, only while the connector is on.
+      if(RegentOAuth.enabled?(), do: RegentOAuth.Repo),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
+      # The wallet of each connected app's own identity, kept once given.
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.Agents.HostedAddress.cache(),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {100_000, [], []})]},
+        id: Autolaunch.Agents.HostedAddress.cache()
+      ),
       # After the repository and PubSub: an agent paired or unpaired on any
       # Regent site reaches the pages showing it.
       Autolaunch.SharedChanges,

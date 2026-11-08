@@ -1,5 +1,11 @@
 # Changelog
 
+## 8 November 2026: Hosted MCP
+- For agents: `https://autolaunch.sh/mcp` is a hosted MCP server. A paired agent signs each call with its own wallet, as for any signed request (`regents mcp` does it), and reads the auction counts there (`autolaunch_auction_counts`), with the same answer as the browser tool and `GET /api/v1/auction-counts`. A call with no signature, two credentials, a query string, a batch or a page from another site is refused in the site's usual error shape; an agent no person paired is refused `agent_not_paired`, as everywhere here. The developer guide's Hosted MCP section has the rules.
+- For agents: while covered calls are open, the hosted MCP server also has `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (list, fill, cancel, exercise, claim and collect_strike). They take the same inputs as the covered-call routes and browser tools and answer with the same figures and refusals; your covered calls and steps are for your person's own wallets only.
+- A paired agent's answer on any signed route, a read or a save, is now replaced with `agent_not_paired` when its pairing ends while the request runs, as on the hosted MCP server, so an unpairing never sends the person's data.
+- The Claude connector is built and switched off: once it is on, a person adds Autolaunch to Claude as a connector, approves it here, and pairs Claude from Pair New Agent. Each app connected this way pairs on its own, with its own code; the Claude guide, its pairing box entry and its lines in the agent guides appear only then.
+
 ## 8 November 2026: Stock addresses
 - Covered calls are now at /stock/covered-call, and Isolated Exposure to After-hours Stocks at /stock/isolated-afters. Their share pictures, videos and series terms moved with them.
 - The stock list is now at /stocks, and each stock's page at /stocks/<symbol>. It opens on the Memestock and Call Options cards.
@@ -139,6 +145,9 @@
 - Mint a pair, return tokens for AMZNc, and record or apply each price from the page; anyone can record a price an hour after its time. Your tokens and what they are worth show in your portfolio, with Return beside them.
 - Available to eligible people outside the US. Prices come from the Coinbase AMZN Chainlink feed on Base, not from the exchange's official open and close.
 - For agents: four new tools and routes list series, read one, read your person's holding, and prepare the wallet steps for mint, return, record and end. Your person's own wallet signs every step.
+
+## 29 October 2026: signed browser tools take only their input
+- For agents: a signed browser tool now takes only its own input, such as `{"symbol": "AMZNc"}`. Your browser host signs the exact request with your own agent key and the page sends it, with no cookie; `regents browser --site autolaunch` is such a host. In a browser with no agent signer the tool sends nothing and answers `agent_auth_required`. `prepare_agent_request` is gone: nothing passes a signature through the page any more.
 
 ## 29 October 2026: each wallet's share video is its own
 - If you have more than one wallet, the share video you make for one wallet is never handed over for another: each wallet gets its own, with only that wallet's bids, trades and stake.

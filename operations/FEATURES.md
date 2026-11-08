@@ -168,6 +168,30 @@ Guides and discovery for agents (`/llms.txt`, `/llms-full.txt`, `/agents.md`, `/
 release, the live prelaunch line and the short index's links: `autolaunch_web/agent_documents_test.exs`
 (all three cases).
 
+## Hosted MCP and the Claude connector
+
+`POST /mcp` runs the tools `platform/priv/capabilities.json` marks hosted (its `hosted_tool`), each as its Ash action
+under its policies (`AutolaunchWeb.Capabilities`, checked when it compiles; its `cli` column by
+`autolaunch_web/capabilities_test.exs`). The connector's switch, `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`,
+is off in production.
+
+| What | Check |
+| --- | --- |
+| A paired agent's signed call lists and runs `autolaunch_auction_counts`, with the API's answer; an agent no person paired is refused `agent_not_paired` | `autolaunch_web/mcp_agent_test.exs` › "a paired agent lists and reads the auction counts, with the API's answer", › "an agent no person paired is refused, as on every signed route here" |
+| A signature beside a token, a refused signature, and no credential at all are refused in the site's shape | `autolaunch_web/mcp_agent_test.exs` › "a signature and a token together are refused, and a token alone while connecting apps is off", › "a signature the sign-in service refuses is refused, even for a read", › "every request needs a signature or a token, from the first one on" |
+| A query string or another site's page is refused before any signature is checked, for any query and any host (property) | `autolaunch_web/mcp_agent_test.exs` › "a query string or a page from another site is refused before any signature is checked", › "this site's own page, or no page, may call it" |
+| One call a request; input a tool cannot take, an `input` of `null` or `false` included, gets the API's `invalid_request`; only `POST /mcp` is served, a GET for an event stream answers 405 and a body that is not JSON 415 | `autolaunch_web/mcp_agent_test.exs` › "one call a request: a batch is refused, and the 2026-07-28 profile reads", › "input a tool cannot take is refused with the HTTP code, never a placeholder", › "only POST /mcp is served; anything else answers in the site's shape", › "a GET for an event stream is answered 405, and a body that is not JSON 415, whatever it accepts" |
+| 120 requests a minute from one address, 600 with a token | `autolaunch_web/mcp_agent_test.exs` › "one address gets 120 requests a minute here, as on the API", › "requests with a token share 600 a minute from one address, Claude's servers among them" |
+| A paired agent's answer, a read or a save, is replaced with `agent_not_paired` when its pairing ends while the request runs: on every signed route, on an agent's signed `/mcp` call and on a connected app calling as its paired agent | `autolaunch_web/mcp_agent_test.exs` › "a signed route's answer is replaced when the pairing ends while the request runs", › "an agent's signed MCP call is answered agent_not_paired when the pairing ends while it runs"; `autolaunch_web/claude_connector_test.exs` › "a paired app's call is answered agent_not_paired when the pairing ends while it runs" |
+| Switch off: the connector's sign-in is not found, `/mcp` takes no app's token, Claude is neither offered nor shown, and an agent pairs as before | `autolaunch_web/claude_connector_test.exs` › "its sign-in is not found, /mcp takes no app's token, and Claude is neither offered nor shown", › "an agent's sign-in and pairing work as before, and a Claude pairing is refused" |
+| Switch on: Claude in the pairing box, `/agents/claude`, and its lines in `/llms.txt`, `/agents.md` and the sitemap | `autolaunch_web/claude_connector_test.exs` › "Claude is offered in the pairing box, and its page and guide lines are shown" |
+| Switch on: a connected app pairs one hosted agent with its own account's code only, checks in, keeps its own identity when its token is refreshed, and loses access when it disconnects or is unpaired; each app an account connects is its own identity and pairs on its own | `autolaunch_web/claude_connector_test.exs` (the twelve cases under "with the connector on"), › "a refreshed token keeps its app's identity and agent; another app of the account starts unpaired" |
+| Switch on, with the agent permission: a paired app reads the auction counts as its agent, and doing so never counts as a check-in; never as another account's agent, nor as an agent its account paired through another app; the identity's wallet is read once, and once while the signer is down | `autolaunch_web/claude_connector_test.exs` (the nine cases under "with the connector on and the agent permission"), › "a second app of an account already paired through another app has its identity tools only" |
+| While covered calls are on, `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` run the same operations as the covered-call routes and answer with their `data`, refusals in the same code and words; off, none is listed or run | `autolaunch_web/covered_calls_mcp_test.exs` › "the public reads answer as their routes do, refusals included", › "a suggested premium answers through the hosted tool as through the route, whatever the strike and expiry" (property), › "an agent's own covered calls answer as the signed route does", › "every kind of step answers as the signed route does" (one call per kind), › "with covered calls on a paired agent lists the four tools; off, none is listed or run" |
+| Covered-call positions and steps are only for the paired agent's own person and wallets: another wallet is `wrong_signer`, an agent no person paired is `agent_not_paired`; a value of another JSON type than an input takes is refused, as on the routes | `autolaunch_web/covered_calls_mcp_test.exs` › "a wallet that isn't the person's own is refused, as on the signed route", › "an agent no person paired is refused its covered calls and steps", › "the public reads answer as their routes do, refusals included" |
+| In prelaunch read-only mode `prepare_covered_call` is neither listed nor run, as the steps route answers `prelaunch_read_only`; a connected app calling as itself neither lists nor runs any covered-call tool; the guides name the covered-call tools only while covered calls are open | `autolaunch_web/covered_calls_mcp_test.exs` › "in prelaunch read-only mode the steps are neither listed nor run, as the route refuses them", › "the guides name the hosted covered-call tools only while covered calls are open"; `autolaunch_web/claude_connector_test.exs` › "a connected app calling as itself neither lists nor runs the covered-call tools" |
+| The consent page and its redirect back to Claude | **Gap** (not walked; the walk runs with the switch off) |
+
 ## Gaps, in one list
 
 Home filter results (Network, Type, Creator verified) and the card foil; list filter results on `/auctions` and `/tokens`; the auction
@@ -176,4 +200,6 @@ and token page tabs; `/create/revstake`, `/stocks`, `/how-it-works`, `/account/p
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
 draft routes; an unpaired agent's Points read through the Regents CLI; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys; covered calls' hosted MCP and CLI surfaces (`docs/agent-parity.md`).
+agent journeys; covered calls' CLI surfaces and every hosted MCP surface but the auction
+counts, the covered-call operations and the connector's identity tools (`docs/agent-parity.md`);
+the connector's consent page and redirect.
