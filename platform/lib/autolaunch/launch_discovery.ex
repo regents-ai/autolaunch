@@ -14,10 +14,9 @@ defmodule Autolaunch.LaunchDiscovery do
   whose signer is the launch's signer, whose exact target and calldata that
   transaction sent. A match lists the launch for that review's account. A
   Memestock launch no review of this site carried out is listed from the chain
-  under the wallet that sent it (`Autolaunch.Stocks.ChainLaunch`), and one an
-  earlier pass left `unlisted` is taken again; a Revstake one is `unlisted`. A
-  launch the chain cannot answer for yet stays `pending`, with the reason,
-  until it can.
+  under the wallet that sent it (`Autolaunch.Stocks.ChainLaunch`); a Revstake
+  one is `unlisted`. A launch the chain cannot answer for yet stays `pending`,
+  with the reason, until it can. `listed` and `unlisted` are final.
   """
 
   use Ash.Resource,
@@ -36,14 +35,7 @@ defmodule Autolaunch.LaunchDiscovery do
         queue :launch_listing
         scheduler_cron "* * * * *"
         max_attempts 1
-        # A Base Memestock launch an earlier pass left unlisted for want of a
-        # review is taken again: every one is listed now
-        # (`Autolaunch.Stocks.ChainLaunch`), and none is left that way again.
-        where expr(
-                state == :pending or
-                  (launchpad == :base_memestock and state == :unlisted and
-                     reason == "no_matching_review")
-              )
+        where expr(state == :pending)
 
         worker_module_name Autolaunch.LaunchDiscovery.Workers.Resolve
         scheduler_module_name Autolaunch.LaunchDiscovery.Schedulers.Resolve

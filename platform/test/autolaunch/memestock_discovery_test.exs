@@ -280,7 +280,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{summary: "caf"}] = auctions()
   end
 
-  test "a launch taken again that the site cannot list yet waits, and is listed once it can",
+  test "a launch the site cannot list yet waits, and is listed once it can",
        %{launchpad: launchpad} do
     BaseRpcStub.put(%{
       launcher: @stranger,
@@ -289,11 +289,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
     mined(launchpad)
     discover()
-
-    {1, _rows} =
-      Autolaunch.Repo.update_all("launch_discoveries",
-        set: [state: "unlisted", reason: "no_matching_review"]
-      )
 
     # Its stock is not saved yet: the launch waits for it.
     run_triggers()
@@ -307,7 +302,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{token_symbol: "WAIT"}] = auctions()
   end
 
-  test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
+  test "a launch no review carried out is listed from the chain; one on a retired launchpad stays unlisted",
        %{launchpad: launchpad} do
     admit_stock()
 
@@ -324,12 +319,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
       Autolaunch.record_launch_discovery(
         %{Map.take(discovery, record_fields()) | contract: @retired},
         actor: @actor
-      )
-
-    # As the site left them before every Base Memestock launch was listed.
-    {2, _rows} =
-      Autolaunch.Repo.update_all("launch_discoveries",
-        set: [state: "unlisted", reason: "no_matching_review"]
       )
 
     run_triggers()
