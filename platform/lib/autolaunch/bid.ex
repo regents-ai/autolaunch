@@ -18,9 +18,12 @@ defmodule Autolaunch.Bid do
 
   @type status :: :active | :returnable | :awaiting_claim | :claimable | :returned | :claimed
 
-  # How far each status is along a bid's settlement; `returned` and `claimed`
-  # are both finished.
-  @rank %{active: 0, returnable: 1, awaiting_claim: 2, claimable: 3, returned: 4, claimed: 4}
+  # How far each status is along a bid's settlement. `returned` ranks below the
+  # three fill states: a reading only names one of them when the chain shows the
+  # bid filled, so a stored `returned` that hid a fill (written before
+  # `awaiting_claim` existed) still moves on, while a real `returned` is never
+  # read as one.
+  @rank %{active: 0, returnable: 1, returned: 2, awaiting_claim: 3, claimable: 4, claimed: 5}
 
   @doc """
   Whether a stored status may become `next`: only to a later step, never back

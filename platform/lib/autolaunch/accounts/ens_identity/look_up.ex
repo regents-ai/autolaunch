@@ -28,8 +28,8 @@ defmodule Autolaunch.Accounts.EnsIdentity.LookUp do
         {:ok, identity} ->
           changeset
           # Written only while the row still names the wallet this answer is
-          # for. A sign-in that changed it meanwhile makes the write stale, so
-          # the job runs again and looks up the new wallet.
+          # for. A sign-in that changed it meanwhile makes the write stale and
+          # this job stops; that sign-in queued the lookup of the new wallet.
           |> Ash.Changeset.filter(expr(wallet_address == ^wallet))
           |> Ash.Changeset.force_change_attribute(:ens_name, identity[:name])
           |> Ash.Changeset.force_change_attribute(:ens_avatar_url, identity[:avatar_url])

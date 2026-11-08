@@ -1,5 +1,11 @@
 # Changelog
 
+## 8 November 2026: Settlement states
+- A bid that has filled and is waiting for its claim to open shows as waiting on the portfolio and the bid page, not under history.
+- After you settle a bid, its button no longer comes back while the site reads the auction again.
+- A covered call listing stopped before any sale reads "Stopped" and offers only the claim of its stock.
+- A share video cut off by a site update is made again, and no longer counts against everyone's place in line.
+
 ## 8 November 2026: Stock addresses
 - Covered calls are now at /stock/covered-call, and Isolated Exposure to After-hours Stocks at /stock/isolated-afters. Their share pictures, videos and series terms moved with them.
 - The stock list is now at /stocks, and each stock's page at /stocks/<symbol>. It opens on the Memestock and Call Options cards.

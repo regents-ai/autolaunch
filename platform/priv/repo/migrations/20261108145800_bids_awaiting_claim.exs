@@ -16,9 +16,10 @@ defmodule Autolaunch.Repo.Migrations.BidsAwaitingClaim do
     UPDATE "#{prefix()}".bids
     SET status = 'awaiting_claim'
     WHERE status = 'returned'
-    AND tokens_filled IS NOT NULL
-    AND tokens_filled <> ''
-    AND tokens_filled::numeric > 0
+    AND CASE
+      WHEN tokens_filled ~ '^[0-9]+(\\.[0-9]+)?$' THEN tokens_filled::numeric > 0
+      ELSE false
+    END
     """
   end
 

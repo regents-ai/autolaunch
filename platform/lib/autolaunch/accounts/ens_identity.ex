@@ -41,6 +41,10 @@ defmodule Autolaunch.Accounts.EnsIdentity do
         on_error :lookup_failed
         lock_for_update? false
         scheduler_cron false
+        # A sign-in while a lookup runs queues its own job: the running one's
+        # write finds another wallet and is stale (`LookUp`), and the new job
+        # looks up the wallet the row names now.
+        worker_opts unique: [period: :infinity, states: [:available, :scheduled, :retryable]]
         worker_module_name Autolaunch.Accounts.EnsIdentity.Workers.LookUp
       end
     end

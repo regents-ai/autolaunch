@@ -97,7 +97,7 @@ defmodule Autolaunch.LabProjection do
           max_price: current.max_price,
           current_clearing_price: current.current_clearing_price,
           estimated_tokens_if_end_now: current.estimated_tokens_if_end_now,
-          status: settled_status(step, result, context.claim_next?),
+          status: forward(current.status, settled_status(step, result, context.claim_next?)),
           exited_at: current.exited_at || DateTime.utc_now(),
           claimed_at: if(step == "claim", do: current.claimed_at || DateTime.utc_now()),
           auction_address: current.auction_address,
@@ -298,6 +298,9 @@ defmodule Autolaunch.LabProjection do
   end
 
   defp project_launch_records(error, _chain_id, _signer, _facts, _result), do: error
+
+  # A receipt read late never takes a bid back past a step already recorded.
+  defp forward(current, next), do: if(Bid.forward?(current, next), do: next, else: current)
 
   defp settled_status("claim", _result, _claim_next?), do: :claimed
   defp settled_status("exit", %{"tokens_filled" => "0"}, _claim_next?), do: :returned
