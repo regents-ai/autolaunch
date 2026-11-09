@@ -135,7 +135,7 @@ defmodule AutolaunchWeb.OutbidComponent do
     do: {:noreply, assign(socket, :open, :add)}
 
   # A bid that has left the auction, or one whose place cannot be read yet.
-  defp standing(%{status: status}, _auction, _book) when status != "active", do: :settled
+  defp standing(%{status: status}, _auction, _book) when status != :active, do: :settled
   defp standing(_position, _auction, %AsyncResult{ok?: false}), do: :reading
 
   defp standing(position, auction, %AsyncResult{result: book}),
