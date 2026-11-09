@@ -168,6 +168,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         line: line(assigns.status, assigns.launch),
         steps: steps,
         next_step: early_next(assigns, steps),
+        returning: returning(assigns.prepared),
+        progress: early_progress(steps, assigns.settled),
         other_wallet: other_wallet(assigns)
       )
 
@@ -190,8 +192,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       <p class="bid-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <div class="bid-early-return__offer">
-        <p hidden={!returning(@prepared)}>
-          <%= if returning(@prepared) do %>
+        <p hidden={!@returning}>
+          <%= if @returning do %>
             <TokenDisplay.price
               amount={@prepared.facts.stock_refunded}
               unit={@prepared.facts.stock_symbol}
@@ -215,8 +217,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             <.step_state state={return_state(@steps)} />
           </li>
         </ol>
-        <p role="status" aria-live="polite" hidden={!early_progress(@steps, @settled)}>
-          {early_progress(@steps, @settled)}
+        <p role="status" aria-live="polite" hidden={!@progress}>
+          {@progress}
         </p>
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
@@ -245,6 +247,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         next_step: next_step(assigns, steps, key),
         open: !!(key || assigns.review),
         other_wallet: other_wallet(assigns),
+        progress: progress_copy(steps, assigns.settled, assigns.prepared, assigns.token_symbol),
+        tickers: tickers(assigns.prepared, assigns.token_symbol),
         claimed: claimed(assigns.settled),
         returned: returned?(assigns.bid, assigns.graduated?)
       )
@@ -284,7 +288,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         <ol class="bid-steps" role="list" aria-label="Settlement progress" hidden={@steps == []}>
           <li :for={step <- @steps} data-step={step.name}>
             <span>
-              <TokenDisplay.marked text={step.label} tickers={tickers(@prepared, @token_symbol)} />
+              <TokenDisplay.marked text={step.label} tickers={@tickers} />
             </span>
             <.step_state state={chip(step, @next_step)} />
           </li>
@@ -294,12 +298,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           class="bid-progress__status"
           role="status"
           aria-live="polite"
-          hidden={!progress_copy(@steps, @settled, @prepared, @token_symbol)}
+          hidden={!@progress}
         >
-          <TokenDisplay.marked
-            text={progress_copy(@steps, @settled, @prepared, @token_symbol) || ""}
-            tickers={tickers(@prepared, @token_symbol)}
-          />
+          <TokenDisplay.marked text={@progress || ""} tickers={@tickers} />
         </p>
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>

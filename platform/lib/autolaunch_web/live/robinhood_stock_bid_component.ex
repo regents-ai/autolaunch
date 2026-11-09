@@ -184,12 +184,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   @impl true
   def render(assigns) do
+    steps = steps(assigns)
+
     assigns =
       assign(assigns,
         usd_rate: usd_rate(assigns),
         rows: rows(assigns),
-        steps: steps(assigns),
-        next_step: next_step(assigns),
+        steps: steps,
+        next_step: next_step(assigns, steps),
+        progress: progress_copy(steps),
+        pending_hash: pending_hash(steps),
         shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
       )
 
@@ -290,17 +294,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               class="bid-progress__status"
               role="status"
               aria-live="polite"
-              hidden={!progress_copy(@steps)}
+              hidden={!@progress}
             >
-              <TokenDisplay.marked text={progress_copy(@steps) || ""} tickers={["USDG"]} />
+              <TokenDisplay.marked text={@progress || ""} tickers={["USDG"]} />
             </p>
             <a
-              href={
-                pending_hash(@steps) && BidPlaced.transaction_url(:robinhood, pending_hash(@steps))
-              }
+              href={@pending_hash && BidPlaced.transaction_url(:robinhood, @pending_hash)}
               target="_blank"
               rel="noopener noreferrer"
-              hidden={!pending_hash(@steps) || Lab.test_chain?(@review && @review.chain.chain_id)}
+              hidden={!@pending_hash || Lab.test_chain?(@review && @review.chain.chain_id)}
             >
               View on Blockscout ↗
             </a>
@@ -792,10 +794,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # button places the bid, and pressing it prepares one. A sent step moves the
   # button on at once; nothing waits for the network before the next press can
   # reach the wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+  defp next_step(%{review: %{}}, steps),
+    do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
-  defp next_step(_assigns), do: %{name: "usdg_bid", label: "Place bid"}
+  defp next_step(_assigns, _steps), do: %{name: "usdg_bid", label: "Place bid"}
 
   defp step_state(nil), do: :ready
 
