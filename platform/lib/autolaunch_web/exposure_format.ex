@@ -44,14 +44,6 @@ defmodule AutolaunchWeb.ExposureFormat do
 
   def parse_tokens(_text, _decimals), do: nil
 
-  @doc "`part` of `whole` as a percentage with one decimal, or a dash when there is no whole."
-  def percent(_part, 0), do: "—"
-
-  def percent(part, whole) do
-    tenths = div(part * 1_000 + div(whole, 2), whole)
-    "#{div(tenths, 10)}.#{rem(tenths, 10)}%"
-  end
-
   @doc """
   How many times the stock's move a leg moves in its own window now: the price
   over the leg's ledger, to one decimal, or a dash for an empty ledger.
