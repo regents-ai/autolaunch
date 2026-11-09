@@ -1,25 +1,55 @@
 /* The product cards, each one link (`HomeProducts`): the home page's front
-   door, and the stock products on /stocks. */
-#home-products { margin: 8px 0 32px; }
-#home-products .home-products__row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-#home-products .home-product { --home-product-ground: var(--color-surface); display: grid; min-width: 0; border: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg); transition: border-color var(--duration-fast) ease; }
-#home-products .home-product:has(a.home-product__face:is(:hover, :focus-visible)) { border-color: var(--hairline-strong); }
-#home-products .home-product__face { display: grid; grid-template-rows: auto 1fr auto; gap: 4px; min-width: 0; padding: 12px 12px 16px; color: inherit; text-decoration: none; }
-#home-products a.home-product__face:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-#home-products .home-product__art { position: relative; aspect-ratio: 320 / 168; margin: 0 0 8px; color: color-mix(in srgb, var(--color-fg) 72%, var(--color-surface)); }
-#home-products .home-product__drawing { display: block; width: 100%; height: 100%; }
-#home-products .home-product__title { margin: 0; font-family: var(--font-family-title); font-size: 1.1875rem; font-weight: 400; line-height: 1.2; }
-#home-products .home-product__action { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; transition: color var(--duration-fast) ease; }
-#home-products a.home-product__face:is(:hover, :focus-visible) .home-product__action { color: var(--color-fg); }
-@media (prefers-reduced-motion: reduce) {
-  #home-products .home-product,
-  #home-products .home-product__action { transition-property: none; }
+   door, and the stock products on /stocks. Each picture is a dark panel of
+   small lit cells that move (`HomeCells`), one pattern a product, like an
+   instrument's display; the panel keeps its dark ground in both themes. The
+   product's drawing is the picture until the panel has drawn, and without
+   WebGPU. A press gives a little; a hover firms the edge and nudges the arrow. */
+#home-products {
+  --home-cells-ground: #0e0f11;
+  --home-cells-lit: var(--palette-platinum, #e5e3d2);
+  --home-cells-accent: var(--product-autolaunch);
+  --home-cells-cool: var(--palette-powder-blue, #aecacd);
+  --home-card-ease: cubic-bezier(.23, 1, .32, 1);
+  margin: 8px 0 36px;
 }
-@media (max-width: 64rem) { #home-products .home-products__row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+#home-products .home-products__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+#home-products .home-products__row:is([data-count="1"], [data-count="2"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#home-products .home-product { display: grid; min-width: 0; border: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg); transition: border-color 160ms ease; }
+#home-products .home-product__face { display: grid; grid-template-rows: auto 1fr; min-width: 0; color: inherit; text-decoration: none; }
+/* The press gives inside the link, so the link itself never shrinks out from under the pointer. */
+#home-products .home-product__face > * { transition: transform 160ms var(--home-card-ease); }
+#home-products a.home-product__face:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+#home-products .home-product__art { --home-product-ground: var(--home-cells-ground); position: relative; overflow: hidden; aspect-ratio: 5 / 4; background: var(--home-cells-ground); color: color-mix(in srgb, var(--home-cells-lit) 70%, var(--home-cells-ground)); }
+#home-products .home-products__row:is([data-count="1"], [data-count="2"]) .home-product__art { aspect-ratio: 16 / 9; }
+#home-products .home-product__cells { position: absolute; inset: 0; opacity: 0; transition: opacity 420ms var(--home-card-ease); }
+#home-products .home-product__cells canvas { display: block; width: 100%; height: 100%; }
+#home-products .home-product__drawing { position: relative; display: block; width: 100%; height: 100%; padding: 12% 8%; box-sizing: border-box; transition: opacity 300ms ease; }
+#home-products .home-product[data-cells-ready="true"] .home-product__cells { opacity: 1; }
+#home-products .home-product[data-cells-ready="true"] .home-product__drawing { opacity: 0; }
+#home-products .home-product__words { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 16px 18px 18px; }
+#home-products .home-product__title { margin: 0; font-family: var(--font-family-title); font-size: 1.375rem; font-weight: 400; line-height: 1.2; }
+#home-products .home-product__action { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; transition: color 160ms ease; }
+#home-products .home-product__arrow { width: 14px; height: 14px; transition: transform 200ms var(--home-card-ease); }
+#home-products div.home-product__face .home-product__arrow { display: none; }
+#home-products a.home-product__face:active > * { transform: scale(.985); }
+#home-products a.home-product__face:focus-visible .home-product__action { color: var(--color-fg); }
+@media (hover: hover) and (pointer: fine) {
+  #home-products .home-product:has(a.home-product__face:hover) { border-color: var(--hairline-strong); }
+  #home-products a.home-product__face:hover .home-product__action { color: var(--color-fg); }
+  #home-products a.home-product__face:hover .home-product__arrow { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #home-products .home-product, #home-products .home-product__face > *, #home-products .home-product__cells,
+  #home-products .home-product__drawing, #home-products .home-product__action, #home-products .home-product__arrow { transition: none; }
+  #home-products a.home-product__face:active > * { transform: none; }
+}
+/* Phones: one card a row, its panel full width above the words. */
 @media (max-width: 42rem) {
   #home-products { margin-bottom: 24px; }
-  #home-products .home-products__row { gap: 10px; }
-  #home-products .home-product__face { padding: 8px 8px 12px; }
-  #home-products .home-product__art { margin-bottom: 6px; }
-  #home-products .home-product__title { font-size: 1rem; }
+  #home-products .home-products__row,
+  #home-products .home-products__row:is([data-count="1"], [data-count="2"]) { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  #home-products .home-product__art { aspect-ratio: 5 / 2; }
+  #home-products .home-product__drawing { padding: 4% 20%; }
+  #home-products .home-product__words { padding: 10px 14px 12px; gap: 2px; }
+  #home-products .home-product__title { font-size: 1.0625rem; }
 }
