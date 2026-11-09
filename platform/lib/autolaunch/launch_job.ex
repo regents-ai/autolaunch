@@ -72,12 +72,16 @@ defmodule Autolaunch.LaunchJob do
     # nothing; these four columns are dropped by the next release, once no
     # machine of the release before still reads them.
     attribute :status, :string do
+      allow_nil? false
       select_by_default? false
+      default "active"
       constraints min_length: 1, max_length: 100, trim?: true
     end
 
     attribute :step, :string do
+      allow_nil? false
       select_by_default? false
+      default "auction"
       constraints min_length: 1, max_length: 100, trim?: true
     end
 
