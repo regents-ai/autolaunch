@@ -55,10 +55,10 @@ defmodule Autolaunch.BidSettlementActions do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
          {:ok, position} <- owned_position(bid_position_id, actor),
-         :ok <- position_signer(position, signer),
+         :ok <- owner(position.owner_address, signer),
          {:ok, bid_id} <- onchain_bid_id(position),
          {:ok, snapshot} <- snapshot(position.auction_address, bid_id, signer),
-         :ok <- owner_matches(snapshot, signer),
+         :ok <- owner(snapshot.bid.owner, signer),
          {:ok, steps} <- eligible_steps(snapshot),
          {:ok, config} <- lab() do
       auction = position.auction
@@ -90,7 +90,7 @@ defmodule Autolaunch.BidSettlementActions do
     with {:ok, config} <- Lab.current(),
          {:ok, exit} <-
            CcaSettlement.exited(
-             abi(config),
+             Lab.abi!(config, :auction),
              logs,
              context.auction_address,
              context.onchain_bid_id,
@@ -112,7 +112,7 @@ defmodule Autolaunch.BidSettlementActions do
     with {:ok, config} <- Lab.current(),
          {:ok, claim} <-
            CcaSettlement.claimed(
-             abi(config),
+             Lab.abi!(config, :auction),
              logs,
              context.auction_address,
              context.onchain_bid_id,
@@ -128,8 +128,6 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   def result(_context, _record, _logs), do: nil
-
-  defp abi(config), do: Lab.abi!(config, :auction)
 
   @doc """
   When this position's unspent money can come back, read at one pinned block
@@ -225,37 +223,35 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  defp position_signer(%{owner_address: owner}, signer) do
-    if Address.equal?(owner, signer), do: :ok, else: unavailable(:not_your_bid)
-  end
-
   defp onchain_bid_id(%{onchain_bid_id: id, auction_address: address})
        when is_binary(id) and is_binary(address),
        do: {:ok, String.to_integer(id)}
 
   defp onchain_bid_id(_position), do: unavailable(:position_not_on_chain)
 
-  defp owner_matches(%{bid: %{owner: owner}}, signer) do
+  # The stored position and the auction's own record of the bid both have to
+  # name the signer as the owner.
+  defp owner(owner, signer) do
     if Address.equal?(owner, signer), do: :ok, else: unavailable(:not_your_bid)
   end
 
   # Chain snapshot
 
+  # The fork's reading (`LabBidSettlementChainClient`), or the answers a test installed.
   defp snapshot(auction_address, bid_id, signer) do
-    case chain_client().snapshot(%{auction: auction_address, bid_id: bid_id, signer: signer}) do
-      {:ok, snapshot} -> {:ok, snapshot}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
-
-  defp chain_client,
-    do:
+    client =
       Application.get_env(
         :autolaunch,
         :autolaunch_bid_settlement_chain_client,
         LabBidSettlementChainClient
       )
+
+    case client.snapshot(%{auction: auction_address, bid_id: bid_id, signer: signer}) do
+      {:ok, snapshot} -> {:ok, snapshot}
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+      {:error, reason} -> unavailable(reason)
+    end
+  end
 
   defp lab do
     case Lab.current() do
@@ -304,7 +300,7 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  defp linked_wallet(%{wallet_addresses: wallets}, signer) when is_list(wallets) do
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) do
     if Enum.any?(wallets, &Address.equal?(&1, signer)),
       do: {:ok, signer},
       else: unavailable(:wrong_signer)

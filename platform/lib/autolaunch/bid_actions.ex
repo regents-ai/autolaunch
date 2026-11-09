@@ -13,12 +13,20 @@ defmodule Autolaunch.BidActions do
   links, never a guess.
   """
 
-  alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.AuctionFigures
   alias Autolaunch.Chain.{Abi, Client, Rpc}
-  alias Autolaunch.{ChainClient, Lab, LabAbi, LabBidChainClient, TreasurySecurity}
+
+  alias Autolaunch.{
+    AuctionFigures,
+    BidPrice,
+    BidSlippage,
+    Lab,
+    LabAbi,
+    LabBidChainClient,
+    TreasurySecurity
+  }
+
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
@@ -103,7 +111,14 @@ defmodule Autolaunch.BidActions do
     with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context.actor, context),
          {:ok, auction} <- auction(input.arguments.auction_id),
          {:ok, auction_address} <- normalize(auction.auction_address),
-         {:ok, balances} <- balances(auction_address, signer, usdc_bids?(auction)),
+         {:ok, balances} <-
+           chain(
+             chain_client().balances(%{
+               auction: auction_address,
+               signer: signer,
+               usdc: usdc_bids?(auction)
+             })
+           ),
          :ok <- bound_currency(balances, auction) do
       {:ok, %{signer: signer, balances: shown_balances(balances, auction)}}
     end
@@ -114,8 +129,8 @@ defmodule Autolaunch.BidActions do
   # What the wallet can bid with, by currency, in whole units: the auction's
   # own currency and, where it takes USDC, USDC.
   defp shown_balances(%{currency_balance: own, usdc_balance: usdc}, auction) do
-    own = %{auction.quote_token_symbol => units(own, auction.quote_token_decimals)}
-    if usdc, do: Map.put(own, "USDC", units(usdc, @usdc_decimals)), else: own
+    own = %{auction.quote_token_symbol => Rpc.format_units(own, auction.quote_token_decimals)}
+    if usdc, do: Map.put(own, "USDC", Rpc.format_units(usdc, @usdc_decimals)), else: own
   end
 
   @doc """
@@ -149,8 +164,15 @@ defmodule Autolaunch.BidActions do
          {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, max_price_q96} <-
            refusable(price_q96(max_price, auction.quote_token_decimals)),
-         {:ok, snapshot} <- snapshot(auction_address, signer, max_price_q96),
-         {:ok, max_price_q96} <- refusable(Autolaunch.BidPrice.align(max_price_q96, snapshot)),
+         {:ok, snapshot} <-
+           chain(
+             chain_client().snapshot(%{
+               auction: auction_address,
+               signer: signer,
+               max_price_q96: max_price_q96
+             })
+           ),
+         {:ok, max_price_q96} <- refusable(BidPrice.align(max_price_q96, snapshot)),
          :ok <- bound_currency(snapshot, auction),
          :ok <- bounded_predecessor(snapshot, max_price_q96) do
       bid = %{
@@ -158,16 +180,11 @@ defmodule Autolaunch.BidActions do
         auction_address: auction_address,
         signer: signer,
         max_price_q96: max_price_q96,
-        snapshot: snapshot
+        snapshot: Map.put(snapshot, :auction, auction_address)
       }
 
       if request[:pay_with] == "USDC",
-        do:
-          usdc_bid(
-            bid,
-            amount,
-            Map.get(request, :slippage_percent, Autolaunch.BidSlippage.default())
-          ),
+        do: usdc_bid(bid, amount, Map.get(request, :slippage_percent, BidSlippage.default())),
         else: currency_bid(bid, amount)
     end
   end
@@ -223,7 +240,7 @@ defmodule Autolaunch.BidActions do
   defp placed(context, bid_id, committed),
     do: %{
       "onchain_bid_id" => Integer.to_string(bid_id),
-      "amount" => units(committed, context.currency_decimals)
+      "amount" => Rpc.format_units(committed, context.currency_decimals)
     }
 
   # Reviews
@@ -255,7 +272,7 @@ defmodule Autolaunch.BidActions do
          facts:
            facts(
              bid,
-             units(amount, auction.quote_token_decimals),
+             Rpc.format_units(amount, auction.quote_token_decimals),
              auction.quote_token_symbol,
              nil
            ),
@@ -269,10 +286,17 @@ defmodule Autolaunch.BidActions do
   end
 
   defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, typed, slippage) do
-    with {:ok, bps} <- refusable(Autolaunch.BidSlippage.parse(slippage)),
+    with {:ok, bps} <- refusable(BidSlippage.parse(slippage)),
          :ok <- stocks_auction(auction),
          {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
-         {:ok, usdc} <- usdc_snapshot(snapshot.currency, signer, usdc_amount),
+         {:ok, usdc} <-
+           chain(
+             LabBidChainClient.usdc_snapshot(%{
+               stock: snapshot.currency,
+               signer: signer,
+               usdc_amount: usdc_amount
+             })
+           ),
          :ok <- usdc_affordable(usdc, usdc_amount),
          {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote, bps),
          {:ok, minimum_units} <-
@@ -305,11 +329,11 @@ defmodule Autolaunch.BidActions do
          facts:
            facts(
              bid,
-             units(usdc_amount, @usdc_decimals),
+             Rpc.format_units(usdc_amount, @usdc_decimals),
              "USDC",
              minimum_units
            )
-           |> Map.put(:slippage_percent, Autolaunch.BidSlippage.percent(bps)),
+           |> Map.put(:slippage_percent, BidSlippage.percent(bps)),
          context:
            context(bid, %{
              currency_symbol: "USDC",
@@ -326,7 +350,7 @@ defmodule Autolaunch.BidActions do
     do: %{
       pay: pay,
       pay_symbol: pay_symbol,
-      max_price: price_decimal(max_price_q96, auction.quote_token_decimals),
+      max_price: BidPrice.decimal(max_price_q96, auction.quote_token_decimals),
       currency_symbol: auction.quote_token_symbol,
       token_symbol: auction.token_symbol,
       min_stock_out: min_stock_out
@@ -340,7 +364,7 @@ defmodule Autolaunch.BidActions do
           auction_address: bid.auction_address,
           signer: bid.signer,
           max_price_q96: bid.max_price_q96,
-          max_price: price_decimal(bid.max_price_q96, bid.auction.quote_token_decimals),
+          max_price: BidPrice.decimal(bid.max_price_q96, bid.auction.quote_token_decimals),
           currency_decimals: bid.auction.quote_token_decimals
         },
         fields
@@ -361,23 +385,11 @@ defmodule Autolaunch.BidActions do
       )
     ]
 
-  defp usdc_snapshot(stock, signer, usdc_amount) do
-    case LabBidChainClient.usdc_snapshot(%{
-           stock: stock,
-           signer: signer,
-           usdc_amount: usdc_amount
-         }) do
-      {:ok, snapshot} -> {:ok, snapshot}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
-
   defp usdc_affordable(%{usdc_balance: balance}, amount) when balance >= amount, do: :ok
   defp usdc_affordable(_usdc, _amount), do: unavailable(:amount_above_balance)
 
   defp min_stock_out(quote, bps) when quote > 0 do
-    minimum = Autolaunch.BidSlippage.minimum(quote, bps)
+    minimum = BidSlippage.minimum(quote, bps)
     if minimum in 1..@uint128_max, do: {:ok, minimum}, else: unavailable(:usdc_route_unavailable)
   end
 
@@ -440,13 +452,12 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  @doc "The mounted lease an Ash action context carries, or the refusal to read for it."
-  @spec lease(map()) :: {:ok, map()} | {:error, term()}
-  def lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
-      when is_binary(lineage) and is_integer(account_id),
-      do: {:ok, %{lineage: lineage, account_id: account_id}}
+  # The mounted lease an Ash action context carries.
+  defp lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
+       when is_binary(lineage) and is_integer(account_id),
+       do: {:ok, %{lineage: lineage, account_id: account_id}}
 
-  def lease(_context), do: unavailable(:session_lease_required)
+  defp lease(_context), do: unavailable(:session_lease_required)
 
   # The wallet has to be one the leased account links, read now: never a guess.
   defp current_wallet(address, actor, context) do
@@ -468,7 +479,7 @@ defmodule Autolaunch.BidActions do
   defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
   defp same_account(_actor, _account), do: unavailable(:session_unavailable)
 
-  defp linked_wallet(%{wallet_addresses: wallets}, signer) when is_list(wallets) do
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) do
     if Enum.any?(wallets, &Address.equal?(&1, signer)),
       do: {:ok, signer},
       else: unavailable(:wrong_signer)
@@ -480,25 +491,13 @@ defmodule Autolaunch.BidActions do
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
   defp usdc_bids?(_auction), do: false
 
-  defp balances(address, signer, usdc?) do
-    case ChainClient.module().balances(%{auction: address, signer: signer, usdc: usdc?}) do
-      {:ok, balances} -> {:ok, balances}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
+  # The Base reads (`Autolaunch.LabBidChainClient`), or the answers a test installed.
+  defp chain_client,
+    do: Application.get_env(:autolaunch, :autolaunch_bid_chain_client, LabBidChainClient)
 
-  defp snapshot(address, signer, max_price_q96) do
-    case ChainClient.module().snapshot(%{
-           auction: address,
-           signer: signer,
-           max_price_q96: max_price_q96
-         }) do
-      {:ok, snapshot} -> {:ok, Map.put(snapshot, :auction, address)}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
+  defp chain({:ok, value}), do: {:ok, value}
+  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp chain({:error, reason}), do: unavailable(reason)
 
   # The auction's own currency has to be the one this site recorded for it, so
   # an amount is never read in one token and spent in another.
@@ -638,10 +637,6 @@ defmodule Autolaunch.BidActions do
 
   def atomic_amount(_value, _decimals), do: {:error, :invalid_amount}
 
-  @doc "The exact decimal rendering of an atomic currency amount, never rounded up."
-  @spec units(non_neg_integer(), non_neg_integer()) :: String.t()
-  def units(amount, decimals), do: Rpc.format_units(amount, decimals)
-
   @doc """
   The exact Q96 price a decimal maximum price names, in currency base units per
   NEW base unit: `price * 10^currency_decimals / 10^18`, scaled by 2^96.
@@ -664,9 +659,6 @@ defmodule Autolaunch.BidActions do
   end
 
   def price_q96(_, _), do: {:error, :invalid_decimal}
-
-  defp price_decimal(q96, currency_decimals),
-    do: Autolaunch.BidPrice.decimal(q96, currency_decimals)
 
   defp positive_decimal(value, refusal) when is_binary(value) do
     value = String.trim(value)
@@ -711,13 +703,12 @@ defmodule Autolaunch.BidActions do
   end
 
   defp quote_warnings(auction, price_reaches?) do
-    []
-    |> maybe_warning(not price_reaches?, "max_price_below_current_clearing_price")
-    |> maybe_warning(auction.state != :active, "auction_not_biddable")
+    for {true, warning} <- [
+          {auction.state != :active, "auction_not_biddable"},
+          {not price_reaches?, "max_price_below_current_clearing_price"}
+        ],
+        do: warning
   end
-
-  defp maybe_warning(warnings, true, warning), do: [warning | warnings]
-  defp maybe_warning(warnings, false, _warning), do: warnings
 
   # Shared helpers
 
