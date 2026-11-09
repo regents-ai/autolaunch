@@ -120,10 +120,7 @@ defmodule Autolaunch.Chain.Abi do
     end
   end
 
-  defp encode_static("address", address) do
-    normalized = normalize_address!(address)
-    normalized |> String.trim_leading("0x") |> String.pad_leading(64, "0")
-  end
+  defp encode_static("address", address), do: address_word(address)
 
   defp encode_static("uint256", value) when is_integer(value) and value >= 0 do
     value |> Integer.to_string(16) |> String.pad_leading(64, "0")
@@ -131,9 +128,10 @@ defmodule Autolaunch.Chain.Abi do
 
   defp encode_static(type, _value), do: raise(ArgumentError, "unsupported ABI input #{type}")
 
-  def normalize_address!(address) do
+  @doc "An address as the 32-byte word calldata carries it; raises for anything that is not one."
+  def address_word(address) do
     case Address.normalize(address) do
-      {:ok, normalized} -> normalized
+      {:ok, "0x" <> hex} -> String.pad_leading(hex, 64, "0")
       :error -> raise ArgumentError, "wallet address is invalid"
     end
   end
