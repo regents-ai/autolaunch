@@ -172,35 +172,23 @@ defmodule AutolaunchWeb.AuctionLive do
     do: {:noreply, assign(socket, :draft_price, price)}
 
   def render(assigns) do
-    assigns =
-      assign(assigns,
-        local_lab?: Lab.test_chain?(),
-        page_record: page_record(assigns.page),
-        page_status: page_status(assigns.page, :error),
-        creator_connections: page_connections(assigns.page),
-        usd_rate: assigns.usd_rate.result
-      )
+    page_record = page_record(assigns.page)
+    bidding_ended? = bidding_ended?(page_record, assigns.clock, assigns.reading)
 
-    assigns =
-      assign(assigns,
-        graduated_token: page_token(assigns.page),
-        bidding_ended?: bidding_ended?(assigns.page_record, assigns.clock, assigns.reading)
-      )
-
-    assigns =
-      assign(
-        assigns,
-        :outbid,
-        if(bidding_open?(assigns.bidding_ended?), do: outbid(assigns.my_positions, assigns.book))
-      )
-
-    assigns =
-      assign(assigns,
-        receipts_read: @receipts_read,
-        receipts_left_out: max(length(onchain_bids(assigns.my_positions)) - @receipts_read, 0)
-      )
-
-    page(assigns)
+    assigns
+    |> assign(
+      local_lab?: Lab.test_chain?(),
+      page_record: page_record,
+      page_status: page_status(assigns.page, :error),
+      creator_connections: page_connections(assigns.page),
+      usd_rate: assigns.usd_rate.result,
+      graduated_token: page_token(assigns.page),
+      bidding_ended?: bidding_ended?,
+      outbid: if(bidding_open?(bidding_ended?), do: outbid(assigns.my_positions, assigns.book)),
+      receipts_read: @receipts_read,
+      receipts_left_out: max(length(onchain_bids(assigns.my_positions)) - @receipts_read, 0)
+    )
+    |> page()
   end
 
   # The bid form is named after its auction, so a form never carries one
@@ -777,10 +765,8 @@ defmodule AutolaunchWeb.AuctionLive do
     id = socket.assigns.record_id
 
     UsdValue.assign_rate(socket, :usd_rate, :base, fn ->
-      with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-           {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid) do
-        {:ok, %{usd_rate: UsdValue.rate(auction)}}
-      else
+      case Autolaunch.get_public_auction(id) do
+        {:ok, %Autolaunch.Auction{} = auction} -> {:ok, %{usd_rate: UsdValue.rate(auction)}}
         _missing -> {:error, :no_auction}
       end
     end)
@@ -788,23 +774,17 @@ defmodule AutolaunchWeb.AuctionLive do
 
   # The signed-in wallet's own positions on this auction, for settlement once
   # bidding has ended. A read that fails says so rather than showing no bids.
-  defp assign_positions(socket) do
-    with actor when not is_nil(actor) <- human_actor(socket.assigns.access_context),
-         {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []) do
-      wallet = signed_in_wallet(socket.assigns.access_context)
-
-      case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
-        {:ok, positions} ->
-          assign(socket,
-            my_positions: Enum.filter(positions, &(&1.auction_id == uuid)),
-            positions_unread: false
-          )
-
-        {:error, _reason} ->
-          assign(socket, my_positions: [], positions_unread: true)
-      end
+  defp assign_positions(%{assigns: %{access_context: context, record_id: id}} = socket) do
+    with actor when not is_nil(actor) <- human_actor(context),
+         {:ok, positions} <-
+           Autolaunch.list_wallet_bid_positions(signed_in_wallet(context), actor: actor) do
+      assign(socket,
+        my_positions: Enum.filter(positions, &(&1.auction_id == id)),
+        positions_unread: false
+      )
     else
-      _signed_out -> assign(socket, my_positions: [], positions_unread: false)
+      nil -> assign(socket, my_positions: [], positions_unread: false)
+      {:error, _reason} -> assign(socket, my_positions: [], positions_unread: true)
     end
   end
 
