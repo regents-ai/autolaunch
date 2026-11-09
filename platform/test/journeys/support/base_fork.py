@@ -51,6 +51,7 @@ AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
 AMZN_FEED = "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
 USDC_HOLDER = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"  # Morpho Blue
 AERODROME_FACTORY = "0x420dd381b31aef6683db6b902084cb0ffece40da"
+AERODROME_ROUTER = "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43"
 # The approved terms of the first AMZNc series (platform/priv/exposure_terms), so the page's
 # terms link opens a file the site serves.
 EXPOSURE_TERMS = "0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f"
@@ -123,9 +124,18 @@ class Fork:
         log = open(self.run / "base-fork.log", "w")
         process = subprocess.Popen(
             ["anvil", "--fork-url", "base", "--fork-block-number", str(FORK_BLOCK), "--host", "127.0.0.1",
-             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64", "--silent"],
-            stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, cwd=self.alias_dir,
+             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            start_new_session=True, cwd=self.alias_dir,
         )
+        # The log keeps each transaction's result, so a failed journey has them. Anvil
+        # also prints the address it reads Base from; a line with a web address stays out.
+        subprocess.Popen(
+            ["awk", r"/https?:\/\// {next} "
+                    r"/^[[:space:]]*(Transaction|Contract created|Gas used|Block Number|Block Time|Error):/ {print; fflush()}"],
+            stdin=process.stdout, stdout=log, stderr=log, start_new_session=True,
+        )
+        process.stdout.close()
         (self.run / "base-fork.pid").write_text(str(process.pid))
         (self.run / "base-fork.port").write_text(str(port))
         self.url = f"http://127.0.0.1:{port}"
@@ -185,7 +195,6 @@ class Fork:
             )
             document = json.loads((root / "reports/generated/deployment/site-config.json").read_text())
             document["chain_id"] = CHAIN_ID
-            document.pop("start_blocks", None)  # the ledger stays off on the copy
             document.pop("public_rpc_url")  # a loopback chain is the browser's door too
             if package == "stocks-v2":
                 document["faucet"] = FAUCET
@@ -246,7 +255,7 @@ class Fork:
         if self.call(factory, "isSeries(address)(bool)", series) != "true":
             sys.exit("the factory did not list the journey's series")
         usdc = json.loads((self.run / "base-memestock.json").read_text())["addresses"]["usdc"]
-        settings = {"chain_id": CHAIN_ID, "usdc": usdc, "pool_factory": AERODROME_FACTORY, "series": [series]}
+        settings = {"chain_id": CHAIN_ID, "usdc": usdc, "pool_factory": AERODROME_FACTORY, "router": AERODROME_ROUTER, "series": [series]}
         (self.run / "exposure.json").write_text(json.dumps(settings, indent=1) + "\n")
         print(f"AMZNc series {series} (prices at {boundaries}); {self.run / 'exposure.json'} written")
 

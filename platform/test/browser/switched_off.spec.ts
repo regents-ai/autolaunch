@@ -35,7 +35,7 @@ test("switched off, no file the site serves names covered calls, and their style
 
 const named = /covered[-_ ]?calls?|coveredcall/i
 
-for (const path of ["/", "/auctions", "/stock-listing/AMZNc", "/docs"]) {
+for (const path of ["/", "/auctions", "/stocks/AMZNc", "/docs"]) {
   test(`switched off, ${path} and everything it loads never name covered calls`, async ({page, baseURL}) => {
     const site = new URL(baseURL!).host
     const loaded: Promise<{url: string; body: string}>[] = []

@@ -80,15 +80,7 @@ defmodule AutolaunchWeb.Components.TokenTrade do
         aria-label="Refresh balances"
         title="Refresh balances"
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-          <path
-            d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Regent.Icons.icon name="rotate-cw" />
       </Regent.Primitives.button>
       <div
         id={"#{@id}-panel"}

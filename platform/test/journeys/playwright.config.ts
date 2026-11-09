@@ -20,6 +20,8 @@ export default defineConfig({
   reporter: [["line"], ["json", {outputFile: `${out}/journeys.json`}]],
   use: {
     baseURL: process.env.AUTOLAUNCH_URL,
+    // The site's certificate is the throwaway one scripts/agent-journeys.sh makes.
+    ignoreHTTPSErrors: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

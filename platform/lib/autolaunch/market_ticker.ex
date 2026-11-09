@@ -66,11 +66,15 @@ defmodule Autolaunch.MarketTicker do
     {:noreply, %{state | due: false}}
   end
 
-  # Bids and trades together, newest first.
+  # Bids and trades together, newest first. Base makes several blocks in one
+  # second, so entries that share a second follow the chain's own order.
   defp entries(bids, trades) do
     bids = for %{auction: %{}} = bid <- bids, do: {:bid, bid}
     trades = for %{token: %{auction: %{}}} = trade <- trades, do: {:trade, trade}
 
-    Enum.sort_by(bids ++ trades, fn {_, entry} -> entry.occurred_at end, {:desc, DateTime})
+    Enum.sort_by(bids ++ trades, fn {_, entry} -> position(entry) end, :desc)
   end
+
+  defp position(entry),
+    do: {DateTime.to_unix(entry.occurred_at, :microsecond), entry.block_number, entry.log_index}
 end

@@ -322,7 +322,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       </p>
       <p
         class="bid-settlement__note"
-        hidden={!(@auction.state == :failed && @position.status == "returnable")}
+        hidden={!(@auction.state == :failed && @position.status == :returnable)}
       >
         The auction for <span class="ticker">{@auction.token_symbol}</span>
         did not meet its minimum raise, so your whole bid comes back in
@@ -923,42 +923,38 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   # The exact action the position's status admits. A failed auction returns
   # the whole bid; a graduated one returns what the fill did not spend.
-  defp action(%{status: "returnable"} = position, %{state: :failed, quote_token_symbol: symbol}),
+  defp action(%{status: :returnable} = position, %{state: :failed, quote_token_symbol: symbol}),
     do: refund_label(position.amount, symbol)
 
-  defp action(%{status: "returnable"} = position, auction) do
+  defp action(%{status: :returnable} = position, auction) do
     if spent?(position),
       do: "Claim #{auction.token_symbol}",
       else: "Withdraw unspent #{auction.quote_token_symbol}"
   end
 
-  defp action(%{status: "claimable"}, %{token_symbol: symbol}), do: "Claim #{symbol}"
+  defp action(%{status: :claimable}, %{token_symbol: symbol}), do: "Claim #{symbol}"
   defp action(_position, _auction), do: nil
 
   # Where the bid's settlement stands, with its tone, for the card's chip.
-  defp standing(%{status: "active"}, _auction), do: {"In the auction", "neutral"}
-  defp standing(%{status: "returnable"}, %{state: :failed}), do: {"Refund ready", "info"}
+  defp standing(%{status: :active}, _auction), do: {"In the auction", "neutral"}
+  defp standing(%{status: :returnable}, %{state: :failed}), do: {"Refund ready", "info"}
 
-  defp standing(%{status: "returnable"} = position, _auction),
+  defp standing(%{status: :returnable} = position, _auction),
     do: if(spent?(position), do: {"Ready to claim", "info"}, else: {"Ready to withdraw", "info"})
 
-  defp standing(%{status: "claimable"}, _auction), do: {"Ready to claim", "info"}
+  defp standing(%{status: :claimable}, _auction), do: {"Ready to claim", "info"}
 
-  defp standing(%{status: "returned"} = position, _auction),
-    do:
-      if(positive?(position.tokens_filled),
-        do: {"Claim opens soon", "neutral"},
-        else: {"Completed", "success"}
-      )
+  defp standing(%{status: :awaiting_claim}, _auction), do: {"Claim opens soon", "neutral"}
+  defp standing(%{status: :returned}, _auction), do: {"Completed", "success"}
 
-  defp standing(%{status: "claimed"}, _auction), do: {"Completed", "success"}
+  defp standing(%{status: :claimed}, _auction), do: {"Completed", "success"}
 
   @doc """
   Whether an unsettled bid on a launched auction was wholly spent: its
   maximum is above the final price, so settling returns nothing and only
   delivers its tokens.
   """
-  def spent?(%{status: "returnable", max_price: max, auction: %{state: :graduated} = auction}) do
+  def spent?(%{status: :returnable, max_price: max, auction: %{state: :graduated} = auction}) do
     decimals = auction.quote_token_decimals
 
     with {:ok, max} <- BidActions.price_q96(max, decimals),
@@ -973,13 +969,13 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   The few words on the button that opens an ended bid's settlement, on the
   portfolio and on the home page's rows; nil when the bid has nothing to take.
   """
-  def settle_label(%{status: "returnable", auction: %{state: :failed} = auction} = position),
+  def settle_label(%{status: :returnable, auction: %{state: :failed} = auction} = position),
     do: refund_label(position.amount, auction.quote_token_symbol)
 
-  def settle_label(%{status: "returnable", auction: auction} = position),
+  def settle_label(%{status: :returnable, auction: auction} = position),
     do: if(spent?(position), do: "Claim #{auction.token_symbol}", else: "Withdraw")
 
-  def settle_label(%{status: "claimable", auction: auction}), do: "Claim #{auction.token_symbol}"
+  def settle_label(%{status: :claimable, auction: auction}), do: "Claim #{auction.token_symbol}"
   def settle_label(_position), do: nil
 
   @doc """
@@ -1000,21 +996,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   # The reason nothing can be done yet, from the auction's own blocks.
-  defp reasons(%{status: "active"}, %{end_block: end_block}, _auction),
+  defp reasons(%{status: :active}, %{end_block: end_block}, _auction),
     do: ["Bidding ends at block #{end_block}."]
 
-  defp reasons(%{status: "active"}, _market, _auction),
+  defp reasons(%{status: :active}, _market, _auction),
     do: ["Bidding has not ended on this auction."]
 
-  defp reasons(
-         %{status: "returned", tokens_filled: filled},
-         %{claim_block: claim_block},
-         _auction
-       )
-       when is_binary(filled) and filled != "" and filled != "0",
-       do: ["Tokens can be claimed from block #{claim_block}."]
+  defp reasons(%{status: :awaiting_claim}, %{claim_block: claim_block}, _auction),
+    do: ["Tokens can be claimed from block #{claim_block}."]
 
-  defp reasons(%{status: "returned", currency_refunded: "0"}, _market, _auction),
+  defp reasons(%{status: :returned, currency_refunded: "0"}, _market, _auction),
     do: ["Your bid was fully spent; nothing to return."]
 
   defp reasons(_position, _market, _auction), do: []

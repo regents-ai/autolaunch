@@ -3,7 +3,7 @@
 Steps every release of the site follows, besides building, checking and deploying it; the
 checks themselves are in [CHECKLIST.md](CHECKLIST.md).
 [RELEASES.md](../RELEASES.md) records which Fly release carried which commit, and
-[CHANGELOG.md](../CHANGELOG.md) says what people and agents noticed.
+[The changelog](../platform/lib/autolaunch_web/public_documents/changelog.md) (https://autolaunch.sh/changelog) says what people and agents noticed.
 
 Every query below reads production. Each runs read-only, and only with Sean's allow
 naming it.

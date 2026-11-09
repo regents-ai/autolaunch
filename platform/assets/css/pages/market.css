@@ -21,7 +21,7 @@
 .market-identity__image > span { color: var(--color-fg-muted); font-size: 3rem; }
 /* One column that may shrink, so a long unbroken ticker wraps rather than widening the page. */
 .market-identity__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
-.market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); font-weight: var(--font-weight-semibold); line-height: 1.1; overflow-wrap: anywhere; }
+.market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); line-height: 1.1; overflow-wrap: anywhere; }
 /* The currency after a ticker, as `BITE / AAPLc`. */
 .token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); white-space: nowrap; }
 
@@ -76,7 +76,7 @@
 .auction-stats__counts { display: flex; gap: var(--space-2); margin: 0; }
 .auction-stats__counts > div { display: flex; align-items: baseline; gap: 6px; }
 .auction-stats__counts dt { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; }
-.auction-stats__counts dd { margin: 0; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.auction-stats__counts dd { margin: 0; font-size: .9375rem; font-variant-numeric: tabular-nums; }
 .auction-stats__note { margin: 0; font-size: .75rem; }
 @media (max-width: 42rem) {
   .auction-stats { flex-direction: column; align-items: stretch; gap: 0; }
@@ -106,7 +106,7 @@
 .launch-trust__muted { color: var(--color-fg-muted); }
 .launch-trust__rows a + .launch-trust__muted { margin-left: 8px; }
 .launch-trust__block > .launch-trust__note { color: var(--color-fg-muted); }
-.launch-trust__block > .launch-trust__status { font-size: .875rem; font-weight: 600; }
+.launch-trust__block > .launch-trust__status { font-size: .875rem; }
 .launch-trust__positions { display: grid; gap: 4px; margin: 0; padding-left: 18px; font-size: .8125rem; overflow-wrap: anywhere; }
 @media (max-width: 30rem) {
   .launch-trust__rows { grid-template-columns: minmax(0, 1fr); gap: 2px; }

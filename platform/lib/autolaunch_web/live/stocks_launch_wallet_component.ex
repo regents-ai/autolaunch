@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     stocks_unavailable: "Stock launches are not open on this site.",
-    launches_paused: "New launches are paused right now.",
+    launches_paused: "New launches are paused until the new version opens.",
     stock_not_admitted: "This stock token is not admitted for launches right now.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     stock_invalid: "Choose a stock token on the draft.",
@@ -93,6 +93,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           type="button"
           phx-click="review_launch"
           phx-target={@myself}
+          disabled={@launches_paused?}
         >
           Review launch
         </Regent.Primitives.button>
@@ -211,11 +212,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
-  # The saved review is withdrawn too, so nothing is later listed from it.
-  def handle_event("cancel_review", _params, %{assigns: %{prepared: prepared}} = socket) do
-    if prepared, do: LaunchActions.cancel(prepared.action_id, opts(socket))
-    {:noreply, LaunchSteps.withdrawn(socket)}
-  end
+  def handle_event("cancel_review", _params, socket),
+    do: {:noreply, LaunchSteps.withdrawn(socket)}
 
   def handle_event("clear_launch", _params, socket),
     do: {:noreply, socket |> assign(launched: nil) |> LaunchSteps.withdrawn()}

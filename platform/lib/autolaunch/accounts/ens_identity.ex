@@ -8,8 +8,9 @@ defmodule Autolaunch.Accounts.EnsIdentity do
   chain outside any transaction (`LookUp`). A wallet with no verified name is
   stored with none; a lookup that keeps failing leaves the last name standing.
 
-  `wallet_address` is the wallet the row was read for, so an account whose
-  wallet has since changed is never shown the old wallet's name.
+  `wallet_address` is the wallet the latest sign-in asked about, and
+  `named_wallet` the wallet the stored name and picture were read for, so an
+  account whose wallet has since changed is never shown the old wallet's name.
 
   Lookups run only while the server has an Ethereum endpoint
   (`ETHEREUM_READ_RPC_URL`) and runs background jobs, which a read-only
@@ -41,6 +42,10 @@ defmodule Autolaunch.Accounts.EnsIdentity do
         on_error :lookup_failed
         lock_for_update? false
         scheduler_cron false
+        # A sign-in while a lookup runs queues its own job: the running one's
+        # write finds another wallet and is stale (`LookUp`), and the new job
+        # looks up the wallet the row names now.
+        worker_opts unique: [period: :infinity, states: [:available, :scheduled, :retryable]]
         worker_module_name Autolaunch.Accounts.EnsIdentity.Workers.LookUp
       end
     end
@@ -101,6 +106,10 @@ defmodule Autolaunch.Accounts.EnsIdentity do
     attribute :wallet_address, :string, allow_nil?: false
     attribute :ens_name, :string, public?: true
     attribute :ens_avatar_url, :string, public?: true
+    # The wallet the name and picture were read for. A sign-in moves
+    # `wallet_address` to its wallet at once; the name belongs to this one
+    # until a lookup reads the new wallet.
+    attribute :named_wallet, :string
 
     attribute :lookup_state, :atom,
       allow_nil?: false,

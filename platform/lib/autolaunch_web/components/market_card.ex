@@ -1157,9 +1157,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span :if={@figures.outcome.fill} style={"width: #{@figures.outcome.fill}%"}></span>
       </span>
       <small>
-        <svg :if={@figures.state == :graduated} viewBox="0 0 16 16" aria-hidden="true">
-          <path d="m3 8.5 3.2 3L13 4.5" />
-        </svg>{@figures.outcome.label}
+        <Regent.Icons.icon :if={@figures.state == :graduated} name="check" />{@figures.outcome.label}
       </small>
     </span>
     """

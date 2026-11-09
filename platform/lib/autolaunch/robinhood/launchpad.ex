@@ -10,13 +10,11 @@ defmodule Autolaunch.Robinhood.Launchpad do
   """
 
   alias Autolaunch.AuctionTerms
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, Lifecycle, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Assets
-
-  @graduated 2
 
   def head do
     with {:ok, config} <- Lab.current(),
@@ -94,7 +92,7 @@ defmodule Autolaunch.Robinhood.Launchpad do
   # A graduated launch's pool, splitter and liquidity position, all held by
   # the launchpad's locker. `nil` before `migrate` records them.
   defp pool(contracts, record) do
-    if record.lifecycle == @graduated do
+    if Lifecycle.graduated?(record.lifecycle) do
       %{
         pool_id: bytes32(record.pool_id),
         token: address(record.new_token),

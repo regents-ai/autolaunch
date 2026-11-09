@@ -1,6 +1,6 @@
 import {readFileSync} from "node:fs"
 import {encodeFunctionData, parseAbi, type Hex} from "viem"
-import {balanceOf, call, mintStock, rpc} from "./support/chain"
+import {balanceOf, call, mintStock, rpc, sendAs} from "./support/chain"
 import {expect, fitsAndPresses, people, ready, signIn, test, type Sent} from "./support/person"
 import type {Page} from "@playwright/test"
 
@@ -25,6 +25,30 @@ test.afterEach(async () => {
 
 const AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
 const UNIT = 10n ** 8n
+const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+const USDC_HOLDER = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"
+const ROUTER = "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43"
+const POOL_PAIR = UNIT / 5n
+
+const trading = parseAbi([
+  "function approve(address,uint256) returns (bool)",
+  "function transfer(address,uint256) returns (bool)",
+  "function mint(uint256)",
+  "function addLiquidity(address,address,bool,uint256,uint256,uint256,uint256,address,uint256) returns (uint256,uint256,uint256)",
+])
+
+/** Opens an Aerodrome pool for each token against USDC, 0.2 of it beside 25 USDC, from a funded holder. */
+async function seedPools(overnight: string, session: string) {
+  const data = (functionName: string, args: unknown[]) => encodeFunctionData({abi: trading, functionName, args} as any) as Hex
+  await mintStock(AMZNC, USDC_HOLDER, POOL_PAIR)
+  await sendAs(USDC_HOLDER, AMZNC, data("approve", [series(), POOL_PAIR]))
+  await sendAs(USDC_HOLDER, series(), data("mint", [POOL_PAIR]))
+  for (const token of [overnight, session]) {
+    await sendAs(USDC_HOLDER, token, data("approve", [ROUTER, POOL_PAIR]))
+    await sendAs(USDC_HOLDER, USDC, data("approve", [ROUTER, 25_000_000n]))
+    await sendAs(USDC_HOLDER, ROUTER, data("addLiquidity", [token, USDC, false, POOL_PAIR, 25_000_000n, 0n, 0n, USDC_HOLDER, 2n ** 40n]))
+  }
+}
 
 const abi = parseAbi([
   "function overnight() view returns (address)",
@@ -86,23 +110,24 @@ async function press(page: Page, sent: Sent[], name: string) {
 }
 
 /** Opens the page fresh and waits for the series to be read. */
-async function open(page: Page, path = "/after-hour-stocks") {
+async function open(page: Page, path = "/stock/isolated-afters") {
   await page.goto(path)
   await ready(page)
   await expect(page.locator("#exposure-overnight")).toBeVisible({timeout: 30_000})
 }
 
-/** Records and applies the next price from the Prices panel, an hour after its time. */
+/** Records and applies the next price from Series details, an hour after its time. */
 async function recordAndApply(page: Page, sent: Sent[], index: number) {
   await warpTo((await boundary(index)) + 3_660)
   await open(page)
+  await page.locator("#exposure-details > summary").click()
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Record price")).status).toBe("0x1")
   expect((await press(page, sent, "Apply price")).status).toBe("0x1")
   expect(await read("settled")).toBe(BigInt(index + 1))
 }
 
-test("after-hours exposure: record the first close, mint, return pairs, run to the end and return each token", async ({page, sent}, info) => {
+test("after-hours exposure: record the first close, split, redeem pairs, run to the end and redeem each token", async ({page, sent}, info) => {
   const touch = info.project.name === "phone"
   await mintStock(AMZNC, people.a.wallet, UNIT)
   const start = await balanceOf(AMZNC, people.a.wallet)
@@ -119,36 +144,38 @@ test("after-hours exposure: record the first close, mint, return pairs, run to t
   const terms = await page.request.get(await page.getByRole("link", {name: "Full terms"}).getAttribute("href") as string)
   expect(terms.status()).toBe(200)
 
-  // The first close opens minting.
+  // The first close opens minting; a holder then opens a pool for each token.
   await recordAndApply(page, sent, 0)
   await expect(page.getByText("Live, 1 of 3 prices applied")).toBeVisible()
+  await seedPools((await read("overnight")) as string, (await read("session")) as string)
+  await open(page, "/stock/isolated-afters?tab=split")
 
-  // Mint 0.05 AMZNc: an exact approval, then the mint.
+  // Split 0.05 AMZNc: an exact approval, then the split.
   await page.getByRole("textbox", {name: "Amount"}).fill("0.05")
   await fitsAndPresses(page, touch)
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Approve AMZNc")).status).toBe("0x1")
-  expect((await press(page, sent, "Mint")).status).toBe("0x1")
+  expect((await press(page, sent, "Split AMZNc")).status).toBe("0x1")
   const overnight = (await read("overnight")) as string
   const session = (await read("session")) as string
   expect(await balanceOf(overnight, people.a.wallet)).toBe(5_000_000n)
   expect(await balanceOf(session, people.a.wallet)).toBe(5_000_000n)
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 5_000_000n)
 
-  // Return 0.02 pairs for 0.02 AMZNc.
-  await open(page, "/after-hour-stocks?tab=return")
+  // Redeem 0.02 pairs for 0.02 AMZNc.
+  await open(page, "/stock/isolated-afters?tab=redeem")
   await page.getByRole("textbox", {name: "Pairs"}).fill("0.02")
   await buttonsOnScreen(page)
-  expect((await press(page, sent, "Return")).status).toBe("0x1")
+  expect((await press(page, sent, "Redeem")).status).toBe("0x1")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 3_000_000n)
 
-  // The portfolio lists the 0.03 of each still held, and its Return leads back to the Return tab.
+  // The portfolio lists the 0.03 of each still held, and its Redeem leads back to the Redeem tab.
   await page.goto("/portfolio")
   const held = page.locator("#portfolio-exposure tbody tr")
   await expect(held).toHaveCount(1, {timeout: 30_000})
   await expect(held.locator("td[data-label=After-hours]")).toHaveText("0.03")
   await expect(held.locator("td[data-label=Market-hours]")).toHaveText("0.03")
-  await held.getByRole("link", {name: "Return"}).click()
+  await held.getByRole("link", {name: "Redeem"}).click()
   await expect(page.getByRole("textbox", {name: "Pairs"})).toBeVisible({timeout: 30_000})
 
   // The open and the last close end the series.
@@ -159,13 +186,42 @@ test("after-hours exposure: record the first close, mint, return pairs, run to t
 
   // After the end each token returns its own share; the copy's feed did not move, so
   // the two halves come back as the 0.03 AMZNc behind them.
-  await open(page, "/after-hour-stocks?tab=return")
+  await open(page, "/stock/isolated-afters?tab=redeem")
   await page.getByRole("button", {name: "Max", exact: true}).click()
   await expect(page.getByRole("textbox", {name: "After-hours"})).toHaveValue("0.03")
   await expect(page.getByRole("textbox", {name: "Market-hours"})).toHaveValue("0.03")
   await buttonsOnScreen(page)
-  expect((await press(page, sent, "Return")).status).toBe("0x1")
+  expect((await press(page, sent, "Redeem")).status).toBe("0x1")
   expect(await balanceOf(overnight, people.a.wallet)).toBe(0n)
   expect(await balanceOf(session, people.a.wallet)).toBe(0n)
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start)
+
+  // With liquidity the page leads with Buy. A buys After-hours with 5 USDC, then sells all of it.
+  await sendAs(USDC_HOLDER, USDC, encodeFunctionData({abi: trading, functionName: "transfer", args: [people.a.wallet as Hex, 5_000_000n]}))
+  const usdcBefore = await balanceOf(USDC, people.a.wallet)
+  await open(page)
+  await expect(page.locator("#exposure-act-tab-buy")).toHaveAttribute("aria-selected", "true")
+  await page.getByRole("textbox", {name: "Spend"}).fill("5")
+  await buttonsOnScreen(page)
+  expect((await press(page, sent, "Approve USDC")).status).toBe("0x1")
+  expect((await press(page, sent, "Buy")).status).toBe("0x1")
+  const bought = await balanceOf(overnight, people.a.wallet)
+  expect(bought).toBeGreaterThan(0n)
+  expect(await balanceOf(USDC, people.a.wallet)).toBe(usdcBefore - 5_000_000n)
+  await expect(page.locator("#exposure-done")).toContainText("Bought")
+  await expect(page.locator("#exposure-done").getByRole("link", {name: "View Portfolio"})).toBeVisible()
+
+  await open(page, "/stock/isolated-afters?tab=sell")
+  await page.getByRole("button", {name: "Max", exact: true}).click()
+  await buttonsOnScreen(page)
+  expect((await press(page, sent, `Approve ${await symbol(overnight)}`)).status).toBe("0x1")
+  expect((await press(page, sent, "Sell")).status).toBe("0x1")
+  expect(await balanceOf(overnight, people.a.wallet)).toBe(0n)
+  expect(await balanceOf(USDC, people.a.wallet)).toBeGreaterThan(usdcBefore - 5_000_000n)
 })
+
+async function symbol(token: string): Promise<string> {
+  const word = await call(token, encodeFunctionData({abi: parseAbi(["function symbol() view returns (string)"]), functionName: "symbol"}) as Hex)
+  const length = Number(BigInt(`0x${word.slice(66, 130)}`))
+  return Buffer.from(word.slice(130, 130 + length * 2), "hex").toString("utf8")
+}

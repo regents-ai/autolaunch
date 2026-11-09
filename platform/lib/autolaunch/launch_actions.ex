@@ -44,8 +44,6 @@ defmodule Autolaunch.LaunchActions do
     "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
   ]
 
-  @withdrawn "review withdrawn"
-
   # A Base read that may answer differently later never settles anything.
   @transient [
     :chain_unavailable,
@@ -111,17 +109,13 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  @doc "Withdraws one saved review the page is done with."
-  @spec cancel(String.t(), keyword()) :: {:ok, Ash.Resource.record()} | {:error, term()}
-  def cancel(action_id, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         do: transact(lease, &withdraw(&1, action_id))
-  end
-
-  defp withdraw(account, action_id) do
-    with {:ok, operation} <- LaunchOperations.fetch(account.id, action_id, true),
-         do: LaunchOperations.update(operation, :cancel, %{reason: @withdrawn})
+  @doc "Whether the Base factory has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused do
+    case LaunchChainClient.module().snapshot(%{signer: nil}) do
+      {:ok, %{paused: paused}} -> {:ok, paused}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """

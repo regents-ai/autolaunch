@@ -14,6 +14,7 @@ defmodule Autolaunch.Application do
     # Debian image can lag by weeks. Req, Finch and Mint read this list through
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
+    :ok = RegentHttp.ErrorSaving.attach()
     # The Claude connector stays off until its one switch turns it on
     # (config/runtime.exs); these only check and store its settings.
     :ok = RegentOAuth.configure(Autolaunch.OAuth)
@@ -88,6 +89,7 @@ defmodule Autolaunch.Application do
       autolaunch_jobs_child(),
       stock_admissions_child(),
       chain_head_children(),
+      Autolaunch.LaunchDiscovery.Count.children(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry

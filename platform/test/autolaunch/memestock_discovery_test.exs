@@ -12,7 +12,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   require Ash.Query
   import Ecto.Query, only: [from: 2]
 
-  alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery, LaunchReviews}
+  alias Autolaunch.{Accounts, Auction, BaseRpcStub, Lab, LabAbi, LaunchDiscovery, LaunchReviews}
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.Stocks.Lab, as: StocksLab
@@ -42,6 +42,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     launchpad = StocksLab.address!(config, :launchpad)
 
     BaseRpcStub.install(:autolaunch_lab_http_client, &answer(&1, &2))
+    BaseRpcStub.put(%{revstake: Lab.address!(Lab.current!(), :factory)})
 
     BaseRpcStub.put(%{
       blocks: %{
@@ -279,7 +280,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{summary: "caf"}] = auctions()
   end
 
-  test "a launch taken again that the site cannot list yet waits, and is listed once it can",
+  test "a launch the site cannot list yet waits, and is listed once it can",
        %{launchpad: launchpad} do
     BaseRpcStub.put(%{
       launcher: @stranger,
@@ -288,11 +289,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
     mined(launchpad)
     discover()
-
-    {1, _rows} =
-      Autolaunch.Repo.update_all("launch_discoveries",
-        set: [state: "unlisted", reason: "no_matching_review"]
-      )
 
     # Its stock is not saved yet: the launch waits for it.
     run_triggers()
@@ -306,7 +302,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{token_symbol: "WAIT"}] = auctions()
   end
 
-  test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
+  test "a launch no review carried out is listed from the chain; one on a retired launchpad stays unlisted",
        %{launchpad: launchpad} do
     admit_stock()
 
@@ -323,12 +319,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
       Autolaunch.record_launch_discovery(
         %{Map.take(discovery, record_fields()) | contract: @retired},
         actor: @actor
-      )
-
-    # As the site left them before every Base Memestock launch was listed.
-    {2, _rows} =
-      Autolaunch.Repo.update_all("launch_discoveries",
-        set: [state: "unlisted", reason: "no_matching_review"]
       )
 
     run_triggers()
@@ -420,7 +410,6 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     end
 
     assert [] = Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
-    assert [] = Auction |> Ash.Query.for_read(:list_public, %{}, actor: nil) |> Ash.read!()
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
@@ -543,11 +532,15 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   end
 
   # The launchpad's reads: one launch so far, its record, and its auction index.
-  defp answer(data, state) do
+  # The Revstake factory on the same chain has made none.
+  defp answer(%{to: to, data: data}, state) do
     selector = String.slice(data, 0, 10)
 
     words =
       cond do
+        to == state.revstake and selector == LabAbi.selector("nextLaunchId()") ->
+          [BaseRpcStub.hex_word(1)]
+
         selector == LabAbi.selector("nextLaunchId()") ->
           [BaseRpcStub.hex_word(@launch_id + 1)]
 
@@ -612,7 +605,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
   defp discover do
     LaunchDiscovery
-    |> Ash.ActionInput.for_action(:discover_memestock, %{}, actor: @actor)
+    |> Ash.ActionInput.for_action(:discover, %{}, actor: @actor)
     |> Ash.run_action!()
   end
 

@@ -9,7 +9,10 @@ defmodule Autolaunch.Stocks.LaunchOperation do
   stored. `Autolaunch.LaunchReviews` matches a launch the chain shows to the
   review whose step it sent, lists it, and marks the review `chain_verified`.
 
-  An account may hold any number of reviews; one never cancels another.
+  A review stays `prepared` until the chain shows its launch, even once its
+  page has let it go: its exact step can still be sent, and the launch is then
+  this site's. An account may hold any number of reviews; one never cancels
+  another.
   """
 
   use Ash.Resource,
@@ -19,7 +22,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     authorizers: [Ash.Policy.Authorizer]
 
   @steps [:launch]
-  @states [:prepared, :chain_verified, :cancelled]
+  @states [:prepared, :chain_verified]
 
   postgres do
     table "stock_launch_operations"
@@ -68,6 +71,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     update :verify do
       accept [:result]
       require_atomic? false
+      validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :chain_verified)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
@@ -78,14 +82,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       argument :launch_draft_id, :uuid, allow_nil?: false
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
-    end
-
-    update :cancel do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :cancelled)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
 
@@ -114,6 +110,8 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     # Adopted from the verified `StockLaunchCreated`, never guessed before mining.
     attribute :result, :map, default: %{}
 
+    # Written by nothing; dropped by the next release, once no machine of the
+    # release before this one still reads it.
     attribute :reason, :string, constraints: [max_length: 120]
     attribute :terminal_at, :utc_datetime_usec
     timestamps()

@@ -1,0 +1,104 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployment-packet",
+  "version": 1,
+  "status": "mainnet-NO-GO",
+  "authorization": {
+    "state": "not authorized",
+    "instrument": "the founder's separate word naming this packet's exact digest",
+    "granted_by": null,
+    "signing_method": null,
+    "note": "Nothing in this repository may be signed, broadcast, funded or deployed until the founder separately approves this exact digest. The founder sends every transaction by hand from a signer of his own; no credential appears in this packet or anywhere in this repository."
+  },
+  "chain": {
+    "id": 8453,
+    "name": "base"
+  },
+  "build": {
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "evm_version": "cancun",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "source_identity": {
+    "src_tree": "0a7974ca78e0cbf863cfeb12d55efaff4dd03318"
+  },
+  "frozen_manifest_sha256": "8d14a65aba2ff8ec7a4c33c5ab4a4a194c73a66375e8d67a0766da55aef79a73",
+  "code_identity": [
+    {
+      "contract": "RegentsAutolaunchFactoryV3",
+      "source": "src/factory/RegentsAutolaunchFactoryV3.sol",
+      "constructor": [
+        "address uerc20Factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_",
+        "bytes32 hookSalt"
+      ],
+      "runtime_bytes": 6777,
+      "runtime_keccak256": "0x7e85da393e09dd63dc74340606355ff162bf6ba70d0e13a9e10aae33e00eddfc",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 37514,
+      "creation_keccak256": "0x4c3e272ed63f90f1e652bf33e00e63401a3d489861ff28bb073e8c616d5bfded"
+    },
+    {
+      "contract": "RegentLBPStrategyV3",
+      "source": "src/strategy/RegentLBPStrategyV3.sol",
+      "constructor": [
+        "address factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_"
+      ],
+      "runtime_bytes": 19549,
+      "runtime_keccak256": "0x8a535ba0b30bdb7f1b3283b0d66c38bda9e284f2fc95fb69d4f33403a32cce9f",
+      "runtime_immutable_references": 6,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 23798,
+      "creation_keccak256": "0xe5be99e73ae27bb77679ec27b2a492ff1c387da2865eda48bf3c58aa2175e69e"
+    },
+    {
+      "contract": "RevstakeLPLocker",
+      "source": "src/revenue/RevstakeLPLocker.sol",
+      "constructor": [
+        "address strategy_"
+      ],
+      "runtime_bytes": 3474,
+      "runtime_keccak256": "0x079d3b5464ea14138cf5abb12b26802cca43012e653f47ac07050d5cc2fe8490",
+      "runtime_immutable_references": 1,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3628,
+      "creation_keccak256": "0xfa6b6756061362ff6003f0eca2734df0c4615da380d5d9bf78bb1dbf7f4f41ed"
+    },
+    {
+      "contract": "RegentFeeHook",
+      "source": "src/hook/RegentFeeHook.sol",
+      "constructor": [
+        "address manager_",
+        "address strategy_"
+      ],
+      "runtime_bytes": 5168,
+      "runtime_keccak256": "0x70bd3cc329d0c4353492a726918048b47d255904e56cfb0cf8f61bbafd6e76f5",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 5977,
+      "creation_keccak256": "0xd6d5a2b58c480c4048896d742d0866a7aa38902af07a1e5d7fca1f52fc16f212"
+    }
+  ],
+  "hook_permission_bits": "0x2044",
+  "selection": null,
+  "external_observation": null,
+  "topology": null,
+  "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
+  "digest": {
+    "algorithm": "sha256",
+    "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
+    "value": "0xcd7b1404bab42a061866d69af3f5c885a6a725c30efa7f399c24c36ef10af825"
+  }
+}

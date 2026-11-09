@@ -1,5 +1,5 @@
 {
-  "total": 159,
+  "total": 160,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -361,11 +361,11 @@
       "file": "test/autolaunch_web/live/account_live_test.exs",
       "line": 12,
       "test_name": "ACCOUNT_SHOWS_A_PAIRED_AGENT",
-      "keep_because": "The Account page builds each paired agent's row for the shared agents list, and a row missing a field the list reads crashed /account for everyone with a paired agent (v140, 16 Oct 2026). A signed-out or unpaired review never sees it. The case fails if /account stops mounting with a paired agent or stops showing its name and kind.",
+      "keep_because": "The Agents page builds each paired agent's row for the shared agents list, and a row missing a field the list reads crashed the page for everyone with a paired agent (v140, 16 Oct 2026, then on /account). A signed-out or unpaired review never sees it. The case fails if /account/agents stops mounting with a paired agent or stops showing its name and kind.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 145,
@@ -378,7 +378,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 56,
@@ -1265,56 +1265,30 @@
       "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
     },
     {
-      "id": 136,
-      "group": "Chain reads",
-      "framework": "exunit",
-      "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 27,
-      "test_name": "one wake reads the ledger up to the safe head, however far behind it is",
-      "keep_because": "The Base ledger wakes every five minutes and reads a few blocks a pass; a wake that stopped after one pass would fall further behind Base with every wake (chain reads moved to a five-minute clock, 23 Oct 2026). The case fails if one wake stops before the safe head.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
-    },
-    {
-      "id": 137,
-      "group": "Chain reads",
-      "framework": "exunit",
-      "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 37,
-      "test_name": "a refresh brings the ledger's five-minute read forward",
-      "keep_because": "A person's confirmed on-chain press must bring the ledger's next read forward from five minutes to the ten-second gap, and a press on another chain must not. The case fails if the chain's reading job keeps its five-minute time after its chain's refresh, or moves for another chain's.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
-    },
-    {
       "id": 138,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 52,
+      "line": 27,
       "test_name": "a refresh brings an auction's next activity read forward, never back",
       "keep_because": "A confirmed press must bring each listed auction's next activity read on that chain forward from five minutes to the ten-second gap, so a bid shows within seconds, and must never push back a read already due sooner, so presses that keep coming cannot starve it. The case fails if the waiting read stays put, moves for another chain's press, or a sooner read is moved later.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
+      "source_sha256": "71eb98b4d3b45f9c22553e25fa4de03a0bea4ae8b01595beff81663ddea73bd9"
     },
     {
       "id": 139,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 69,
-      "test_name": "a refresh on a chain with a Memestock launchpad runs its discovery at once",
-      "keep_because": "Once launches are open, a creator's Memestock launch press must queue discovery at once instead of waiting for the five-minute schedule, and nothing is queued while the site is read-only or for another chain. The case fails if discovery is not queued, or is queued when it must not be.",
+      "line": 45,
+      "test_name": "a refresh on a chain with a Base launchpad runs its discovery at once",
+      "keep_because": "Once launches are open, a creator's Revstake or Memestock launch press must queue discovery at once instead of waiting for the five-minute schedule, and nothing is queued while the site is read-only or for another chain. The case fails if discovery is not queued, or is queued when it must not be.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
+      "source_sha256": "71eb98b4d3b45f9c22553e25fa4de03a0bea4ae8b01595beff81663ddea73bd9"
     },
     {
       "id": 140,
@@ -1466,7 +1440,7 @@
       "file": "test/autolaunch_web/trailing_slash_test.exs",
       "line": 9,
       "test_name": "a page address with a slash at the end is the site's not-found page",
-      "keep_because": "Fails if any page address ending in a slash answers 200 (a second address for the page) or crashes with 500, as /contact/ and /docs/ did on the live site on 27 Oct.",
+      "keep_because": "Fails if any page address ending in a slash answers 200 (a second address for the page) or crashes with 500, as /docs/ did on the live site on 27 Oct.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
@@ -1535,7 +1509,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 158,
@@ -1548,7 +1522,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 159,
@@ -1561,7 +1535,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 160,
@@ -1574,7 +1548,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 161,
@@ -1587,7 +1561,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 162,
@@ -1600,7 +1574,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
+      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
     },
     {
       "id": 163,
@@ -1938,7 +1912,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 190,
@@ -1958,39 +1932,39 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 139,
+      "line": 140,
       "test_name": "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
       "keep_because": "Sean's choice (28 Oct 2026, list everything): a launch sent straight to the launchpad, as an agent sends one from its own wallet, is listed under that wallet with no account, on the public lists and its own page, with invalid bytes, hidden characters, an unsafe link and an outside picture removed, and an operator can still hide it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 192,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 282,
+      "line": 283,
       "test_name": "a launch taken again that the site cannot list yet waits, and is listed once it can",
       "keep_because": "Found by the second review: a launch an earlier pass left unlisted that the chain or the stock list could not answer for yet stayed unlisted and was never taken again. It now waits as pending and is listed once it can be.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 193,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 345,
+      "line": 346,
       "test_name": "the two test launches the operator hid are never listed",
       "keep_because": "Sean, 29 Oct 2026, \"Hide both\": the release's data change marks Base Memestock launches 1 and 2 (V2 AUTOLAUNCH TEST) hidden, and no resolve pass lists them afterwards, while launch 3 is untouched.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 194,
@@ -2010,13 +1984,13 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 125,
+      "line": 126,
       "test_name": "ACCOUNT_MENU_ON_EVERY_PAGE",
-      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent link does not lead to #account-pairing, or if the Account page has the pairing box twice or puts this site's sections after the shared ones.",
+      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent does not open the pairing window (#shell-pairing), if the window on a page served without LiveView cannot make a code, if the Agents page's Pair New Agent does not open the same window or the page holds a second pairing box, or if the Account page puts this site's sections after the shared ones.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
     },
     {
       "id": 196,
@@ -2069,6 +2043,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f3fa33768852951a22961593693d07ce3a266c5aaa6e02cdb229cba5719655e3"
+    },
+    {
+      "id": 200,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/secure_every_answer_test.exs",
+      "line": 13,
+      "test_name": "the health answer runs under the strict policy",
+      "keep_because": "Every answer must carry the strict policy, nosniff and referrer-policy, including answers given before the router and pages that do not exist; a gap shows only on addresses no page test opens, and Sentinel's same-check reads them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a88f93f0105c1b9f01dd345b9d0dd5d3ca7a7c08f862878d54c952e024d84163"
+    },
+    {
+      "id": 201,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/secure_every_answer_test.exs",
+      "line": 17,
+      "test_name": "a page that does not exist runs under the strict policy",
+      "keep_because": "Every answer must carry the strict policy, nosniff and referrer-policy, including answers given before the router and pages that do not exist; a gap shows only on addresses no page test opens, and Sentinel's same-check reads them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a88f93f0105c1b9f01dd345b9d0dd5d3ca7a7c08f862878d54c952e024d84163"
+    },
+    {
+      "id": 202,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/pair_live_test.exs",
+      "line": 9,
+      "test_name": "PAIR_LINK_STAYS_ON_SITE",
+      "keep_because": "A pairing link's page is printed in the message a person pastes to their agent. The case fails if /pair takes anything but a page on this site, such as //example.com, /\\example.com, another site's address, a script address, a page with spaces or control characters, or one over 512 characters, so an agent is never sent elsewhere.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "12097c0fbf01331ae8d506d058d122ab1b544582f78240661333ebb350e5b8fe"
     }
   ],
   "legacy_folders_to_remove": [

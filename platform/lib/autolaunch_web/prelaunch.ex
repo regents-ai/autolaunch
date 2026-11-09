@@ -5,14 +5,14 @@ defmodule AutolaunchWeb.Prelaunch do
   alias Autolaunch.Prelaunch
 
   @read_events %{
-    AutolaunchWeb.HomeLive => ~w(filter retry load-more),
+    AutolaunchWeb.HomeLive => ~w(filter retry retry_calls load-more),
     AutolaunchWeb.AuctionsLive => ~w(retry),
     AutolaunchWeb.TokensLive => ~w(retry),
     AutolaunchWeb.AuctionLive => ~w(retry),
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
     AutolaunchWeb.CoveredCallsLive => ~w(refresh use_suggestion),
-    AutolaunchWeb.ExposureLive => ~w(refresh tab)
+    AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done)
   }
 
   @impl true

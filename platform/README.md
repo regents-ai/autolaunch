@@ -120,19 +120,19 @@ Use the checks appropriate to the changed component. The full platform gate is:
 
 ```bash
 mix precommit
-npm run typecheck
-npm test
 ```
 
-`mix precommit` compiles with warnings as errors, checks unused dependency locks and
-formatting, runs Credo in strict mode and Sobelow, holds the compile-connected `xref` graph
-under its limit, runs the test suite with warnings as errors, and verifies the Ash codegen is
-up to date.
+`mix precommit` (also `make check-platform` from the repository root) compiles with warnings
+as errors, checks unused dependency locks and formatting, runs Credo in strict mode and
+Sobelow, holds the compile-connected `xref` graph under its limit, runs the test suite with
+warnings as errors, verifies the Ash codegen is up to date, refreshes the shared libraries'
+assets, then runs the TypeScript check, the Vitest suite and the browser walk.
 
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck` | Type-checks the TypeScript assets. |
 | `npm test` | Runs the Vitest unit suite. |
+| `npm run test:browser` | Runs the browser walk on its own server and database. |
 
 The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test`
 ending. Setting it is required, not advisory, whenever more than one test run can happen on a
@@ -155,14 +155,14 @@ and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Details are in
 [docs/stocks.md](docs/stocks.md).
 
-Covered calls (`/covered-calls`, the portfolio's Covered calls section and their agent routes and
+Covered calls (`/stock/covered-call`, the portfolio's Covered calls section and their agent routes and
 tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=/abs/path/covered-calls.json` is required, naming one
 `CoveredCallsV1` contract per stock on the Base description's chain (`chain_id` and `markets` of
 `symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
 (`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 
-Isolated Exposure to After-hours Stocks (`/after-hour-stocks`, the portfolio's section and their
+Isolated Exposure to After-hours Stocks (`/stock/isolated-afters`, the portfolio's section and their
 agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
 `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=/abs/path/exposure.json` is required, naming the
 `ExposureSeriesV1` series the site offers, oldest first, on the Base description's chain (`chain_id`,
@@ -282,7 +282,7 @@ verification and the remaining release checks.
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
-| `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED` | Optional | `true` switches on the Claude connector: its sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in the pairing box and the Claude guide at `/agents/claude`. Unset leaves all of it off, and `/mcp` serves only paired agents signing with their own wallet; any other value stops the boot. Off in production until elixir-utils' `RegentMCPAgents` and the sign-in service know the `autolaunch` audience. |
+| `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED` | Optional | `true` switches on the Claude connector: its sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in the pairing box and the Claude guide at `/agents/claude`. Unset leaves all of it off, and `/mcp` serves only paired agents signing with their own wallet; any other value stops the boot. Off in production. |
 | `SIWA_HOSTED_SIGNING_KEY` | With the connector | This site's hosted signing key from the sign-in service, 32 or more letters, digits, `-` or `_`, which holds each connected app's identity. With the connector on and no valid key, the boot stops. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
@@ -350,10 +350,9 @@ looked up.
 Base and Robinhood Chain are read through a paid node, so the background readers run on a
 five-minute clock: each auction's reading job (`Autolaunch.AuctionMarket`, twenty minutes
 once the auction has finished), Robinhood launch discovery, each chain's newest block
-(`Autolaunch.ChainHead`), auction activity, token trades, the Base log ledger, the auction
-finisher and Memestock launch discovery (`*/5` Oban schedules), and the REGENT page's shared
-figures. A reader that fails tries again within a minute; the ledger
-keeps reading until it reaches the safe head before it sleeps again.
+(`Autolaunch.ChainHead`), auction activity, token trades, the auction finisher and Base
+launch discovery (`*/5` Oban schedules), and the REGENT page's shared figures. A reader that
+fails tries again within a minute.
 
 A person's on-chain press that the chain confirms calls `Autolaunch.ChainRefresh.request/1`
 with its chain id (`AutolaunchWeb.OnchainSteps`, `AutolaunchWeb.OnchainCalls`). Every reader

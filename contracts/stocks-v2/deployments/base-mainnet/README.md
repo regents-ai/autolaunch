@@ -41,3 +41,22 @@ the pinned salt `0x…1e5f`).
 The launchpad is born paused. After the record, the Governance and Regent Safe
 `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` admits the ten stocks with their routes, sets the
 executor and opens launches in the switch-on batch.
+
+## Closing before Base's faster blocks
+
+Base moves from 2 second to 0.2 second blocks on 5 November 2026 at 18:00 UTC. Auctions and
+vesting here count blocks, so a launch made now would run ten times faster after that moment.
+Founder decision 1a (30 October 2026): stop new launches on both open Base launchers now. The
+Governance Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` (2 of 3) sends one batch,
+[`safe-pause-before-denim.json`](safe-pause-before-denim.json):
+
+| Call | Target |
+| --- | --- |
+| `pauseLaunches()` (`0xe79b502e`) | Memestake version 2 launchpad `0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B` |
+| `pauseLaunches()` (`0xe79b502e`) | Revstake version 2 factory `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` |
+
+Read on Base at block 53,304,257 (30 October 2026, 22:05 UTC): both `launchesPaused()` false;
+each call simulated from the Safe without a revert (44,831 and 45,011 gas); Safe nonce 75.
+Pausing stops new launches only. The six existing launches, their auctions, claims, refunds,
+staking and fee collection are untouched. Version 3, built for the faster blocks, opens later
+by its own decision.

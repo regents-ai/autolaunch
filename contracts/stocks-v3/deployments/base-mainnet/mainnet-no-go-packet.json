@@ -1,0 +1,111 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployment-packet",
+  "version": 1,
+  "status": "mainnet-NO-GO",
+  "authorization": {
+    "state": "not authorized",
+    "instrument": "the founder's separate word naming this packet's exact digest",
+    "granted_by": null,
+    "signing_method": null,
+    "note": "Nothing in this repository may be signed, broadcast, funded or deployed until the founder separately approves this exact digest. The founder sends every transaction by hand from a signer of his own; no credential appears in this packet or anywhere in this repository."
+  },
+  "chain": {
+    "id": 8453,
+    "name": "base"
+  },
+  "build": {
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "evm_version": "cancun",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "source_identity": {
+    "src_tree": "63473582cb1c37c69ebf39b17129300aba06a4e4"
+  },
+  "frozen_manifest_sha256": "4fbcab2815dab22ee14272e23678c19378c6394ec61b7a77ce17ede417bcde99",
+  "code_identity": [
+    {
+      "contract": "StocksLaunchpadV3",
+      "source": "src/StocksLaunchpadV3.sol",
+      "constructor": [
+        "address uerc20Factory_",
+        "bytes32 hookSalt"
+      ],
+      "runtime_bytes": 21580,
+      "runtime_keccak256": "0xe470445bc764f8d7a54e3dc5ec2e8d04e0b67557d74bcf43005ff2c5247dd26e",
+      "runtime_immutable_references": 4,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 41790,
+      "creation_keccak256": "0x8d87c0c709409b0584608c677c95051e8e98c2318b0df1dceaef452401fa41b8"
+    },
+    {
+      "contract": "StockBidAdapterV1",
+      "source": "src/StockBidAdapterV1.sol",
+      "constructor": [
+        "address launchpad_"
+      ],
+      "runtime_bytes": 3189,
+      "runtime_keccak256": "0xe83d8e0ca02149a47003afa2870745fdb14d173afe24e7c309e20739830bafb0",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3449,
+      "creation_keccak256": "0x522a1f26424ca99a7a4889bba95f1a423418caa323c48ea6015afc1e572bfb3c"
+    },
+    {
+      "contract": "MemestockSplitterV1",
+      "source": "src/MemestockSplitterV1.sol",
+      "constructor": [],
+      "runtime_bytes": 6447,
+      "runtime_keccak256": "0x8f5b607af0fc8c6d3c62a5c171f2f9e475adc537679cd5d70c22ea27b06bf415",
+      "runtime_immutable_references": 0,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": true,
+      "creation_bytes": 6585,
+      "creation_keccak256": "0x9471680e89fd78ca79c7b3088ed3e709eb6a911a81f661c811570c4f35495983"
+    },
+    {
+      "contract": "MemestockLPLocker",
+      "source": "src/MemestockLPLocker.sol",
+      "constructor": [
+        "address launchpad_",
+        "address positionManager_"
+      ],
+      "runtime_bytes": 3271,
+      "runtime_keccak256": "0xbb33127a3bfe131e71bbffd05418b7240f38686d5c4f8b1247dae1f709899923",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3512,
+      "creation_keccak256": "0xc66055229fee9624e08478caf6b6a0ecaedc6223724c35185a1f8560a1517005"
+    },
+    {
+      "contract": "StocksFeeHookV1",
+      "source": "src/StocksFeeHookV1.sol",
+      "constructor": [
+        "address manager_",
+        "address launchpad_"
+      ],
+      "runtime_bytes": 8728,
+      "runtime_keccak256": "0x13c9053060f516d7c9be339d9c60d50a91b7fac715511825f0756bb8e83a8239",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 9554,
+      "creation_keccak256": "0xb67b23f59b7a2e2b708139afe78b10975ac69cfb4042a6f496c4d5bd7b408ef6"
+    }
+  ],
+  "hook_permission_bits": "0x20cc",
+  "selection": null,
+  "external_observation": null,
+  "topology": null,
+  "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
+  "digest": {
+    "algorithm": "sha256",
+    "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
+    "value": "0xd9bcf7296c183cbf4edce35fb7f90644d3538ca42ca5785ce5715eb472138f64"
+  }
+}

@@ -90,15 +90,6 @@ defmodule Autolaunch.Auction do
       prepare build(sort: [inserted_at: :desc, id: :asc], limit: 5_000, load: [:path_tail])
     end
 
-    read :list_public do
-      prepare Autolaunch.Auction.Preparations.BaseOnly
-
-      prepare build(
-                sort: [inserted_at: :desc, id: :asc],
-                load: [:treasury_security_report, :path_tail]
-              )
-    end
-
     read :home_market do
       argument :x, :boolean, default: false
       argument :ens, :boolean, default: false
@@ -198,28 +189,6 @@ defmodule Autolaunch.Auction do
           |> Ash.Query.load([:treasury_security_report, :path_tail])
           |> Autolaunch.Search.rank(query.arguments.query, order)
       end
-    end
-
-    read :recent_public do
-      filter expr(state in [:created, :active, :ended, :failed])
-      prepare Autolaunch.Auction.Preparations.BaseOnly
-
-      prepare build(
-                sort: [inserted_at: :desc, id: :asc],
-                limit: 12,
-                load: [:treasury_security_report, :path_tail]
-              )
-    end
-
-    read :featured_public do
-      filter expr(featured == true)
-      prepare Autolaunch.Auction.Preparations.BaseOnly
-
-      prepare build(
-                sort: [inserted_at: :desc, id: :asc],
-                limit: 6,
-                load: [:treasury_security_report, :path_tail]
-              )
     end
 
     read :public_by_id do
@@ -354,6 +323,9 @@ defmodule Autolaunch.Auction do
       ]
     end
 
+    # A reading of the auction's contract. The state only moves forward and
+    # never leaves graduated or failed (`Autolaunch.Auction.MarketState.join/2`),
+    # whatever the reading says.
     update :refresh_lab_market do
       require_atomic? false
 
@@ -365,6 +337,16 @@ defmodule Autolaunch.Auction do
         :floor_price,
         :token_supply
       ]
+
+      change fn changeset, _context ->
+        observed = Ash.Changeset.get_attribute(changeset, :state)
+
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :state,
+          Autolaunch.Auction.MarketState.join(changeset.data.state, observed)
+        )
+      end
     end
 
     # Takes an auction off every public list and page, or puts it back; an
@@ -425,10 +407,7 @@ defmodule Autolaunch.Auction do
              :robinhood_by_address,
              :by_path,
              :path_peers,
-             :list_public,
              :home_market,
-             :recent_public,
-             :featured_public,
              :public_by_id,
              :by_chain_address
            ]) do

@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "chainId": "8453",
+  "createdAt": 1793397862361,
+  "meta": {
+    "name": "Autolaunch: stop new launches before Base Denim",
+    "description": "pauseLaunches() on StocksLaunchpadV2 0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B and on RegentsAutolaunchFactoryV2 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E, the two Base launch contracts still open, before Base's 0.2 s blocks on 5 Nov 2026 18:00 UTC (Sean 30 Oct, 1a). Existing launches, claims and withdrawals are untouched.",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+    "createdFromOwnerAddress": ""
+  },
+  "transactions": [
+    {
+      "to": "0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B",
+      "value": "0",
+      "data": "0xe79b502e",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
+      "value": "0",
+      "data": "0xe79b502e",
+      "contractMethod": null,
+      "contractInputsValues": null
+    }
+  ]
+}

@@ -12,7 +12,7 @@ defmodule Autolaunch.Robinhood.Pool do
   staker lane and the splitter's totals. Nothing here writes, signs or caches.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, Lifecycle, Rpc}
 
   alias Autolaunch.{LabAbi, Pool, PoolRange, PriceHistory}
   alias Autolaunch.Robinhood.Lab
@@ -22,7 +22,6 @@ defmodule Autolaunch.Robinhood.Pool do
 
   @token_decimals 18
   @usdg_decimals 6
-  @graduated 2
   # Every Robinhood memestock pool is created with this tick spacing and the
   # fee schedule's pool fee; the fee hook refuses any other.
   @tick_spacing 60
@@ -296,7 +295,7 @@ defmodule Autolaunch.Robinhood.Pool do
     with {:ok, new_token} <- Abi.word_address(record.new_token),
          {:ok, stock} <- Abi.word_address(record.currency),
          {:ok, auction} <- Abi.word_address(record.auction),
-         @graduated <- record.lifecycle,
+         true <- Lifecycle.graduated?(record.lifecycle),
          {:ok, splitter} <- Abi.word_address(record.splitter) do
       {:ok,
        %{

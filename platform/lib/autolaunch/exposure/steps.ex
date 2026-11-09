@@ -4,8 +4,12 @@ defmodule Autolaunch.Exposure.Steps do
   at the latest block, for a signer the caller has already proved is one of the
   acting account's own wallets (`Autolaunch.Exposure.Series`).
 
-  Four actions, each one review of the steps the wallet sends in turn:
+  Six actions, each one review of the steps the wallet sends in turn:
 
+    * `:buy` — an exact USDC approval to the Aerodrome router, then a swap of
+      `amount` USDC for one leg (`leg`) through its pool
+    * `:sell` — an exact approval of that leg to the router, then a swap of
+      `amount` of it for USDC
     * `:mint` — an exact stock approval, then `mint(amount)`
     * `:redeem` — `redeem(overnight, session)`: equal amounts (whole pairs)
       before the series ends, any mix after it
@@ -28,7 +32,13 @@ defmodule Autolaunch.Exposure.Steps do
   alias Autolaunch.Exposure.{Chain, Deployment, Ledger}
   alias RegentChain.{Call, Review}
 
-  @kinds [:mint, :redeem, :update, :end]
+  @kinds [:buy, :sell, :mint, :redeem, :update, :end]
+  @usdc_decimals 6
+  # A swap reverts rather than paying out less than its quote minus this, in basis points.
+  @slippage_bps 200
+  # How long after its review a swap may still land.
+  @swap_window 20 * 60
+  @swap "swapExactTokensForTokens(uint256,uint256,(address,address,bool,address)[],address,uint256)"
   # A recorded price may be at most this old at its moment (ChainlinkPrintOracleV2.MAX_STALENESS).
   @max_staleness 84 * 3_600
 
@@ -50,12 +60,18 @@ defmodule Autolaunch.Exposure.Steps do
          {:ok, address} <- Deployment.series(address),
          {:ok, block, opts} <- Chain.latest(config.lab),
          {:ok, series} <- Chain.series(address, config, block, opts),
-         {:ok, built} <- build(kind, request, series, signer, block, opts) do
+         {:ok, built} <- build(kind, request, series, config, signer, block, opts) do
       {:ok, Map.merge(built, %{kind: kind, chain: Client.chain(config.lab)})}
     end
   end
 
   def prepare(_request, _signer), do: {:error, :unknown_action}
+
+  defp build(kind, request, series, config, signer, block, opts) when kind in [:buy, :sell],
+    do: trade(kind, request, series, config, signer, block, opts)
+
+  defp build(kind, request, series, _config, signer, block, opts),
+    do: build(kind, request, series, signer, block, opts)
 
   defp build(:mint, request, series, signer, block, opts) do
     with {:ok, amount} <- positive(request[:amount]),
@@ -154,6 +170,84 @@ defmodule Autolaunch.Exposure.Steps do
        }}
     end
   end
+
+  # A buy pays `amount` USDC into the leg's pool; a sell pays `amount` of the leg.
+  # The quote is the pool's own; the swap takes nothing less than it minus the
+  # slippage allowance, and only until its deadline.
+  defp trade(kind, request, series, config, signer, block, opts) do
+    with {:ok, leg} <- leg(request[:leg]),
+         {:ok, amount} <- positive(request[:amount]),
+         {:ok, wallet} <- Chain.trade_position(series, config, leg, signer, block, opts),
+         side = side(kind, Map.fetch!(series, leg).address, config, wallet),
+         {:ok, out} <- quote(wallet.pool, amount, side.token_in, block, opts) do
+      min_out = out && div(out * (10_000 - @slippage_bps), 10_000)
+      route = {side.token_in, side.token_out, false, config.pool_factory}
+      deadline = block.timestamp + @swap_window
+
+      {:ok,
+       %{
+         steps: [
+           Review.step(
+             side.approval,
+             side.token_in,
+             Abi.encode_erc20("approve", [config.router, amount])
+           ),
+           Review.step(
+             Atom.to_string(kind),
+             config.router,
+             Call.encode(@swap, [amount, min_out || 0, [route], signer, deadline])
+           )
+         ],
+         blocked: trade_blocked(kind, out, side, amount),
+         approved: side.allowance >= amount,
+         facts: %{
+           leg: leg,
+           amount: amount,
+           expected: out,
+           minimum: min_out,
+           usdc_decimals: @usdc_decimals,
+           slippage_bps: @slippage_bps
+         }
+       }}
+    end
+  end
+
+  # What a trade pays in and takes out, and what the wallet has of what it pays.
+  defp side(:buy, token, config, wallet),
+    do: %{
+      token_in: config.usdc,
+      token_out: token,
+      held: wallet.usdc,
+      allowance: wallet.usdc_allowance,
+      approval: "usdc_approval"
+    }
+
+  defp side(:sell, token, config, wallet),
+    do: %{
+      token_in: token,
+      token_out: config.usdc,
+      held: wallet.leg,
+      allowance: wallet.leg_allowance,
+      approval: "token_approval"
+    }
+
+  defp trade_blocked(_kind, nil, _side, _amount), do: :no_liquidity
+  defp trade_blocked(_kind, 0, _side, _amount), do: :too_small
+  defp trade_blocked(:buy, _out, %{held: held}, amount) when held < amount, do: :not_enough_usdc
+  defp trade_blocked(:sell, _out, %{held: held}, amount) when held < amount, do: :more_than_held
+
+  defp trade_blocked(_kind, _out, %{allowance: allowance}, amount) when allowance < amount,
+    do: :approve_first
+
+  defp trade_blocked(_kind, _out, _side, _amount), do: nil
+
+  defp quote(nil, _amount, _token_in, _block, _opts), do: {:ok, nil}
+
+  defp quote(pool, amount, token_in, block, opts),
+    do: Chain.amount_out(pool, amount, token_in, block, opts)
+
+  defp leg(leg) when leg in [:overnight, :session], do: {:ok, leg}
+  defp leg(_leg), do: {:error, :leg_required}
 
   # Before the end only whole pairs have a price; unequal amounts owe nothing yet.
   defp owed(%{status: :ended} = series, overnight, session),

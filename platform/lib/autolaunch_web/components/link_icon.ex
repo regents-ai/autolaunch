@@ -37,33 +37,13 @@ defmodule AutolaunchWeb.Components.LinkIcon do
 
   def link_icon(%{kind: :web} = assigns) do
     ~H"""
-    <svg
-      class="link-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2c2.8 3 4 6.4 4 10s-1.2 7-4 10c-2.8-3-4-6.4-4-10s1.2-7 4-10z" />
-    </svg>
+    <Regent.Icons.icon name="globe" class="link-icon" />
     """
   end
 
   def link_icon(%{kind: :wallet} = assigns) do
     ~H"""
-    <svg
-      class="link-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <rect x="2" y="5" width="20" height="15" rx="2" />
-      <path d="M16 12.5h2M2 9h20" />
-    </svg>
+    <Regent.Icons.icon name="wallet" class="link-icon" />
     """
   end
 end

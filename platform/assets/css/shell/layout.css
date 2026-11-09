@@ -51,7 +51,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .regent-token-menu__panel { position: absolute; inset-block-start: 100%; inset-inline-start: 0; transform-origin: top left; width: 12rem; padding-block-start: .75rem; }
 .regent-token-menu__content { display: grid; padding: .5rem; background: var(--color-surface); color: var(--color-fg); border: 1px solid var(--hairline); box-shadow: var(--rg-layer-tip-shadow); }
 .regent-token-menu__content p { margin: 0; padding: .5rem .625rem; font-family: var(--font-family-title); }
-.regent-token-menu__content .regent-token-menu__note { font-family: var(--font-family-sans); font-size: .75rem; color: var(--color-fg-muted); }
+.regent-token-menu__content .regent-token-menu__note { font-family: var(--font-family-ui); font-size: .75rem; color: var(--color-fg-muted); }
 
 /* The $REGENT heading doubles as the copy-the-contract-address control. */
 .regent-token-menu__copy { display: flex; align-items: center; justify-content: flex-start; gap: .4rem; width: 100%; margin: 0; padding: .5rem .625rem; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-family-title); text-align: start; cursor: pointer; }

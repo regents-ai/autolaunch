@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.ExposureController do
     with {:ok, _bytes} <- Base.decode16(hex, case: :lower),
          {:ok, text} <-
            File.read(Application.app_dir(:autolaunch, "priv/exposure_terms/0x#{hex}.md")) do
-      conn |> put_resp_content_type("text/markdown") |> send_resp(200, text)
+      conn |> put_resp_content_type("text/plain") |> send_resp(200, text)
     else
       _unknown -> Answer.refuse(conn, :unknown_terms)
     end

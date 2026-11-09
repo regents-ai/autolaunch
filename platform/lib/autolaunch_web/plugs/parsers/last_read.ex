@@ -11,9 +11,8 @@ defmodule AutolaunchWeb.Plugs.Parsers.LastRead do
 
   @impl Plug.Parsers
   def init(opts) do
-    {name, opts} = Keyword.pop!(opts, :parser)
+    {module, opts} = Keyword.pop!(opts, :parser)
     {reader, opts} = Keyword.pop(opts, :body_reader, {Plug.Conn, :read_body, []})
-    module = Module.concat(Plug.Parsers, name |> Atom.to_string() |> String.upcase())
     {module, module.init([body_reader: {__MODULE__, :read_body, [reader]}] ++ opts)}
   end
 

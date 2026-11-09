@@ -13,7 +13,7 @@ config :ash_oban, pro?: false
 # minute-by-minute checks, the stocks' half-hourly volume reads and the
 # five-minute read of the stocks each launchpad admits, one job at a time on
 # each of those queues; the chain readings, one job for each listed auction's
-# bids, each listed token's trades and each chain's ledger, four at a time
+# bids and each listed token's trades, four at a time
 # (Autolaunch.ChainWatch makes sure each has its job every minute); the
 # default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
@@ -191,7 +191,6 @@ config :autolaunch, :chain_nodes, %{
 
 # Robinhood Chain mainnet, read for the stock prices the create page shows.
 config :autolaunch, :robinhood_read_rpc_url, "https://rpc.mainnet.chain.robinhood.com"
-config :autolaunch, :autolaunch_indexer_chains, []
 
 # Who reads a chain again when a person's action may have changed it
 # (`Autolaunch.ChainRefresh`).
@@ -202,8 +201,7 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.Robinhood.Discovery,
     Autolaunch.AuctionActivity,
     Autolaunch.TokenTrades,
-    Autolaunch.Indexer.ReadChain,
-    Autolaunch.LaunchDiscovery.DiscoverMemestock,
+    Autolaunch.LaunchDiscovery.Discover,
     Autolaunch.RegentFacts,
     Autolaunch.CoveredCalls.Book
   ]
@@ -324,7 +322,7 @@ config :autolaunch, Autolaunch.OAuth,
 config :regent_mcp_agents, :config,
   audience: "autolaunch",
   refusal:
-    "Call get_identity to see where this connection stands. Not paired: ask your person for a new code from Pair New Agent on their Account page. Asked to connect: your person connects this app to Autolaunch again."
+    "Call get_identity to see where this connection stands. Not paired: ask your person for a new code from Pair New Agent on their Agents page. Asked to connect: your person connects this app to Autolaunch again."
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

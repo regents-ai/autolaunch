@@ -45,15 +45,15 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
     end
   end
 
-  @doc "Words drawn in one of the card's fonts (`:bold`, `:regular`, `:pixel`) and a colour."
-  def text!(words, weight, size, color) do
-    {:ok, layer} = Draw.layer(words, weight, size, color)
+  @doc "Words drawn in the card's face, at a size and in a colour."
+  def text!(words, size, color) do
+    {:ok, layer} = Draw.layer(words, size, color)
     layer
   end
 
-  @doc "Words drawn as `text!/4` draws them, cut short to `max` pixels wide."
-  def fit!(words, weight, size, color, max) do
-    {:ok, layer} = Draw.fit(words, weight, size, color, max)
+  @doc "Words drawn as `text!/3` draws them, cut short to `max` pixels wide."
+  def fit!(words, size, color, max) do
+    {:ok, layer} = Draw.fit(words, size, color, max)
     layer
   end
 
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
   def figure(value, color, max, sizes \\ [50, 44, 38, 32, 28])
 
   def figure(value, color, max, [size | smaller]) do
-    layer = text!(value, :bold, size, color)
+    layer = text!(value, size, color)
 
     cond do
       Image.width(layer) <= max -> layer

@@ -88,7 +88,7 @@ schema. Invalid or unavailable proof refuses access; browser sign-in is no fallb
 
 Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
 the pairing and the Autolaunch account the agent acts for, and records the check-in
-time, which the owner sees on their account page. An agent paired with nobody gets 403
+time, which the owner sees on their Agents page. An agent paired with nobody gets 403
 `agent_not_paired`.
 
 Server: verify exact SIWA request → check in the current pairing → return the shared

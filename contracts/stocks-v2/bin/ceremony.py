@@ -682,14 +682,12 @@ class Revstake(Package):
             "governance_safe": self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE"),
             "permit2": self.frozen.binding("PERMIT2", self.PERMIT2_IDENTITY),
         }
-        factory_block = next(t["block_number"] for t in manifest["transactions"] if t["contract"] == self.constructor_creator)
         return {
             "chain_id": self.chain.chain_id,
             "rpc_url": args.rpc_url,
             "public_rpc_url": args.public_rpc_url,
             "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
             "abis": abis,
-            "start_blocks": {"factory": factory_block},
         }
 
 

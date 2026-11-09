@@ -14,14 +14,14 @@
 .auction-headline__stat:first-child { padding-inline-start: 0; border-left: 0; }
 .auction-headline dt { color: var(--color-fg-muted); font-size: .875rem; }
 .auction-headline dd { display: grid; gap: 2px; margin: 4px 0 0; font-size: .875rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.auction-headline dd strong { font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+.auction-headline dd strong { font-size: 1.5rem; line-height: 1.2; }
 .auction-headline dd .usd-value { color: var(--color-success); font-size: .8125rem; }
 @media (max-width: 40rem) {
   .auction-headline dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .auction-headline__stat { padding-inline-start: 0; border-left: 0; }
   .auction-headline dd strong { font-size: 1.25rem; }
 }
-.auction-details-open { justify-self: end; padding: 4px 0; border: 0; background: none; color: var(--color-fg); font: inherit; font-weight: 600; cursor: pointer; }
+.auction-details-open { justify-self: end; padding: 4px 0; border: 0; background: none; color: var(--color-fg); font: inherit; cursor: pointer; }
 .auction-details-open:hover { text-decoration: underline; }
 .auction-details-open:focus-visible, .auction-tabs__tab:focus-visible, .auction-details-window__close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .auction-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: auto 1fr; align-items: start; gap: 32px; }
@@ -41,7 +41,7 @@
 .auction-tabs { display: grid; gap: 16px; min-width: 0; }
 .auction-tabs__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 .auction-tabs__list { display: flex; flex-wrap: wrap; gap: 4px; }
-.auction-tabs__tab { padding: 4px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--color-fg-muted); font: inherit; font-weight: 600; cursor: pointer; }
+.auction-tabs__tab { padding: 4px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; }
 .auction-tabs__tab[aria-selected="true"] { border-color: var(--hairline-strong); color: var(--color-fg); }
 .auction-tabs--large > .auction-tabs__bar .auction-tabs__tab { padding-inline: 0; margin-inline-end: 16px; border: 0; font-size: 1.5rem; }
 .auction-tabs__panels { display: grid; min-width: 0; }
@@ -78,7 +78,7 @@
 /* The top of an auction page when one of the bidder's bids is outbid. */
 .auction-outbid-banner { display: grid; gap: 6px; margin-block-end: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-warning) 50%, var(--hairline)); border-radius: var(--radius); background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface)); overflow-wrap: anywhere; }
 .auction-outbid-banner p { margin: 0; }
-.auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; font-weight: 600; }
+.auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 
 .auction-history { display: grid; gap: var(--space-3); min-width: 0; }
 .auction-history__note { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--color-fg-muted); }
@@ -92,7 +92,7 @@
 /* Its own box for the hidden exact figures, so they scroll with the table instead of widening the page. */
 .auction-history__table { position: relative; max-height: 24rem; overflow: auto; border: 1px solid var(--hairline); }
 .auction-history__table table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-.auction-history__table th { position: sticky; top: 0; padding: 8px; text-align: left; font-weight: 500; color: var(--color-fg-muted); background: var(--color-surface); border-bottom: 1px solid var(--hairline); }
+.auction-history__table th { position: sticky; top: 0; padding: 8px; text-align: left; color: var(--color-fg-muted); background: var(--color-surface); border-bottom: 1px solid var(--hairline); }
 .auction-history__table td { padding: 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
 .auction-history__bids { display: grid; gap: 6px; min-width: 0; }
 
@@ -100,8 +100,8 @@
    bid can expect, with big figures and quiet labels. */
 .bid-panel { gap: 12px; }
 .bid-title { display: flex; align-items: center; gap: 8px; position: relative; }
-.bid-title h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
-.bid-help summary { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin: -12px; border: 0; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; line-height: 1; list-style: none; cursor: pointer; }
+.bid-title h2 { margin: 0; font-size: 1.125rem; }
+.bid-help summary { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin: -12px; border: 0; color: var(--color-fg-muted); font-size: .75rem; line-height: 1; list-style: none; cursor: pointer; }
 /* The 20px ring inside a full 44px press, taking no more room than the ring. */
 .bid-help summary::before { content: ""; position: absolute; inset: 50% auto auto 50%; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; transform: translate(-50%, -50%); }
 .bid-help summary::-webkit-details-marker { display: none; }
@@ -113,7 +113,7 @@
 /* The Finish button on an ended auction. Its status line keeps two lines of
    room, so a note appearing never moves what is below it. */
 .finish-auction { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
-.finish-auction h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.finish-auction h3 { margin: 0; font-size: 1rem; }
 .finish-auction__about { margin: 0; color: var(--color-fg-muted); }
 .finish-auction__line { margin: 0; line-height: 1.45; min-height: calc(2 * 1.45em); }
 
@@ -123,7 +123,7 @@
 .bid-box__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .bid-box__main { display: grid; gap: 4px; flex: 1 1 0; min-width: 0; }
 .bid-box__label { margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
-.bid-box__figure { margin: 0; font-size: 1.75rem; font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bid-box__figure { margin: 0; font-size: 1.75rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 input.bid-box__figure { width: 100%; min-width: 0; min-height: 2.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg); font-family: inherit; }
 input.bid-box__figure:focus-visible { outline: none; }
 input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; }
@@ -144,11 +144,11 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-box--receive .bid-box__figure { font-size: 1.25rem; }
 
 /* The currency paid in: a chip, with the switch between two above it. */
-.bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-weight: 600; font-size: .9375rem; white-space: nowrap; }
+.bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-size: .9375rem; white-space: nowrap; }
 .bid-switch { display: flex; margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: var(--radius); }
 .bid-switch label { position: relative; margin: 0; cursor: pointer; }
 .bid-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-.bid-switch span { display: block; padding: 2px 10px; border-radius: var(--radius); color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; letter-spacing: normal; text-transform: none; transition: background-color 150ms ease, color 150ms ease; }
+.bid-switch span { display: block; padding: 2px 10px; border-radius: var(--radius); color: var(--color-fg-muted); font-size: .75rem; letter-spacing: normal; text-transform: none; transition: background-color 150ms ease, color 150ms ease; }
 .bid-switch input:checked + span { background: var(--color-fg); color: var(--color-bg); }
 .bid-switch input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 1px; }
 
@@ -164,7 +164,7 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-slider input[type="range"]::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 3px solid var(--color-surface); border-radius: 50%; background: var(--brand-accent); }
 .bid-slider input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.1); }
 .bid-slider input[type="range"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: var(--radius); }
-.bid-slider__tip { position: absolute; bottom: calc(100% + 6px); left: calc(var(--thumb) / 2 + var(--at) * (100% - var(--thumb))); padding: 3px 8px; border-radius: var(--radius); background: var(--color-fg); color: var(--color-bg); font-size: .75rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(clamp(-100%, calc(var(--at) * -100%), 0%)); pointer-events: none; }
+.bid-slider__tip { position: absolute; bottom: calc(100% + 6px); left: calc(var(--thumb) / 2 + var(--at) * (100% - var(--thumb))); padding: 3px 8px; border-radius: var(--radius); background: var(--color-fg); color: var(--color-bg); font-size: .75rem; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(clamp(-100%, calc(var(--at) * -100%), 0%)); pointer-events: none; }
 .bid-slider__tip:empty { display: none; }
 .bid-form__note { display: block; margin: 0; font-size: .8125rem; color: var(--color-fg-muted); overflow-wrap: anywhere; }
 /* The prepared bid in three lines, right above the button that opens the wallet. */
@@ -174,8 +174,8 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 
 /* After the wallet: the bid on its way, or placed with its share. */
 .bid-progress, .bid-placed { display: grid; gap: var(--space-2); min-width: 0; }
-.bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 500; }
+.bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); }
 .bid-placed p { margin: 0; }
-.bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 600; overflow-wrap: anywhere; }
+.bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
 .bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .bid-placed__actions > * { flex: 1 1 8rem; }

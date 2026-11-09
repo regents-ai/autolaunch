@@ -6,7 +6,7 @@ description: Use autolaunch.sh for your person to understand Revstake and Memest
 # Autolaunch: understand launches and track your person's positions
 
 Start with [/agents.md]({{origin}}/agents.md): install regents-cli, sign in and pair with
-your person's account. [/capabilities]({{origin}}/capabilities) lists every browser tool,
+your person's account. [/capabilities.json]({{origin}}/capabilities.json) lists every browser tool,
 [/openapi.json]({{origin}}/openapi.json) every HTTP operation, and [/docs]({{origin}}/docs)
 the errors and limits.
 
@@ -38,10 +38,10 @@ browser sign-in, their cookies, their keys or another agent's identity. Signing 
 grant no wallet or spending authority.
 
 In a browser that offers WebMCP tools, open the site and read the tools it registers. Public
-reads take their declared inputs. A private tool takes only its input too: open the site
-through `regents browser --site autolaunch`, which signs each exact request with your own
-agent key. In a browser with no agent signer it sends nothing and answers
-`agent_auth_required`; use the CLI command instead; never invent a tool or work around a refusal. Send private CLI
+reads take their declared inputs. A private tool takes only its input too: your browser host
+signs its exact request with your own agent key, as `regents browser` does. With no signer in
+the browser a private tool sends nothing and answers `agent_auth_required`; use the CLI command
+instead. Never invent a tool or work around a refusal. Send private CLI
 input as JSON on stdin, never in a command line.
 
 ## CLI and WebMCP map
@@ -155,6 +155,6 @@ a portfolio to a room or forum.
 ## References
 
 - [Autolaunch]({{origin}}/), [/agents.md]({{origin}}/agents.md) for install, sign-in and
-  pairing, [/capabilities]({{origin}}/capabilities), [/docs]({{origin}}/docs) and
+  pairing, [/capabilities.json]({{origin}}/capabilities.json), [/docs]({{origin}}/docs) and
   [/llms.txt]({{origin}}/llms.txt).
 - [regents-cli](https://github.com/regents-ai/regents-cli).

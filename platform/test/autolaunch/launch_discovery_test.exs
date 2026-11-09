@@ -6,16 +6,18 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   alias Autolaunch.{
     Accounts,
     Auction,
+    BaseRpcStub,
     Lab,
+    LabAbi,
     LaunchDiscovery,
     LaunchFixture,
     LaunchOperation,
-    LaunchProjection,
     LaunchReviews
   }
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, LaunchAbi}
+  alias Autolaunch.Stocks.Lab, as: StocksLab
 
   @actor %System{}
   @hash "0x" <> String.duplicate("4c", 32)
@@ -24,6 +26,10 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   @escrow "0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
   @stranger "0x9999999999999999999999999999999999999999"
   @other_wallet "0x2222222222222222222222222222222222222222"
+  @launch_id 1
+  # Bidding opens START_DELAY_BLOCKS after the block the launch was made in.
+  @start_delay 300
+  @start_block 30_001_800
 
   setup do
     LaunchFixture.install(
@@ -31,7 +37,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         launch: %{
           outcome: :confirmed,
           result: %{
-            "launch_id" => "7",
+            "launch_id" => "1",
             "subject" => @subject,
             "auction" => @auction,
             "escrow" => @escrow,
@@ -42,6 +48,20 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         }
       }
     )
+
+    BaseRpcStub.install(:autolaunch_lab_http_client, &answer(&1, &2))
+
+    BaseRpcStub.put(%{
+      blocks: %{
+        "latest" => %{
+          "number" => "0x1c9caf0",
+          "hash" => BaseRpcStub.safe_hash(),
+          "timestamp" => "0x6700"
+        }
+      },
+      memestock: StocksLab.address!(StocksLab.current!(), :launchpad),
+      logs: [%{"transactionHash" => @hash}]
+    })
 
     # The site starts its jobs only once launches open; the test runs them by hand.
     start_supervised!(
@@ -62,6 +82,16 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     # The wallet sent the review's step, and the page was closed.
     record_launch(LaunchFixture.wallet())
     run_triggers()
+
+    # The transaction is the one whose `LaunchCreated` names this launch, in
+    # the block the launch was made in.
+    created = quantity(@start_block - @start_delay)
+
+    assert_received {:rpc, "eth_getLogs",
+                     [%{fromBlock: ^created, toBlock: ^created, topics: [topic, launch]}]}
+
+    assert topic == LaunchAbi.selector(:launch_created)
+    assert launch == word(@launch_id)
 
     assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
     assert creator == account.id
@@ -84,8 +114,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
       |> Ash.Changeset.for_update(:refresh_lab_market, %{state: :graduated}, actor: @actor)
       |> Ash.update(actor: @actor)
 
-    # The ledger replays the same log, and the page that sent it sees it
-    # confirmed after all.
+    # Discovery runs again, and the page that sent it sees it confirmed after all.
     record_launch(LaunchFixture.wallet())
     run_triggers()
 
@@ -227,35 +256,45 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     |> Ash.create!(actor: @actor)
   end
 
-  # The ledger stores the factory's `LaunchCreated` for this transaction.
+  # Discovery reads the factory's launch, sent from `launcher`.
   defp record_launch(launcher) do
-    factory = Lab.address!(Lab.current!(), :factory)
+    BaseRpcStub.put(%{launcher: launcher})
 
-    {:ok, _notifications} =
-      LaunchProjection.project_logs([
-        %{
-          address: factory,
-          transaction_hash: @hash,
-          topics: [
-            LaunchAbi.selector(:launch_created),
-            word(7),
-            address_word(launcher),
-            address_word(@subject)
-          ],
-          data:
-            "0x" <>
-              Enum.map_join(
-                [
-                  address_word(@auction),
-                  address_word(@escrow),
-                  address_word(LaunchFixture.treasury()),
-                  word(30_001_800),
-                  word(30_088_201)
-                ],
-                &String.trim_leading(&1, "0x")
-              )
-        }
-      ])
+    LaunchDiscovery
+    |> Ash.ActionInput.for_action(:discover, %{}, actor: @actor)
+    |> Ash.run_action!()
+  end
+
+  # The factory's one launch and the strategy's record of its auction. The
+  # Memestock launchpad on the same chain has made none.
+  defp answer(%{to: to, data: data}, state) do
+    selector = String.slice(data, 0, 10)
+
+    words =
+      cond do
+        to == state.memestock ->
+          [BaseRpcStub.hex_word(1)]
+
+        selector == LabAbi.selector("nextLaunchId()") ->
+          [BaseRpcStub.hex_word(@launch_id + 1)]
+
+        selector == LabAbi.selector("launches(uint256)") ->
+          Enum.map(
+            [state.launcher, @subject, @auction, @escrow, LaunchFixture.treasury()],
+            &BaseRpcStub.address_word/1
+          )
+
+        selector == LabAbi.selector("distribution(address)") ->
+          List.duplicate(0, LabAbi.distribution_words())
+          |> List.replace_at(0, 1)
+          |> List.replace_at(1, @start_block)
+          |> Enum.map(&BaseRpcStub.hex_word/1)
+
+        selector == LabAbi.selector("START_DELAY_BLOCKS()") ->
+          [BaseRpcStub.hex_word(@start_delay)]
+      end
+
+    "0x" <> Enum.join(words)
   end
 
   defp run_triggers,
@@ -269,8 +308,8 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   defp reload(operation),
     do: LaunchOperation |> Ash.Query.filter(id == ^operation.id) |> Ash.read_one!(actor: @actor)
 
+  defp quantity(number), do: "0x" <> String.downcase(Integer.to_string(number, 16))
+
   defp word(number),
     do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(number, 16)), 64, "0")
-
-  defp address_word("0x" <> hex), do: "0x" <> String.pad_leading(String.downcase(hex), 64, "0")
 end

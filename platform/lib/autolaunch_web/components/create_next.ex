@@ -15,8 +15,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
 
-  @floor_tip "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply."
-
   # RegentLBPStrategyV2: START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS,
   # CLAIM_DELAY_BLOCKS and MIGRATION_DELAY_BLOCKS.
   @revstake_schedule %{opens: 300, length: 86_401, claim: 64, pool: 128}
@@ -122,7 +120,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
   defp supply_map(assigns) do
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="create-next__title">Where the supply goes</h2>
+      <h2 id={"#{@id}-title"} class="create-next__title">Supply</h2>
       <div class="create-next__flow">
         <div class="create-next__source">
           <span>Minted once</span>
@@ -160,7 +158,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="create-next__title">Where the money goes</h2>
+      <h2 id={"#{@id}-title"} class="create-next__title">Proceeds</h2>
       <div class="create-next__flow">
         <div class="create-next__source">
           <span>Everything the auction raises</span>
@@ -212,7 +210,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
         treasury receives at least 10,000 REGENT.
       </p>
 
-      <h3 class="create-next__subtitle">Every trade after launch</h3>
+      <h3 class="create-next__subtitle">Trading fees</h3>
       <ul class="create-next__fees">
         <li :for={fee <- @fees}>
           <span>{fee.label}</span>
@@ -231,35 +229,19 @@ defmodule AutolaunchWeb.Components.CreateNext do
   attr :minimum, :string, required: true
 
   defp auction_card(assigns) do
-    assigns = assign(assigns, :floor_tip, @floor_tip)
-
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="create-next__title">How the auction runs</h2>
-      <p class="create-next__lead">
-        Bidders set a total budget and a max price. Their budget is spread across the remaining
-        blocks, like a TWAP, and buys tokens in every block that clears below their max price.
-      </p>
+      <h2 id={"#{@id}-title"} class="create-next__title">Auction</h2>
       <dl class="create-next__facts">
-        <div>
-          <dt>
-            Starting price
-            <Regent.Primitives.tip id={"#{@id}-floor-tip"} label="About the starting price">
-              {@floor_tip}
-            </Regent.Primitives.tip>
-          </dt>
-          <dd>The lowest the auction accepts</dd>
-        </div>
         <div>
           <dt>Minimum raise</dt>
           <dd>{@minimum}</dd>
         </div>
+        <div>
+          <dt>Under minimum</dt>
+          <dd>Bids returned, tokens retired</dd>
+        </div>
       </dl>
-      <p class="create-next__note">
-        A successful auction sells the whole sale allocation, apart from rounding. If bids stay
-        under the minimum, every bidder takes back their whole bid and every token is retired to
-        the dead address. Reported total supply stays unchanged.
-      </p>
       <p class="create-next__note">
         <.link navigate={~p"/how-it-works#how-it-works-auction"} class="standalone-link">
           How the auction works
@@ -279,8 +261,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="create-next__title">What happens when</h2>
-      <p class="create-next__lead">Counted from the moment you launch.</p>
+      <h2 id={"#{@id}-title"} class="create-next__title">Timeline</h2>
       <ol class="create-next__timeline">
         <li :for={milestone <- @milestones} class="create-next__milestone">
           <span class="create-next__when">{milestone.at}</span>
@@ -288,11 +269,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
           <span class="create-next__part-note">{milestone.note}</span>
         </li>
       </ol>
-      <p class="create-next__note">
-        Times follow the chain's usual pace, so each can come a little early or late. If the
-        auction ends under its minimum raise, every bidder takes back their whole bid and the
-        token never trades.
-      </p>
     </section>
     """
   end
@@ -314,7 +290,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="create-next__title">Your terms at a glance</h2>
+      <h2 id={"#{@id}-title"} class="create-next__title">Terms</h2>
       <h3 class="create-next__subtitle">You choose</h3>
       <dl class="create-next__facts">
         <div :for={{label, value} <- @chosen}>
@@ -322,7 +298,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           <dd>{value}</dd>
         </div>
       </dl>
-      <h3 class="create-next__subtitle">The same for every {kind_label(@kind)} launch</h3>
+      <h3 class="create-next__subtitle">Fixed</h3>
       <dl class="create-next__facts">
         <div>
           <dt>Supply</dt>
@@ -331,10 +307,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
         <div>
           <dt>Auction · pool · {creator_label(@kind)}</dt>
           <dd>{Enum.map_join(@supply.parts, " · ", &"#{&1.share}%")}</dd>
-        </div>
-        <div>
-          <dt>Starting price</dt>
-          <dd>The lowest the auction accepts</dd>
         </div>
         <div>
           <dt>Minimum raise</dt>
@@ -466,9 +438,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
   defp default_unit(:memestock), do: "the stock"
   defp default_unit(:revstake), do: "REGENT"
-
-  defp kind_label(:memestock), do: "Memestock"
-  defp kind_label(:revstake), do: "Revstake"
 
   defp creator_label(:memestock), do: "creator"
   defp creator_label(:revstake), do: "treasury"

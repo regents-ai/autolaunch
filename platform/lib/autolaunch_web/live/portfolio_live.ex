@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   alias Phoenix.LiveView.AsyncResult
 
-  @history ~w(claimed returned)
+  @history [:claimed, :returned]
   @robinhood_history [:returned, :claimed]
   @chain_reads [:token_holdings, :robinhood_positions, :books]
 
@@ -201,7 +201,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       assign(assigns,
         positions: positions,
         history: history,
-        current: Enum.sort_by(current, &(&1.status == "active")),
+        current: Enum.sort_by(current, &(&1.status == :active)),
         robinhood_history: robinhood_history,
         robinhood_current: Enum.sort_by(robinhood_current, &(robinhood_action(&1) == nil)),
         robinhood?: robinhood?,
@@ -538,7 +538,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
       </tr>
       <tr
-        :if={@position.status == "active" && @standing in [:outbid, :sharing]}
+        :if={@position.status == :active && @standing in [:outbid, :sharing]}
         class="portfolio__actions"
       >
         <td colspan="5">
@@ -821,6 +821,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}
+      portfolio={false}
     />
     """
   end
@@ -860,28 +861,27 @@ defmodule AutolaunchWeb.PortfolioLive do
   # Where a Base bid stands: against its auction's price while bidding is
   # open and the book has been read (marked when that read is an earlier
   # one), otherwise from its stored settlement.
-  defp base_standing(%{status: "active"}, standing, %{fresh?: true}) when standing != nil,
+  defp base_standing(%{status: :active}, standing, %{fresh?: true}) when standing != nil,
     do: book_standing(standing)
 
-  defp base_standing(%{status: "active"}, standing, _price) when standing != nil do
+  defp base_standing(%{status: :active}, standing, _price) when standing != nil do
     {words, tone} = book_standing(standing)
     {words <> " · may be out of date", tone}
   end
 
-  defp base_standing(%{status: "active", auction: %{state: :active}}, nil, %{book: nil}),
+  defp base_standing(%{status: :active, auction: %{state: :active}}, nil, %{book: nil}),
     do: {"Price unavailable", "neutral"}
 
-  defp base_standing(%{status: "active", auction: %{state: :active}}, nil, _price),
+  defp base_standing(%{status: :active, auction: %{state: :active}}, nil, _price),
     do: {"In the auction", "info"}
 
-  defp base_standing(%{status: "active"}, nil, _price), do: {"Bidding ended", "neutral"}
-  defp base_standing(%{status: "claimed"}, _standing, _price), do: {"Completed", "success"}
+  defp base_standing(%{status: :active}, nil, _price), do: {"Bidding ended", "neutral"}
+  defp base_standing(%{status: :claimed}, _standing, _price), do: {"Completed", "success"}
 
-  defp base_standing(%{status: "returned", tokens_filled: filled}, _standing, _price)
-       when is_binary(filled) and filled not in ["", "0"],
-       do: {"Tokens claimable soon", "info"}
+  defp base_standing(%{status: :awaiting_claim}, _standing, _price),
+    do: {"Tokens claimable soon", "info"}
 
-  defp base_standing(%{status: "returned"}, _standing, _price), do: {"Completed", "success"}
+  defp base_standing(%{status: :returned}, _standing, _price), do: {"Completed", "success"}
 
   # Where a Robinhood bid stands, in the auction's own terms.
   defp robinhood_standing(%{standing: standing}) when standing in [:in, :sharing, :outbid],
@@ -997,7 +997,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   # are in; each book's read is kept on its own.
   defp read_books(socket, positions) do
     auctions =
-      for %{status: "active", auction: %{state: :active} = auction} <- positions,
+      for %{status: :active, auction: %{state: :active} = auction} <- positions,
           uniq: true,
           do: auction
 

@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   @series ExposureChain.series()
   # The page itself is checked in AutolaunchWeb.ExposureLiveTest.
   @routes [
-    {:get, "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"},
+    {:get, "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"},
     {:get, "/assets/js/exposure.css"},
     {:get, "/api/v1/after-hour-stocks"},
     {:get, "/api/v1/after-hour-stocks/#{ExposureChain.series()}"},
@@ -107,7 +107,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     for {state, offered?} <- [off: false, on: true] do
       if state == :on, do: ExposureChain.install(), else: off()
 
-      capabilities = build_conn() |> get("/capabilities") |> json_response(200)
+      capabilities = build_conn() |> get("/capabilities.json") |> json_response(200)
       names = Enum.map(capabilities["tools"], & &1["name"])
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
@@ -146,7 +146,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert length(series["schedule"]) == 11
     assert [%{"kind" => "close", "price" => _}, %{"kind" => "open"}] = series["prints"]
     assert series["next"]["kind"] == "close"
-    assert series["terms_url"] =~ "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"
+    assert series["terms_url"] =~ "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"
 
     unknown =
       build_conn() |> get("/api/v1/after-hour-stocks/0x1234567890123456789012345678901234567890")
@@ -157,13 +157,13 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   test "a series' terms are served as the exact bytes its fingerprint names" do
     ExposureChain.install()
 
-    terms = build_conn() |> get("/after-hour-stocks/terms/#{ExposureChain.terms_hash()}")
+    terms = build_conn() |> get("/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}")
     assert terms.status == 200
 
     assert "0x" <> Base.encode16(ExKeccak.hash_256(terms.resp_body), case: :lower) ==
              ExposureChain.terms_hash()
 
-    missing = build_conn() |> get("/after-hour-stocks/terms/0x" <> String.duplicate("ab", 32))
+    missing = build_conn() |> get("/stock/isolated-afters/terms/0x" <> String.duplicate("ab", 32))
     assert missing |> json_response(404) |> code() == "unknown_terms"
   end
 
@@ -204,6 +204,23 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
       |> get("/api/agent/v1/after-hour-stocks/#{@series}/holdings")
       |> json_response(200)
 
-    assert %{"wallet" => ^wallet, "stock" => 50_000_000} = holdings["data"]
+    assert %{"wallet" => ^wallet, "stock" => 50_000_000, "usdc" => 0} = holdings["data"]
+
+    # Buying a token: the agent names it and the USDC to spend; a token it can't name is refused.
+    buy =
+      steps.(%{"kind" => "buy", "leg" => "overnight", "amount" => 10_000_000})
+      |> json_response(200)
+
+    assert Enum.map(buy["data"]["steps"], & &1["step"]) == ["usdc_approval", "buy"]
+    assert buy["data"]["blocked"]["code"] == "not_enough_usdc"
+    assert buy["data"]["facts"]["minimum"] == 2_587_200
+
+    assert steps.(%{"kind" => "buy", "amount" => 1}) |> json_response(422) |> code() ==
+             "leg_required"
+
+    assert steps.(%{"kind" => "buy", "leg" => "afternoon", "amount" => 1})
+           |> json_response(422)
+           |> code() ==
+             "invalid_request"
   end
 end

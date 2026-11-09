@@ -5,15 +5,16 @@ defmodule AutolaunchWeb.Components.Rail do
 
   # Explore has two smaller links, to the auctions list and the tokens list. It
   # also covers their search and detail pages; Docs covers the persistent
-  # information-page navigation. Stocks has one, to covered calls, while the
-  # site offers them. Launch is the last, orange destination.
+  # information-page navigation. Stocks has one to covered calls and one to
+  # After-hours, each while the site offers it. Launch is the last, orange
+  # destination.
   @items [
     %{
       label: "Explore",
       path: "/",
       covers: ["/auctions", "/tokens", "/robinhood"]
     },
-    %{label: "Stocks", path: "/stock-listing", covers: []},
+    %{label: "Stocks", path: "/stocks", covers: []},
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{
       label: "Docs",
@@ -136,9 +137,9 @@ defmodule AutolaunchWeb.Components.Rail do
     ]
   end
 
-  defp views(%{path: "/stock-listing"}) do
+  defp views(%{path: "/stocks"}) do
     if Autolaunch.CoveredCalls.Deployment.enabled?(),
-      do: [%{label: "Covered calls", path: ~p"/covered-calls", covers: []}],
+      do: [%{label: "Covered calls", path: ~p"/stock/covered-call", covers: []}],
       else: []
   end
 

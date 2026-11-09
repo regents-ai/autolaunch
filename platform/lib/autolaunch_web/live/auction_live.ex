@@ -759,7 +759,7 @@ defmodule AutolaunchWeb.AuctionLive do
   # The first of the bidder's still-open bids that the price has passed.
   defp outbid(positions, %{ok?: true, result: book}) do
     Enum.find(positions, fn
-      %{status: "active", max_price: max_price, auction: %{quote_token_decimals: decimals}} ->
+      %{status: :active, max_price: max_price, auction: %{quote_token_decimals: decimals}} ->
         {:ok, price_q96} = Autolaunch.BidActions.price_q96(max_price, decimals)
         AuctionBook.standing(price_q96, book) == :outbid
 

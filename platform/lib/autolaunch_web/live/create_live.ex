@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.CreateLive do
     AgentDrafts,
     ImageColor,
     Lab,
+    LaunchActions,
     LaunchDraft,
     LaunchDraftImageStorage,
     Listings,
@@ -54,6 +55,7 @@ defmodule AutolaunchWeb.CreateLive do
       |> UsdValue.assign_rate(:regent_rate, :base, fn ->
         {:ok, %{regent_rate: UsdValue.rate(%{kind: :agent})}}
       end)
+      |> read_launches_paused()
 
     case actor do
       nil ->
@@ -166,7 +168,7 @@ defmodule AutolaunchWeb.CreateLive do
     <div class="create-page">
       <.launch_kind_choice current={:revstake} />
       <header class="create-page__header">
-        <h1>Create a Revstake token</h1>
+        <h1>Create Revstake</h1>
       </header>
       {render_revshare(assigns)}
     </div>
@@ -182,7 +184,10 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
   def handle_info({:launch_review, news}, socket) when news in [:closed, :launched] do
-    socket = assign(socket, reviewing?: false, launched?: news == :launched)
+    socket =
+      socket
+      |> assign(reviewing?: false, launched?: news == :launched)
+      |> waiver_after(news)
 
     case human_actor(socket) do
       nil -> {:noreply, socket}
@@ -226,6 +231,18 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_async(:treasury_check, result, socket),
     do: {:noreply, assign(socket, treasury_check: checked(socket.assigns.treasury_check, result))}
+
+  def handle_async(:launches_paused, {:ok, {:ok, paused}}, socket),
+    do: {:noreply, assign(socket, launches_paused?: paused)}
+
+  def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
+
+  # The typed "no connections" waiver belongs to the launch it was typed for: a
+  # launch made starts the next one without it.
+  defp waiver_after(socket, :launched),
+    do: assign(socket, connections_waived: false, no_connections_typed: "")
+
+  defp waiver_after(socket, :closed), do: socket
 
   defp render_revshare(assigns) do
     assigns = assign(assigns, launch_image_upload: assigns[:uploads][:launch_image])
@@ -426,6 +443,14 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
+  # Base's own answer, read once the page connects: while the factory has new
+  # launches paused, the launch button stays greyed with the reason beside it.
+  defp read_launches_paused(socket) do
+    if connected?(socket),
+      do: start_async(socket, :launches_paused, &LaunchActions.launches_paused/0),
+      else: socket
+  end
+
   defp assign_defaults(socket, actor) do
     assign(socket,
       launch_drafts: [],
@@ -443,6 +468,7 @@ defmodule AutolaunchWeb.CreateLive do
       listings: 0,
       ticker_taken?: false,
       treasury_check: nil,
+      launches_paused?: false,
       current_human_id: actor && actor.human_account_id,
       status: :loading
     )

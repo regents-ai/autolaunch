@@ -12,6 +12,8 @@ defmodule Autolaunch.Accounts.EnsIdentity.LookUp do
 
   use Ash.Resource.Change
 
+  import Ash.Expr, only: [expr: 1]
+
   alias AgentEns.PrimaryName
   alias Ash.Error.Unknown.UnknownError
   alias AshOban.Errors.CancelJob
@@ -25,8 +27,11 @@ defmodule Autolaunch.Accounts.EnsIdentity.LookUp do
       case look_up(wallet) do
         {:ok, identity} ->
           changeset
-          # The wallet this answer is for, should a sign-in have changed it since.
-          |> Ash.Changeset.force_change_attribute(:wallet_address, wallet)
+          # Written only while the row still names the wallet this answer is
+          # for. A sign-in that changed it meanwhile makes the write stale and
+          # this job stops; that sign-in queued the lookup of the new wallet.
+          |> Ash.Changeset.filter(expr(wallet_address == ^wallet))
+          |> Ash.Changeset.force_change_attribute(:named_wallet, wallet)
           |> Ash.Changeset.force_change_attribute(:ens_name, identity[:name])
           |> Ash.Changeset.force_change_attribute(:ens_avatar_url, identity[:avatar_url])
           |> Ash.Changeset.force_change_attribute(:lookup_state, :done)

@@ -41,6 +41,15 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
+  @doc "Whether the launchpad has new launches paused, read at the latest block."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused do
+    with {:ok, config} <- Lab.current(),
+         opts <- Lab.rpc_opts(config),
+         {:ok, block} <- Rpc.latest_block(opts),
+         do: launchpad_bool(config, "launchesPaused()", [], block, opts)
+  end
+
   @spec verify(map(), String.t()) :: {:ok, map()} | {:error, atom()}
   def verify(%{"signer" => signer, "step" => step, "facts" => facts}, hash) do
     with {:ok, config} <- Lab.current(),

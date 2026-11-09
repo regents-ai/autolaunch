@@ -1,15 +1,19 @@
 defmodule AutolaunchWeb.PairingBox do
   @moduledoc """
-  Pairing an agent (`RegentAgents`): choosing it, the message to paste it with
-  its code, "Make a new code", and the agent's name once it uses the code, in the
-  shared pairing box (`Regent.Account.pairing`), as the template's is. Each agent
+  Pairing an agent (`RegentAgents`), in the pairing window every Pair New Agent
+  opens and on the pairing link's page, in the shared pairing box
+  (`Regent.Account.pairing`), as the template's is: a dropdown of the ten agents in
+  `RegentAgents.Harness.featured/0`, and Claude while its connector is on
+  (`RegentAgents.Harness.hosted/0`, read at runtime), then the message to paste with
+  its code in a short box with icons to copy it and make a new code. Each agent
   keeps its own code until it expires, so choosing another agent and coming back
-  shows the same message. The Account page holds the one box (`#account-pairing`),
-  where the account menu's Pair New Agent leads.
+  shows the same message. Once the agent uses the code, the box names it.
 
   The parent passes `account` (the signed-in account), its `session_lease` and
   `id`; `AutolaunchWeb.Live.Agents` sends `agents_changed: true` when an agent
-  pairs, checks in or is unpaired anywhere.
+  pairs, checks in or is unpaired anywhere. A pairing link (`/pair?to=<path>`) also
+  passes `start`, the page on this site the agent begins on once paired; the
+  message then ends by sending it there.
   """
   use AutolaunchWeb, :live_component
 
@@ -17,9 +21,6 @@ defmodule AutolaunchWeb.PairingBox do
   alias RegentAgents.{Harness, PairingCode, PairingMessage, Person}
 
   require Logger
-
-  # Stands in for a code before one is made, so the message keeps its size.
-  @no_code String.duplicate("X", 24)
 
   @impl true
   def mount(socket),
@@ -32,8 +33,12 @@ defmodule AutolaunchWeb.PairingBox do
   @impl true
   def update(%{agents_changed: true}, socket), do: {:ok, after_pairing(socket)}
 
-  def update(%{account: account, id: id, session_lease: lease}, socket),
-    do: {:ok, socket |> assign(id: id, session_lease: lease) |> take_account(account)}
+  def update(%{account: account, id: id, session_lease: lease} = assigns, socket),
+    do:
+      {:ok,
+       socket
+       |> assign(id: id, session_lease: lease, start: assigns[:start])
+       |> take_account(account)}
 
   # The account as the page gave it, or as it reads now before each event
   # (`Session.check_component_lease/2`).
@@ -62,50 +67,48 @@ defmodule AutolaunchWeb.PairingBox do
     <div>
       <Regent.Account.pairing
         id={@id}
-        harnesses={harnesses()}
+        harnesses={choices()}
         phx-change="choose_agent"
         phx-submit="new_pairing_code"
         phx-target={@myself}
-        {pairing(@chosen, @codes[@chosen])}
+        {pairing(@chosen, @codes[@chosen], @start)}
       />
     </div>
     """
   end
 
-  # The agents the pair request accepts on this site (`RegentAgents.Harness.offered/0`).
-  defp harnesses,
+  @doc """
+  The agents to choose from, as the shared pairing box takes them: the ten
+  featured agents, then Claude while its connector is on.
+  """
+  def choices,
     do:
       for(
-        harness <- Harness.offered(),
-        do: %{value: to_string(harness), label: Harness.label(harness)}
+        harness <- Harness.featured() ++ Harness.hosted(),
+        do: %{value: to_string(harness), label: label(harness)}
       )
 
-  # The pairing box's state. Every agent's message is drawn, the chosen one shown,
-  # so the box keeps one size; before a code is made a stand-in holds its place.
-  defp pairing(nil, nil), do: %{messages: messages(@no_code)}
+  defp label(:other), do: "Any agent"
+  defp label(:codex), do: "OpenAI Codex"
+  defp label(harness), do: Harness.label(harness)
 
-  defp pairing(harness, %PairingCode.Issued{} = code) do
-    %{
+  # The pairing box's state; the box keeps one size whatever it holds.
+  defp pairing(nil, nil, _start), do: %{}
+
+  defp pairing(harness, %PairingCode.Issued{} = code, start),
+    do: %{
       chosen: to_string(harness),
-      messages: messages(code.code),
-      message: agent_message(code.code, harness),
+      message:
+        PairingMessage.text(code.code, AutolaunchWeb.Endpoint.url(), harness, start: start),
       expires_iso: DateTime.to_iso8601(code.expires_at),
       expires: Calendar.strftime(code.expires_at, "%H:%M UTC")
     }
-  end
 
-  defp pairing(harness, {:paired, agent}),
-    do: %{
-      chosen: to_string(harness),
-      messages: messages(@no_code),
-      outcome: {:paired, agent.name}
-    }
+  defp pairing(harness, {:paired, agent}, _start),
+    do: %{chosen: to_string(harness), outcome: {:paired, agent.name}}
 
-  defp pairing(harness, :unavailable),
-    do: %{chosen: to_string(harness), messages: messages(@no_code), outcome: :unavailable}
-
-  defp messages(code),
-    do: Harness.offered() |> Enum.map(&agent_message(code, &1)) |> Enum.uniq()
+  defp pairing(harness, :unavailable, _start),
+    do: %{chosen: to_string(harness), outcome: :unavailable}
 
   defp with_offered(socket, harness, then) do
     with {:ok, harness} <- Harness.match(harness),
@@ -129,13 +132,19 @@ defmodule AutolaunchWeb.PairingBox do
   defp usable?({:paired, _agent}), do: true
   defp usable?(_missing_or_unavailable), do: false
 
-  # The code on screen gives way to the agent that used it, so a spent code is
-  # never left there to send again.
-  defp after_pairing(%{assigns: %{chosen: chosen, codes: codes}} = socket) do
-    with %PairingCode.Issued{issued_at: issued_at} <- codes[chosen],
-         {:ok, agents} <- RegentAgents.list_my_agents(actor: socket.assigns.person),
-         %{} = agent <- Enum.find(agents, &(DateTime.compare(&1.paired_at, issued_at) != :lt)) do
-      assign(socket, codes: Map.put(codes, chosen, {:paired, agent}))
+  # Each code on screen gives way to the agent that used it, so a spent code is
+  # never left there to send again, and an agent shows under its own code only.
+  defp after_pairing(%{assigns: %{codes: codes, person: person}} = socket) do
+    held = for {harness, %PairingCode.Issued{code: code}} <- codes, into: %{}, do: {code, harness}
+
+    with true <- held != %{},
+         {:ok, paired} <- RegentAgents.agents_paired_with(Map.keys(held), actor: person) do
+      assign(socket,
+        codes:
+          Enum.reduce(paired, codes, fn {code, agent}, codes ->
+            Map.put(codes, held[code], {:paired, agent})
+          end)
+      )
     else
       _unchanged -> socket
     end
@@ -163,8 +172,4 @@ defmodule AutolaunchWeb.PairingBox do
   defp failure_kinds(%{errors: [_ | _] = errors}), do: Enum.map(errors, & &1.__struct__)
   defp failure_kinds(error) when is_atom(error), do: [error]
   defp failure_kinds(error), do: [error.__struct__]
-
-  # What the person pastes to their agent.
-  defp agent_message(code, harness),
-    do: PairingMessage.text(code, AutolaunchWeb.Endpoint.url(), harness)
 end

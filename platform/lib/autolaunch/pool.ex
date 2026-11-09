@@ -18,7 +18,7 @@ defmodule Autolaunch.Pool do
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, Lifecycle, Rpc}
 
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PoolRange, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
@@ -713,7 +713,7 @@ defmodule Autolaunch.Pool do
   # A launch that has not graduated has no splitter or pool yet, so its record
   # is read only once its lifecycle says the pool exists.
   defp stocks_launch(record) do
-    with 2 <- record.lifecycle,
+    with true <- Lifecycle.graduated?(record.lifecycle),
          {:ok, new_token} <- Abi.word_address(record.new_token),
          {:ok, stock} <- Abi.word_address(record.stock),
          {:ok, splitter} <- Abi.word_address(record.splitter) do
@@ -1106,20 +1106,8 @@ defmodule Autolaunch.Pool do
     )
   end
 
-  defp logs(address, from_block, block, topics, opts) do
-    Rpc.request(
-      "eth_getLogs",
-      [
-        %{
-          address: address,
-          fromBlock: hex(from_block),
-          toBlock: hex(block.number),
-          topics: topics
-        }
-      ],
-      opts
-    )
-  end
+  defp logs(address, from_block, block, topics, opts),
+    do: Rpc.logs(address, topics, from_block, block.number, opts)
 
   defp launchpad_uint(contracts, signature, arguments, block, opts) do
     Rpc.call_uint(
@@ -1159,8 +1147,6 @@ defmodule Autolaunch.Pool do
   defp bytes32(value) when is_integer(value),
     do:
       "0x" <> (value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0"))
-
-  defp hex(value) when is_integer(value), do: "0x" <> Integer.to_string(value, 16)
 
   defp quantity("0x" <> hex), do: String.to_integer(hex, 16)
 

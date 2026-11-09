@@ -1,10 +1,9 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
 // HTTP responses remain authoritative; these tools never use wallet hooks. Every
 // tool the page registers is described once, in priv/tool_manifest.json; this
-// file only adds each HTTP request. All requests omit browser credentials. A
-// signed tool takes only its input; the agent's browser host signs the exact
-// request (window.regentsSign), so no key, signature or receipt passes through
-// the page.
+// file only adds each HTTP request. All requests omit browser credentials. A signed
+// tool takes only its input; the agent's browser host signs the exact request
+// (window.regentsSign), so no key, signature or receipt passes through the page.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
 import {Refused, signedTools, type SignedOperation} from "../vendor/regent_agent_access/signed_tools.ts"
@@ -185,11 +184,10 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
         }
         return await read(entry, {properties, required, request}, input, signal)
       } catch (error) {
-        // Nothing was sent: no agent signer in this browser, or it said no. The
-        // refusal carries the words for the agent.
+        // fetch fails with a TypeError when the network fails. Before anything is
+        // sent, the transport refuses with a plain Error, or with Refused when there
+        // is no agent signer or it says no; Refused carries the words for the agent.
         if (error instanceof Refused) return {ok: false, error: error.refusal}
-        // fetch fails with a TypeError when the network fails; the transport's own
-        // refusals, made before anything is sent, are plain Errors.
         if (error instanceof TypeError && !signal.aborted) unsent(entry)
         return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before calling the tool again."}}
       } finally {

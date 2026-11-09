@@ -1,4 +1,8 @@
 defmodule AutolaunchWeb.HealthController do
+  @moduledoc """
+  Whether the site and its own database answer: `/healthz` in plain text for the
+  host's health check, `/api/v1/health` in JSON for the command line.
+  """
   use AutolaunchWeb, :controller
 
   # A ready site names the commit it was built from, so a release check can see
@@ -13,6 +17,24 @@ defmodule AutolaunchWeb.HealthController do
     |> put_resp_header("cache-control", "no-store")
     |> put_resp_content_type("text/plain")
     |> send_resp(status, body)
+  end
+
+  def status(conn, _params) do
+    conn = put_resp_header(conn, "cache-control", "no-store")
+
+    if database_ready?() do
+      json(conn, %{status: "ok"})
+    else
+      conn
+      |> put_status(:service_unavailable)
+      |> json(%{
+        error: %{
+          code: "unavailable",
+          message: "The site is up but its database is not answering.",
+          hint: "Try again in a minute."
+        }
+      })
+    end
   end
 
   # Validate a real product read without returning user rows. The timeout is

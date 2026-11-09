@@ -14,21 +14,27 @@ defmodule Autolaunch.Auction.MarketState do
   `minimum_reached`.
   """
 
-  @type t :: :created | :active | :ended | :graduated | :failed
+  alias Autolaunch.Chain.Lifecycle
 
-  @graduated 2
-  @failed 3
+  @type t :: :created | :active | :ended | :graduated | :failed
 
   @rank %{created: 0, active: 1, ended: 2, graduated: 3, failed: 3}
 
   @doc "The state a lifecycle and schedule describe at one clock reading."
   @spec observed(non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer()) ::
           t()
-  def observed(@graduated, _clock, _start_block, _end_block), do: :graduated
-  def observed(@failed, _clock, _start_block, _end_block), do: :failed
-  def observed(_lifecycle, clock, start_block, _end_block) when clock < start_block, do: :created
-  def observed(_lifecycle, clock, _start_block, end_block) when clock < end_block, do: :active
-  def observed(_lifecycle, _clock, _start_block, _end_block), do: :ended
+  def observed(lifecycle, clock, start_block, end_block),
+    do: scheduled(Lifecycle.fetch(lifecycle), clock, start_block, end_block)
+
+  defp scheduled({:ok, finished}, _clock, _start_block, _end_block)
+       when finished in [:graduated, :failed],
+       do: finished
+
+  defp scheduled(_unfinished, clock, start_block, _end_block) when clock < start_block,
+    do: :created
+
+  defp scheduled(_unfinished, clock, _start_block, end_block) when clock < end_block, do: :active
+  defp scheduled(_unfinished, _clock, _start_block, _end_block), do: :ended
 
   @doc """
   The stored state after an observation: a finished state never changes, and

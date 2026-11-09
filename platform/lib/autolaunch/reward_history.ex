@@ -21,28 +21,13 @@ defmodule Autolaunch.RewardHistory do
   def claimed(splitter, account, from_block, block, opts) do
     topics = [LabAbi.topic(@claimed), address_topic(account)]
 
-    with {:ok, logs} <- logs(splitter, from_block, block, topics, opts) do
+    with {:ok, logs} <- Rpc.logs(splitter, topics, from_block, block.number, opts) do
       {:ok,
        Enum.reduce(logs, %{}, fn log, sums ->
          [amount] = data_words(log)
          Map.update(sums, address_at(log, 2), amount, &(&1 + amount))
        end)}
     end
-  end
-
-  defp logs(address, from_block, block, topics, opts) do
-    Rpc.request(
-      "eth_getLogs",
-      [
-        %{
-          address: address,
-          fromBlock: hex(from_block),
-          toBlock: hex(block.number),
-          topics: topics
-        }
-      ],
-      opts
-    )
   end
 
   defp address_at(%{"topics" => topics}, index) do
@@ -59,5 +44,4 @@ defmodule Autolaunch.RewardHistory do
     do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
 
   defp word("0x" <> hex), do: String.to_integer(hex, 16)
-  defp hex(value), do: "0x" <> Integer.to_string(value, 16)
 end

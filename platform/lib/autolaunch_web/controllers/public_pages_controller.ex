@@ -1,21 +1,37 @@
 defmodule AutolaunchWeb.PublicPagesController do
   @moduledoc """
-  The developer guide, About, Contact, Privacy and Terms pages, the agent guide,
-  the tool manifest, the sitemap, robots.txt, security.txt, the API catalog and
+  The developer guide, About, Changelog, Privacy and Terms pages, the
+  agents' pages and skills, the agent guide, the tool manifest, the sitemap, robots.txt, security.txt, the API catalog and
   the API description. A request for a page's Markdown is answered before the
   router; this controller shows the same document as HTML.
   """
   use AutolaunchWeb, :controller
 
-  alias AutolaunchWeb.PublicDocuments
+  alias AutolaunchWeb.{AgentGuides, NotFoundError, PublicDocuments}
 
   plug AutolaunchWeb.Plugs.PageShell when action == :show
 
   def show(conn, _params) do
     path = conn.request_path
-    %{markdown: markdown} = PublicDocuments.document(path)
 
-    render(conn, :show, [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path))
+    case PublicDocuments.document(path) do
+      %{markdown: markdown} ->
+        render(
+          conn,
+          :show,
+          [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path)
+        )
+
+      nil ->
+        raise NotFoundError
+    end
+  end
+
+  @doc "A public page as JSON, `{title, markdown}`: what the `about` and `docs` reads answer."
+  def document(conn, _params) do
+    path = conn.assigns.document
+    %{markdown: markdown} = PublicDocuments.document(path)
+    json(conn, %{title: PublicDocuments.title(path), markdown: markdown})
   end
 
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
@@ -42,6 +58,14 @@ defmodule AutolaunchWeb.PublicPagesController do
     do: text_document(conn, PublicDocuments.signed_agent_guide())
 
   def skill_guide(conn, _params), do: text_document(conn, PublicDocuments.skill_guide())
+
+  @doc "One agent's skill: the agent guide with that agent's Set up section added."
+  def agent_skill_guide(conn, %{"agent" => slug}) do
+    case AgentGuides.skill(slug) do
+      nil -> raise NotFoundError
+      skill -> text_document(conn, skill)
+    end
+  end
 
   def openapi(conn, _params), do: json_document(conn, PublicDocuments.openapi())
 

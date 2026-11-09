@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "466ca10fbad6e7a6fd5254e84651c2292af72368"
+  @elixir_utils_ref "4e5279759859f9e35e070789fe6b7fcdb78c47c3"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
+  @design_system_ref "768719f37773b27b4d6a4ec04781b3dc262df0ba"
 
   def project do
     [
@@ -77,7 +77,7 @@ defmodule Autolaunch.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.37"},
-      {:assent, "== 0.3.1"},
+      {:assent, "== 0.3.2"},
       {:ash_phoenix, "~> 2.3.25"},
       # ash_postgres main with #910 until a Hex release carries it: upserts use the
       # repo's prefix, which picks each site's schema on the shared database. It
@@ -87,11 +87,11 @@ defmodule Autolaunch.MixProject do
        ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
        override: true},
       {:ash_oban, "~> 0.10.0"},
-      {:ash_ai, "~> 1.4.1"},
+      {:ash_ai, "~> 1.5"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
-      {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
+      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       {:siwa,
        git: @elixir_utils,
@@ -121,12 +121,12 @@ defmodule Autolaunch.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      {:mdex, "== 0.14.2"},
+      {:mdex, "== 0.14.6"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
       # In :test too, because precommit runs in :test and checks the synced block.
-      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 1.3.1", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:logger_json, "~> 7.0"},
@@ -135,6 +135,8 @@ defmodule Autolaunch.MixProject do
       {:telemetry_poller, "~> 1.3"},
       {:jason, "~> 1.2"},
       {:error_tracker, "~> 0.9"},
+      # Keeps crash saving on when one save fails (RegentHttp.ErrorSaving).
+      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http"},
       # Ethereum Keccak-256, which OTP's NIST `:sha3_256` is not.
       {:ex_keccak, "~> 0.7.8"},
       # Signs the transaction that finishes an ended auction.
@@ -226,16 +228,25 @@ defmodule Autolaunch.MixProject do
         # share video request's room action, covered calls' and Exposure's
         # steps), the router naming the errors admin page, and the router naming
         # the hosted MCP server's input check (AshAi takes it only as a
-        # function). Nothing else is permitted. The ceiling is thirty-eight
-        # domain-to-resource edges (Accounts six, Autolaunch twenty-eight, Agents,
-        # CoveredCalls, Exposure and Points one each), forty-six
+        # function). Nothing else is permitted. The ceiling is thirty-four
+        # domain-to-resource edges (Accounts six, Autolaunch twenty-four, Agents,
+        # CoveredCalls, Exposure and Points one each), forty-two
         # resource-to-check edges, the one endpoint edge, those three actions and
         # those two router edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 90",
+        "xref graph --label compile-connected --fail-above 82",
         "test --warnings-as-errors",
         "ash.codegen --check",
-        "usage_rules.sync --check"
+        "usage_rules.sync --check",
+        "regent_ui.assets",
+        "regent_blog.assets",
+        "regent_identity.assets",
+        "regent_agent_access.assets",
+        "cmd npm run typecheck",
+        "cmd npm test",
+        # The browser walk (test/browser): every page at phone and desktop width,
+        # and the paths a person takes, on its own server and database.
+        "cmd npm run test:browser"
       ]
     ]
   end

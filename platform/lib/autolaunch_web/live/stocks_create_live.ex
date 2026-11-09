@@ -54,9 +54,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
         launched?: false,
         listings: 0,
         ticker_taken?: false,
+        launches_paused?: false,
         status: :loading
       )
       |> assign_stocks()
+      |> read_launches_paused()
 
     case human_actor(socket) do
       nil ->
@@ -114,6 +116,14 @@ defmodule AutolaunchWeb.StocksCreateLive do
           AutolaunchHelpers.creator_connections_for([creator])
         )
     )
+  end
+
+  # Base's own answer, read once the page connects: while the launchpad has new
+  # launches paused, the launch button stays greyed with the reason beside it.
+  defp read_launches_paused(socket) do
+    if connected?(socket),
+      do: start_async(socket, :launches_paused, &Stocks.LaunchActions.launches_paused/0),
+      else: socket
   end
 
   # The chain's stock prices and the chosen stock's venues are read in the
@@ -261,6 +271,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
+
+  def handle_async(:launches_paused, {:ok, {:ok, paused}}, socket),
+    do: {:noreply, assign(socket, launches_paused?: paused)}
+
+  def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
 
   def render(assigns) do
     assigns = assign(assigns, :stocks_image_upload, assigns[:uploads][:stocks_image])

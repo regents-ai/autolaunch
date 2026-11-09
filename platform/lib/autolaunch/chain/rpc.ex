@@ -139,6 +139,47 @@ defmodule Autolaunch.Chain.Rpc do
   def call_bytes(to, data, block, opts \\ []), do: call(to, data, block, &decode_bytes/1, opts)
 
   def request(method, params, opts \\ []) do
+    case answer(method, params, opts) do
+      {:error, :refused} -> {:error, :chain_unavailable}
+      result -> result
+    end
+  end
+
+  @doc """
+  Every log `address` emitted with `topics` from block `from` to block `to`. A
+  span the node refuses, as too many blocks or too many logs, is read again as
+  its two halves, down to one block; a node that does not answer fails the read
+  at once.
+  """
+  @spec logs(String.t(), list(), non_neg_integer(), non_neg_integer(), keyword()) ::
+          {:ok, [map()]} | {:error, atom()}
+  def logs(address, topics, from, to, opts) do
+    filter = %{
+      address: address,
+      topics: topics,
+      fromBlock: hex_quantity(from),
+      toBlock: hex_quantity(to)
+    }
+
+    case answer("eth_getLogs", [filter], opts) do
+      {:ok, logs} when is_list(logs) -> {:ok, logs}
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      {:error, :refused} when from < to -> halves(address, topics, from, to, opts)
+      {:error, _reason} -> {:error, :chain_unavailable}
+    end
+  end
+
+  defp halves(address, topics, from, to, opts) do
+    middle = div(from + to, 2)
+
+    with {:ok, low} <- logs(address, topics, from, middle, opts),
+         {:ok, high} <- logs(address, topics, middle + 1, to, opts),
+         do: {:ok, low ++ high}
+  end
+
+  # A node's error answer is a refusal of this request, which `logs/5` can ask
+  # again in smaller pieces; anything else means the node is not answering.
+  defp answer(method, params, opts) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
 
     client =
@@ -171,7 +212,7 @@ defmodule Autolaunch.Chain.Rpc do
 
       {:ok, %{status: 200, body: %{"error" => _error}}} ->
         failed(method, :rpc, opts)
-        {:error, :chain_unavailable}
+        {:error, :refused}
 
       # A provider refusing the request (a 429 rate limit, a 5xx outage) is
       # not an answer from the chain; it is logged like a transport failure.

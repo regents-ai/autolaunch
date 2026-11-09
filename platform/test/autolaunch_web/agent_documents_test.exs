@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.AgentDocumentsTest do
   alias AutolaunchWeb.PublicDocuments
 
   @documents ~w(/llms.txt /llms-full.txt /agents.md /skill.md /sitemap.md)
-  @pages ~w(/ /docs /about /contact /privacy /terms)
+  @pages ~w(/ /docs /about /privacy /terms)
 
   test "every public document names only the one regents-cli release", %{conn: conn} do
     bodies =

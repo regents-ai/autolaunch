@@ -5,9 +5,10 @@ defmodule Autolaunch.LabPositions do
   An auction's reading job (`Autolaunch.AuctionMarket`) calls `read/6` once
   its end block has passed: each position this site holds with an on-chain bid id is read back
   from the auction's own `bids(bidId)`, and its status follows the contract:
-  `returnable` while the bid can still be exited, `claimable` once exited with
-  fill and the claim block reached, `returned` when exited with nothing left to
-  claim yet, `claimed` once the fill has been taken. `project/1` writes the
+  `returnable` while the bid can still be exited, `awaiting_claim` once exited
+  with fill before the claim block, `claimable` once exited with fill and the
+  claim block reached, `returned` when exited with no fill, `claimed` once the
+  fill has been taken. `project/1` writes the
   statuses that changed inside the job's own transaction.
   """
 
@@ -22,7 +23,7 @@ defmodule Autolaunch.LabPositions do
   @domain Autolaunch
   @q96 79_228_162_514_264_337_593_543_950_336
 
-  @type reading :: %{bid_id: String.t(), status: String.t(), position: Bid.t()}
+  @type reading :: %{bid_id: String.t(), status: Bid.status(), position: Bid.t()}
 
   @doc "The positions of one ended auction, read from the fork at one block."
   @spec read([map()], [Bid.t()], String.t(), map(), map(), keyword()) ::
@@ -52,11 +53,11 @@ defmodule Autolaunch.LabPositions do
     |> Ash.read(domain: @domain, authorize?: false)
   end
 
-  @doc "Writes the readings whose status differs from the stored one. Returns whether anything changed."
+  @doc "Writes the readings that move a stored status forward. Returns whether any was written."
   @spec project([reading()]) :: {:ok, boolean()} | {:error, term()}
   def project(readings) do
     readings
-    |> Enum.filter(&(&1.status != &1.position.status))
+    |> Enum.filter(&Bid.forward?(&1.position.status, &1.status))
     |> Enum.reduce_while({:ok, false}, fn reading, {:ok, _changed} ->
       case write(reading) do
         {:ok, _bid} -> {:cont, {:ok, true}}
@@ -66,18 +67,19 @@ defmodule Autolaunch.LabPositions do
   end
 
   # The feed's reading was taken before this write, and a wallet verification
-  # may have recorded the same settlement meanwhile. The row is re-read under a
-  # lock inside the write transaction and its recorded amounts are kept; only a
-  # status the chain now contradicts is corrected. One Ash transaction, so any
-  # notification of the write goes out once it is committed.
+  # may have recorded a later step of the same settlement meanwhile. The row is
+  # re-read under a lock inside the write transaction and its recorded amounts
+  # are kept; the status only moves forward (`Autolaunch.Bid.forward?/2`), so a
+  # reading older than the page's own receipt never undoes it. One Ash
+  # transaction, so any notification of the write goes out once it is committed.
   defp write(%{position: stale, status: status} = reading) do
     Ash.transaction(Bid, fn ->
       with {:ok, position} <- locked(stale.bid_id),
-           false <- position.status == status,
+           true <- Bid.forward?(position.status, status),
            {:ok, bid} <- upsert(position, status, reading) do
         bid
       else
-        true -> stale
+        false -> stale
         {:error, reason} -> Ash.DataLayer.rollback(Bid, reason)
       end
     end)
@@ -126,7 +128,7 @@ defmodule Autolaunch.LabPositions do
   defp exited_at(%{exited_at: nil}, %{exited: true}), do: DateTime.utc_now()
   defp exited_at(position, _reading), do: position.exited_at
 
-  defp claimed_at(%{claimed_at: nil}, "claimed"), do: DateTime.utc_now()
+  defp claimed_at(%{claimed_at: nil}, :claimed), do: DateTime.utc_now()
   defp claimed_at(position, _status), do: position.claimed_at
 
   # The fill the auction records survives the claim zeroing it on chain.
@@ -165,15 +167,15 @@ defmodule Autolaunch.LabPositions do
   # The contract's own rules, in order: an unexited bid can be exited after the
   # end block; an exited bid with fill can claim once the claim block passes;
   # an exited bid whose recorded fill has gone to zero has been claimed.
-  defp status(_position, %{exited: false}, _market, _block), do: "returnable"
+  defp status(_position, %{exited: false}, _market, _block), do: :returnable
 
   defp status(_position, %{exited: true, tokens_filled: filled}, market, block) when filled > 0,
-    do: if(block.number >= market.claim_block, do: "claimable", else: "returned")
+    do: if(block.number >= market.claim_block, do: :claimable, else: :awaiting_claim)
 
   defp status(position, %{exited: true, tokens_filled: 0}, _market, _block) do
-    if position.status in ["claimable", "claimed"] or recorded_fill?(position),
-      do: "claimed",
-      else: "returned"
+    if position.status in [:awaiting_claim, :claimable, :claimed] or recorded_fill?(position),
+      do: :claimed,
+      else: :returned
   end
 
   defp recorded_fill?(%{tokens_filled: filled}) when is_binary(filled) and filled != "",

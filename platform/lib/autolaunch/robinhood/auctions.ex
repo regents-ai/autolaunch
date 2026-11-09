@@ -20,6 +20,7 @@ defmodule Autolaunch.Robinhood.Auctions do
   only. Nothing here writes, signs or caches.
   """
 
+  alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
@@ -65,7 +66,6 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  # A launch's lifecycle is 1 active, 2 graduated, 3 failed.
   defp auction(config, contracts, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(contracts, launch_id, block, opts),
          record = RobinhoodLabAbi.record(contracts, words),
@@ -94,7 +94,8 @@ defmodule Autolaunch.Robinhood.Auctions do
          stock_address: stock.address,
          stock_symbol: stock.symbol,
          stock_decimals: stock.decimals,
-         state: state(record.lifecycle, record.start_block, record.end_block, clock),
+         state:
+           MarketState.observed(record.lifecycle, clock, record.start_block, record.end_block),
          minimum_reached: minimum_reached,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
          clearing_price_q96: clearing,
@@ -114,12 +115,6 @@ defmodule Autolaunch.Robinhood.Auctions do
   # one fixed for every launch.
   defp required_raise(:v1, record), do: record.required_stock_raised
   defp required_raise(:v2, _record), do: LaunchActions.required_stock_raised()
-
-  defp state(2, _start_block, _end_block, _clock), do: :graduated
-  defp state(3, _start_block, _end_block, _clock), do: :failed
-  defp state(_lifecycle, start_block, _end_block, clock) when clock < start_block, do: :created
-  defp state(_lifecycle, _start_block, end_block, clock) when clock < end_block, do: :active
-  defp state(_lifecycle, _start_block, _end_block, _clock), do: :ended
 
   defp minimum_reached(config, auction, block, opts) do
     data = LabAbi.encode(Lab.abi!(config, :auction), "isGraduated()", [])

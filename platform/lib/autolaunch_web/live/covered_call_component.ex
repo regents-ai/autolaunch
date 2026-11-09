@@ -618,6 +618,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   attr :dismiss, :string, required: true, doc: "the event the dismiss button sends"
   attr :target, :any, default: nil
+  attr :portfolio, :boolean, default: true, doc: "false on the portfolio itself"
 
   @doc "What a confirmed action moved, as the token page's Stake says it."
   def toast(assigns) do
@@ -632,6 +633,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- @done.lines}>{line}</p>
+        <AutolaunchWeb.Components.PortfolioLink.portfolio_link :if={@portfolio} />
       </div>
       <P.button
         type="button"
@@ -641,14 +643,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         aria-label="Dismiss"
         title="Dismiss"
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6 6 18"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Regent.Icons.icon name="x" class="dismiss-icon" />
       </P.button>
     </aside>
     """

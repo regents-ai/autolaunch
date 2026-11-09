@@ -2,19 +2,26 @@
    Claim Rewards. On a phone the card comes first, with its figures and chart,
    then the widget, then the details. */
 .token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
-.token-page__overview { grid-area: overview; min-width: 0; }
+/* The card lays itself out by its own width, so the trade widget beside it never squeezes it. */
+.token-page__overview { grid-area: overview; min-width: 0; container: token-overview / inline-size; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
 .token-page__details { grid-area: details; min-width: 0; }
 /* While the token is first read, the page holds a screen's height, so the
    footer does not sit under the reading card and jump when the token arrives. */
 .token-page__reading { min-height: 100svh; }
 /* The token's picture sits small beside its name and figures, so the price,
-   market cap and change are on the first screen, a phone's included. */
+   market cap and change are on the first screen. */
 .token-page .market-identity { grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-3) var(--space-4); }
 .token-page .market-identity__image { width: 120px; }
-@media (max-width: 42rem) {
+@container token-overview (max-width: 36rem) {
   .token-page .market-identity { grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); }
   .token-page .market-identity__image { width: 88px; }
+}
+/* Too narrow for the figures beside the picture: the picture goes above. */
+@container token-overview (max-width: 26rem) {
+  .token-page .market-identity { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 42rem) {
   /* Uniswap and the chart share one row under the address. */
   .token-page .token-heading__links { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .token-page .token-heading__copy { grid-column: 1 / -1; justify-self: start; }
@@ -27,21 +34,22 @@
 .token-figures > div { display: grid; align-content: start; gap: 2px; min-width: 0; }
 .token-figures dt { color: var(--color-fg-muted); font-size: .75rem; }
 .token-figures dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
-.token-figures strong { font-size: 1.25rem; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
+.token-figures strong { font-size: 1.25rem; overflow-wrap: anywhere; }
 .token-figures__price strong { font-size: 1.75rem; line-height: 1.1; }
 .token-figures small { color: var(--color-fg-muted); font-size: .75rem; }
-@media (max-width: 30rem) {
+@container token-overview (max-width: 40rem) {
   .token-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .token-figures__price { grid-column: 1 / -1; }
 }
-@media (min-width: 64rem) {
+/* The widget sits beside the card only where the page leaves the card room. */
+@container shell-page (min-width: 60rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
 }
 
 /* The trade widget: a sliding selector over one view at a time. */
 .token-trade { position: relative; display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
 .token-trade__tabs { position: relative; display: inline-flex; justify-self: start; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
-.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: var(--font-weight-semibold) .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
 .token-trade__tabs [role="tab"][aria-selected="true"] { color: var(--color-bg); }
 .token-trade__tabs [role="tab"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .token-trade__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
@@ -57,6 +65,7 @@
 /* Refresh balances ends the selector's row, with the swap's settings before it. */
 .token-trade__refresh { position: absolute; top: 2px; right: 0; min-width: 44px; min-height: 44px; padding: .5rem; color: var(--color-fg-muted); }
 .token-trade__refresh:hover { color: var(--color-fg); }
+.token-trade__refresh svg { width: 20px; height: 20px; }
 .token-trade__refresh--turn svg { animation: token-trade-turn 600ms var(--ease-out); }
 @keyframes token-trade-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .token-trade__refresh--turn svg { animation: none; } }
@@ -78,7 +87,7 @@
 .token-claim__rows { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .token-claim__rows > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--space-2); min-width: 0; padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); }
 .token-claim__what { color: var(--color-fg-muted); font-size: .9375rem; }
-.token-claim__amount { font-size: 1.25rem; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-claim__amount { font-size: 1.25rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-claim__amount--missing { color: var(--color-fg-muted); font-size: .9375rem; font-weight: var(--font-weight-regular); }
 .token-claim__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .token-claim__more { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }

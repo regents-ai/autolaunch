@@ -159,34 +159,6 @@ database_config =
     Autolaunch.DatabaseConfig.runtime_config!(config_env())
   end
 
-# The Base log ledger follows the Base description: its own door, its factory,
-# from the block `start_blocks.factory` names. A description that names no
-# start blocks keeps the ledger off; each auction's reading job reads those
-# chains directly. Under ExUnit the test environment owns this setting outright, so a
-# shell that exports a description cannot start an indexer under a test run; a
-# browser or lab server follows its description as production does.
-exunit? = config_env() == :test and System.get_env("AUTOLAUNCH_BROWSER_TEST") != "1"
-
-indexer_chains =
-  case {exunit?, base_deployment} do
-    {true, _owned_by_test} ->
-      []
-
-    {false, %{start_blocks: %{"factory" => start_block}} = deployment} ->
-      [
-        %{
-          chain_id: deployment.chain_id,
-          rpc_url: deployment.rpc_url,
-          sources: [%{address: deployment.addresses["factory"], start_block: start_block}]
-        }
-      ]
-
-    {false, _no_ledger} ->
-      []
-  end
-
-config :autolaunch, :autolaunch_indexer_chains, indexer_chains
-
 if database_config do
   config :autolaunch, :database_startup_enabled, true
   config :autolaunch, Autolaunch.Repo, database_config

@@ -970,7 +970,7 @@ defmodule AutolaunchWeb.StakeComponent do
           aria-label="Close"
           title="Close"
         >
-          <.cross size="20" />
+          <Regent.Icons.icon name="x" class="close-icon" />
         </Regent.Primitives.button>
       </header>
 
@@ -1045,15 +1045,18 @@ defmodule AutolaunchWeb.StakeComponent do
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- done_lines(@done)}>{line}</p>
-        <ShareDialog.share_dialog
-          :if={@done.kind == :stake && @share}
-          id={"#{@id}-share"}
-          message={@share.message}
-          image={@share.image}
-          video={@share.video}
-          video_everyone={@share.video_everyone}
-          video_name={@share.video_name}
-        />
+        <div class="toast-actions">
+          <ShareDialog.share_dialog
+            :if={@done.kind == :stake && @share}
+            id={"#{@id}-share"}
+            message={@share.message}
+            image={@share.image}
+            video={@share.video}
+            video_everyone={@share.video_everyone}
+            video_name={@share.video_name}
+          />
+          <AutolaunchWeb.Components.PortfolioLink.portfolio_link :if={@done.kind != :nothing_claimed} />
+        </div>
       </div>
       <Regent.Primitives.button
         type="button"
@@ -1063,7 +1066,7 @@ defmodule AutolaunchWeb.StakeComponent do
         aria-label="Dismiss"
         title="Dismiss"
       >
-        <.cross size="18" />
+        <Regent.Icons.icon name="x" class="dismiss-icon" />
       </Regent.Primitives.button>
     </aside>
     """
@@ -1121,16 +1124,5 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp done_line(%{"kind" => "collect"} = result) do
     "#{result["token_units"]} #{result["token_symbol"]} · #{result["currency_units"]} #{result["currency_symbol"]} moved to the staking contract"
-  end
-
-  attr :size, :string, required: true
-
-  @doc "The close mark on a review panel or a toast."
-  def cross(assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" width={@size} height={@size} fill="none" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-    </svg>
-    """
   end
 end

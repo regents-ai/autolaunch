@@ -35,6 +35,93 @@ defmodule Autolaunch.Exposure.StepsTest do
   defp holding(overrides),
     do: Map.merge(%{stock: 50_000_000, allowance: 0, overnight: 0, session: 0}, overrides)
 
+  @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+  @router "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43"
+  @factory "0x420dd381b31aef6683db6b902084cb0ffece40da"
+  @swap "swapExactTokensForTokens(uint256,uint256,(address,address,bool,address)[],address,uint256)"
+
+  test "buying a token is an exact USDC approval to the router, then a swap through its pool taking at least the quote less 2%",
+       context do
+    overnight = ExposureChain.overnight()
+    assert {:ok, prepared} = prepare(context, :buy, %{leg: :overnight, amount: 25_000_000})
+    assert [approval, buy] = prepared.steps
+    assert approval.step == "usdc_approval" and approval.to == @usdc
+
+    assert approval.data ==
+             BuilderCode.append(Call.encode("approve(address,uint256)", [@router, 25_000_000]))
+
+    # The stub's pool quotes 2.64 for any amount: at least 2.5872 (98%).
+    assert prepared.facts.expected == 2_640_000 and prepared.facts.minimum == 2_587_200
+    assert buy.step == "buy" and buy.to == @router
+
+    assert buy.data ==
+             BuilderCode.append(
+               Call.encode(@swap, [
+                 25_000_000,
+                 2_587_200,
+                 [{@usdc, overnight, false, @factory}],
+                 context.wallet,
+                 ExposureChain.now() + 1_200
+               ])
+             )
+
+    assert {prepared.blocked, prepared.approved} == {:not_enough_usdc, false}
+
+    ExposureChain.put(%{wallet: %{usdc: 25_000_000}})
+
+    assert {:ok, %{blocked: :approve_first}} =
+             prepare(context, :buy, %{leg: :overnight, amount: 25_000_000})
+
+    ExposureChain.put(%{wallet: %{usdc: 25_000_000, usdc_allowance: 25_000_000}})
+
+    assert {:ok, %{blocked: nil, approved: true}} =
+             prepare(context, :buy, %{leg: :overnight, amount: 25_000_000})
+  end
+
+  test "selling a token swaps it for USDC, and is blocked by holding too little or a pool without liquidity",
+       context do
+    session = ExposureChain.session()
+    ExposureChain.put(%{wallet: %{session: 3_000_000, leg_allowance: 3_000_000}})
+
+    assert {:ok, prepared} = prepare(context, :sell, %{leg: :session, amount: 3_000_000})
+    assert [approval, sell] = prepared.steps
+    assert approval.step == "token_approval" and approval.to == session
+    assert sell.step == "sell"
+
+    # The stub's Market-hours pool quotes 2.51 USDC: at least 2.4598 (98%).
+    assert sell.data ==
+             BuilderCode.append(
+               Call.encode(@swap, [
+                 3_000_000,
+                 2_459_800,
+                 [{session, @usdc, false, @factory}],
+                 context.wallet,
+                 ExposureChain.now() + 1_200
+               ])
+             )
+
+    assert prepared.blocked == nil
+
+    assert {:ok, %{blocked: :more_than_held}} =
+             prepare(context, :sell, %{leg: :session, amount: 4_000_000})
+
+    ExposureChain.put(%{
+      wallet: %{session: 3_000_000, leg_allowance: 3_000_000},
+      pools: %{session => {"0x4444444444444444444444444444444444444444", nil}}
+    })
+
+    assert {:ok, %{blocked: :no_liquidity}} =
+             prepare(context, :sell, %{leg: :session, amount: 3_000_000})
+
+    ExposureChain.put(%{pools: %{}})
+
+    assert {:ok, %{blocked: :no_liquidity}} =
+             prepare(context, :buy, %{leg: :overnight, amount: 1})
+
+    assert {:error, error} = prepare(context, :buy, %{amount: 1})
+    assert Exposure.reason(error) == :leg_required
+  end
+
   test "minting is an exact stock approval then mint, blocked until the approval is on the chain",
        context do
     assert {:ok, prepared} = prepare(context, :mint, %{amount: 5_000_000})

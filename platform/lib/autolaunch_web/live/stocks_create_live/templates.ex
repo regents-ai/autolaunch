@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     ~H"""
     <.launch_kind_choice current={:memestock} />
     <header class="create-page__header">
-      <h1>Create a Memestock token</h1>
+      <h1>Create Memestock</h1>
     </header>
     """
   end
@@ -158,9 +158,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   {@draft_errors["stock_address"]}
                 </p>
                 <p class="create-page__hint">
-                  <.link navigate="/stock-listing" class="standalone-link">Onchain Stocks</.link>
+                  <.link navigate="/stocks" class="standalone-link">Onchain Stocks</.link>
                 </p>
-                <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
                 <p
                   :if={@stock && @market.venues != []}
                   id="stocks-terms-buy-at"
@@ -245,9 +244,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               optional
               notify
             />
-            <p :if={!@current_human_id} class="create-page__hint">
-              After you sign in, you can connect X, GitHub or ENS to show on your auction and token.
-            </p>
 
             <.draft_field
               form_id="stocks-token-details"
@@ -291,9 +287,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             >
               Sign in to save and launch
             </Regent.Primitives.button>
-            <p :if={!@current_human_id} class="create-page__hint">
-              Nothing is saved until you sign in. What you have entered comes with you.
-            </p>
             <.live_component
               :if={
                 @launch_chain == :robinhood && @robinhood_open? &&
@@ -306,12 +299,20 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
+            <p
+              :if={@launch_chain == :base && @launches_paused?}
+              class="create-page__notice"
+              role="status"
+            >
+              New launches are paused until the new version opens.
+            </p>
             <.live_component
               :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
               authenticated
+              launches_paused?={@launches_paused?}
               listings={@listings}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
@@ -375,7 +376,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         aria-labelledby="create-info-title"
       >
         <h2 id="create-info-title" class="create-page__info-title">
-          Auction and Token Information
+          Details
         </h2>
         <.launch_plan
           id="memestock-plan"
@@ -478,16 +479,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     """
   end
 
-  defp pay_line(:base, stock),
-    do: "Bidders pay in #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
-
-  defp pay_line(:robinhood, nil),
-    do: "Bidders pay in USDG, swapped into the stock. Stakers earn it from every trade."
-
-  defp pay_line(:robinhood, stock),
-    do:
-      "Bidders pay in USDG, swapped into #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
-
   # The chosen stock as the chain's launchpad admits it, with its decimals.
   defp stock_for(:unread, _address), do: nil
   defp stock_for(_stocks, address) when address in [nil, ""], do: nil
@@ -529,7 +520,4 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       symbol -> symbol
     end
   end
-
-  defp symbol(nil), do: "the stock"
-  defp symbol(%{symbol: symbol}), do: symbol
 end

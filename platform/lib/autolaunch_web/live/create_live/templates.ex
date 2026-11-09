@@ -11,8 +11,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   alias AutolaunchWeb.DraftMarks
   alias RegentChain.Address
 
-  @address_hint "0x followed by exactly 40 hexadecimal characters."
-
   @token_detail_fields [
                          %{key: :name, param: "name", label: "Name", kind: :text},
                          %{key: :symbol, param: "symbol", label: "Ticker", kind: :text},
@@ -79,7 +77,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     param: "treasury",
     label: "Immutable treasury recipient",
     kind: :text,
-    hint: @address_hint,
+    hint: nil,
     placeholder: nil,
     optional: false
   }
@@ -192,12 +190,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           session_lease={@session_lease}
           notify
         />
-        <div :if={!@current_human_id} id="creator-connections" class="create-page__fields">
-          <span class="create-page__label">Creator connections</span>
-          <p class="create-page__hint">
-            After you sign in, connect X, GitHub or ENS to build trust with bidders.
-          </p>
-        </div>
 
         <fieldset class="create-page__lock" disabled={@reviewing?}>
           <form
@@ -295,8 +287,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         </fieldset>
 
         <div id="launch-transactions" class="create-page__launch">
-          <p class="create-page__hint">
-            You will see every value and the one transaction before anything is sent.
+          <p :if={@launches_paused?} class="create-page__notice" role="status">
+            New launches are paused until the new version opens.
           </p>
           <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
             :if={@active_draft}
@@ -321,6 +313,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
             draft={@active_draft}
             authenticated
+            launches_paused?={@launches_paused?}
             listings={@listings}
             current_human_id={@current_human_id}
             session_lease={@session_lease}
@@ -341,9 +334,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           >
             Sign in to save and launch
           </Regent.Primitives.button>
-          <p :if={!@current_human_id} class="create-page__hint">
-            Nothing is saved until you sign in. What you have entered comes with you.
-          </p>
           <p
             :if={@draft_notice}
             class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
@@ -378,7 +368,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
     <section :if={@status != :error} class="create-page__info" aria-labelledby="create-info-title">
       <h2 id="create-info-title" class="create-page__info-title">
-        Auction and Token Information
+        Details
       </h2>
       <.launch_plan
         id="revstake-plan"
@@ -505,7 +495,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       >
         Open the official Safe creation flow
       </a>
-      <p>Return here and verify the deployed address before launch.</p>
       <label>
         <input
           type="radio"

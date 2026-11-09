@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.Components.LearnNavigation do
     {"Docs", "/docs"},
     {"About", "/about"},
     {"Blog", "/blog"},
-    {"Contact", "/contact"},
+    {"Changelog", "/changelog"},
     {"Privacy", "/privacy"},
     {"Terms", "/terms"}
   ]

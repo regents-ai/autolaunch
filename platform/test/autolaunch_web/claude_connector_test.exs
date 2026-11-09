@@ -16,6 +16,8 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   alias RegentAgents.Harness
 
   @moduletag :capture_log
+  # Claude's page, and not Claude Code's (`/agents/claude-code`).
+  @claude_page ~r{/agents/claude(?![\w-])}
   @wallet "0x2222222222222222222222222222222222222222"
   @site_key String.duplicate("k", 32)
   @signed %{
@@ -77,15 +79,17 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert endpoint(conn(:post, "/oauth/register", %{})).status == 404
       refute :claude in Harness.offered()
 
-      claude =
+      assert_error_sent(404, fn ->
         endpoint(conn(:get, "/agents/claude", nil) |> put_req_header("accept", "text/html"))
+      end)
 
-      assert claude.status == 404
+      assert_error_sent(404, fn -> endpoint(conn(:get, "/agents/claude/skill.md", nil)) end)
+      refute build_conn() |> get("/agents") |> response(200) =~ @claude_page
 
       guide = build_conn() |> get("/llms.txt") |> response(200)
-      refute guide =~ "/agents/claude"
+      refute guide =~ @claude_page
       assert guide =~ "/mcp"
-      refute build_conn() |> get("/sitemap.xml") |> response(200) =~ "/agents/claude"
+      refute build_conn() |> get("/sitemap.xml") |> response(200) =~ @claude_page
     end
 
     test "an agent's sign-in and pairing work as before, and a Claude pairing is refused" do
@@ -116,12 +120,14 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert response(claude, 200) =~ "/mcp"
 
       assert build_conn() |> get("/agents/claude") |> html_response(200) =~ "Pair New Agent"
+      assert build_conn() |> get("/agents/claude/skill.md") |> response(200) =~ "pair_identity"
+      assert build_conn() |> get("/agents") |> response(200) =~ @claude_page
 
       for path <- ["/llms.txt", "/agents.md"] do
-        assert build_conn() |> get(path) |> response(200) =~ "/agents/claude"
+        assert build_conn() |> get(path) |> response(200) =~ @claude_page
       end
 
-      assert build_conn() |> get("/sitemap.xml") |> response(200) =~ "/agents/claude"
+      assert build_conn() |> get("/sitemap.xml") |> response(200) =~ @claude_page
     end
 
     test "pair_identity makes one paired agent of the authorizing account, from that account's own code only" do
@@ -318,7 +324,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert DateTime.after?(checked_in, paired_at)
     end
 
-    test "unpairing on the Account page holds: a check-in is refused and pairs nothing again" do
+    test "unpairing on the Agents page holds: a check-in is refused and pairs nothing again" do
       subject = subject!()
       %{access: token} = connect!(subject)
       assert %{"isError" => false} = tool(token, "pair_identity", pair_args(code!(subject)))

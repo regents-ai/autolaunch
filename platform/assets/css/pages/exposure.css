@@ -1,4 +1,4 @@
-/* /after-hour-stocks, the portfolio's Isolated Exposure to After-hours Stocks and the wallet panel. Built as its own
+/* /stock/isolated-afters, the portfolio's Isolated Exposure to After-hours Stocks and the wallet panel. Built as its own
    stylesheet outside the public files (config :esbuild, exposure), and served and linked only while
    Exposure is on. */
 .exposure { display: grid; gap: var(--space-5, 2rem); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
@@ -10,7 +10,26 @@
 .exposure__muted { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .exposure__loading { min-block-size: 12rem; }
 .exposure__section { display: grid; gap: var(--space-3); min-width: 0; }
-.exposure__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
+.exposure__title { margin: 0; font-size: 1.125rem; letter-spacing: -.01em; }
+
+.exposure__picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.exposure__pick { display: inline-flex; align-items: center; min-block-size: 2.25rem; padding: 0 var(--space-3); border: 1px solid var(--hairline); color: var(--color-fg); font-size: .875rem; text-decoration: none; background: var(--color-surface); }
+.exposure__legs-pick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.exposure__pick { font: inherit; cursor: pointer; }
+.exposure__pick[aria-pressed="true"],
+.exposure__pick[aria-current="page"] { border-color: var(--color-fg); }
+.exposure__pending, .exposure__opens { margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--orange-ink, currentColor); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); font-size: .9375rem; line-height: 1.5; }
+/* The arrow sits right after the word. */
+.exposure__disclosure .rg-disclosure-title { flex: 0 1 auto; font-family: var(--font-family-ui, inherit); }
+.exposure__example { display: grid; gap: var(--space-2); padding-block: var(--space-2); }
+.exposure__example > p { margin: 0; line-height: 1.5; }
+.exposure__details { display: grid; gap: var(--space-4); padding-block: var(--space-2); }
+.exposure__addresses { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
+.exposure__addresses > div { display: grid; gap: .125rem; min-width: 0; }
+.exposure__addresses dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.exposure__addresses dd { margin: 0; }
+.exposure__leg-facts dd small { display: block; color: var(--color-fg-muted); font-size: .75rem; }
+.exposure__trade-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 
 .exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: var(--space-3); margin: 0; }
 .exposure__facts > div, .exposure__leg-facts > div { display: grid; gap: .125rem; min-width: 0; }
@@ -18,45 +37,53 @@
 .exposure__facts dd, .exposure__leg-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 .exposure__legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.exposure__leg { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-.exposure__leg-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
-.exposure__leg-head h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.exposure__leg { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); border: 1px solid var(--color-accent); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.exposure__leg-head { display: flex; align-items: baseline; gap: var(--space-2); }
+/* Each token's light: green while its window runs, red otherwise. */
+.exposure__light { display: inline-flex; gap: 4px; align-self: center; margin-inline-start: auto; padding: 3px 5px; border: 1px solid var(--hairline); border-radius: 999px; background: color-mix(in srgb, var(--color-fg) 10%, var(--color-surface)); }
+.exposure__lamp { inline-size: 10px; block-size: 10px; border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+.exposure__light[data-running="false"] .exposure__lamp--stop { background: var(--color-error); }
+.exposure__light[data-running="true"] .exposure__lamp--go { background: var(--color-success); }
+.exposure__leg-head h3 { margin: 0; font-size: 1rem; }
 .exposure__leg-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
 .exposure__leg-facts dd { font-size: 1.0625rem; }
 .exposure__trade { justify-self: start; }
 
 #exposure-act-panel { display: grid; }
+/* Four equal tabs, each wide enough for its word, narrowing only to fit a phone. */
+#exposure-act .token-trade__tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); inline-size: min(100%, 24rem); }
+#exposure-act .token-trade__tabs [role="tab"] { min-width: 0; padding-inline: var(--space-1); }
+@media (max-width: 23.99rem) { #exposure-act .token-trade__tabs [role="tab"] { padding-inline: 0; font-size: .875rem; } }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .exposure__table.market-list__table :is(td, th) { font-variant-numeric: tabular-nums; text-align: left; }
 .exposure__next td { color: var(--color-fg-muted); }
 .exposure__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
 .exposure__hash { font-size: .8125rem; }
-.exposure__series-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.exposure__series-list li { display: flex; align-items: center; gap: var(--space-3); }
 
 .exposure-panel { display: grid; gap: var(--space-3); min-width: 0; }
 .exposure-panel__form { display: grid; gap: var(--space-3); }
 .exposure-panel__field { display: grid; gap: var(--space-1); }
-.exposure-panel__field > span:first-child { font-weight: 600; font-size: .875rem; }
+.exposure-panel__field > span:first-child { font-size: .875rem; }
 .exposure-panel__input { display: flex; align-items: center; gap: var(--space-2); }
 .exposure-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
 .exposure-panel input { inline-size: 100%; min-block-size: 2.625rem; font: inherit; font-variant-numeric: tabular-nums; }
 .exposure-panel__balance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
-.exposure-panel__balance button { padding: 0; border: 0; color: var(--color-fg); font: inherit; font-weight: 600; text-decoration: underline; background: none; cursor: pointer; }
+.exposure-panel__balance button { padding: 0; border: 0; color: var(--color-fg); font: inherit; text-decoration: underline; background: none; cursor: pointer; }
 .exposure-panel__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
 .exposure-panel__facts dt { color: var(--color-fg-muted); }
 .exposure-panel__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 .exposure-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
 .exposure-panel__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .exposure-panel__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.exposure-panel__step { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
-.exposure-panel__step .rg-button { inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
+.exposure-panel__step { display: grid; grid-template-columns: minmax(12.5rem, max-content) minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
+.exposure-panel__step .rg-button { inline-size: 100%; min-inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
 .exposure-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
 .exposure-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
 
 @media (hover: none) and (pointer: coarse) {
   .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
   .exposure-panel__balance button { min-block-size: 2.75rem; min-inline-size: 2.75rem; }
+  .exposure__pick { min-block-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {

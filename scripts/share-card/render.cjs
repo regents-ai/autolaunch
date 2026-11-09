@@ -1,5 +1,6 @@
-// Draws home.html into platform/priv/static/images/og-image.png, the picture
-// autolaunch.sh shows when its address is shared, and fails when a word sits
+// Draws the pictures autolaunch.sh shows when an address is shared, into
+// platform/priv/static/images: home.html as og-image.png and how-it-works.html as
+// og-how-it-works.png. Fails when a word sits
 // where X hides or covers it: past x 640 (X's narrow view keeps the left ~660
 // px) or in the bottom-left corner where X lays the page title.
 //
@@ -7,18 +8,21 @@
 const path = require('path');
 const { chromium } = require(path.join(__dirname, '../../platform/node_modules/playwright'));
 
-const source = path.join(__dirname, 'home.html');
-const target = path.join(__dirname, '../../platform/priv/static/images/og-image.png');
+const pictures = [
+  ['home.html', 'og-image.png'],
+  ['how-it-works.html', 'og-how-it-works.png'],
+];
 
-(async () => {
-  const browser = await chromium.launch({ headless: true });
+async function draw(browser, sourceName, targetName) {
+  const source = path.join(__dirname, sourceName);
+  const target = path.join(__dirname, '../../platform/priv/static/images', targetName);
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   await page.goto(`file://${source}`);
   await page.evaluate(() => document.fonts.ready);
 
   const report = await page.evaluate(() => {
     const fonts = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family);
-    const words = ['.where', '.eyebrow', 'h1'].map((selector) => {
+    const words = ['.where', '.eyebrow', 'h1', '.lede'].filter((selector) => document.querySelector(selector)).map((selector) => {
       const range = document.createRange();
       range.selectNodeContents(document.querySelector(selector));
       const { left, right, bottom } = range.getBoundingClientRect();
@@ -31,9 +35,7 @@ const target = path.join(__dirname, '../../platform/priv/static/images/og-image.
   });
 
   const problems = [];
-  for (const family of ['Geist Pixel', 'Geist', 'Geist Mono']) {
-    if (!report.fonts.includes(family)) problems.push(`font ${family} not loaded`);
-  }
+  if (!report.fonts.includes('Geist Serif')) problems.push('font Geist Serif not loaded');
   for (const w of report.words) {
     if (w.right > 640) problems.push(`${w.selector} reaches x=${w.right.toFixed(0)}, past X's narrow view`);
     if (w.left < 760 && w.bottom > 520) problems.push(`${w.selector} sits under X's title`);
@@ -41,12 +43,18 @@ const target = path.join(__dirname, '../../platform/priv/static/images/og-image.
   if (report.overflow.length) problems.push(`a product panel overflows: ${report.overflow.join(', ')}`);
 
   if (problems.length) {
-    console.error(problems.join('\n'));
+    console.error(`${sourceName}: ${problems.join('\n')}`);
     await browser.close();
     process.exit(1);
   }
 
   await page.screenshot({ path: target });
-  await browser.close();
+  await page.close();
   console.log(`wrote ${path.relative(process.cwd(), target)}`);
+}
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  for (const [sourceName, targetName] of pictures) await draw(browser, sourceName, targetName);
+  await browser.close();
 })();

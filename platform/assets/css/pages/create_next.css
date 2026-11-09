@@ -1,17 +1,16 @@
-/* The Create pages: where the supply and the money go, how the auction runs,
-   what happens when, and the terms. */
+/* The Create pages: supply, proceeds, auction, timeline and terms. */
 
 .create-next { display: grid; gap: 16px; min-width: 0; }
-.create-next__card { container-type: inline-size; display: grid; gap: 12px; min-width: 0; }
+.create-next__card { container-type: inline-size; display: grid; align-content: start; gap: 12px; min-width: 0; }
 .create-next__title { margin: 0; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; }
-.create-next__subtitle { margin: 4px 0 0; font-size: .875rem; font-weight: 600; }
-.create-next__lead, .create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+.create-next__subtitle { margin: 4px 0 0; font-size: .875rem; }
+.create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 
 /* Source on the left, where it goes on the right; stacked in a narrow card. */
 .create-next__flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: stretch; }
 @container (min-width: 30rem) { .create-next__flow { grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 12px; } }
 .create-next__source { display: grid; align-content: center; gap: 2px; padding: 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); color: var(--color-fg-muted); font-size: .75rem; }
-.create-next__source strong { color: var(--color-fg); font-size: 1.25rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.create-next__source strong { color: var(--color-fg); font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; }
 .create-next__parts { display: grid; min-width: 0; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .create-next__part { display: grid; gap: 4px; padding: 10px 12px; border-left: 4px solid var(--part); border-radius: var(--radius); background: color-mix(in srgb, var(--part) 10%, var(--color-surface)); }
 .create-next__part-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: .8125rem; }

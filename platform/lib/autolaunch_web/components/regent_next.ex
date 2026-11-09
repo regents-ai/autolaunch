@@ -125,8 +125,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
         <Regent.Primitives.status>USDC only</Regent.Primitives.status>
       </header>
       <p class="regent-next-lead">
-        {deposit_count(@deposits.count)} recorded in the last {grouped(@facts.window_blocks)} Base blocks,
-        about seven days: blocks {@from} to {@to}.
+        {deposit_count(@deposits.count)} recorded in the last seven days: blocks {@from} to {@to}.
       </p>
       <table class="regent-next-table">
         <thead>

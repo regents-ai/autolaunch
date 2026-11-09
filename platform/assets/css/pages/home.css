@@ -10,11 +10,6 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
-/* The front door, in one column at every width: the title in the pixel face, sized by the page
-   column and keeping its words whole, the value line under it, then the two ways in. */
-#home-explore .home-hero { display: grid; justify-items: start; gap: 16px; margin: 8px 0 40px; }
-#home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 2cqi, 2.5rem); line-height: 1.15; text-wrap: balance; overflow-wrap: break-word; }
-#home-explore .home-hero__title span { color: var(--orange-ink); }
 #home-explore .home-launch { flex: none; }
 #home-explore span.home-launch { display: inline-flex; align-items: center; gap: 10px; }
 #home-explore span.home-launch small { color: var(--color-fg-muted); font-size: .8125rem; }
@@ -28,7 +23,7 @@
 #home-explore .home-backed__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 #home-explore .home-backed__rank { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; min-width: 1.75rem; height: 1.75rem; padding: 0 6px; box-sizing: border-box; border-radius: var(--radius); background: rgb(20 20 20 / .78); color: #fff; font-family: var(--font-family-title); font-size: .875rem; }
 #home-explore .home-backed__name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-#home-explore .home-backed__name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .9375rem; }
+#home-explore .home-backed__name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9375rem; }
 #home-explore .home-backed__name small { flex: none; color: var(--color-fg-muted); font-size: .8125rem; }
 #home-explore .home-backed__figures { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin-top: -4px; color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #home-explore .home-backed__figures span { overflow: hidden; text-overflow: ellipsis; }
@@ -44,11 +39,23 @@
 }
 /* Tabs on the left with an orange line under the one showing; Filter and the list or grid switch on the right. */
 #home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
-#home-explore .home-tabs { display: flex; gap: 24px; margin-right: auto; border-bottom: 1px solid var(--hairline); }
-#home-explore .home-tabs a { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--color-fg-muted); font-size: .9375rem; text-decoration: none; white-space: nowrap; }
-#home-explore .home-tabs a[aria-current] { color: var(--color-fg); font-weight: 600; }
-#home-explore .home-tabs a[aria-current]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--product-autolaunch); }
-@media (hover: hover) and (pointer: fine) { #home-explore .home-tabs a:not([aria-current]):hover { color: var(--color-fg); } }
+/* The list's choices, Auctions, Tokens and Options, and the token types under
+   Tokens: one segmented control each, its dark block gliding to the choice
+   (`MotionTabs`). Until the script places the block, the choice carries it. */
+#home-explore .home-switch { position: relative; display: inline-flex; margin-right: auto; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+#home-explore .home-switch a { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); color: var(--color-fg-muted); font-size: .9375rem; text-decoration: none; white-space: nowrap; transition: color var(--duration-fast) var(--ease-out); }
+#home-explore .home-switch a[aria-current] { color: var(--color-bg); }
+#home-explore .home-switch a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+#home-explore .home-switch__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
+#home-explore .home-switch__ink:not([style]) { visibility: hidden; }
+#home-explore .home-switch:not(:has(> .home-switch__ink[style])) a[aria-current] { background: var(--color-fg); }
+@media (hover: hover) and (pointer: fine) { #home-explore .home-switch a:not([aria-current]):hover { color: var(--color-fg); } }
+#home-explore .home-switch--kinds { display: flex; width: max-content; max-width: 100%; margin: -8px 0 20px; }
+#home-explore .home-switch--kinds a { min-width: 4.5rem; padding: 0 12px; font-size: .8125rem; }
+@media (max-width: 42rem) {
+  #home-explore .home-switch--kinds { width: auto; }
+  #home-explore .home-switch--kinds a { flex: 1; min-width: 0; padding: 0 6px; }
+}
 #home-explore .home-network { color: var(--color-fg-muted); font-size: .75rem; }
 #home-explore .home-display { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline); border-radius: var(--radius); }
 #home-explore .home-display a { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; padding: 0 9px; border-radius: var(--radius); color: var(--color-fg-muted); }
@@ -66,7 +73,7 @@
 #home-explore .home-filter__row { display: flex; gap: 2px; }
 #home-explore .home-filter__option { display: flex; align-items: center; gap: 6px; min-height: 2.75rem; padding: 0 10px 0 6px; border-radius: var(--radius); color: var(--color-fg); text-decoration: none; white-space: nowrap; }
 #home-explore .home-filter__option .chain-icon, #home-explore .home-filter__option .link-icon { width: 15px; height: 15px; }
-#home-explore .home-filter__check { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; visibility: hidden; }
+#home-explore .home-filter__check { width: 12px; height: 12px; visibility: hidden; }
 #home-explore .home-filter__option[aria-current] .home-filter__check { visibility: visible; }
 @media (hover: hover) and (pointer: fine) {
   #home-explore .home-filter__option:hover { background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
@@ -84,7 +91,7 @@
 :is(#home-explore, #create-preview) .home-coin__main { display: block; color: inherit; text-decoration: none; border-radius: var(--radius); }
 :is(#home-explore, #create-preview) .home-coin__art { width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
 :is(#home-explore, #create-preview) .home-coin__art img { display: block; width: 100%; height: 100%; object-fit: cover; }
-:is(#home-explore, #create-preview) .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; font-weight: 500; color: var(--color-fg-muted); }
+:is(#home-explore, #create-preview) .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; color: var(--color-fg-muted); }
 /* Every gallery card is framed; a card whose image has a known colour wears it as a border that fades into the card. */
 :is(#home-explore, #create-preview) .home-coin { container-type: inline-size; padding: 6px 6px 12px; }
 :is(#home-explore, #create-preview) .home-coin--tinted { border-color: transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
@@ -122,7 +129,7 @@
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   :is(#home-explore, #create-preview) .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
-:is(#home-explore, #create-preview) .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
+:is(#home-explore, #create-preview) .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; }
 @container (max-width: 170px) {
   :is(#home-explore, #create-preview) .home-coin__pair { height: 2.6em; line-height: 1.3; }
   :is(#home-explore, #create-preview) .home-coin__ticker wbr { display: inline; }
@@ -173,7 +180,7 @@
 #home-top .home-search { display: flex; align-items: center; gap: 10px; flex: 1 1 34rem; max-width: 40rem; min-width: 0; padding: 0 12px; min-height: 44px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg-muted); font: inherit; font-size: .875rem; text-align: left; cursor: text; }
 #home-top .home-search:hover, #home-top .home-search:focus-visible { border-color: var(--color-fg); }
 #home-top .home-search__prompt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-top .home-search svg { flex-shrink: 0; }
+#home-top .home-search svg { flex-shrink: 0; width: 20px; height: 20px; }
 #home-top .home-search__shortcut { flex-shrink: 0; padding: 2px 5px; border: 1px solid var(--hairline); border-radius: var(--radius); font-size: .6875rem; font-family: inherit; }
 #home-top .home-top__actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 @media (max-width: 100rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
@@ -187,13 +194,13 @@
   #home-top .home-search__prompt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   #home-top .home-search__shortcut { display: none; }
 }
-/* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
+/* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls, and never narrower than a short name and its symbol need. */
 @media (max-width: 42rem) {
   #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
-  #home-explore .home-hero { margin-bottom: 28px; }
   #home-explore .home-backed { margin-bottom: 28px; }
-  #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
-  #home-explore .home-tabs { flex: 1 0 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  #home-explore .home-backed__row { grid-auto-columns: max(40%, 8rem); gap: 12px; }
+  #home-explore .home-toolbar > .home-switch { flex: 1 0 100%; }
+  #home-explore .home-switch a { flex: 1; min-width: 0; }
   #home-explore .home-filter { margin-left: auto; }
   #home-explore .home-search-context { flex: 1 0 100%; justify-content: flex-start; }
 }
@@ -213,7 +220,7 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 .market-ticker__track { display: flex; width: max-content; height: 100%; animation: market-ticker-slide 80s linear infinite; }
 .market-ticker__group { display: flex; align-items: center; gap: 12px; padding: 0 12px; }
 .market-ticker__entry { display: flex; align-items: center; gap: 8px; flex: none; height: 32px; padding: 0 12px 0 14px; border-radius: 999px; font-size: .875rem; text-decoration: none; color: inherit; }
-.market-ticker__entry strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+.market-ticker__entry strong { font-variant-numeric: tabular-nums; }
 .market-ticker__entry--bid { background: color-mix(in srgb, var(--product-autolaunch) 12%, transparent); }
 .market-ticker__entry--bid strong { color: var(--product-autolaunch); }
 /* Buys run bright orange into white, sells blue into black, in either theme. */
@@ -233,17 +240,17 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 #home-explore .home-hero__paths { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: 8px; }
 
 /* Coming next: the auctions to join now, or one quiet line while none is open. */
-#home-explore .home-next { margin-bottom: 40px; }
+#home-explore .home-next { margin: 48px 0 40px; }
 #home-explore .home-next h2 { margin: 0 0 14px; font-size: 1.125rem; }
 #home-explore .home-next__row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 #home-explore .home-next__card { display: grid; gap: 4px; min-width: 0; height: 100%; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: inherit; text-decoration: none; }
 #home-explore .home-next__card:hover { border-color: var(--hairline-strong); }
 #home-explore .home-next__card:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-#home-explore .home-next__card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+#home-explore .home-next__card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home-explore .home-next__card small { color: var(--color-fg-muted); font-size: .8125rem; }
 /* A dashed outline, with no fill, so the empty line never reads as a card to press. */
 #home-explore .home-next__empty { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); }
-#home-explore .home-next__mark { flex: none; width: 20px; height: 20px; fill: none; stroke: var(--color-fg-muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#home-explore .home-next__mark { flex: none; width: 20px; height: 20px; color: var(--color-fg-muted); }
 #home-explore .home-next__empty > div { display: grid; gap: 2px; min-width: 0; }
 #home-explore .home-next__empty p { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; }
-#home-explore .home-next__empty strong { color: var(--color-fg); font-size: .9375rem; font-weight: 600; }
+#home-explore .home-next__empty strong { color: var(--color-fg); font-size: .9375rem; }

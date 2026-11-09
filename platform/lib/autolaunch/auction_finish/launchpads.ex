@@ -15,7 +15,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   the deployed contracts' field order.
   """
 
-  alias Autolaunch.Chain.{Client, Rpc}
+  alias Autolaunch.Chain.{Client, Lifecycle, Rpc}
   alias Autolaunch.Lab
   alias Autolaunch.LabAbi
   alias Autolaunch.LabRpc
@@ -24,9 +24,6 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
-
-  # The launch lifecycle every launchpad shares: 0 is no launch.
-  @states %{1 => :running, 2 => :graduated, 3 => :failed}
 
   @scope "auction finisher"
 
@@ -105,7 +102,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
        %{
          auction: address(launch.auction),
          migration_block: launch.migration_block,
-         state: Map.fetch!(@states, launch.lifecycle)
+         state: finish_state(launch.lifecycle)
        }}
     end
   end
@@ -147,7 +144,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
        %{
          auction: auction,
          migration_block: distribution.migration_block,
-         state: Map.fetch!(@states, distribution.lifecycle)
+         state: finish_state(distribution.lifecycle)
        }}
     end
   end
@@ -218,4 +215,12 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   defp address(word),
     do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(word, 16)), 40, "0")
+
+  # A recorded launch as the finisher keeps it: still running, or finished.
+  defp finish_state(lifecycle) do
+    case Lifecycle.fetch(lifecycle) do
+      {:ok, :active} -> :running
+      {:ok, finished} when finished in [:graduated, :failed] -> finished
+    end
+  end
 end

@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.StockLive do
   @moduledoc """
-  One stock from the stock listing at `/stock-listing/<symbol>`: where it
+  One stock from the stock listing at `/stocks/<symbol>`: where it
   stands for launches, its onchain token and Chainlink feed, its company and
   market links, and its dated pool research, each pool with its venue,
   address and observed liquidity. A symbol the catalog does not hold is the
@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.StockLive do
     ~H"""
     <article class="fact-page upcoming-details">
       <header class="autolaunch-heading">
-        <.link navigate={~p"/stock-listing"} class="market-back">← Onchain Stocks</.link>
+        <.link navigate={~p"/stocks"} class="market-back">← Onchain Stocks</.link>
         <div class="upcoming-details__heading">
           <.stock_logo stock={%{symbol: @stock["symbol"]}} />
           <div>
@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.StockLive do
       <p :if={@stock["status"]} class="upcoming-details__status">{@stock["status"]}</p>
       <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
       <p :if={@covered_calls?} class="upcoming-details__action">
-        <.link navigate={~p"/covered-calls"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
+        <.link navigate={~p"/stock/covered-call"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
         <span>Sell calls on your {@stock["symbol"]} for a premium, or buy them.</span>
       </p>
       <dl class="upcoming-details__facts">
@@ -67,10 +67,6 @@ defmodule AutolaunchWeb.StockLive do
       <.pool :for={{pool, index} <- Enum.with_index(@stock["pools"], 1)} pool={pool} index={index} />
       <p :if={@stock["pools"] == []} class="upcoming-details__note">
         Pool 1: address and liquidity not available.
-      </p>
-      <p class="upcoming-details__note">
-        Buy opens the pool's market page. Liquidity is a dated observation and may have changed.
-        Research snapshot: 14 October 2026.
       </p>
     </article>
     """

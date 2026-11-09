@@ -4,22 +4,19 @@ defmodule Autolaunch.LaunchDiscovery do
   this site's accounts reviewed.
 
   A launch is listed from chain evidence alone. The creator's browser may never
-  report its hash, and nothing here waits for it:
-
-  - the Base ledger records every Revstake factory `LaunchCreated` it stores;
-  - every five minutes, and at once after a press on its chain,
-    `:discover_memestock` records each new Memestock launchpad launch and the
-    transaction that created it.
+  report its hash, and nothing here waits for it: every five minutes, and at
+  once after a press on its chain, `:discover` records each new Revstake
+  factory and Memestock launchpad launch and the transaction that created it
+  (`Autolaunch.LaunchDiscovery.Discover`).
 
   Every minute the `:resolve` trigger takes each launch still `pending` and
   looks for the saved review it carried out (`Autolaunch.LaunchReviews`): one
   whose signer is the launch's signer, whose exact target and calldata that
   transaction sent. A match lists the launch for that review's account. A
   Memestock launch no review of this site carried out is listed from the chain
-  under the wallet that sent it (`Autolaunch.Stocks.ChainLaunch`), and one an
-  earlier pass left `unlisted` is taken again; a Revstake one is `unlisted`. A
-  launch the chain cannot answer for yet stays `pending`, with the reason,
-  until it can.
+  under the wallet that sent it (`Autolaunch.Stocks.ChainLaunch`); a Revstake
+  one is `unlisted`. A launch the chain cannot answer for yet stays `pending`,
+  with the reason, until it can. `listed` and `unlisted` are final.
   """
 
   use Ash.Resource,
@@ -38,14 +35,7 @@ defmodule Autolaunch.LaunchDiscovery do
         queue :launch_listing
         scheduler_cron "* * * * *"
         max_attempts 1
-        # A Base Memestock launch an earlier pass left unlisted for want of a
-        # review is taken again: every one is listed now
-        # (`Autolaunch.Stocks.ChainLaunch`), and none is left that way again.
-        where expr(
-                state == :pending or
-                  (launchpad == :base_memestock and state == :unlisted and
-                     reason == "no_matching_review")
-              )
+        where expr(state == :pending)
 
         worker_module_name Autolaunch.LaunchDiscovery.Workers.Resolve
         scheduler_module_name Autolaunch.LaunchDiscovery.Schedulers.Resolve
@@ -53,10 +43,10 @@ defmodule Autolaunch.LaunchDiscovery do
     end
 
     scheduled_actions do
-      schedule :discover_memestock, "*/5 * * * *" do
-        action :discover_memestock
+      schedule :discover, "*/5 * * * *" do
+        action :discover
         queue :launch_listing
-        worker_module_name Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock
+        worker_module_name Autolaunch.LaunchDiscovery.Workers.Discover
       end
     end
   end
@@ -82,8 +72,8 @@ defmodule Autolaunch.LaunchDiscovery do
       prepare build(sort: [launch_id: :desc], limit: 1)
     end
 
-    # A replayed log or record finds the launch already recorded and changes
-    # nothing about it, however far its resolution has got.
+    # A launch read again finds it already recorded and changes nothing about
+    # it, however far its resolution has got.
     create :record do
       accept [
         :launchpad,
@@ -100,9 +90,9 @@ defmodule Autolaunch.LaunchDiscovery do
       upsert_fields []
     end
 
-    action :discover_memestock do
+    action :discover do
       run fn input, context ->
-        Autolaunch.LaunchDiscovery.DiscoverMemestock.run(input, context)
+        Autolaunch.LaunchDiscovery.Discover.run(input, context)
       end
     end
 

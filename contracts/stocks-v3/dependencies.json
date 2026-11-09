@@ -1,0 +1,67 @@
+{
+  "_comment": "Pinned dependencies exported from a hydrated Autolaunch checkout by bootstrap-deps.py. `source` is relative to that checkout; `revision` is the exact commit the source submodule must be at; `paths` are the git tree entries archived into lib/<name>. The pins are the same revisions the frozen contracts/v1 project builds against.",
+  "forge-std": {
+    "source": "contracts/v1/lib/forge-std",
+    "revision": "3b20d60d14b343ee4f908cb8079495c07f5e8981",
+    "paths": ["src", "LICENSE-APACHE", "LICENSE-MIT", "README.md"]
+  },
+  "continuous-clearing-auction": {
+    "source": "contracts/v1/lib/continuous-clearing-auction",
+    "revision": "7d7602d257733315434570f2a0c2f94f1c7b207a",
+    "paths": ["src", "LICENSE", "README.md"]
+  },
+  "blocknumberish": {
+    "source": "contracts/v1/lib/continuous-clearing-auction/lib/blocknumberish",
+    "revision": "38fe20bc0341d5bc2780d41f90dadb70e10f8cea",
+    "paths": ["src", "LICENSE", "README.md"]
+  },
+  "openzeppelin-contracts": {
+    "source": "contracts/v1/lib/continuous-clearing-auction/lib/openzeppelin-contracts",
+    "revision": "e4f70216d759d8e6a64144a9e1f7bbeed78e7079",
+    "paths": ["contracts", "LICENSE", "README.md"]
+  },
+  "uerc20-factory": {
+    "source": "contracts/v1/lib/uerc20-factory",
+    "revision": "09ae130f7a10f7c1b96e0dc7d9724d567080c4ef",
+    "paths": ["src", "LICENSE", "README.md"]
+  },
+  "optimism": {
+    "source": "contracts/v1/lib/uerc20-factory/lib/optimism",
+    "revision": "3a8c970d12e1f1fb867d6d89e1f6938ddffe6143",
+    "paths": [
+      "packages/contracts-bedrock/interfaces/L2/IERC7802.sol",
+      "packages/contracts-bedrock/src/libraries/Predeploys.sol",
+      "LICENSE"
+    ]
+  },
+  "liquidity-launcher": {
+    "source": "contracts/v1/lib/liquidity-launcher",
+    "revision": "3a3103543f50a13a0ae52a253bb98a925d72146f",
+    "paths": ["src", "LICENSE", "README.md"]
+  },
+  "solady": {
+    "source": "contracts/v1/lib/liquidity-launcher/lib/solady",
+    "revision": "33b4b98e350bbcba6aa85642957c313e98b5f911",
+    "paths": ["src", "LICENSE.txt", "README.md"]
+  },
+  "v4-periphery": {
+    "source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery",
+    "revision": "ad04c9f24a170accf5ea1b2836bbafd514537ca6",
+    "paths": ["src", "LICENSE", "README.md"]
+  },
+  "v4-core": {
+    "source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery/lib/v4-core",
+    "revision": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+    "paths": ["src", "test/utils", "licenses", "README.md"]
+  },
+  "permit2": {
+    "source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery/lib/permit2",
+    "revision": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219",
+    "paths": ["src", "test/utils/DeployPermit2.sol", "LICENSE", "README.md"]
+  },
+  "solmate": {
+    "source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery/lib/v4-core/lib/solmate",
+    "revision": "4b47a19038b798b4a33d9749d25e570443520647",
+    "paths": ["src", "LICENSE", "README.md"]
+  }
+}

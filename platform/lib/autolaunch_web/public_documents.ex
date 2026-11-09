@@ -8,11 +8,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   every other address reaches it with its own sessions and policies.
   """
 
+  alias AutolaunchWeb.{AgentGuides, Paths, ToolManifest}
   alias AutolaunchWeb.Components.AutolaunchHelpers
-  alias AutolaunchWeb.{Paths, ToolManifest}
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact privacy terms llms llms-full agents skill claude)
+  @names ~w(home docs about changelog privacy terms llms llms-full agents skill)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -22,12 +22,10 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/" => "home",
     "/docs" => "docs",
     "/about" => "about",
-    "/contact" => "contact",
+    "/changelog" => "changelog",
     "/privacy" => "privacy",
     "/terms" => "terms"
   }
-  # Claude's page, only while its connector is on (`Autolaunch.OAuth.enabled?/0`).
-  @claude_path "/agents/claude"
 
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @external_resource @contract_path
@@ -69,12 +67,12 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The regents-cli release every public document names: the one these guides
   # were checked against, its source commit and its published wheel.
   @regents_cli %{
-    version: "1.10.20",
-    commit: "0e3768f5b92fe8210fb00fea0053bcb5e9c2afaf",
-    wheel_sha256: "55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad"
+    version: "1.10.24",
+    commit: "fd325437e29fc6b239955e6ce946168bea2fb4ef",
+    wheel_sha256: "6310687234c5b0b5b9304973232e6ef3b0d08853f84ec9e4c82304fef979dc01"
   }
 
-  # Where security reports go, as the contact page publishes it.
+  # Where security reports go, as the About page publishes it.
   @security_contact "mailto:build@regents.sh"
 
   # The documents and the site's fixed pages change only with a release, so the
@@ -86,10 +84,10 @@ defmodule AutolaunchWeb.PublicDocuments do
   @pages %{
     "/" => {"#{@site_name} · Back AI agents at a fair price", @description},
     "/create" =>
-      {"Create a Memestock token",
+      {"Create Memestock",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
     "/create/revstake" =>
-      {"Create a Revstake token",
+      {"Create Revstake",
        "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
     "/auctions" =>
       {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
@@ -104,9 +102,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     :robinhood_token =>
       {"token", "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
     "/how-it-works" =>
-      {"How Autolaunch works",
+      {"How it works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
-    "/stock-listing" =>
+    "/stocks" =>
       {"Onchain Stocks",
        "Stocks next in line to pair with a Memestock token on Base and Robinhood Chain, and every stock you can pair with today."},
     :stock =>
@@ -114,49 +112,51 @@ defmodule AutolaunchWeb.PublicDocuments do
        "One stock on Base or Robinhood Chain: its onchain token, price feed and trading pools, from dated research."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
-    "/covered-calls" =>
+    "/stock/covered-call" =>
       {"Covered calls",
        "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
-    "/after-hour-stocks" =>
+    "/stock/isolated-afters" =>
       {"Isolated Exposure to After-hours Stocks",
        "Split a Base stock token into two for a week: one carries its moves while the market is closed, the other while it is open."},
     :bid =>
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
+    "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
+    "/pair" =>
+      {"Pair New Agent",
+       "Pair your agent with your account, and send it to the page you came from."},
     "/regent" =>
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},
     "/convert" =>
-      {"REGENT's share of fees",
+      {"REGENT Fees",
        "REGENT's share of trading fees waiting in each graduated Memestock launch."},
     "/docs" =>
       {"Developer guide",
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},
     "/about" =>
       {"About",
-       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts and common questions."},
-    "/contact" =>
-      {"Contact",
-       "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
+       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts, common questions and how to reach us."},
+    "/changelog" =>
+      {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."},
     "/privacy" =>
       {"Privacy",
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
     "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
-    "/agents/claude" =>
-      {"Claude",
-       "Connect Claude to your Autolaunch account through its connector and pair it as your agent."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
     :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
   }
 
   # The fixed pages both sitemaps list.
-  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /privacy /terms /blog)
+  @sitemap_pages ~w(/ /auctions /tokens /stocks /how-it-works /regent /docs /about /changelog /privacy /terms /blog)
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
+  def document("/agents" <> _rest = path), do: AgentGuides.document(path)
+
   def document(path) do
-    case paths() do
+    case @paths do
       %{^path => name} -> %{markdown: markdown(name)}
       _other -> nil
     end
@@ -179,23 +179,33 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "The skill served at `/skill.md`: using Autolaunch for your person."
   def skill_guide, do: markdown("skill")
 
-  @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
-  def capabilities, do: ToolManifest.current()
+  @doc "The browser tool manifest served at `/capabilities.json`: every tool the pages register."
+  def capabilities do
+    commit = Application.fetch_env!(:autolaunch, :source_commit)
+
+    Map.put(ToolManifest.current(), "build", %{
+      release: String.slice(commit, 0, 7),
+      commit: commit
+    })
+  end
 
   @doc "Whether the page at `path` also answers as Markdown."
-  def markdown?(path), do: Map.has_key?(paths(), path)
-
-  # The pages that answer as Markdown now: Claude's only while its connector is on.
-  defp paths,
-    do: if(Autolaunch.OAuth.enabled?(), do: Map.put(@paths, @claude_path, "claude"), else: @paths)
+  def markdown?(path), do: Map.has_key?(@paths, path) or path in AgentGuides.paths()
 
   @doc """
   The `page_title` and `page_description` assigns the root layout reads. Every
   page that renders in the root layout assigns them from here.
   """
   def page(key) do
-    {title, description} = Map.fetch!(@pages, key)
+    {title, description} = title_and_description(key)
     [page_title: title, page_description: description]
+  end
+
+  @doc "The page's title alone, as the `about` and `docs` reads give it."
+  def title(key), do: key |> title_and_description() |> elem(0)
+
+  defp title_and_description(key) do
+    if key in AgentGuides.paths(), do: AgentGuides.page(key), else: Map.fetch!(@pages, key)
   end
 
   @doc """
@@ -235,7 +245,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
     markdown
-    |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize)
+    |> MDEx.to_html!(extension: [table: true, inline_code_attributes: false], sanitize: @sanitize)
     |> String.replace(
       "<table>",
       ~s(<div class="document-table" role="region" aria-label="Table" tabindex="0"><table>)
@@ -295,7 +305,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     stocks =
       Enum.map(
         Autolaunch.Stocks.UpcomingCatalog.stocks(),
-        &{url("/stock-listing/" <> URI.encode(&1["symbol"])), @released_at}
+        &{url("/stocks/" <> URI.encode(&1["symbol"])), @released_at}
       )
 
     entries =
@@ -320,7 +330,7 @@ defmodule AutolaunchWeb.PublicDocuments do
      "Install regents-cli, sign in, pair with a person and fill in a launch draft."},
     {"/skill.md", "Skill", "Using Autolaunch for a person, from research to watching a bid."},
     {"/openapi.json", "OpenAPI description", "Every public route, its inputs and its answers."},
-    {"/capabilities", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},
+    {"/capabilities.json", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},
     {"/.well-known/api-catalog", "API catalog", "RFC 9727 discovery for the API."}
   ]
 
@@ -332,7 +342,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   def markdown_sitemap do
     pages =
       Enum.map_join(sitemap_pages(), "\n", fn path ->
-        {title, description} = Map.fetch!(@pages, path)
+        {title, description} = title_and_description(path)
         "- [#{title}](#{url(path)}) | Summary: #{description}"
       end)
 
@@ -365,7 +375,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
     Preferred-Languages: en
     Canonical: #{url("/.well-known/security.txt")}
-    Policy: #{url("/contact")}
+    Policy: #{url("/about")}
     """
   end
 
@@ -422,7 +432,7 @@ defmodule AutolaunchWeb.PublicDocuments do
               "@type" => "ContactPoint",
               "contactType" => "customer support",
               "email" => "build@regents.sh",
-              "url" => url("/contact"),
+              "url" => url("/about"),
               "availableLanguage" => "English"
             },
             %{
@@ -520,8 +530,8 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The `{{claude_connector}}` line and its blank line become the Claude
   # connector's paragraph only while it is on; `{{hosted_covered_calls}}` names
   # the covered-call hosted tools only while the site offers covered calls;
-  # `{{hosted_mcp}}` says what the
-  # hosted MCP address serves, naming Claude's connector while it is on.
+  # `{{hosted_mcp}}` says what the hosted MCP address serves, naming Claude's
+  # connector while it is on.
   defp markdown(name) do
     @sources[name]
     |> String.replace("{{claude_connector}}\n\n", claude_connector(Autolaunch.OAuth.enabled?()))
@@ -553,15 +563,13 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
 
-  # The fixed pages the sitemaps list, with covered calls while the site offers
-  # them and Claude's page while its connector is on.
-  defp sitemap_pages do
-    covered_calls =
-      if "covered_calls" in ToolManifest.features(), do: ["/covered-calls"], else: []
-
-    claude = if Autolaunch.OAuth.enabled?(), do: [@claude_path], else: []
-    @sitemap_pages ++ covered_calls ++ claude
-  end
+  # The fixed pages the sitemaps list, with covered calls while the site offers them.
+  defp sitemap_pages,
+    do:
+      if("covered_calls" in ToolManifest.features(),
+        do: @sitemap_pages ++ ["/stock/covered-call"],
+        else: @sitemap_pages
+      ) ++ AgentGuides.paths()
 
   defp claude_connector(false), do: ""
 

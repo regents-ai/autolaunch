@@ -108,19 +108,6 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
-  # Claude's page exists only while its connector is on (`Autolaunch.OAuth`);
-  # off, it answers as an address with nothing at it.
-  pipeline :claude_connector do
-    plug :admit_claude_connector
-  end
-
-  def admit_claude_connector(conn, _opts) do
-    Autolaunch.OAuth.enabled?() or
-      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
-
-    conn
-  end
-
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -157,11 +144,12 @@ defmodule AutolaunchWeb.Router do
     get "/llms-full.txt", PublicPagesController, :full_agent_guide
     get "/agents.md", PublicPagesController, :signed_agent_guide
     get "/skill.md", PublicPagesController, :skill_guide
+    get "/agents/:agent/skill.md", PublicPagesController, :agent_skill_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/sitemap.md", PublicPagesController, :markdown_sitemap
     get "/openapi.json", PublicPagesController, :openapi
     get "/robots.txt", PublicPagesController, :robots
-    get "/capabilities", PublicPagesController, :capabilities
+    get "/capabilities.json", PublicPagesController, :capabilities
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/.well-known/api-catalog", PublicPagesController, :api_catalog
 
@@ -283,6 +271,9 @@ defmodule AutolaunchWeb.Router do
     pipe_through :api
 
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
+    get "/health", HealthController, :status
+    get "/about", PublicPagesController, :document, assigns: %{document: "/about"}
+    get "/docs", PublicPagesController, :document, assigns: %{document: "/docs"}
   end
 
   # Covered calls' styles, at the address the other styles share; off, nothing is there.
@@ -301,7 +292,7 @@ defmodule AutolaunchWeb.Router do
 
   # A series' terms, the exact bytes its `termsHash` fingerprints, and the
   # picture and video a shared series link shows.
-  scope "/after-hour-stocks", AutolaunchWeb do
+  scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through :exposure
 
     get "/terms/:hash", ExposureController, :terms
@@ -310,7 +301,7 @@ defmodule AutolaunchWeb.Router do
   end
 
   # The picture and video a shared covered-calls link shows.
-  scope "/covered-calls", AutolaunchWeb do
+  scope "/stock/covered-call", AutolaunchWeb do
     pipe_through :covered_calls
 
     get "/:symbol/share.png", ShareCardController, :covered_calls
@@ -365,13 +356,13 @@ defmodule AutolaunchWeb.Router do
         :auction_wallet_video
   end
 
-  scope "/covered-calls", AutolaunchWeb do
+  scope "/stock/covered-call", AutolaunchWeb do
     pipe_through [:session_video, :covered_calls]
 
     get "/:symbol/wallets/:wallet/share.mp4", ShareCardController, :covered_calls_wallet_video
   end
 
-  scope "/after-hour-stocks", AutolaunchWeb do
+  scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through [:session_video, :exposure]
 
     get "/:series/wallets/:wallet/share.mp4", ShareCardController, :exposure_wallet_video
@@ -405,7 +396,9 @@ defmodule AutolaunchWeb.Router do
 
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
-    get "/contact", PublicPagesController, :show
+    get "/changelog", PublicPagesController, :show
+    get "/agents", PublicPagesController, :show
+    get "/agents/:agent", PublicPagesController, :show
     get "/privacy", PublicPagesController, :show
     get "/terms", PublicPagesController, :show
 
@@ -427,24 +420,31 @@ defmodule AutolaunchWeb.Router do
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
-      live "/stock-listing", UpcomingLive, :show
-      live "/stock-listing/:symbol", StockLive, :show
-      live "/covered-calls", CoveredCallsLive, :index
-      live "/after-hour-stocks", ExposureLive, :show
+      live "/stocks", UpcomingLive, :show
+      live "/stocks/:symbol", StockLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid
       live "/account", AccountLive, :account
+      live "/account/agents", AccountAgentsLive, :agents
       live "/account/points", PointsLive, :points
+      live "/pair", PairLive, :pair
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
     end
-  end
 
-  scope "/", AutolaunchWeb do
-    pipe_through [:claude_connector, :browser, :browser_session]
-
-    get "/agents/claude", PublicPagesController, :show
+    # The stock products, in a session of their own so that reaching one from
+    # any other page loads it fresh at its own address.
+    live_session :stock,
+      session: {AutolaunchWeb.Live.Session, :render_context, []},
+      on_mount: [
+        {AutolaunchWeb.Live.Session, :load_human},
+        {AutolaunchWeb.Live.Credits, :credits},
+        {AutolaunchWeb.Live.Agents, :agents}
+      ] do
+      live "/stock/covered-call", CoveredCallsLive, :index
+      live "/stock/isolated-afters", ExposureLive, :show
+    end
   end
 
   # The motion lab, unless the showcase setting is off (AutolaunchWeb.Showcase).

@@ -80,7 +80,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1–50. Defaults to 50."
+            "description": "Safe integer; the API clamps it to 1\u201350. Defaults to 50."
           }
         },
         "required": [],
@@ -194,7 +194,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1–100. Defaults to 100."
+            "description": "Safe integer; the API clamps it to 1\u2013100. Defaults to 100."
           }
         },
         "required": [],
@@ -552,7 +552,7 @@
           },
           "stock_address": {
             "type": "string",
-            "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
+            "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
           },
           "image": {
             "type": "object",

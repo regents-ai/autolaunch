@@ -129,11 +129,11 @@ defmodule AutolaunchWeb.ShareCard do
     }
   end
 
-  defp page_path(:covered_calls), do: "/covered-calls"
-  defp page_path(:exposure), do: "/after-hour-stocks"
+  defp page_path(:covered_calls), do: "/stock/covered-call"
+  defp page_path(:exposure), do: "/stock/isolated-afters"
 
-  defp page_url(:covered_calls, _symbol), do: url(~p"/covered-calls")
-  defp page_url(:exposure, series), do: url(~p"/after-hour-stocks?#{[series: series]}")
+  defp page_url(:covered_calls, _symbol), do: url(~p"/stock/covered-call")
+  defp page_url(:exposure, series), do: url(~p"/stock/isolated-afters?#{[series: series]}")
 
   @doc "The page details for How Autolaunch works."
   @spec how_it_works_meta() :: map()
@@ -417,8 +417,8 @@ defmodule AutolaunchWeb.ShareCard do
     stats = Enum.reject(card.stats, fn {_label, value, _color} -> is_nil(value) end)
     {badge, badge_color} = card.badge
 
-    with {:ok, site} <- layer("autolaunch.sh", :pixel, 30, @muted),
-         {:ok, badge} <- layer(badge, :bold, 24, badge_color),
+    with {:ok, site} <- layer("autolaunch.sh", 30, @muted),
+         {:ok, badge} <- layer(badge, 24, badge_color),
          {:ok, initial} <- initial(face.symbol),
          {:ok, stats} <- stat_layers(stats) do
       {:ok,
@@ -441,7 +441,7 @@ defmodule AutolaunchWeb.ShareCard do
   # that fits.
   defp stat_layers(stats) do
     Enum.reduce_while(Enum.reverse(stats), {:ok, []}, fn {label, value, color}, {:ok, done} ->
-      with {:ok, label} <- layer(label, :regular, 28, @muted),
+      with {:ok, label} <- layer(label, 28, @muted),
            max = @words_right - @logo_x - Image.width(label) - 24,
            {:ok, value} <- figure(value, color, max, [40, 36, 32]) do
         {:cont, {:ok, [{label, value} | done]}}
@@ -474,7 +474,7 @@ defmodule AutolaunchWeb.ShareCard do
 
     with {:ok, name} <- name(words.name, words.name_sizes, @words_right - @words_x),
          {:ok, ticker} <-
-           sized(words.ticker, :regular, @muted, @words_right - @words_x, [34, 30, 28]),
+           sized(words.ticker, @muted, @words_right - @words_x, [34, 30, 28]),
          {:ok, creator} <- creator_words(words.creator, layout) do
       {badge, _color} = words.badge
 
@@ -507,12 +507,12 @@ defmodule AutolaunchWeb.ShareCard do
   # A name with nothing the fonts can draw is left out; the ticker still names
   # the token.
   defp name("", _sizes, _max), do: {:ok, nil}
-  defp name(words, sizes, max), do: sized(words, :bold, @platinum, max, sizes)
+  defp name(words, sizes, max), do: sized(words, @platinum, max, sizes)
 
   # The words step down in size until they fit, and are cut short at the
   # smallest.
   defp figure(value, color, max, [size | smaller]) do
-    with {:ok, layer} <- layer(value, :bold, size, color) do
+    with {:ok, layer} <- layer(value, size, color) do
       cond do
         Image.width(layer) <= max -> {:ok, layer}
         smaller != [] -> figure(value, color, max, smaller)
@@ -521,13 +521,13 @@ defmodule AutolaunchWeb.ShareCard do
     end
   end
 
-  defp sized(words, weight, color, max, [size]), do: fit(words, weight, size, color, max)
+  defp sized(words, color, max, [size]), do: fit(words, size, color, max)
 
-  defp sized(words, weight, color, max, [size | smaller]) do
-    with {:ok, layer} <- layer(words, weight, size, color) do
+  defp sized(words, color, max, [size | smaller]) do
+    with {:ok, layer} <- layer(words, size, color) do
       if Image.width(layer) <= max,
         do: {:ok, layer},
-        else: sized(words, weight, color, max, smaller)
+        else: sized(words, color, max, smaller)
     end
   end
 
@@ -537,7 +537,7 @@ defmodule AutolaunchWeb.ShareCard do
 
   defp creator_words(creator, layout) do
     left = badge_x() + layout.badge_w + 6 + layout.chain_w + 20
-    sized("by " <> creator, :regular, @muted, @words_right - left, [28, 26, 24])
+    sized("by " <> creator, @muted, @words_right - left, [28, 26, 24])
   end
 
   defp creator_at(nil, _top), do: []
@@ -691,7 +691,7 @@ defmodule AutolaunchWeb.ShareCard do
   defp initial(symbol) do
     case symbol |> plain() |> String.first() do
       nil -> {:ok, nil}
-      letter -> layer(String.upcase(letter), :pixel, 56, @field)
+      letter -> layer(String.upcase(letter), 56, @field)
     end
   end
 end

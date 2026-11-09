@@ -105,8 +105,8 @@ defmodule Autolaunch.LaunchReviews do
   defp locked(:launch, id), do: Autolaunch.lock_launch_review(id, actor: @system)
   defp locked(:stocks_launch, id), do: Autolaunch.lock_stocks_launch_review(id, actor: @system)
 
-  # A review withdrawn before its launch landed stays withdrawn; the launch is
-  # still listed.
+  # A review the chain already verified stays as it was: doing it twice
+  # changes nothing.
   defp verified(:launch, %{state: :prepared} = review, result),
     do: Autolaunch.verify_launch_review(review, %{result: result}, actor: @system)
 

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.CoveredCallsLive do
   @moduledoc """
-  `/covered-calls`: covered calls on a Base stock, in two tabs with an address
-  each. **Sell**, first and at `/covered-calls`, is one form to lock stock and
+  `/stock/covered-call`: covered calls on a Base stock, in two tabs with an address
+  each. **Sell**, first and at `/stock/covered-call`, is one form to lock stock and
   list calls on it, beside the guide. **Buy** (`?tab=buy`, with how many are for
   sale) lists the calls for sale, and a listing's panel opens below it at
   `?listing=<id>`. Every figure is read from the contract (`Autolaunch.CoveredCalls`);
@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
       {:ok,
        socket
-       |> assign(AutolaunchWeb.PublicDocuments.page("/covered-calls"))
+       |> assign(AutolaunchWeb.PublicDocuments.page("/stock/covered-call"))
        |> assign(
          share:
            if(connected?(socket),
@@ -191,7 +191,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </a>
             outside the US.
           </p>
-          <p>Earn USDC on your {@market.symbol}, or buy the right to own it at a set price.</p>
         </div>
         <div class="covered-calls__header-actions">
           <AutolaunchWeb.Components.ShareMarket.share_market
@@ -213,8 +212,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <.steps tab={@tab} symbol={@market.symbol} />
 
       <nav class="covered-calls__tabs" aria-label="Covered calls">
-        <.link patch={~p"/covered-calls"} aria-current={@tab == :sell && "page"}>Sell calls</.link>
-        <.link patch={~p"/covered-calls?tab=buy"} aria-current={@tab == :buy && "page"}>
+        <.link patch={~p"/stock/covered-call"} aria-current={@tab == :sell && "page"}>Sell calls</.link>
+        <.link patch={~p"/stock/covered-call?tab=buy"} aria-current={@tab == :buy && "page"}>
           {"Buy calls" <> if(@reading, do: " (#{length(@open)})", else: "")}
         </.link>
         <.link :if={@human_id} navigate={~p"/portfolio"} class="covered-calls__mine">My calls</.link>
@@ -255,7 +254,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 </td>
                 <td class="covered-calls__row-action">
                   <.link
-                    patch={~p"/covered-calls?listing=#{listing.id}"}
+                    patch={~p"/stock/covered-call?listing=#{listing.id}"}
                     class="rg-button rg-button--secondary"
                     aria-expanded={to_string(@selected == listing.id)}
                   >
@@ -286,7 +285,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <div :if={@reading && @open == []} class="market-list__scroll market-list__empty">
           <h2>No calls for sale right now</h2>
           <p>New listings appear here as soon as a seller lists them.</p>
-          <.link patch={~p"/covered-calls"} class="rg-button rg-button--secondary">
+          <.link patch={~p"/stock/covered-call"} class="rg-button rg-button--secondary">
             Sell calls
           </.link>
         </div>
@@ -349,15 +348,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               Verified on Basescan
             </a>
           </dd>
+          <dt>Owner</dt>
+          <dd>None</dd>
+          <dt>Upgrades</dt>
+          <dd>None</dd>
+          <dt>Issuer</dt>
+          <dd>Coinbase can pause or seize {@market.symbol}</dd>
+          <dt>Buying</dt>
+          <dd>Stops while REGENT staking is paused</dd>
         </dl>
-        <p class="covered-calls__note covered-calls__panel-head">
-          No owner. Nobody can change or upgrade it.
-          <P.tip id="covered-calls-limits-tip" label="Limits">
-            It holds each listing's {@market.symbol} until the buyer or the seller collects it.
-            Coinbase controls {@market.symbol} and can pause or seize it, and buying stops while
-            REGENT staking, which takes the 1% fee, is paused.
-          </P.tip>
-        </p>
       </section>
     </article>
     """

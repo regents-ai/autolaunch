@@ -51,8 +51,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
-  @withdrawn "review withdrawn"
-
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc "The fixed terms every Stocks launch uses, for the review page, in the ticker of the token it creates."
@@ -181,17 +179,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
         Integer.to_string(admission.decimals) == facts["stock_decimals"] and
         admission.route == facts["route"]
 
-  @doc "Withdraws one saved review the page is done with."
-  def cancel(action_id, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         do: transact(lease, &withdraw(&1, action_id))
-  end
-
-  defp withdraw(account, action_id) do
-    with {:ok, operation} <- LaunchOperations.fetch(account.id, action_id, true),
-         do: LaunchOperations.update(operation, :cancel, %{reason: @withdrawn})
-  end
+  @doc "Whether the Base launchpad has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused, do: LabLaunchChainClient.launches_paused()
 
   @doc """
   A saved review as the page uses it: its id, signer, chain, step and facts. The

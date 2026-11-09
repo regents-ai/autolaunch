@@ -43,7 +43,7 @@ defmodule AutolaunchWeb.ApiError do
 
   defp hint("agent_not_paired"),
     do:
-      "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again."
+      "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again."
 
   defp hint("wallet_required"),
     do:
@@ -57,8 +57,7 @@ defmodule AutolaunchWeb.ApiError do
   defp hint("account_unavailable"), do: "Try again in a moment."
 
   defp hint("internal_error"),
-    do:
-      "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/contact")}."
+    do: "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/about")}."
 
   defp hint(_code),
     do:
