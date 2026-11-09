@@ -4,7 +4,7 @@ defmodule Autolaunch.Bid.Checks.VerifiedWalletOwner do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.VerifiedSession
-  alias Autolaunch.Actors.Human
+  alias Autolaunch.Actors.{Agent, Human, System}
 
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
 
@@ -13,29 +13,29 @@ defmodule Autolaunch.Bid.Checks.VerifiedWalletOwner do
 
   @impl true
   def filter(%Human{} = actor, _context, _opts) do
-    with {:ok, account} when not is_nil(account) <-
-           Accounts.get_human_account(actor.human_account_id, actor: actor),
-         true <- VerifiedSession.current?(account),
-         wallets when wallets != [] <- verified_wallets(account) do
-      expr(string_downcase(owner_address) in ^wallets)
-    else
-      _ -> false
+    case Accounts.get_human_account(actor.human_account_id, actor: actor) do
+      {:ok, %{} = account} -> owned_by(account)
+      _unread -> false
     end
   end
 
-  def filter(%Autolaunch.Actors.Agent{} = actor, _context, _opts) do
-    with {:ok, account} when not is_nil(account) <-
-           Accounts.get_by_privy_did(actor.privy_user_id, actor: %Autolaunch.Actors.System{}),
-         true <- account.id == actor.human_account_id,
-         true <- VerifiedSession.current?(account),
-         wallets when wallets != [] <- verified_wallets(account) do
-      expr(string_downcase(owner_address) in ^wallets)
-    else
-      _ -> false
+  def filter(%Agent{privy_user_id: privy_user_id, human_account_id: id}, _context, _opts) do
+    case Accounts.get_by_privy_did(privy_user_id, actor: %System{}) do
+      {:ok, %{id: ^id} = account} -> owned_by(account)
+      _unread_or_another_account -> false
     end
   end
 
   def filter(_actor, _context, _opts), do: false
+
+  defp owned_by(account) do
+    with true <- VerifiedSession.current?(account),
+         wallets when wallets != [] <- verified_wallets(account) do
+      expr(string_downcase(owner_address) in ^wallets)
+    else
+      _ -> false
+    end
+  end
 
   defp verified_wallets(account) do
     account.wallet_addresses
