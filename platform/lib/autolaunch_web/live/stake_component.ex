@@ -557,17 +557,8 @@ defmodule AutolaunchWeb.StakeComponent do
      )}
   end
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:stake, reason)
-        note = OnchainSteps.failure_note(socket.assigns, reason, "this network")
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :stake, "this network")}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash) do
     if OnchainCalls.follows?(socket.assigns.batches, hash),

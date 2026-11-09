@@ -36,9 +36,9 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   alias Autolaunch.{LaunchedDrafts, LaunchReviews}
   alias AutolaunchWeb.Components.{AgentSetFields, BidPlaced, MarketCard, SwapForm}
-  alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
+  alias AutolaunchWeb.{OnchainSteps, Paths}
   alias Phoenix.LiveView.JS
-  alias RegentChain.{Presses, Review}
+  alias RegentChain.Review
 
   @reverted "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
   @rebuilt "That launch did not go through, so nothing was created. Only the network fee was spent. The review now matches the network as it is: press again."
@@ -284,18 +284,6 @@ defmodule AutolaunchWeb.LaunchSteps do
          ) do
       {:ok, %{} = auction} -> Paths.auction(auction)
       _unlisted -> nil
-    end
-  end
-
-  @doc "A press that sent nothing, or may have sent something, in words for the person who pressed."
-  def failed(socket, params, flow) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        Telemetry.wallet_failed(flow, reason)
-        assign(socket, press_note: OnchainSteps.failure_note(socket.assigns, reason, nil))
-
-      :error ->
-        socket
     end
   end
 

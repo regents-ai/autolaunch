@@ -170,7 +170,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", params, socket),
-    do: {:noreply, LaunchSteps.failed(socket, params, :robinhood_launch)}
+    do: {:noreply, OnchainSteps.failed(socket, params, :robinhood_launch, nil)}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

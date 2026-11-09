@@ -193,6 +193,22 @@ defmodule AutolaunchWeb.OnchainSteps do
   end
 
   @doc """
+  The wallet sent nothing, or may have sent something (the page's
+  `step_failed`): the reason is counted under `flow` and said beside the
+  buttons (`failure_note/3`, naming `network` while no review is on the page).
+  """
+  def failed(socket, params, flow, network) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        AutolaunchWeb.Telemetry.wallet_failed(flow, reason)
+        assign(socket, press_note: failure_note(socket.assigns, reason, network))
+
+      :error ->
+        socket
+    end
+  end
+
+  @doc """
   The newest press of step `name` of `review`, or `nil` when that step has not
   been sent from it. A panel reads a step's state from it and never waits on it.
   """

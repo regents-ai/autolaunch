@@ -35,7 +35,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
-  alias RegentChain.{Presses, Review}
+  alias RegentChain.Review
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -540,17 +540,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid, reason)
-        note = OnchainSteps.failure_note(socket.assigns, reason, Lab.network_name(Lab.chain_id()))
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do:
+      {:noreply,
+       OnchainSteps.failed(socket, params, :robinhood_bid, Lab.network_name(Lab.chain_id()))}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

@@ -268,17 +268,8 @@ defmodule AutolaunchWeb.ConvertComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:convert, reason)
-        note = OnchainSteps.failure_note(socket.assigns, reason, "this network")
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :convert, "this network")}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

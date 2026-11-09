@@ -346,17 +346,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:subject, reason)
-        note = OnchainSteps.failure_note(socket.assigns, reason, nil)
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :subject, nil)}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

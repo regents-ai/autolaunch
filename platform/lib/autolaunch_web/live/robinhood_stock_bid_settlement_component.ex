@@ -403,17 +403,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid_settlement, reason)
-        note = OnchainSteps.failure_note(socket.assigns, reason, Lab.network_name(Lab.chain_id()))
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do:
+      {:noreply,
+       OnchainSteps.failed(
+         socket,
+         params,
+         :robinhood_bid_settlement,
+         Lab.network_name(Lab.chain_id())
+       )}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
