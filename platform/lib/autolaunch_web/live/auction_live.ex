@@ -465,7 +465,7 @@ defmodule AutolaunchWeb.AuctionLive do
     </section>
     <div :if={@lab} id="autolaunch-lab-position"></div>
     <.live_component
-      :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
+      :if={Autolaunch.Stocks.Faucet.available?() && @account_control.kind == :signed_in}
       module={AutolaunchWeb.TestFundsComponent}
       id="autolaunch-test-funds"
       current_human_id={current_human_id(@access_context)}

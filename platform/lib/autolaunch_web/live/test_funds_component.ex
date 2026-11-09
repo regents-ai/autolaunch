@@ -13,8 +13,6 @@ defmodule AutolaunchWeb.TestFundsComponent do
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
 
-  def available?, do: Faucet.available?()
-
   @impl true
   def mount(socket), do: {:ok, Session.check_component_lease(socket, &take_account/2)}
 
