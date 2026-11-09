@@ -64,7 +64,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     usdg_route_unavailable: "USDG cannot be converted for this auction right now.",
     stock_route_unavailable: "USDG cannot be converted for this auction right now.",
     quote_out_of_range: "USDG cannot be converted for this auction right now.",
-    stock_not_listed: "This auction's stock is not one this site lists."
+    stock_not_listed: "This auction's stock is not one this site lists.",
+    invalid_slippage:
+      "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
   }
 
   @generic "That did not go through. Try again in a moment."
@@ -113,14 +115,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign_new(:ended, fn -> nil end)
-     |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:outbid_banner, fn -> false end)
-     |> assign_new(:authenticated, fn -> false end)
-     |> assign_new(:current_human_id, fn -> nil end)
-     |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
-     |> assign_new(:form, fn -> %{blank() | amount: Map.get(assigns, :preset_amount) || ""} end)
+     |> assign_new(:form, &blank/0)
      |> assign_book_and_supply()
      |> assign_usd_prices()
      |> OnchainSteps.adopt()
@@ -187,11 +184,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   @impl true
   def render(assigns) do
-    usd_rate = UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(assigns.reading))
-
     assigns =
       assign(assigns,
-        usd_rate: usd_rate,
+        usd_rate: usd_rate(assigns),
         rows: rows(assigns),
         steps: steps(assigns),
         next_step: next_step(assigns),
@@ -524,9 +519,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A new bid for an outbid one: about the same money, at the current price.
   def handle_event("raise_bid", %{"bid_id" => bid_id}, socket) do
-    %{usd_prices: prices, reading: reading} = socket.assigns
-    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
-    amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(rate)
+    amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(usd_rate(socket.assigns))
     {:noreply, new_bid_entered(socket, %{blank() | amount: amount})}
   end
 
@@ -696,14 +689,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp text(value) when is_binary(value), do: String.slice(value, 0, 256)
   defp text(_value), do: ""
 
-  defp inputs(%{form: form, reading: reading} = assigns),
+  defp inputs(assigns),
     do:
       BidForm.inputs(
-        form,
+        assigns.form,
         assigns.book,
         supply(assigns.supply),
-        UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(reading)),
-        stock_symbol(reading),
+        usd_rate(assigns),
+        stock_symbol(assigns.reading),
         []
       )
 
@@ -736,9 +729,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp drafted(socket), do: socket
 
-  defp max_price(%{usd_prices: prices, reading: reading} = assigns) do
-    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
-    {_unit, factor} = BidForm.fdv_currency("USDG", stock_symbol(reading), rate)
+  defp max_price(assigns) do
+    {_unit, factor} =
+      BidForm.fdv_currency("USDG", stock_symbol(assigns.reading), usd_rate(assigns))
+
     BidForm.max_price(assigns.form, assigns.book, supply(assigns.supply), factor)
   end
 
@@ -920,6 +914,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
       end)
 
+  # The dollar price of the auction's stock, once both are read.
+  defp usd_rate(%{usd_prices: prices, reading: reading}),
+    do: UsdValue.stock_rate(prices.result, reading_symbol(reading))
+
   defp reading_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
   defp reading_symbol(nil), do: nil
 
@@ -1035,9 +1033,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp told_outbid(socket), do: socket
-
-  defp copy(:invalid_slippage),
-    do: "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 

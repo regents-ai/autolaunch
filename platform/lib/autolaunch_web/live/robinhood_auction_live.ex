@@ -129,24 +129,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   def handle_info({:bid_draft_price, price}, socket),
     do: {:noreply, assign(socket, :draft_price, price)}
 
-  def render(assigns),
-    do: assigns |> assign(:usd_rate, usd_rate(assigns.usd_prices, assigns.launch)) |> page()
-
-  # Robinhood's clock, nil before it was first read.
-  defp clock do
-    case ChainHead.fetch("robinhood") do
-      %{block: clock} -> clock
-      nil -> nil
-    end
-  end
-
-  # The bid form is named after its auction, so a form never carries one
-  # auction's review, balance or typed figures over to another.
-  defp bid_form_id(auction), do: "autolaunch-robinhood-bid-#{auction}"
-
   # The stage and facts first, the recorded prices over the schedule, the
   # price ladder and a bid lookup, around the bid panel.
-  defp page(assigns) do
+  def render(assigns) do
+    assigns = assign(assigns, :usd_rate, usd_rate(assigns.usd_prices, assigns.launch))
+
     ~H"""
     <article
       :if={@open? && @launch}
@@ -242,7 +229,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
-            draft_marker
           />
           <.how_to_bid
             :if={@snapshot.ok? && @snapshot.result.stage.stage in [:created, :open]}
@@ -294,6 +280,18 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     """
   end
 
+  # Robinhood's clock, nil before it was first read.
+  defp clock do
+    case ChainHead.fetch("robinhood") do
+      %{block: clock} -> clock
+      nil -> nil
+    end
+  end
+
+  # The bid form is named after its auction, so a form never carries one
+  # auction's review, balance or typed figures over to another.
+  defp bid_form_id(auction), do: "autolaunch-robinhood-bid-#{auction}"
+
   attr :auction, :string, required: true
   attr :launch, :map, required: true
   attr :book, Phoenix.LiveView.AsyncResult, required: true
@@ -301,7 +299,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   attr :account_control, :map, required: true
   attr :access_context, :map, required: true
   attr :session_lease, :map, default: nil
-  attr :draft_marker, :boolean, default: false
 
   defp bid_aside(assigns) do
     ~H"""
@@ -309,7 +306,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       module={AutolaunchWeb.RobinhoodStockBidComponent}
       id={bid_form_id(@auction)}
       outbid_banner
-      draft_marker={@draft_marker}
+      draft_marker
       auction={@auction}
       launch={@launch}
       ended={AutolaunchWeb.RobinhoodStockBidComponent.ended_copy(@launch)}

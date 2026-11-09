@@ -694,11 +694,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp stock_symbol(%{prepared: %{facts: %{stock_symbol: symbol}}}), do: symbol
   defp stock_symbol(_assigns), do: "your stock"
 
-  defp early_next(%{review: %{}}, steps), do: steps |> reviewed_next() |> early_label()
-  defp early_next(_assigns, _steps), do: nil
+  defp early_next(%{review: %{}}, steps) do
+    with %{} = step <- reviewed_next(steps), do: %{step | label: "Get my unspent money back"}
+  end
 
-  defp early_label(nil), do: nil
-  defp early_label(step), do: %{step | label: "Get my unspent money back"}
+  defp early_next(_assigns, _steps), do: nil
 
   defp press_state(nil), do: :ready
 
