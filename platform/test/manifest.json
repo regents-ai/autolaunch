@@ -1,5 +1,5 @@
 {
-  "total": 160,
+  "total": 161,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1860,7 +1860,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ee49b41c2b0e181c9e5444f4c79fd52e815bc9e900c715e2aa2b68fc7b3da295"
+      "source_sha256": "28f9ccdf1608e1ea02fc04670600820ca472e60f7766950044e6fe9387f3294c"
     },
     {
       "id": 185,
@@ -2082,6 +2082,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "12097c0fbf01331ae8d506d058d122ab1b544582f78240661333ebb350e5b8fe"
+    },
+    {
+      "id": 203,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/launch_operations_test.exs",
+      "line": 20,
+      "test_name": "binds to a wallet the leased account links and refuses anything else, in order",
+      "keep_because": "Every Stocks and Robinhood wallet review binds to the signed-in account's own wallet through one shared check. A missing person, a malformed address, a missing lease, another account's actor or an unlinked wallet is refused, in that order, with the same reasons the pages show.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "0ee5514c91107221ea8fc929ad4593ffc34e0732ba4d5141834ca6ae0591e051"
     }
   ],
   "legacy_folders_to_remove": [
