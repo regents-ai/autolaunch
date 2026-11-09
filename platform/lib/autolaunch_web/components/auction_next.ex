@@ -1286,11 +1286,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   defp check_failed(_reason, _number), do: "This bid could not be read just now. Try again."
 
-  @doc "A price per token as a price per million tokens."
-  @spec per_million(String.t() | Decimal.t() | nil) :: String.t() | nil
-  def per_million(nil), do: nil
+  # A price per token as a price per million tokens.
+  defp per_million(nil), do: nil
 
-  def per_million(price),
+  defp per_million(price),
     do: price |> exact() |> Decimal.mult(@million) |> Decimal.normalize() |> plain()
 
   defp draft_decimal(nil), do: nil

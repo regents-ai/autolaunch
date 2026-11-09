@@ -7,8 +7,10 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
-  import AutolaunchWeb.Components.AuctionHistory
-  import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
+
+  import AutolaunchWeb.Components.AuctionPage,
+    only: [auction_activity: 1, details_window: 1, history_note: 1]
+
   import AutolaunchWeb.Components.AuctionNext
 
   alias Autolaunch.{AuctionBook, AuctionSnapshot, BidReceipt, ChainHead}
