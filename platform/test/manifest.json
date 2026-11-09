@@ -2088,13 +2088,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/stocks/launch_operations_test.exs",
-      "line": 20,
+      "line": 21,
       "test_name": "binds to a wallet the leased account links and refuses anything else, in order",
-      "keep_because": "Every Stocks and Robinhood wallet review binds to the signed-in account's own wallet through one shared check. A missing person, a malformed address, a missing lease, another account's actor or an unlinked wallet is refused, in that order, with the same reasons the pages show.",
+      "keep_because": "Every wallet review (Revstake launches, bids, settlements, swaps, Stocks and Robinhood) binds to the signed-in account's own wallet through one shared check. A missing person, a malformed address, a missing lease, another account's actor or an unlinked wallet is refused, in that order, with the same reasons the pages show and naming the record the action reviews.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "0ee5514c91107221ea8fc929ad4593ffc34e0732ba4d5141834ca6ae0591e051"
+      "source_sha256": "07496d6bf41b847c3ef4bd650d4722b1efe52878d60a189f0861d123ce8a2f73"
     }
   ],
   "legacy_folders_to_remove": [

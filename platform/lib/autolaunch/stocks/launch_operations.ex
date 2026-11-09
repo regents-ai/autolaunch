@@ -1,8 +1,10 @@
 defmodule Autolaunch.Stocks.LaunchOperations do
   @moduledoc """
-  What every Stocks and Robinhood wallet action shares: the signed-in wallet a
-  review binds to, the refusal each one answers with, and the one private
-  write of `Autolaunch.Stocks.LaunchOperation`.
+  What every wallet action shares: the signed-in wallet a review binds to
+  (`signed_in_wallet/3`, used by Revstake launches, bids, settlements, swaps
+  and every Stocks and Robinhood action), and for Stocks and Robinhood the
+  refusal each one answers with and the one private write of
+  `Autolaunch.Stocks.LaunchOperation`.
 
   Every durable write runs inside `SessionAuthority.transact_lease/3` against the
   account that callback locked, exactly as the Agent launch boundary does.
@@ -22,18 +24,23 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   @doc """
   The signed-in person and the wallet their action binds to: `address` has to
   be one of the wallets the account the session lease names links, read inside
-  the lease now, never a guess.
+  the lease now, never a guess. A refusal names `resource`, the record the
+  action reviews.
   """
-  @spec signed_in_wallet(term(), keyword()) ::
+  @spec signed_in_wallet(term(), keyword(), module()) ::
           {:ok, %{actor: Human.t(), signer: String.t(), lease: lease()}} | {:error, term()}
-  def signed_in_wallet(address, opts) do
+  def signed_in_wallet(address, opts, resource \\ LaunchOperation) do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- address(address),
          {:ok, lease} <- lease(opts),
          {:ok, account} <- leased(lease),
          :ok <- same_account(actor, account),
-         :ok <- signer_matches(account, signer),
-         do: {:ok, %{actor: actor, signer: signer, lease: lease}}
+         :ok <- linked(account, signer) do
+      {:ok, %{actor: actor, signer: signer, lease: lease}}
+    else
+      {:refused, reason} -> refusal(resource, reason)
+      unread -> unread
+    end
   end
 
   @spec transact(lease(), (Ash.Resource.record() -> {:ok, term()} | {:error, term()})) ::
@@ -58,10 +65,11 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   end
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
-  def signer_matches(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets, &Address.equal?(&1, signer)),
-      do: :ok,
-      else: unavailable(:wrong_signer)
+  def signer_matches(account, signer) do
+    case linked(account, signer) do
+      :ok -> :ok
+      {:refused, reason} -> unavailable(reason)
+    end
   end
 
   @doc "A chain read's answer, with every passing fault refused as `:chain_unavailable`."
@@ -71,21 +79,22 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   def chain({:error, reason}), do: unavailable(reason)
 
   @spec unavailable(atom()) :: {:error, Ash.Error.Invalid.Unavailable.t()}
-  def unavailable(reason),
-    do:
-      {:error, Ash.Error.Invalid.Unavailable.exception(resource: LaunchOperation, reason: reason)}
+  def unavailable(reason), do: refusal(LaunchOperation, reason)
+
+  defp refusal(resource, reason),
+    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: resource, reason: reason)}
 
   defp human(opts) do
     case Keyword.get(opts, :actor) do
       %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
+      _anonymous -> {:refused, :authentication_required}
     end
   end
 
   defp address(value) do
     case Address.normalize(value) do
       {:ok, address} -> {:ok, address}
-      :error -> unavailable(:invalid_address)
+      :error -> {:refused, :invalid_address}
     end
   end
 
@@ -96,17 +105,26 @@ defmodule Autolaunch.Stocks.LaunchOperations do
         {:ok, %{lineage: lineage, account_id: account_id}}
 
       _absent ->
-        unavailable(:session_lease_required)
+        {:refused, :session_lease_required}
     end
   end
 
+  # A lineage that has been revoked, rebound or whose provider evidence has
+  # lapsed resolves to no account.
   defp leased(%{lineage: lineage, account_id: account_id}) do
     case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
+      {:ok, nil} -> {:refused, :session_unavailable}
       result -> result
     end
   end
 
+  # The lease and the acting human have to name one account.
   defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
+  defp same_account(_actor, _account), do: {:refused, :session_unavailable}
+
+  defp linked(%{wallet_addresses: wallets}, signer) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
+      do: :ok,
+      else: {:refused, :wrong_signer}
+  end
 end

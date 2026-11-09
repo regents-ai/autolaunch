@@ -13,7 +13,6 @@ defmodule Autolaunch.BidActions do
   links, never a guess.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Rpc}
 
@@ -30,6 +29,7 @@ defmodule Autolaunch.BidActions do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias Autolaunch.Stocks.LaunchOperations
   alias RegentChain.{Address, Review}
 
   # A bid amount is denominated in the auction's own currency, whose decimals
@@ -108,7 +108,12 @@ defmodule Autolaunch.BidActions do
   rather than answered about.
   """
   def position(input, %{actor: %Human{}} = context) do
-    with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context.actor, context),
+    with {:ok, %{signer: signer}} <-
+           LaunchOperations.signed_in_wallet(
+             input.arguments.expected_signer,
+             [actor: context.actor, context: context.source_context],
+             Autolaunch.Auction
+           ),
          {:ok, auction} <- auction(input.arguments.auction_id),
          {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, balances} <-
@@ -156,9 +161,8 @@ defmodule Autolaunch.BidActions do
         address,
         opts
       ) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <-
-           current_wallet(address, actor, %{source_context: Keyword.get(opts, :context)}),
+    with {:ok, %{signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts, Autolaunch.Auction),
          {:ok, auction} <- auction(auction_id),
          :ok <- verified_treasury(auction),
          {:ok, auction_address} <- normalize(auction.auction_address),
@@ -441,48 +445,6 @@ defmodule Autolaunch.BidActions do
       {:ok, config} -> {:ok, config}
       {:error, _reason} -> unavailable(:bid_preparation_unavailable)
     end
-  end
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  # The mounted lease an Ash action context carries.
-  defp lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
-       when is_binary(lineage) and is_integer(account_id),
-       do: {:ok, %{lineage: lineage, account_id: account_id}}
-
-  defp lease(_context), do: unavailable(:session_lease_required)
-
-  # The wallet has to be one the leased account links, read now: never a guess.
-  defp current_wallet(address, actor, context) do
-    with {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(context),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: linked_wallet(account, signer)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  # The lease and the acting human have to name one account.
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp linked_wallet(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets, &Address.equal?(&1, signer)),
-      do: {:ok, signer},
-      else: unavailable(:wrong_signer)
   end
 
   # Chain snapshot

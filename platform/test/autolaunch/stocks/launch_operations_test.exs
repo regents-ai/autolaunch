@@ -1,9 +1,10 @@
 defmodule Autolaunch.Stocks.LaunchOperationsTest do
   @moduledoc """
-  Every Stocks and Robinhood wallet action binds its review to the signed-in
-  account's own wallet through `LaunchOperations.signed_in_wallet/2`: a
-  person, a well-formed address, the session lease, that lease's own account
-  and a wallet the account links, refused in that order.
+  Every wallet action binds its review to the signed-in account's own wallet
+  through `LaunchOperations.signed_in_wallet/3`: a person, a well-formed
+  address, the session lease, that lease's own account and a wallet the
+  account links, refused in that order and naming the record the action
+  reviews.
   """
 
   use AutolaunchWeb.ConnCase, async: false
@@ -38,7 +39,10 @@ defmodule Autolaunch.Stocks.LaunchOperationsTest do
     assert {:error, %{reason: :session_unavailable}} =
              LaunchOperations.signed_in_wallet(@other_wallet, Keyword.put(opts, :actor, stranger))
 
-    assert {:error, %{reason: :wrong_signer}} =
+    assert {:error, %{reason: :wrong_signer, resource: Autolaunch.Stocks.LaunchOperation}} =
              LaunchOperations.signed_in_wallet(@other_wallet, opts)
+
+    assert {:error, %{reason: :wrong_signer, resource: Autolaunch.Bid}} =
+             LaunchOperations.signed_in_wallet(@other_wallet, opts, Autolaunch.Bid)
   end
 end
