@@ -160,7 +160,8 @@ defmodule AutolaunchWeb.Router do
   # The Claude connector's sign-in (Autolaunch.OAuth). API credentials never use
   # cookies; consent uses the verified browser session and CSRF. The resource's
   # metadata also answers under its /mcp path, where RFC 9728 places it. While
-  # the connector is off, every one of these answers not found.
+  # the connector is off these answer not found, and the consent pages below
+  # are refused, so no app can connect.
   scope "/", AutolaunchWeb do
     pipe_through :api
     get "/.well-known/oauth-protected-resource", OAuthController, :resource_metadata

@@ -1,8 +1,10 @@
 defmodule AutolaunchWeb.OAuthController do
   @moduledoc """
   The Claude connector's sign-in (`Autolaunch.OAuth`): Boruta's protocol routes,
-  and consent under the verified browser session and CSRF. Everything answers
-  not found while the connector is off (`RegentOAuth.Protocol.call/2`).
+  and consent under the verified browser session and CSRF. While the connector
+  is off the protocol and metadata routes answer not found
+  (`RegentOAuth.Protocol.call/2`), and the library refuses every consent page
+  (`RegentOAuth.Consent`), so no app can connect.
   """
   use AutolaunchWeb, :controller
 
