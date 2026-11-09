@@ -3,7 +3,7 @@
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.
-- The card shows the opening price, FDV and every term, and the button says what is still needed.
+- The card shows the opening price, FDV and every term, and a line under the button says what is still needed.
 - The chain, paired stock and treasury type are dropdowns. Revstake's treasury sits under Settings, with Safe, Contract or Single key.
 
 ## 9 November 2026: Treasury check

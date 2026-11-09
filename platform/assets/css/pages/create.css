@@ -58,12 +58,6 @@
 .launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 .autolaunch-account-page { display: grid; gap: 24px; max-width: 960px; }
 
-/* Fixed terms: label column in the UI face, values in the mono face, one accent rule on top. */
-.stocks-terms-table { width: 100%; border-collapse: collapse; border-top: 2px solid var(--brand-accent); }
-.stocks-terms-table tr + tr { border-top: 1px solid var(--hairline); }
-.stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
-.stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-ui); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
-@media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
 
 /* What the person's agent filled in, above the wallet steps. */
 .agent-set { display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-warning, var(--orange-ink)); border-radius: var(--radius); background: color-mix(in srgb, var(--orange-ink) 6%, var(--color-surface)); }
@@ -79,7 +73,7 @@
 
 /* Memestock or Revstake: two words beside the title, the open one filled. */
 .launch-kind { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
-.launch-kind a { display: inline-grid; place-items: center; min-height: 2.25rem; padding: 0 var(--space-4); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
+.launch-kind a { display: inline-grid; place-items: center; min-height: 2.75rem; padding: 0 var(--space-4); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
 .launch-kind a:hover { color: var(--color-fg); }
 .launch-kind a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .launch-kind a[aria-current="page"] { background: var(--color-fg); color: var(--color-bg); }

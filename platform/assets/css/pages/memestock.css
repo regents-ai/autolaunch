@@ -46,7 +46,7 @@
 .stock-gallery__empty { margin: 0; padding: var(--space-3) var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; text-align: center; }
 .stock-gallery__empty[hidden] { display: none; }
 
-.stock-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-width: 0; }
+.stock-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-width: 0; }
 .stock-card[hidden] { display: none; }
 .stock-card:hover, .stock-card:has(input:focus-visible) { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
 .stock-card:has(input:checked) { background: color-mix(in srgb, var(--color-fg) 10%, transparent); }

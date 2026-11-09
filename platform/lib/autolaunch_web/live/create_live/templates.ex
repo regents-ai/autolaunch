@@ -516,7 +516,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
     ~H"""
     <div class="rg-field create-field autolaunch-custody-eoa">
-      <label for={@id}>Type this warning exactly to use a single key</label>
+      <label for={@id}>Warning</label>
+      <p class="create-page__hint">Type this exactly to use a single key.</p>
       <p id={"#{@id}-warning"} class="autolaunch-custody-warning">{@warning_copy}</p>
       <textarea
         id={@id}

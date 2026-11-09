@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.Prelaunch do
 
     cond do
       not Prelaunch.read_only?() -> conn
-      match?(["create" | _], path) -> refuse(conn, 404)
+      match?([page | _] when page in ["create", "agent-business"], path) -> refuse(conn, 404)
       account_path?(path) -> conn
       visit_report?(conn.method, path) -> conn
       signed_account_request?(conn.method, path) -> conn

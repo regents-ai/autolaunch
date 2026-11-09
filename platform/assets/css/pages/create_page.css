@@ -70,7 +70,8 @@
 .create-page__lock:disabled { opacity: .5; filter: grayscale(1); pointer-events: none; user-select: none; }
 
 /* Beside the form: the summary card, then the launch button and what it still needs. */
-.create-page__side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); min-width: 0; }
+/* The side column stays in view beside the form, and scrolls within itself when a review makes it taller than the screen, so its sign button is always reachable. */
+.create-page__side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); min-width: 0; max-block-size: calc(100dvh - 2 * var(--space-4)); overflow-y: auto; }
 .create-page__launch { display: grid; gap: var(--space-2); }
 .create-page__launch > p { margin: 0; }
 .create-page__launch-button { width: 100%; min-height: 3.25rem; font-size: 1.0625rem; }
@@ -109,7 +110,7 @@
 
 @media (max-width: 61.99rem) {
   .create-page__layout { grid-template-columns: minmax(0, 1fr); }
-  .create-page__side { position: relative; top: auto; }
+  .create-page__side { position: relative; top: auto; max-block-size: none; overflow-y: visible; }
   .create-page__info .create-next { grid-template-columns: minmax(0, 1fr); }
 }
 

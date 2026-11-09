@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.Components.CreateForm do
         <span class="create-card__tile" style={@color && "--image-color: #{@color}"}>
           <img
             :if={@image not in [nil, ""]}
-            src={StoredImage.sized(@image, 112)}
+            src={StoredImage.sized(@image, 160)}
             alt=""
             width="56"
             height="56"
@@ -196,7 +196,7 @@ defmodule AutolaunchWeb.Components.CreateForm do
       </span>
       <div class="create-card__sold">
         <span class="create-card__meter" aria-hidden="true"><i style={"width: #{@sold}"}></i></span>
-        <p><span>Sold at auction</span><span>{@sold}</span></p>
+        <p><span>Auction</span><span>{@sold}</span></p>
       </div>
       <dl class="create-card__rows">
         <div :for={row <- @row}>
