@@ -25,6 +25,7 @@ defmodule Autolaunch.StoredImage.Resizer do
     deadline = System.monotonic_time(:millisecond) + @timeout
     GenServer.call(__MODULE__, {:webp, bytes, width, deadline}, @timeout)
   catch
+    # A call that waits past its timeout exits its caller; the copy was not made in time.
     :exit, _reason -> :error
   end
 
