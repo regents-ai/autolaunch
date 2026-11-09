@@ -72,12 +72,12 @@ defmodule AutolaunchWeb.LabMarket do
 
   @doc """
   Has the connected page of the signed-in wallet's own bids told when one of
-  them is written (`{:autolaunch_bid_changed, bid_id}`, `Autolaunch.WalletBids`):
+  them is written (`{:autolaunch_bid_changed, bid_id}`, `Autolaunch.Bid.subscribe_wallet/1`):
   an auction's reading job writes them with its row, apart from the block.
   """
   def subscribe_wallet_bids(socket) do
     wallet = signed_in_wallet(socket.assigns.access_context)
-    if wallet && Phoenix.LiveView.connected?(socket), do: Autolaunch.WalletBids.subscribe(wallet)
+    if wallet && Phoenix.LiveView.connected?(socket), do: Autolaunch.Bid.subscribe_wallet(wallet)
 
     socket
   end

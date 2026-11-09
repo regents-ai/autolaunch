@@ -29,7 +29,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
 
   alias Autolaunch.Chain.{Abi, Client, Rpc}
-  alias Autolaunch.{Lab, LabAbi, Pool, RewardHistory}
+  alias Autolaunch.{Lab, LabAbi, Pool, WalletHistory}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -102,7 +102,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
          {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc),
          {:ok, claimed} <-
-           chain(RewardHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
+           chain(WalletHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
       claimed_of = &Map.get(claimed, String.downcase(&1), 0)
 
       {:ok,

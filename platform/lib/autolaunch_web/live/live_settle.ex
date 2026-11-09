@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.LiveSettle do
     * "open_settlement" opens the pressed auction's bid, and "close_trade"
       closes it;
     * the bids are read again with the page's next reread of its listings
-      after one of the wallet's bids is written (`Autolaunch.WalletBids`) or
+      after one of the wallet's bids is written (`Autolaunch.Bid.subscribe_wallet/1`) or
       an auction it has a bid to settle in changes, and at once when the open
       card verifies a step.
 
@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.LiveSettle do
 
   def watch(socket) do
     wallet = signed_in_wallet(socket.assigns.access_context)
-    if wallet && connected?(socket), do: Autolaunch.WalletBids.subscribe(wallet)
+    if wallet && connected?(socket), do: Autolaunch.Bid.subscribe_wallet(wallet)
 
     socket
     |> assign(:settle, %{})
