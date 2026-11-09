@@ -112,6 +112,8 @@ defmodule AutolaunchWeb.ConvertComponent do
   # the card; the form appears only when the signed-in wallet is the converter.
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :steps, steps(assigns))
+
     ~H"""
     <section
       id={@id}
@@ -195,9 +197,9 @@ defmodule AutolaunchWeb.ConvertComponent do
           open={!!@review}
           title="Converting REGENT's share"
           facts={(@review && @prepared.facts) || []}
-          steps={steps(assigns)}
-          next_step={next_step(assigns)}
-          reverted={reverted(assigns)}
+          steps={@steps}
+          next_step={next_step(@steps)}
+          reverted={reverted(@steps)}
           notice={@press_note}
           target={@myself}
           signer={@review && @review.signer}
@@ -396,10 +398,7 @@ defmodule AutolaunchWeb.ConvertComponent do
   # The step the wallet has not sent from this review yet, or one that did not
   # go through. A sent step moves the button on at once; nothing waits for the
   # network before the next press can reach the wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
-
-  defp next_step(_assigns), do: nil
+  defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
   defp step_state(nil), do: :ready
 
@@ -410,15 +409,11 @@ defmodule AutolaunchWeb.ConvertComponent do
   defp step_state(%{outcome: :reverted}), do: :reverted
   defp step_state(_not_this_step), do: :other
 
-  defp reverted(%{review: %{}} = assigns) do
-    if Enum.any?(steps(assigns), &(&1.state == :reverted)), do: reverted_copy()
+  defp reverted(steps) do
+    if Enum.any?(steps, &(&1.state == :reverted)),
+      do:
+        "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
   end
-
-  defp reverted(_assigns), do: nil
-
-  defp reverted_copy,
-    do:
-      "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 

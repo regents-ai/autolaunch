@@ -154,11 +154,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   @impl true
   def render(assigns) do
+    steps = steps(assigns)
+
     assigns =
       assign(assigns,
         rate: assigns.usd_rate.result,
-        steps: steps(assigns),
-        next_step: next_step(assigns),
+        steps: steps,
+        next_step: next_step(assigns, steps),
         shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
       )
 
@@ -707,10 +709,10 @@ defmodule AutolaunchWeb.BidComponent do
   # button places the bid, and pressing it prepares one. A sent step moves the
   # button on at once; nothing waits for the network before the next press can
   # reach the wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+  defp next_step(%{review: %{}}, steps),
+    do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
-  defp next_step(_assigns), do: %{name: "bid", label: "Place bid"}
+  defp next_step(_assigns, _steps), do: %{name: "bid", label: "Place bid"}
 
   defp step_state(nil), do: :ready
 
@@ -818,10 +820,10 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp actor(_socket), do: nil
 
-  # USDC bids exist only for Stocks auctions, and only where the Stocks lab that
-  # names the adapter is running.
-  @doc "The currency a bidder pays this auction in: USDC where the auction takes it, else its own."
-  def bid_currency(auction),
+  # The currency a bidder pays this auction in: USDC where the auction takes it,
+  # else its own. USDC bids exist only for Stocks auctions, and only where the
+  # Stocks lab that names the adapter is running.
+  defp bid_currency(auction),
     do: if(usdc_bids?(auction), do: "USDC", else: auction.quote_token_symbol)
 
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()

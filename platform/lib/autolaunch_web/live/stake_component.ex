@@ -459,14 +459,16 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp review_assigns(assigns) do
+    steps = steps(assigns)
+
     %{
       id: "#{assigns.id}-review",
       open: !!assigns.review,
       title: assigns.review && title(assigns.prepared.kind),
       facts: (assigns.review && assigns.prepared.facts) || [],
-      steps: steps(assigns),
-      next_step: next_step(assigns),
-      reverted: reverted(assigns),
+      steps: steps,
+      next_step: next_step(assigns, steps),
+      reverted: reverted(steps, assigns.prepared),
       notice: assigns.press_note,
       target: assigns.myself,
       signer: assigns.review && assigns.review.signer,
@@ -607,25 +609,15 @@ defmodule AutolaunchWeb.StakeComponent do
   def handle_async({:onchain_calls, calls_id}, result, socket),
     do: {:noreply, OnchainCalls.checked(socket, calls_id, result, &batch_confirmed/2)}
 
-  def handle_async({:batch_result, calls_id}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
+  def handle_async({:batch_result, calls_id}, result, socket),
+    do: {:noreply, batch_resulted(socket, calls_id, logs(result))}
 
-    {:noreply, batch_resulted(socket, calls_id, logs)}
-  end
+  def handle_async({:result, hash}, result, socket),
+    do: {:noreply, resulted(socket, hash, logs(result))}
 
-  def handle_async({:result, hash}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
-
-    {:noreply, resulted(socket, hash, logs)}
-  end
+  # A receipt's logs, or nil when it could not be read.
+  defp logs({:ok, {:ok, %{"logs" => logs}}}) when is_list(logs), do: logs
+  defp logs(_unread), do: nil
 
   defp reviewed(%{assigns: %{signer: nil}} = socket, _kind, params) do
     socket = entered(socket, params)
@@ -871,13 +863,10 @@ defmodule AutolaunchWeb.StakeComponent do
   # review yet, or one that did not go through. A sent step moves the button on
   # at once; nothing waits for the network before the next press can reach the
   # wallet. A batch has one button for every step, named by the last one.
-  defp next_step(%{review: %{}} = assigns) do
-    steps = steps(assigns)
+  defp next_step(assigns, steps) do
     pressable = if OnchainCalls.offered?(assigns), do: Enum.take(steps, -1), else: steps
     Enum.find(pressable, &(&1.state in [:ready, :reverted, :other]))
   end
-
-  defp next_step(_assigns), do: nil
 
   defp step_label("token_approval", prepared),
     do: "Approve #{prepared.context.token_symbol}"
@@ -900,11 +889,9 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_state(%{outcome: :reverted}), do: :reverted
   defp step_state(_not_this_step), do: :other
 
-  defp reverted(%{review: %{}, prepared: %{kind: kind}} = assigns) do
-    if Enum.any?(steps(assigns), &(&1.state == :reverted)), do: reverted_copy(kind)
+  defp reverted(steps, prepared) do
+    if Enum.any?(steps, &(&1.state == :reverted)), do: reverted_copy(prepared.kind)
   end
-
-  defp reverted(_assigns), do: nil
 
   defp reverted_copy(:stake),
     do:
