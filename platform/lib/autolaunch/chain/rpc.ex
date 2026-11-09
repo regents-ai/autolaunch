@@ -180,6 +180,11 @@ defmodule Autolaunch.Chain.Rpc do
         log_failure(method, reason, opts)
         {:error, :chain_unavailable}
     end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    error ->
+      log_failure(method, error, opts)
+      {:error, :chain_unavailable}
   end
 
   def format_units(value, decimals) do

@@ -328,6 +328,9 @@ defmodule Autolaunch.Stocks.MarketData do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       _unavailable -> :error
     end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    _error -> :error
   end
 
   defp now, do: System.monotonic_time(:millisecond)

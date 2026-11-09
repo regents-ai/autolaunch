@@ -456,6 +456,9 @@ defmodule Autolaunch.Chain.CcaSettlement do
       {:error, _reason} ->
         {:error, :chain_unavailable}
     end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    _error -> {:error, :chain_unavailable}
   end
 
   defp call_words(venue, address, signature, arguments, count) do

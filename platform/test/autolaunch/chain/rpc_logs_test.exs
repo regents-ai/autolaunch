@@ -32,9 +32,17 @@ defmodule Autolaunch.Chain.RpcLogsTest do
     end
   end
 
+  defmodule Busy do
+    # Finch raises this, rather than returning an error, when every pooled
+    # connection stays busy past the pool wait.
+    def post(_url, _options),
+      do: raise("Finch was unable to provide a connection within the timeout")
+  end
+
   setup do
     Application.put_env(:autolaunch, :rpc_logs_node, Node)
     Application.put_env(:autolaunch, :rpc_logs_down, Down)
+    Application.put_env(:autolaunch, :rpc_logs_busy, Busy)
     :ok
   end
 
@@ -53,5 +61,12 @@ defmodule Autolaunch.Chain.RpcLogsTest do
              Rpc.logs("0x" <> String.duplicate("1", 40), [], 0, 999, opts)
 
     assert Process.get(:requests) == [:sent]
+  end
+
+  test "a connection pool that stays busy fails the read as unavailable" do
+    opts = [client_key: :rpc_logs_busy, rpc_url: "https://node.invalid"]
+
+    assert {:error, :chain_unavailable} =
+             Rpc.logs("0x" <> String.duplicate("1", 40), [], 0, 999, opts)
   end
 end
