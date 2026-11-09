@@ -96,15 +96,17 @@ defmodule AutolaunchWeb.LiveSettle do
 
       socket
       |> assign(:settle, settle)
-      |> assign(:settle_labels, Map.new(settle, &label/1))
+      |> assign(
+        :settle_labels,
+        Map.new(settle, fn {auction_id, position} ->
+          {auction_id, BidSettlementComponent.settle_label(position)}
+        end)
+      )
       |> follow_open_bid(actor)
     else
       _signed_out_or_unread -> socket
     end
   end
-
-  defp label({auction_id, position}),
-    do: {auction_id, BidSettlementComponent.settle_label(position)}
 
   defp follow_open_bid(%{assigns: %{trade: %{position: %{bid_id: bid_id}}}} = socket, actor) do
     case Autolaunch.get_my_bid_position(bid_id, actor: actor) do

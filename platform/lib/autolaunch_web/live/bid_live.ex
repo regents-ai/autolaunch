@@ -99,6 +99,9 @@ defmodule AutolaunchWeb.BidLive do
   def handle_async(:robinhood, {:ok, result}, socket),
     do: {:noreply, socket |> shown(result) |> read_queued()}
 
+  def handle_async(:robinhood, {:exit, reason}, socket),
+    do: {:noreply, socket |> shown({:error, reason}) |> read_queued()}
+
   def handle_async(:book, {:ok, {:ok, book}}, socket),
     do: {:noreply, assign(socket, :book, AsyncResult.ok(socket.assigns.book, book))}
 
@@ -107,11 +110,6 @@ defmodule AutolaunchWeb.BidLive do
 
   def handle_async(:book, {:exit, reason}, socket),
     do: {:noreply, assign(socket, :book, AsyncResult.failed(socket.assigns.book, reason))}
-
-  def handle_async(:robinhood, {:exit, reason}, socket),
-    do:
-      {:noreply,
-       socket |> assign(:bid, AsyncResult.failed(socket.assigns.bid, reason)) |> read_queued()}
 
   def render(assigns) do
     assigns =
