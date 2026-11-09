@@ -477,7 +477,6 @@ defmodule Autolaunch.LaunchActions do
       "source_block_number" => report.source_block_number,
       "classification" => Atom.to_string(report.classification),
       "verification_state" => Atom.to_string(report.verification_state),
-      "downgrade_state" => Atom.to_string(report.downgrade_state),
       "evidence" => %{
         "usdc" => report.usdc_evidence,
         "regent" => report.regent_evidence,
