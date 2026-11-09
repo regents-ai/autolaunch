@@ -501,10 +501,19 @@ defmodule AutolaunchWeb.AuctionLive do
         report={report(@page_record)}
         surface="auction-detail"
       />
-      <.lab_treasury_unavailable
+      <%!-- A local-fork site has no treasury evidence to show: the fixture the lab
+        runs on is not a chain observation, so the page says so instead. --%>
+      <aside
         :if={@page_record.kind == :agent && @lab}
-        surface="auction-detail"
-      />
+        id="treasury-security-auction-detail"
+        class="treasury-security"
+        role="status"
+      >
+        <h3>Treasury security</h3>
+        <p class="treasury-security--warning">
+          Treasury verification is not available on this Base fork. Custody is unverified here.
+        </p>
+      </aside>
     </section>
     """
   end
