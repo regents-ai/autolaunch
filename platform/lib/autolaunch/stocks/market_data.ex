@@ -18,10 +18,9 @@ defmodule Autolaunch.Stocks.MarketData do
   venue. A full answer is kept for ten minutes. A read that failed, or left a stock's price out, is tried again
   after one second, then two, four and so on, up to ten minutes. The reads
   happen in whichever process asks, so a page that asks from a background task
-  never waits on them.
+  never waits on them, and the kept answers are read straight from their
+  cache, never through one process.
   """
-
-  use GenServer
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
@@ -29,6 +28,7 @@ defmodule Autolaunch.Stocks.MarketData do
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
   alias RegentChain.Address
 
+  @cache :autolaunch_stock_market_data
   @ttl_ms 600_000
   @first_retry_ms 1_000
   @latest_round_data "0xfeaf968c"
@@ -41,8 +41,8 @@ defmodule Autolaunch.Stocks.MarketData do
   @venue_floor_usd 10_000
   @venue_limit 2
 
-  def start_link(options \\ []),
-    do: GenServer.start_link(__MODULE__, %{}, name: Keyword.get(options, :name, __MODULE__))
+  @doc "The cache the answers are kept in, for the application's supervisor."
+  def child_spec(_options), do: Supervisor.child_spec({Cachex, name: @cache}, id: __MODULE__)
 
   @doc "The chain's stock prices and the venues that trade the chosen stock."
   def overview(chain, stock), do: %{prices: prices(chain), venues: venues(chain, stock)}
@@ -63,55 +63,41 @@ defmodule Autolaunch.Stocks.MarketData do
   @doc "REGENT's USD price in its Base Uniswap pool; nil while DexScreener has not answered."
   def regent_price, do: cached(:regent_price, &read_regent_price/0, nil)
 
-  @doc "The venues that trade the stock, deepest first; none for no stock."
-  def venues(_chain, nil), do: []
+  @doc "Forgets every kept answer, so the next ask reads again."
+  def reset do
+    Cachex.clear!(@cache)
+    :ok
+  end
 
-  def venues(chain, stock),
+  # The venues that trade the stock, deepest first; none for no stock.
+  defp venues(_chain, nil), do: []
+
+  defp venues(chain, stock),
     do: cached({:venues, chain, stock.address}, fn -> read_venues(chain, stock) end, [])
 
-  @doc "Forgets every kept answer, so the next ask reads again."
-  def reset(server \\ __MODULE__), do: GenServer.call(server, :reset)
+  # A full answer is kept for the whole ten minutes; a partial answer or none
+  # is kept only until the next try, each wait twice the last. An answer past
+  # its time stays kept with its count of misses, so the next wait doubles.
+  defp cached(key, read, empty) do
+    case Cachex.get!(@cache, key) do
+      {value, expires_at, misses} ->
+        if expires_at > now(), do: value, else: read_again(key, read, empty, misses)
 
-  @impl true
-  def init(state), do: {:ok, state}
-
-  @impl true
-  def handle_call({:lookup, key}, _from, state) do
-    case Map.fetch(state, key) do
-      {:ok, {value, expires_at, misses}} ->
-        if expires_at > now(),
-          do: {:reply, {:ok, value}, state},
-          else: {:reply, {:stale, misses}, state}
-
-      :error ->
-        {:reply, {:stale, 0}, state}
+      nil ->
+        read_again(key, read, empty, 0)
     end
   end
 
-  def handle_call(:reset, _from, _state), do: {:reply, :ok, %{}}
+  defp read_again(key, read, empty, misses) do
+    {value, entry} =
+      case read.() do
+        {:ok, value} -> {value, {value, now() + @ttl_ms, 0}}
+        {:partial, value} -> {value, {value, now() + retry_ms(misses), misses + 1}}
+        :error -> {empty, {empty, now() + retry_ms(misses), misses + 1}}
+      end
 
-  @impl true
-  def handle_cast({:store, key, entry}, state),
-    do: {:noreply, Map.put(state, key, entry)}
-
-  # A full answer is kept for the whole ten minutes; a partial answer or none
-  # is kept only until the next try, each wait twice the last.
-  defp cached(key, read, empty) do
-    case GenServer.call(__MODULE__, {:lookup, key}) do
-      {:ok, value} ->
-        value
-
-      {:stale, misses} ->
-        {value, entry} =
-          case read.() do
-            {:ok, value} -> {value, {value, now() + @ttl_ms, 0}}
-            {:partial, value} -> {value, {value, now() + retry_ms(misses), misses + 1}}
-            :error -> {empty, {empty, now() + retry_ms(misses), misses + 1}}
-          end
-
-        GenServer.cast(__MODULE__, {:store, key, entry})
-        value
-    end
+    Cachex.put!(@cache, key, entry)
+    value
   end
 
   defp retry_ms(misses), do: min(@first_retry_ms * Integer.pow(2, misses), @ttl_ms)
@@ -339,8 +325,6 @@ defmodule Autolaunch.Stocks.MarketData do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       _unavailable -> :error
     end
-  rescue
-    _error -> :error
   end
 
   defp now, do: System.monotonic_time(:millisecond)
