@@ -136,6 +136,19 @@ defmodule AutolaunchWeb.OnchainSteps do
   def active_wallet(_params), do: nil
 
   @doc """
+  Privy's active wallet as the page reported it (`onchain_active_wallet`): a
+  different one becomes the panel's `active` and clears the note beside the
+  buttons. The panel follows it from there.
+  """
+  def take_active(socket, params) do
+    active = active_wallet(params)
+
+    if active == socket.assigns.active,
+      do: socket,
+      else: assign(socket, active: active, press_note: nil)
+  end
+
+  @doc """
   The options a panel's actions run with: the signed-in person as the actor
   (`actor/1`) and the session lease the panel holds.
   """

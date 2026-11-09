@@ -313,16 +313,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, socket |> followed() |> read_state()}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> read_state()}
 
   def handle_event("subject_form_changed", params, socket) do
     {:noreply,

@@ -443,16 +443,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, socket |> followed() |> offer()}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> offer()}
 
   # A press made before the card has read its review: the settlement is
   # prepared now for the wallet that pressed, and its first step handed back to

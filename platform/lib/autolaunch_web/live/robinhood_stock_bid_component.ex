@@ -468,16 +468,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, socket |> followed() |> prepare_when_ready()}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do:
+      {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> prepare_when_ready()}
 
   def handle_event("bid_form_changed", params, socket) do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
