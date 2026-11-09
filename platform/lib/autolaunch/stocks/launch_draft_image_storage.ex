@@ -28,7 +28,7 @@ defmodule Autolaunch.Stocks.LaunchDraftImageStorage do
         %Human{human_account_id: owner_id} = actor
       )
       when is_binary(bytes) do
-    with {:ok, _type} <- validate(bytes, declared_type) do
+    with {:ok, _type} <- ImageValidator.validate(bytes, declared_type) do
       transact(draft, bytes, declared_type, original_filename, sha256(bytes), actor)
     end
   end
@@ -40,9 +40,6 @@ defmodule Autolaunch.Stocks.LaunchDraftImageStorage do
   def public_url(%LaunchDraftImage{id: id, digest: digest}) do
     AutolaunchWeb.Endpoint.url() <> "/stock-images/#{id}/#{digest}"
   end
-
-  @spec validate(binary(), String.t()) :: {:ok, String.t()} | {:error, atom()}
-  defdelegate validate(bytes, declared_type), to: ImageValidator
 
   defp transact(draft, bytes, content_type, original_filename, digest, actor) do
     Ash.DataLayer.transaction(LaunchDraft, fn ->

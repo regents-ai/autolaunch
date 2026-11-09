@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   import AutolaunchWeb.Components.StockSelect
 
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, PriceFeeds}
+  alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft}
   alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{DraftMarks, UsdValue}
   alias Phoenix.LiveView.JS
@@ -496,7 +496,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       Map.put(
         LaunchActions.opening(stock.decimals),
         :rate,
-        prices[PriceFeeds.ticker(stock.symbol)]
+        prices[Assets.ticker(stock.symbol)]
       )
 
   # The whole sale at the starting price, in the chosen stock.

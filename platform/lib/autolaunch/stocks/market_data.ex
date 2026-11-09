@@ -25,13 +25,16 @@ defmodule Autolaunch.Stocks.MarketData do
   alias Autolaunch.Chain.{Abi, Rpc}
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Stocks.{Assets, PriceFeeds}
+  alias Autolaunch.Stocks.Assets
   alias RegentChain.Address
 
   @cache :autolaunch_stock_market_data
   @ttl_ms 600_000
   @first_retry_ms 1_000
   @latest_round_data "0xfeaf968c"
+  # Every stock's Chainlink feed, which its route names, answers in USD with
+  # eight decimals.
+  @feed_decimals 8
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
   @dexscreener_pages "https://dexscreener.com"
@@ -58,7 +61,7 @@ defmodule Autolaunch.Stocks.MarketData do
   end
 
   @doc "One stock token's USD price on the chain; nil while its feed has not answered."
-  def stock_price(chain, symbol), do: prices(chain)[PriceFeeds.ticker(symbol)]
+  def stock_price(chain, symbol), do: prices(chain)[Assets.ticker(symbol)]
 
   @doc "REGENT's USD price in its Base Uniswap pool; nil while DexScreener has not answered."
   def regent_price, do: cached(:regent_price, &read_regent_price/0, nil)
@@ -109,7 +112,7 @@ defmodule Autolaunch.Stocks.MarketData do
     for %{symbol: symbol, feed: feed} <- Enum.sort_by(Assets.known(chain), & &1.admitted),
         feed,
         into: %{},
-        do: {PriceFeeds.ticker(symbol), feed}
+        do: {Assets.ticker(symbol), feed}
   end
 
   # One `latestRoundData()` per feed, read concurrently; a feed that does not
@@ -145,7 +148,7 @@ defmodule Autolaunch.Stocks.MarketData do
       # roundId, answer, startedAt, updatedAt, answeredInRound
       {:ok, "0x" <> hex} when byte_size(hex) == 320 ->
         answer = hex |> binary_part(64, 64) |> String.to_integer(16)
-        {:ok, Decimal.div(Decimal.new(answer), Integer.pow(10, PriceFeeds.decimals()))}
+        {:ok, Decimal.div(Decimal.new(answer), Integer.pow(10, @feed_decimals))}
 
       _unavailable ->
         :error

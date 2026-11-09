@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   alias Autolaunch.CoveredCalls
   alias Autolaunch.Exposure
   alias Autolaunch.PriceFeedHistory
-  alias Autolaunch.Stocks.PriceFeeds
+  alias Autolaunch.Stocks.Assets
   alias AutolaunchWeb.{ExposureFormat, PublicDocuments, UsdValue}
 
   @covered_calls_days 14
@@ -76,7 +76,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          title: title("/stock/covered-call"),
          badge: open_badge(length(open)),
          symbol: market.symbol,
-         ticker: PriceFeeds.ticker(market.symbol),
+         ticker: Assets.ticker(market.symbol),
          from: from,
          now: block.timestamp,
          line: line(history, from, block.timestamp),
@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          title: title("/stock/isolated-afters"),
          badge: status_badge(series.status),
          symbol: series.stock.symbol,
-         ticker: PriceFeeds.ticker(series.stock.symbol),
+         ticker: Assets.ticker(series.stock.symbol),
          from: from,
          now: block.timestamp,
          line: line(history, from, block.timestamp),

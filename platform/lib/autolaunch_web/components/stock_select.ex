@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.{Companies, PriceFeeds}
+  alias Autolaunch.Stocks.{Assets, Companies}
   alias AutolaunchWeb.UsdValue
   alias Phoenix.LiveView.JS
   alias RegentChain.Address
@@ -234,7 +234,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   # a stock offered before the site kept that record has none and sorts after
   # those that do.
   defp card(stock) do
-    ticker = PriceFeeds.ticker(stock.symbol)
+    ticker = Assets.ticker(stock.symbol)
     company = company(stock)
 
     %{
@@ -302,7 +302,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   @doc "A stock's logo on its round chip; its first letters when no logo is stored."
   def stock_logo(assigns) do
-    ticker = PriceFeeds.ticker(assigns.stock.symbol)
+    ticker = Assets.ticker(assigns.stock.symbol)
     assigns = assign(assigns, ticker: ticker, logo: Map.get(@logos, ticker))
 
     ~H"""
