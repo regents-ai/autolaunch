@@ -107,7 +107,6 @@
 .launch-trust__rows a + .launch-trust__muted { margin-left: 8px; }
 .launch-trust__block > .launch-trust__note { color: var(--color-fg-muted); }
 .launch-trust__block > .launch-trust__status { font-size: .875rem; }
-.launch-trust__positions { display: grid; gap: 4px; margin: 0; padding-left: 18px; font-size: .8125rem; overflow-wrap: anywhere; }
 @media (max-width: 30rem) {
   .launch-trust__rows { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .launch-trust__rows dd + dt, .launch-trust__rows > div + div > dt { margin-top: 6px; }

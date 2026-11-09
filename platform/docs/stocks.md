@@ -115,12 +115,12 @@ Addresses are lowercase. The website refuses a file whose `rpc_url` is not an ad
 whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, or whose ABI set lacks a function or event the site
-prepares against (`Autolaunch.Stocks.LabAbi.requirements/0`; for the launchpad that includes
+prepares against (the `@required` set in `Autolaunch.Stocks.LabAbi`; for the launchpad that includes
 `launchesPaused`, `locker`, `splitterImplementation`, `StockLaunchGraduated` and
 `MemestockSplitterCreated`; for the hook `accrued`, `settled`, `settleStakerLane`, `HookFeeAccrued`,
 `RegentLaneSettled` and `StakerLaneSettled`; the `locker` and `splitter` sections list what the
 staking card reads and sends). The Agent lab's `hook` ABI has to declare `SwapFeeSettled`
-(`Autolaunch.LabAbi.requirements/0`). Reads the pinned interfaces do not carry (the PoolManager's
+(the `@required` set in `Autolaunch.LabAbi`). Reads the pinned interfaces do not carry (the PoolManager's
 `extsload`, the PositionManager's `ownerOf`) use fixed selectors and topics.
 The `faucet` section carries exactly `regent_holder`, `regent_amount`, `stock_amount_units`,
 `usdc_holder` and `usdc_amount`, and belongs to chain 31337 only; a description for another chain must not carry one. The interface ABIs the site was
