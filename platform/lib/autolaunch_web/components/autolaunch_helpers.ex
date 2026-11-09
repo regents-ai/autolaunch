@@ -96,8 +96,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
-  def record_label(:auction, record), do: record.title
-
   @doc "Whether a token's ticker only repeats its name, as SANDY's does, so the name is shown once."
   def same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
 
@@ -124,11 +122,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     |> String.capitalize()
   end
 
-  def display_text(nil), do: "Not available"
-  def display_text(value) when is_atom(value), do: Atom.to_string(value)
-  def display_text(value) when is_integer(value), do: Integer.to_string(value)
+  defp display_text(nil), do: "Not available"
+  defp display_text(value) when is_atom(value), do: Atom.to_string(value)
+  defp display_text(value) when is_integer(value), do: Integer.to_string(value)
 
-  def display_text(value) when is_binary(value) do
+  defp display_text(value) when is_binary(value) do
     case String.trim(value) do
       "" -> "Not available"
       text -> text

@@ -209,7 +209,7 @@ defmodule AutolaunchWeb.AuctionLive do
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
+          <h1 class="rg-section-bar__label">{@page_record.title}</h1>
         </Regent.Structure.section_bar>
         <CreatorLabel.creator auction={@page_record} connections={@creator_connections} />
         <ShareLaunch.share_launch

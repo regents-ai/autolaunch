@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.Components.RevenueHistory do
         data-variant={Motion.standard("grid")}
       >
         <li :for={row <- @revenue.result}>
-          <strong>{amount(row.amount)} <span>{row.asset_symbol}</span></strong>
+          <strong>{RegentFormat.amount(row.amount)} <span>{row.asset_symbol}</span></strong>
           <time datetime={DateTime.to_iso8601(row.occurred_at)}>
             {Calendar.strftime(row.occurred_at, "%-d %b %Y")}
           </time>
@@ -49,6 +49,4 @@ defmodule AutolaunchWeb.Components.RevenueHistory do
     </section>
     """
   end
-
-  defp amount(amount), do: RegentFormat.amount(amount)
 end
