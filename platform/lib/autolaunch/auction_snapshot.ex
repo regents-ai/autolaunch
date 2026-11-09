@@ -65,8 +65,6 @@ defmodule Autolaunch.AuctionSnapshot do
   """
   @spec page(map(), atom(), {:ok, map()} | {:error, atom()}, map(), keyword(), map() | nil) ::
           {:ok, map()} | {:error, atom()}
-  def page(auction, state, pool, block, opts, held_ladder \\ nil)
-
   def page(
         %{auction_address: address, quote_token_decimals: decimals} = auction,
         state,
