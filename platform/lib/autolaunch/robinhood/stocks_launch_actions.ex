@@ -20,7 +20,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   the receipt is the only source of the start and end blocks.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Lifecycle, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
@@ -48,7 +49,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @tick_divisor 100
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc "The fixed terms every Robinhood Stocks launch uses, for the review page, in the ticker of the token it creates."
   def terms(ticker) do
@@ -109,8 +109,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{actor: actor, signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- robinhood_lab(),
@@ -147,11 +147,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       Autolaunch.record_robinhood_launch_review(
         %{
           chain_id: Lab.chain_id(),
-          signer: String.downcase(signer),
+          signer: signer,
           human_account_id: account_id,
           name: fields.name,
           symbol: fields.symbol,
-          stock: String.downcase(fields.stock),
+          stock: fields.stock,
           telegram: fields.telegram,
           discord: fields.discord,
           links: fields.links
@@ -177,8 +177,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   """
   @spec launches(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def launches(address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          rpc <- Lab.rpc_opts(config),
          {:ok, block} <- chain(Rpc.latest_block(rpc)),
@@ -464,10 +463,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   defp snapshot(stock), do: chain(StocksLaunchChainClient.snapshot(%{stock: stock}))
 
-  defp chain({:ok, value}), do: {:ok, value}
-  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
-  defp chain({:error, reason}), do: unavailable(reason)
-
   # Stored drafts
 
   defp owned_draft(draft_id, actor) do
@@ -476,52 +471,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {:ok, _other} -> unavailable(:launch_draft_not_found)
       {:error, _reason} -> unavailable(:launch_draft_unavailable)
     end
-  end
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The wallet the page presents has to be one of the leased account's own
-  # wallets, read now.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address, :invalid_address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: own_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp own_wallet(%{wallet_addresses: wallets}, candidate) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
   end
 
   # Shared helpers
@@ -535,6 +484,4 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

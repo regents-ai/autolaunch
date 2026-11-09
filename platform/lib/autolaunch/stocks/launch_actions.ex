@@ -17,8 +17,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
   the receipt is the only source of the start and end blocks.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
@@ -50,8 +50,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @total_supply 1_000_000_000
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
-
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc "The fixed terms every Stocks launch uses, for the review page, in the ticker of the token it creates."
   def terms(ticker) do
@@ -142,12 +140,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         :ok <- LaunchOperations.signer_matches(account, signer),
+    with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- stocks_lab(),
@@ -333,8 +327,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
          stock: stock,
          stock_symbol: asset.symbol
        }}
-    else
-      {:error, _reason} = error -> error
     end
   end
 
@@ -354,18 +346,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp snapshot(%{stock: stock}) do
-    case LabLaunchChainClient.snapshot(%{stock: stock}) do
-      {:ok, snapshot} -> {:ok, snapshot}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
+  defp snapshot(%{stock: stock}), do: chain(LabLaunchChainClient.snapshot(%{stock: stock}))
 
   # Saved reviews
 
   defp open(lease, draft, signer, review) do
-    transact(lease, fn account ->
+    LaunchOperations.transact(lease, fn account ->
       with :ok <- LaunchOperations.signer_matches(account, signer) do
         LaunchOperations.create(account, %{
           action_id: action_id(),
@@ -380,49 +366,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp action_id, do: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
 
-  defp transact(lease, callback), do: LaunchOperations.transact(lease, callback)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  # Shared helpers
-
-  defp normalize(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(:invalid_address)
-    end
-  end
-
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end
