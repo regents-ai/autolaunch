@@ -109,8 +109,6 @@ defmodule Autolaunch.TestSupport do
     Autolaunch.project_lab_launch!(
       %{
         job_id: Map.get(opts, :job_id, "launch:resource"),
-        status: Map.get(opts, :status, "running"),
-        step: Map.get(opts, :step, "deploy_token"),
         agent_id: Map.get(opts, :agent_id, "agent:resource"),
         agent_name: Map.get(opts, :agent_name, "Resource Agent"),
         token_name: Map.get(opts, :token_name, "Resource Token"),
