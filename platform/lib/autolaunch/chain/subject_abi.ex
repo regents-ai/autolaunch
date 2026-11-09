@@ -63,6 +63,7 @@ defmodule Autolaunch.Chain.SubjectAbi do
   @after_compile __MODULE__
 
   @doc false
+  # sobelow_skip ["Traversal.FileModule"]
   def __after_compile__(_env, _bytecode) do
     splitter = @splitter_abi_path |> File.read!() |> Jason.decode!()
     receiver = @receiver_abi_path |> File.read!() |> Jason.decode!()
