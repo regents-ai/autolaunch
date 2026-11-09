@@ -74,7 +74,9 @@ defmodule Autolaunch.LabProjectionTest do
 
     # The launch row has been written to since.
     {1, _rows} =
-      Autolaunch.Repo.update_all("launch_jobs", set: [agent_name: "Renamed Regent"])
+      Autolaunch.Repo.update_all("launch_jobs",
+        set: [hook_address: "0x000000000000000000000000000000000000dead"]
+      )
 
     written = one(Auction)
 
@@ -96,7 +98,7 @@ defmodule Autolaunch.LabProjectionTest do
     assert %{state: :active, current_clearing_price: "1.5"} = written
     assert %{title: "Local Regent", creator_human_account_id: creator_id} = written
     assert creator_id == creator.id
-    assert %{agent_name: "Renamed Regent"} = one(LaunchJob)
+    assert %{hook_address: "0x000000000000000000000000000000000000dead"} = one(LaunchJob)
     assert one(Subject).subject_id == LabProjection.subject_identity(@subject)
   end
 

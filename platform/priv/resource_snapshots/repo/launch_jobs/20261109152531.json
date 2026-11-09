@@ -25,8 +25,8 @@
       "type": "text"
     },
     {
-      "allow_nil?": false,
-      "default": "\"active\"",
+      "allow_nil?": true,
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -37,8 +37,8 @@
       "type": "text"
     },
     {
-      "allow_nil?": false,
-      "default": "\"auction\"",
+      "allow_nil?": true,
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -301,7 +301,7 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "E67CADF00BBC7D7AB7E85AB684012531BE2E9EA9188C20DF88FFADDA9AA09CE5",
+  "hash": "A2D903AE3C0055D8138321E0564D4EF987A43030045BF31F6EDC8FE0BF068A36",
   "identities": [
     {
       "all_tenants?": false,

@@ -1,4 +1,4 @@
-defmodule Autolaunch.Repo.Migrations.LaunchJobsDefaults do
+defmodule Autolaunch.Repo.Migrations.LaunchJobsStatusStepOptional do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
@@ -9,15 +9,15 @@ defmodule Autolaunch.Repo.Migrations.LaunchJobsDefaults do
 
   def up do
     alter table(:launch_jobs) do
-      modify :status, :text, default: "active"
-      modify :step, :text, default: "auction"
+      modify :status, :text, null: true
+      modify :step, :text, null: true
     end
   end
 
   def down do
     alter table(:launch_jobs) do
-      modify :step, :text, default: nil
-      modify :status, :text, default: nil
+      modify :step, :text, null: false
+      modify :status, :text, null: false
     end
   end
 end
