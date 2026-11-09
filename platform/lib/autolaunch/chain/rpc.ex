@@ -10,57 +10,6 @@ defmodule Autolaunch.Chain.Rpc do
 
   @type block :: %{number: non_neg_integer(), hash: String.t(), timestamp: non_neg_integer()}
 
-  def verify_base_chain(opts \\ []) do
-    verify_chain(@chain_id, opts)
-  end
-
-  def verify_chain(expected_chain_id, opts \\ []) when is_integer(expected_chain_id) do
-    with {:ok, result} <- request("eth_chainId", [], opts),
-         {:ok, chain_id} <- quantity(result),
-         true <- chain_id == expected_chain_id do
-      :ok
-    else
-      {:error, reason} -> {:error, reason}
-      false -> {:error, :wrong_chain}
-      _ -> {:error, :invalid_chain_response}
-    end
-  end
-
-  def confirmed_transaction(hash, signer, to, data, opts \\ []) do
-    case confirmed_transaction_receipt(hash, signer, to, data, opts) do
-      {:ok, _receipt} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  def confirmed_transaction_receipt(hash, signer, to, data, opts \\ []) do
-    with :ok <- verify_chain(Keyword.get(opts, :expected_chain_id, @chain_id), opts),
-         {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts) do
-      case receipt do
-        %{"status" => "0x1", "blockNumber" => block} when is_binary(block) ->
-          {:ok, receipt}
-
-        %{"status" => "0x0", "blockNumber" => block} when is_binary(block) ->
-          {:error, :transaction_reverted}
-
-        nil ->
-          {:error, :transaction_pending}
-
-        _ ->
-          {:error, :invalid_receipt}
-      end
-    end
-  end
-
-  def submission_status(hash, signer, to, data, opts \\ []) do
-    case confirmed_transaction_receipt(hash, signer, to, data, opts) do
-      {:ok, _receipt} -> {:ok, :success}
-      {:error, :transaction_reverted} -> {:ok, :reverted}
-      {:error, :transaction_pending} -> {:ok, :pending}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   @doc """
   One `safe` Base block, accepted only after the chain identity is proved.
 
@@ -69,7 +18,7 @@ defmodule Autolaunch.Chain.Rpc do
   """
   @spec safe_block(keyword()) :: {:ok, block()} | {:error, atom()}
   def safe_block(opts \\ []) do
-    with :ok <- verify_base_chain(opts),
+    with :ok <- verify_chain(@chain_id, opts),
          {:ok, header} <- request("eth_getBlockByNumber", ["safe", false], opts),
          do: block_identity(header)
   end
@@ -117,10 +66,17 @@ defmodule Autolaunch.Chain.Rpc do
     end
   end
 
-  def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &decode_uint/1, opts)
+  def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &quantity/1, opts)
 
-  def call_bool(to, data, block, opts \\ []),
-    do: call(to, data, block, &(decode_uint(&1) != 0), opts)
+  def call_bool(to, data, block, opts \\ []) do
+    call(
+      to,
+      data,
+      block,
+      fn result -> with {:ok, word} <- quantity(result), do: {:ok, word != 0} end,
+      opts
+    )
+  end
 
   def call_address(to, data, block, opts \\ []),
     do: call(to, data, block, &decode_address/1, opts)
@@ -224,10 +180,6 @@ defmodule Autolaunch.Chain.Rpc do
         log_failure(method, reason, opts)
         {:error, :chain_unavailable}
     end
-  rescue
-    error ->
-      log_failure(method, error, opts)
-      {:error, :chain_unavailable}
   end
 
   def format_units(value, decimals) do
@@ -268,17 +220,30 @@ defmodule Autolaunch.Chain.Rpc do
 
   # EIP-1898: the block hash owns the read and `requireCanonical` refuses an
   # answer from a block that is no longer part of the chain.
-  defp call(to, data, %{hash: hash}, decoder, opts) do
+  defp call(to, data, %{hash: hash}, decode, opts) do
     with {:ok, result} <-
            request(
              "eth_call",
              [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}],
              opts
            ) do
-      {:ok, decoder.(result)}
+      case decode.(result) do
+        {:ok, value} -> {:ok, value}
+        :error -> {:error, :invalid_chain_response}
+      end
     end
-  rescue
-    _ -> {:error, :invalid_chain_response}
+  end
+
+  defp verify_chain(expected_chain_id, opts) do
+    with {:ok, result} <- request("eth_chainId", [], opts),
+         {:ok, chain_id} <- quantity(result),
+         true <- chain_id == expected_chain_id do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      false -> {:error, :wrong_chain}
+      _ -> {:error, :invalid_chain_response}
+    end
   end
 
   defp block_identity(%{"number" => number, "hash" => hash, "timestamp" => timestamp}) do
@@ -397,29 +362,43 @@ defmodule Autolaunch.Chain.Rpc do
   defp sent_call("0x" <> _hex = data), do: {:ok, data |> String.downcase() |> BuilderCode.call()}
   defp sent_call(_input), do: :error
 
-  defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
+  defp decode_address("0x" <> hex) when byte_size(hex) == 64,
+    do: Address.normalize("0x" <> String.slice(hex, -40, 40))
 
-  defp decode_address("0x" <> hex) when byte_size(hex) == 64 do
-    {:ok, address} = Address.normalize("0x" <> String.slice(hex, -40, 40))
-    address
-  end
+  defp decode_address(_result), do: :error
 
-  defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64 do
-    for <<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16)
+  defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64, do: words(hex, [])
+  defp decode_words(_result, _count), do: :error
+
+  defp words(<<>>, decoded), do: {:ok, Enum.reverse(decoded)}
+
+  defp words(<<word::binary-size(64), rest::binary>>, decoded) do
+    case Integer.parse(word, 16) do
+      {value, ""} -> words(rest, [value | decoded])
+      _malformed -> :error
+    end
   end
 
   # An ABI string is its offset word, its length word and its UTF-8 bytes.
   defp decode_string(result) do
-    bytes = decode_bytes(result)
-    true = String.valid?(bytes)
-    bytes
+    with {:ok, bytes} <- decode_bytes(result),
+         true <- String.valid?(bytes) do
+      {:ok, bytes}
+    else
+      _malformed -> :error
+    end
   end
 
   defp decode_bytes("0x" <> hex) when byte_size(hex) >= 128 do
-    [_offset, length] = decode_words("0x" <> binary_part(hex, 0, 128), 2)
-    {:ok, bytes} = Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
-    bytes
+    with {:ok, [_offset, length]} <- decode_words("0x" <> binary_part(hex, 0, 128), 2),
+         true <- (128 + length * 2) in 0..byte_size(hex) do
+      Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
+    else
+      _malformed -> :error
+    end
   end
+
+  defp decode_bytes(_result), do: :error
 
   defp zero_quantity?(value) when value in ["0x0", "0x", "0"], do: true
   defp zero_quantity?(_value), do: false

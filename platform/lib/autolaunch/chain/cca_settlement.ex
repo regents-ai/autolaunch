@@ -80,7 +80,6 @@ defmodule Autolaunch.Chain.CcaSettlement do
           tokens_filled: non_neg_integer()
         }
 
-  def bid_exited_signature, do: @bid_exited
   def tokens_claimed_signature, do: @tokens_claimed
 
   @doc """
@@ -457,8 +456,6 @@ defmodule Autolaunch.Chain.CcaSettlement do
       {:error, _reason} ->
         {:error, :chain_unavailable}
     end
-  rescue
-    _error -> {:error, :chain_unavailable}
   end
 
   defp call_words(venue, address, signature, arguments, count) do

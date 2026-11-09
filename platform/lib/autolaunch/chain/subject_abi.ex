@@ -59,27 +59,22 @@ defmodule Autolaunch.Chain.SubjectAbi do
   }
 
   # A selector or topic is only evidence if the derived ABI really declares the
-  # signature it came from. The check runs inline, against the decoded file
-  # alone, so proving it adds no compile-time dependency of its own.
-  for {path, functions, events} <- [
-        {@splitter_abi_path, @splitter_reads, %{}},
-        {@receiver_abi_path, Map.merge(@receiver_actions, @receiver_reads), @receiver_events}
-      ] do
-    abi = path |> File.read!() |> Jason.decode!()
+  # signature it came from.
+  @after_compile __MODULE__
 
-    for {kind, entries} <- [{"function", functions}, {"event", events}],
-        {_id, {signature, _selector}} <- entries do
-      declared? =
-        Enum.any?(abi, fn
-          %{"type" => ^kind, "name" => name, "inputs" => inputs} ->
-            "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+  @doc false
+  def __after_compile__(_env, _bytecode) do
+    splitter = @splitter_abi_path |> File.read!() |> Jason.decode!()
+    receiver = @receiver_abi_path |> File.read!() |> Jason.decode!()
 
-          _entry ->
-            false
-        end)
+    for {_id, {signature, _selector}} <- @splitter_reads,
+        do: Abi.declared!(splitter, "function", signature)
 
-      declared? || raise "derived C1 ABI #{Path.basename(path)} is missing #{signature}"
-    end
+    for {_id, {signature, _selector}} <- Map.merge(@receiver_actions, @receiver_reads),
+        do: Abi.declared!(receiver, "function", signature)
+
+    for {_id, {signature, _topic}} <- @receiver_events,
+        do: Abi.declared!(receiver, "event", signature)
   end
 
   @doc "The exact decimals of one bound asset. Never read generically from a token."

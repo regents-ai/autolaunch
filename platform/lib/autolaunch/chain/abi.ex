@@ -17,21 +17,10 @@ defmodule Autolaunch.Chain.Abi do
   # The evidence manifest pins contract identities, not the ERC-20 interface every
   # token shares, so the standard calls this site prepares are declared here
   # against their canonical signatures.
-  @erc20_interface [
-    %{"id" => "approve", "signature" => "approve(address,uint256)", "selector" => "0x095ea7b3"},
-    %{"id" => "balance_of", "signature" => "balanceOf(address)", "selector" => "0x70a08231"},
-    %{
-      "id" => "allowance",
-      "signature" => "allowance(address,address)",
-      "selector" => "0xdd62ed3e"
-    }
-  ]
-
-  @doc false
-  def erc20_interface, do: @erc20_interface
-
-  @event_signatures %{
-    approval: "Approval(address,address,uint256)"
+  @erc20 %{
+    "approve" => {"approve(address,uint256)", "0x095ea7b3"},
+    "balance_of" => {"balanceOf(address)", "0x70a08231"},
+    "allowance" => {"allowance(address,address)", "0xdd62ed3e"}
   }
 
   @doc "Raises unless `abi` declares exactly this function or event signature."
@@ -53,19 +42,26 @@ defmodule Autolaunch.Chain.Abi do
   @doc "The one REGENT address this site reads, quotes and approves against."
   def regent_address, do: @evidence["regent_erc20"]["address"]
 
-  def encode_erc20(id, arguments) when id in ["approve", "balance_of", "allowance"] do
-    entry =
-      Enum.find(@erc20_interface, &(&1["id"] == id)) || raise "missing ERC-20 ABI entry #{id}"
+  def encode_erc20(id, arguments) when is_map_key(@erc20, id) do
+    {signature, selector} = @erc20[id]
+    [types] = Regex.run(~r/^\w+\((.*)\)$/, signature, capture: :all_but_first)
+    types = String.split(types, ",")
 
-    encode_standard(entry, arguments)
+    if length(types) != length(arguments) do
+      raise ArgumentError, "ABI argument count does not match #{signature}"
+    end
+
+    encoded =
+      types
+      |> Enum.zip(arguments)
+      |> Enum.map_join(fn {type, arg} -> encode_static(type, arg) end)
+
+    String.downcase(selector <> encoded)
   end
 
   @doc "Ethereum Keccak-256 of an exact event signature, which is its `topic0`."
   def topic0(signature),
     do: "0x" <> Base.encode16(ExKeccak.hash_256(signature), case: :lower)
-
-  defp event_signature(id), do: Map.fetch!(@event_signatures, id)
-  def event_topic(id), do: id |> event_signature() |> topic0()
 
   @doc """
   The one log in this receipt that is exactly this event.
@@ -92,63 +88,36 @@ defmodule Autolaunch.Chain.Abi do
 
   def word_address(_value), do: :error
 
-  @doc "The exact ERC-20 approval this transaction had to record."
-  def approval_recorded?(logs, token, owner, spender, value) do
-    with {:ok, {[owner_word, spender_word], [^value]}} <-
-           one_event(logs, event_topic(:approval), token, 2, 1),
-         {:ok, ^owner} <- word_address(owner_word),
-         {:ok, ^spender} <- word_address(spender_word) do
-      true
-    else
-      _contradiction -> false
-    end
-  end
-
   defp emitted?(%{"address" => address, "topics" => [topic | _indexed]}, expected, emitter)
        when is_binary(topic),
        do: String.downcase(topic) == expected and Address.equal?(address, emitter)
 
   defp emitted?(_log, _expected, _emitter), do: false
 
+  # Every topic after `topic0` is one whole word, and so is every 64 hex digits
+  # of the data.
   defp decode_event(%{"topics" => [_topic | indexed], "data" => "0x" <> data}, count, words)
        when length(indexed) == count and byte_size(data) == words * 64 do
-    {:ok,
-     {Enum.map(indexed, &topic_word!/1), for(<<word::binary-size(64) <- data>>, do: word!(word))}}
-  rescue
-    _malformed -> :error
+    topics = for "0x" <> hex <- indexed, byte_size(hex) == 64, into: "", do: hex
+
+    with true <- byte_size(topics) == count * 64,
+         {:ok, indexed} <- words(topics, []),
+         {:ok, data} <- words(data, []) do
+      {:ok, {indexed, data}}
+    else
+      _malformed -> :error
+    end
   end
 
   defp decode_event(_log, _count, _words), do: :error
 
-  defp topic_word!("0x" <> hex) when byte_size(hex) == 64, do: word!(hex)
+  defp words(<<>>, decoded), do: {:ok, Enum.reverse(decoded)}
 
-  defp word!(hex) do
-    {:ok, bytes} = Base.decode16(hex, case: :mixed)
-    :binary.decode_unsigned(bytes)
-  end
-
-  defp encode_standard(entry, arguments) do
-    [encoded_types] = Regex.run(~r/^\w+\((.*)\)$/, entry["signature"], capture: :all_but_first)
-
-    inputs =
-      if encoded_types == "",
-        do: [],
-        else: Enum.map(String.split(encoded_types, ","), &%{"type" => &1})
-
-    encode_inputs(entry, inputs, arguments)
-  end
-
-  defp encode_inputs(entry, inputs, arguments) do
-    if length(inputs) != length(arguments) do
-      raise ArgumentError, "ABI argument count does not match #{entry["signature"]}"
+  defp words(<<hex::binary-size(64), rest::binary>>, decoded) do
+    case Base.decode16(hex, case: :mixed) do
+      {:ok, bytes} -> words(rest, [:binary.decode_unsigned(bytes) | decoded])
+      :error -> :error
     end
-
-    encoded =
-      inputs
-      |> Enum.zip(arguments)
-      |> Enum.map_join(fn {input, argument} -> encode_static(input["type"], argument) end)
-
-    String.downcase(entry["selector"] <> encoded)
   end
 
   defp encode_static("address", address) do
