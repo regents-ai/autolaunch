@@ -108,7 +108,6 @@ defmodule Autolaunch.TreasurySecurity do
       classification: to_string(report.classification),
       verification_state: "awaiting_current_chain_confirmation",
       verification_reason: "projector_refresh_not_integrated",
-      downgrade_state: to_string(report.downgrade_state),
       configuration_fingerprint: report.configuration_fingerprint,
       source_block_number: report.source_block_number,
       source_block_hash: report.source_block_hash,

@@ -1,8 +1,10 @@
 # Changelog
 
 ## 9 November 2026: Treasury check
-- A Safe treasury is judged by its setup as it is now. A Safe that did not pass at first, and was then fixed, passes once its setup meets the rules.
-- A bid is still refused when the treasury's setup changed after the auction launched.
+- A Safe treasury is judged by its setup as it is now. A Safe that did not pass at first, and was then fixed, passes once its setup meets the rules and it is verified with transactions sent since the fix.
+- Transactions sent before a Safe's current setup are refused with words that say so.
+- Bidding pauses while an auction's treasury setup differs from the one it launched with.
+- The treasury panel no longer shows a downgrade line.
 
 ## 9 November 2026: Moving product cards
 - The product cards on the home page and on /stocks now show moving panels of small lit cells in place of their line drawings: Call Options draws a call's payoff past a drifting strike, Memestock two colours meeting along a seam, and Revstake revenue bars rising and falling. Your pointer steers each one while it is over the card.

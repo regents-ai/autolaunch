@@ -60,50 +60,61 @@ defmodule Autolaunch.TestAutolaunchTreasuryChainClient do
   def observe(address, hashes) do
     fixture = fixture(address)
 
-    if reason = fixture[:error] do
-      {:error, reason}
-    else
-      observation = %{
-        block: %{
-          number: Map.get(fixture, :block_number, 30_000_000),
-          hash: Map.get(fixture, :block_hash, @hash)
-        },
-        runtime_code: Map.get(fixture, :runtime_code, "0x6001600055"),
-        runtime_identity: Map.get(fixture, :runtime_identity, "0x" <> String.duplicate("44", 32)),
-        admitted_safe?: Map.get(fixture, :admitted_safe?, true),
-        admitted_split?: Map.get(fixture, :admitted_split?, false),
-        safe_singleton: Map.get(fixture, :safe_singleton, @singleton),
-        safe_version: Map.get(fixture, :safe_version, "1.4.1"),
-        owners: Map.get(fixture, :owners, @owners),
-        threshold: Map.get(fixture, :threshold, 2),
-        modules: Map.get(fixture, :modules, []),
-        guard: Map.get(fixture, :guard, @zero),
-        fallback_handler: Map.get(fixture, :fallback_handler, @fallback),
-        fallback_admitted?: Map.get(fixture, :fallback_admitted?, true),
-        evidence: %{}
-      }
+    cond do
+      reason = fixture[:error] ->
+        {:error, reason}
 
-      fingerprint = TreasurySecurity.fingerprint(address, observation)
+      # Evidence sent before the Safe's current setup, as the live client
+      # refuses it when the receipt block's setup differs from today's.
+      fixture[:evidence_drift] == true and Enum.any?(Map.values(hashes)) ->
+        {:error, :treasury_configuration_drift}
 
-      evidence =
-        Map.new([:usdc, :regent, :outbound], fn key ->
-          {key,
-           if hashes[key] do
-             %{
-               verified: true,
-               transaction_hash: hashes[key],
-               receipt_block_number: 29_999_999,
-               receipt_block_hash: "0x" <> String.duplicate("cd", 32),
-               log_index: 0,
-               safe_address: address,
-               historical_fingerprint: fingerprint,
-               decoded: Atom.to_string(key)
-             }
-           end}
-        end)
-
-      {:ok, %{observation | evidence: evidence}}
+      true ->
+        observation(address, fixture, hashes)
     end
+  end
+
+  defp observation(address, fixture, hashes) do
+    observation = %{
+      block: %{
+        number: Map.get(fixture, :block_number, 30_000_000),
+        hash: Map.get(fixture, :block_hash, @hash)
+      },
+      runtime_code: Map.get(fixture, :runtime_code, "0x6001600055"),
+      runtime_identity: Map.get(fixture, :runtime_identity, "0x" <> String.duplicate("44", 32)),
+      admitted_safe?: Map.get(fixture, :admitted_safe?, true),
+      admitted_split?: Map.get(fixture, :admitted_split?, false),
+      safe_singleton: Map.get(fixture, :safe_singleton, @singleton),
+      safe_version: Map.get(fixture, :safe_version, "1.4.1"),
+      owners: Map.get(fixture, :owners, @owners),
+      threshold: Map.get(fixture, :threshold, 2),
+      modules: Map.get(fixture, :modules, []),
+      guard: Map.get(fixture, :guard, @zero),
+      fallback_handler: Map.get(fixture, :fallback_handler, @fallback),
+      fallback_admitted?: Map.get(fixture, :fallback_admitted?, true),
+      evidence: %{}
+    }
+
+    fingerprint = TreasurySecurity.fingerprint(address, observation)
+
+    evidence =
+      Map.new([:usdc, :regent, :outbound], fn key ->
+        {key,
+         if hashes[key] do
+           %{
+             verified: true,
+             transaction_hash: hashes[key],
+             receipt_block_number: 29_999_999,
+             receipt_block_hash: "0x" <> String.duplicate("cd", 32),
+             log_index: 0,
+             safe_address: address,
+             historical_fingerprint: fingerprint,
+             decoded: Atom.to_string(key)
+           }
+         end}
+      end)
+
+    {:ok, %{observation | evidence: evidence}}
   end
 
   @impl true
