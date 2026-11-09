@@ -279,16 +279,33 @@ class Fork:
         pid = pid_file.read_text().strip()
         command = subprocess.run(["ps", "-p", pid, "-o", "comm="], capture_output=True, text=True).stdout.strip()
         if Path(command).name == "anvil":
-            subprocess.run(["kill", pid], check=False)
-            for _ in range(40):
-                if subprocess.run(["kill", "-0", pid], capture_output=True).returncode != 0:
-                    break
-                time.sleep(0.25)
-            print("copy of Base stopped")
+            # An Anvil waiting on a stalled read of Base can ignore the polite
+            # signal; after ten seconds it is stopped outright, and the line
+            # says which happened.
+            stopped = next(
+                (words for flag, words in [([], "copy of Base stopped"), (["-9"], "copy of Base stopped by force")]
+                 if self._signalled(pid, flag)),
+                None,
+            )
+            if stopped is None:
+                # The pid file stays, so a later `stop` can try again.
+                print(f"did not stop the copy of Base: pid {pid} is still running")
+                return
+            print(stopped)
         else:
             print(f"did not stop the copy of Base: pid {pid} is no longer the Anvil this script started")
         pid_file.unlink()
         (self.run / "base-fork.port").unlink(missing_ok=True)
+
+    @staticmethod
+    def _signalled(pid, flag):
+        """Sends one signal and waits up to ten seconds for the process to be gone."""
+        subprocess.run(["kill", *flag, pid], check=False)
+        for _ in range(40):
+            if subprocess.run(["kill", "-0", pid], capture_output=True).returncode != 0:
+                return True
+            time.sleep(0.25)
+        return False
 
 
 if __name__ == "__main__":
