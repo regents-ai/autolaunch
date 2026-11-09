@@ -1,6 +1,9 @@
 /* Creating launches, the Make a payment card on token pages, and the account page. */
 
-.autolaunch-custody-path textarea { min-height: 8rem; resize: vertical; }
+/* A single-key treasury: the warning, and the box it is typed into. */
+.autolaunch-custody-eoa { display: grid; gap: var(--space-2); }
+.autolaunch-custody-eoa > p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.autolaunch-custody-eoa textarea { min-height: 8rem; resize: vertical; }
 /* Every text box on Create has its top-right corner cut, like the buttons. The
    cut would hide an outside focus ring, so the ring draws just inside the box. */
 .create-page__form :is(input[type="text"], textarea) {
@@ -29,17 +32,8 @@
 .agent-treasury > p { margin: 0; }
 .agent-treasury__address { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
 .agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); }
-/* On the memestock form the accounts fold away under one optional Socials line. */
-.creator-connections--optional { padding-block: 0; }
-.creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); }
-.creator-connections--optional .rg-disclosure { border-block-end: 0; }
-.creator-connections--optional .rg-disclosure-body { display: grid; gap: var(--space-3); }
-.creator-connections--optional .rg-disclosure-body > p { margin: 0; font-size: .875rem; color: var(--color-fg-muted); }
-.autolaunch-custody-path { display: grid; gap: var(--space-2); min-width: 0; margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); }
-.autolaunch-custody-path label { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); }
-.autolaunch-custody-path .rg-disclosure-body { display: grid; gap: var(--space-2); }
-.autolaunch-custody-path textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
-.autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); }
+.autolaunch-custody-eoa textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
+.autolaunch-custody-ack-matched { display: flex; align-items: center; gap: var(--space-1); color: var(--color-success); }
 /* Connected accounts: one row each, mark · account · buttons, all alike. */
 .connections { display: grid; gap: var(--space-2); }
 [data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
@@ -64,20 +58,6 @@
 .launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 .autolaunch-account-page { display: grid; gap: 24px; max-width: 960px; }
 
-/* Memestock or Revstake: the two Create pages as two linked choices, the open one marked. */
-.launch-kind { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-.launch-kind__option { display: grid; align-content: start; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; text-decoration: none; transition: border-color var(--duration-fast) ease; }
-.launch-kind__option strong { color: var(--color-fg); font-size: 1rem; }
-.launch-kind__option:hover { border-color: var(--color-fg); }
-.launch-kind__option:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
-.launch-kind__option[aria-current="page"] { border-color: var(--brand-accent); box-shadow: inset 0 0 0 1px var(--brand-accent); }
-@media (max-width: 30rem) { .launch-kind { grid-template-columns: minmax(0, 1fr); } }
-/* Fixed terms: label column in the UI face, values in the mono face, one accent rule on top. */
-.stocks-terms-table { width: 100%; border-collapse: collapse; border-top: 2px solid var(--brand-accent); }
-.stocks-terms-table tr + tr { border-top: 1px solid var(--hairline); }
-.stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
-.stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-ui); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
-@media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
 
 /* What the person's agent filled in, above the wallet steps. */
 .agent-set { display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-warning, var(--orange-ink)); border-radius: var(--radius); background: color-mix(in srgb, var(--orange-ink) 6%, var(--color-surface)); }
@@ -90,3 +70,10 @@
 @media (max-width: 30rem) { .agent-set dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 /* In the launch review: which of the values below the person's agent set. */
 .launch-wallet-agent-set dd { color: var(--orange-ink); }
+
+/* Memestock or Revstake: two words beside the title, the open one filled. */
+.launch-kind { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.launch-kind a { display: inline-grid; place-items: center; min-height: 2.75rem; padding: 0 var(--space-4); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
+.launch-kind a:hover { color: var(--color-fg); }
+.launch-kind a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.launch-kind a[aria-current="page"] { background: var(--color-fg); color: var(--color-bg); }

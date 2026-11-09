@@ -56,7 +56,7 @@ defmodule AutolaunchWeb.AgentTreasuryConfirmTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/create/revstake")
+      |> live("/agent-business")
 
     assert view |> element("#launch-agent-treasury") |> render() =~ @contract
     refute has_element?(view, "#launch-no-connections")

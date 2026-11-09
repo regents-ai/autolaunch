@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
        x_enabled: Autolaunch.Accounts.XOAuth.enabled?()
      )
      |> assign_new(:notify, fn -> false end)
-     |> assign_new(:optional, fn -> false end)
+     |> assign_new(:bare, fn -> false end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:resolving, fn -> false end)
      |> assign_ens()}
@@ -131,12 +131,12 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     <section
       id={@id}
       class={[
-        "creator-connections launchpad-form-section rg-panel rg-panel--surface",
-        @optional && "creator-connections--optional"
+        "creator-connections",
+        !@bare && "launchpad-form-section rg-panel rg-panel--surface"
       ]}
       phx-hook="CreatorConnections"
     >
-      <header :if={!@optional}>
+      <header :if={!@bare}>
         <div>
           <p class="autolaunch-kicker">Start Here</p>
           <Regent.Structure.section_bar>
@@ -144,23 +144,13 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
           </Regent.Structure.section_bar>
         </div>
       </header>
-      <p :if={!@optional}>
+      <p :if={!@bare}>
         Gain credibility by connecting reputation to your stablecoin / agent business
       </p>
       <p :if={@unread?} role="alert">
         Your connections could not be read just now. Refresh this page to try again.
       </p>
-      <Regent.Primitives.disclosure
-        :if={@optional}
-        id={"#{@id}-more"}
-        summary="Connect Socials"
-        class="create-page__box"
-        phx-mounted={JS.ignore_attributes(["open"])}
-      >
-        <p>These appear on your auction and token. You can launch without them.</p>
-        <.rows id={@id} myself={@myself} {@rows} />
-      </Regent.Primitives.disclosure>
-      <.rows :if={!@optional} id={@id} myself={@myself} {@rows} />
+      <.rows id={@id} myself={@myself} {@rows} />
       <p :if={@notice} role="status">{@notice}</p>
       <p data-creator-connection-status role="status"></p>
     </section>

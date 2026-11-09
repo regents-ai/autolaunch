@@ -5,6 +5,18 @@
 - For agents: while covered calls are open, the hosted MCP server also has `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (list, fill, cancel, exercise, claim and collect_strike). They take the same inputs as the covered-call routes and browser tools and give the same figures and refusals, and your covered calls and steps are for your person's own wallets only.
 - A paired agent's answer on any signed route, a read or a save, is replaced with `agent_not_paired` when its pairing ends while the request runs, so an unpairing never sends the person's data.
 
+## 9 November 2026: Create pages
+- Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
+- Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.
+- The card shows the opening price, FDV and every term, and a line under the button says what is still needed.
+- The chain, paired stock and treasury type are dropdowns. Revstake's treasury sits under Settings, with Safe, Contract or Single key.
+
+## 9 November 2026: Treasury check
+- A Safe treasury is judged by its setup as it is now. A Safe that did not pass at first, and was then fixed, passes once its setup meets the rules and it is verified with transactions sent since the fix.
+- Transactions sent before a Safe's current setup are refused with words that say so.
+- Bidding pauses while an auction's treasury setup differs from the one it launched with.
+- The treasury panel no longer shows a downgrade line.
+
 ## 9 November 2026: Moving product cards
 - The product cards on the home page and on /stocks now show moving panels of small lit cells in place of their line drawings: Call Options draws a call's payoff past a drifting strike, Memestock two colours meeting along a seam, and Revstake revenue bars rising and falling. Your pointer steers each one while it is over the card.
 - With reduced motion turned on, each panel shows one still picture. Without a graphics card that can draw them, the line drawings stay.

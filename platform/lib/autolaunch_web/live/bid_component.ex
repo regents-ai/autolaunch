@@ -43,6 +43,8 @@ defmodule AutolaunchWeb.BidComponent do
       "This auction's currency does not match its record. Bidding is paused here.",
     treasury_report_missing: "Bidding is not open on this auction yet.",
     treasury_security_changed: "Bidding is paused on this auction while its treasury is checked.",
+    treasury_configuration_drift:
+      "Bidding is paused on this auction while its treasury is checked.",
     amount_above_balance: "That is more than this wallet holds.",
     amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount with no more decimal places than the currency allows.",

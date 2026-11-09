@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   use AutolaunchWeb, :html
 
   import AutolaunchWeb.Components.CreateNext
+  import AutolaunchWeb.Components.CreateForm
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.LaunchKindChoice
@@ -31,16 +32,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   def draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
-
-  @doc "The choice between the two launches, then the page title."
-  def header(assigns) do
-    ~H"""
-    <.launch_kind_choice current={:memestock} />
-    <header class="create-page__header">
-      <h1>Create Memestock</h1>
-    </header>
-    """
-  end
 
   attr :draft, :map, default: nil
   attr :draft_values, :map, required: true
@@ -80,7 +71,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
     ~H"""
     <div class="create-page">
-      <.header />
+      <header class="create-page__header">
+        <h1>Create Memestock</h1>
+        <.launch_kind_choice current={:memestock} />
+      </header>
       <div :if={@status == :error} class="autolaunch-empty" role="alert">
         <h2>Your draft didn’t open</h2>
         <p>It could not be read just now. Nothing you saved is lost.</p>
@@ -96,6 +90,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           data-chain={@launch_chain}
           aria-label="Your memestock"
         >
+          <AutolaunchWeb.Components.AgentSetFields.agent_set_fields :if={@draft} draft={@draft} />
           <fieldset class="create-page__lock" disabled={@reviewing?}>
             <form
               id="stocks-token-details"
@@ -103,24 +98,56 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               phx-change="autosave_stocks_token_details"
               phx-submit="autosave_stocks_token_details"
             >
-              <div class="create-page__pair">
-                <.draft_field
-                  form_id="stocks-token-details"
-                  param="name"
-                  label="Name"
-                  values={@draft_values}
-                  errors={@detail_errors}
+              <div class="create-page__identity">
+                <.image_upload
+                  upload={@stocks_image_upload}
+                  image={@draft_values["image"]}
+                  notice={@image_notice}
                 />
-                <.draft_field
-                  form_id="stocks-token-details"
-                  param="symbol"
-                  label="Ticker"
-                  hint={@ticker_taken? && "Another launch already uses this ticker."}
-                  values={@draft_values}
-                  errors={@detail_errors}
-                />
+                <div class="create-page__stack">
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="name"
+                    label="Name"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="symbol"
+                    label="Ticker"
+                    hint={@ticker_taken? && "Another launch already uses this ticker."}
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.menu id="stocks-chain" label="Chain">
+                    <:current>
+                      <span class={"create-chain create-chain--#{@launch_chain}"} aria-hidden="true"></span>
+                      <span class="create-menu__value">{LaunchChain.label(@launch_chain)}</span>
+                    </:current>
+                    <button
+                      :for={chain <- LaunchChain.chains()}
+                      type="button"
+                      class="create-menu__option"
+                      aria-pressed={to_string(@launch_chain == chain)}
+                      phx-click={
+                        JS.push("choose_chain", value: %{chain: chain})
+                        |> close_menu("stocks-chain")
+                        |> JS.transition("memestock__form--to-#{chain}",
+                          to: "#memestock-form",
+                          time: 700
+                        )
+                      }
+                    >
+                      <span class={"create-chain create-chain--#{chain}"} aria-hidden="true"></span>
+                      <span class="create-menu__name">{LaunchChain.label(chain)}</span>
+                      <Regent.Icons.icon name="check" class="create-menu__check" />
+                    </button>
+                  </.menu>
+                </div>
               </div>
               <div class="memestock__paired">
+                <span class="create-page__label">Paired stock</span>
                 <.stock_select
                   id="stocks-terms-stock_address"
                   name="stock_draft[stock_address]"
@@ -130,30 +157,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   sort_event="sort_stocks"
                   retry_event="read_stocks"
                   form="stocks-terms"
-                >
-                  <:head>
-                    <div class="memestock__paired-head">
-                      <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
-                      <div class="chain-switch" role="group" aria-label="Chain">
-                        <button
-                          :for={chain <- LaunchChain.chains()}
-                          type="button"
-                          class={"chain-switch__option chain-switch__option--#{chain}"}
-                          aria-pressed={to_string(@launch_chain == chain)}
-                          phx-click={
-                            JS.push("choose_chain", value: %{chain: chain})
-                            |> JS.transition("memestock__form--to-#{chain}",
-                              to: "#memestock-form",
-                              time: 700
-                            )
-                          }
-                        >
-                          {LaunchChain.label(chain)}
-                        </button>
-                      </div>
-                    </div>
-                  </:head>
-                </.stock_select>
+                />
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}
                 </p>
@@ -181,82 +185,78 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   Buy the stock at a market
                 </p>
               </div>
-              <.image_upload
-                upload={@stocks_image_upload}
-                image={@draft_values["image"]}
-                notice={@image_notice}
-              />
-              <.draft_field
-                form_id="stocks-token-details"
-                param="website"
-                label="Website"
-                optional
-                placeholder="https://"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
-              <Regent.Primitives.disclosure
-                id="stocks-token-links"
-                summary="Community Links"
-                class="create-page__more create-page__box"
-                open={@links_given?}
-                phx-mounted={JS.ignore_attributes(["open"])}
-              >
-                <div class="create-page__pair">
+              <div class="create-page__folds">
+                <.fold id="stocks-token-about" icon="file-text" title="Description & website" open>
                   <.draft_field
                     form_id="stocks-token-details"
-                    param="telegram"
-                    label="Telegram"
-                    optional
-                    placeholder="https://t.me/yourgroup"
+                    param="description"
+                    label="Description"
+                    kind={:long_text}
+                    placeholder="What is this token about?"
                     values={@draft_values}
                     errors={@detail_errors}
                   />
                   <.draft_field
                     form_id="stocks-token-details"
-                    param="discord"
-                    label="Discord"
+                    param="website"
+                    label="Website"
                     optional
-                    placeholder="https://discord.gg/invite"
+                    placeholder="https://"
                     values={@draft_values}
                     errors={@detail_errors}
                   />
-                </div>
-                <.draft_field
-                  :for={param <- ~w(other_link_1 other_link_2 other_link_3)}
-                  form_id="stocks-token-details"
-                  param={param}
-                  label="Other link"
-                  optional
-                  placeholder="https://"
-                  values={@draft_values}
-                  errors={@detail_errors}
-                />
-              </Regent.Primitives.disclosure>
+                </.fold>
+                <.fold id="stocks-token-links" icon="link" title="Links" open={@links_given?}>
+                  <div class="create-page__pair">
+                    <.draft_field
+                      form_id="stocks-token-details"
+                      param="telegram"
+                      label="Telegram"
+                      optional
+                      placeholder="https://t.me/yourgroup"
+                      values={@draft_values}
+                      errors={@detail_errors}
+                    />
+                    <.draft_field
+                      form_id="stocks-token-details"
+                      param="discord"
+                      label="Discord"
+                      optional
+                      placeholder="https://discord.gg/invite"
+                      values={@draft_values}
+                      errors={@detail_errors}
+                    />
+                  </div>
+                  <.draft_field
+                    :for={param <- ~w(other_link_1 other_link_2 other_link_3)}
+                    form_id="stocks-token-details"
+                    param={param}
+                    label="Other link"
+                    optional
+                    placeholder="https://"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                </.fold>
+              </div>
             </form>
 
-            <.live_component
-              :if={@current_human_id}
-              module={AutolaunchWeb.CreatorConnectionsComponent}
-              id="creator-connections"
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-              optional
-              notify
-            />
+            <.fold id="stocks-socials" icon="user" title="Socials">
+              <.live_component
+                :if={@current_human_id}
+                module={AutolaunchWeb.CreatorConnectionsComponent}
+                id="creator-connections"
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+                bare
+                notify
+              />
+              <.signed_out_socials :if={!@current_human_id} />
+            </.fold>
 
-            <.draft_field
-              form_id="stocks-token-details"
-              param="description"
-              label="Description"
-              kind={:long_text}
-              placeholder="What is this token about?"
-              values={@draft_values}
-              errors={@detail_errors}
-            />
             <%!-- The paired stock sits up with the name, inside the details
                  form, and saves with this one through its fields' form
-                 attribute; the description below saves with the details. --%>
+                 attribute. --%>
             <form
               id="stocks-terms"
               hidden
@@ -265,10 +265,48 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             >
             </form>
           </fieldset>
+        </section>
+
+        <aside
+          id="create-preview"
+          class="create-page__side"
+          aria-label="Your launch"
+        >
+          <.summary_card
+            id="memestock-summary"
+            name={@draft_values["name"]}
+            symbol={@draft_values["symbol"]}
+            image={@draft_values["image"]}
+            color={@image_color}
+            pair={if @stock, do: @stock.symbol, else: "stock"}
+            chain={@launch_chain}
+            sold="49.75%"
+            connections={@creator_connections}
+            terms={@fixed_terms}
+          >
+            <:row label="Opening price">
+              <MarketCard.price_figure
+                :if={@stock}
+                amount={@opening.price}
+                unit={@stock.symbol}
+                rate={@opening.rate}
+              />
+              <span :if={!@stock}>Choose a stock</span>
+            </:row>
+            <:row label="FDV">
+              {MarketCard.money(@opening.fdv, @opening.rate, @stock && @stock.symbol) ||
+                "Choose a stock"}
+            </:row>
+            <:row label="Paired stock">{if @stock, do: @stock.symbol, else: "Choose one"}</:row>
+            <:row label="Creator share">0.5%</:row>
+          </.summary_card>
+
           <div id="stocks-transactions" class="create-page__launch">
-            <AutolaunchWeb.Components.AgentSetFields.agent_set_fields :if={@draft} draft={@draft} />
+            <%!-- One line above the button says why a launch cannot start; the
+                 Robinhood line holds its place on Base so switching chains
+                 never moves the button. --%>
             <p
-              :if={!@robinhood_open?}
+              :if={!@robinhood_open? && !(@launch_chain == :base && @launches_paused?)}
               class={@launch_chain != :robinhood && "create-page__held"}
               role={@launch_chain == :robinhood && "status"}
               aria-hidden={@launch_chain != :robinhood && "true"}
@@ -278,6 +316,13 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <span :if={@current_human_id}>
                 Your draft is saved and will be ready to launch here when they open.
               </span>
+            </p>
+            <p
+              :if={@launch_chain == :base && @launches_paused?}
+              class="create-page__notice"
+              role="status"
+            >
+              New launches are paused until the new version opens.
             </p>
             <Regent.Primitives.button
               :if={!@current_human_id}
@@ -299,13 +344,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <p
-              :if={@launch_chain == :base && @launches_paused?}
-              class="create-page__notice"
-              role="status"
-            >
-              New launches are paused until the new version opens.
-            </p>
             <.live_component
               :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
@@ -317,17 +355,13 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <Regent.Primitives.button
-              :if={
-                @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready? &&
-                  !@reviewing? && !@launched?
-              }
-              type="button"
-              class="create-page__launch-button"
-              disabled
-            >
-              Still needed: {DraftMarks.still_needed(@missing)}
-            </Regent.Primitives.button>
+            <%= if @current_human_id && (@launch_chain == :base || @robinhood_open?) &&
+                   !@launch_ready? && !@reviewing? && !@launched? do %>
+              <Regent.Primitives.button type="button" class="create-page__launch-button" disabled>
+                Review launch
+              </Regent.Primitives.button>
+              <p class="create-page__need">Still needed: {DraftMarks.still_needed(@missing)}</p>
+            <% end %>
             <p
               :if={@draft_notice}
               class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
@@ -346,26 +380,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             id="autolaunch-test-funds"
             current_human_id={@current_human_id}
             session_lease={@session_lease}
-          />
-        </section>
-
-        <aside
-          id="create-preview"
-          class="create-page__preview"
-          aria-label="Your auction as the gallery will show it"
-        >
-          <MarketCard.draft_card
-            name={@draft_values["name"]}
-            symbol={String.upcase(@draft_values["symbol"])}
-            image={@draft_values["image"]}
-            color={@image_color}
-            website={@draft_values["website"]}
-            chain={LaunchChain.label(@launch_chain)}
-            unit={@stock && @stock.symbol}
-            price={@opening.price}
-            fdv={@opening.fdv}
-            rate={@opening.rate}
-            creator_connections={@creator_connections}
           />
         </aside>
       </div>
@@ -390,23 +404,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
           ]}
         />
-        <div class="create-next__card">
-          <Regent.Primitives.disclosure
-            id="stocks-fixed-terms"
-            summary="Every term"
-            class="create-page__more"
-            phx-mounted={JS.ignore_attributes(["open"])}
-          >
-            <table class="stocks-terms-table">
-              <tbody>
-                <tr :for={{label, value} <- @fixed_terms}>
-                  <th scope="row">{label}</th>
-                  <td>{value}</td>
-                </tr>
-              </tbody>
-            </table>
-          </Regent.Primitives.disclosure>
-        </div>
       </section>
       <.draft_carry_over
         id="memestock-carry-over"

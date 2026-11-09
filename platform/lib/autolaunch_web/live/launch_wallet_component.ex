@@ -44,6 +44,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     treasury_report_missing: "Verify the deployed treasury address before review.",
     treasury_security_changed: "The treasury configuration changed. Verify it again.",
     treasury_source_reorged: "The treasury proof block is no longer canonical. Verify it again.",
+    treasury_configuration_drift:
+      "These transactions were sent before the Safe's current setup. Send new ones from the Safe as it is now, then verify again.",
+    treasury_evidence_invalid:
+      "These transactions are not the Safe's own. Check each one, then verify again.",
     treasury_observation_recorded: "Treasury observation recorded from canonical Base reads."
   }
 

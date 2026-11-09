@@ -102,42 +102,6 @@ defmodule Autolaunch.TestSupport do
     )
   end
 
-  @doc "Projects one LaunchJob through `project_lab_launch` as the system actor."
-  def project_launch(opts \\ []) do
-    opts = Map.new(opts)
-
-    Autolaunch.project_lab_launch!(
-      %{
-        job_id: Map.get(opts, :job_id, "launch:resource"),
-        status: Map.get(opts, :status, "running"),
-        step: Map.get(opts, :step, "deploy_token"),
-        agent_id: Map.get(opts, :agent_id, "agent:resource"),
-        agent_name: Map.get(opts, :agent_name, "Resource Agent"),
-        token_name: Map.get(opts, :token_name, "Resource Token"),
-        token_symbol: Map.get(opts, :token_symbol, "RSC"),
-        chain_id: Map.get(opts, :chain_id, 8453),
-        auction_id: Map.get(opts, :auction_id),
-        agent_safe_address:
-          Map.get(opts, :agent_safe_address, "0x1111111111111111111111111111111111111111"),
-        auction_address:
-          Map.get(opts, :auction_address, "0x2222222222222222222222222222222222222222"),
-        token_address:
-          Map.get(opts, :token_address, "0x3333333333333333333333333333333333333333"),
-        hook_address: Map.get(opts, :hook_address, "0x4444444444444444444444444444444444444444"),
-        revenue_share_splitter_address:
-          Map.get(
-            opts,
-            :revenue_share_splitter_address,
-            "0x5555555555555555555555555555555555555555"
-          ),
-        treasury_address: Map.get(opts, :treasury_address),
-        started_at: Map.get(opts, :started_at),
-        finished_at: Map.get(opts, :finished_at)
-      },
-      actor: %System{}
-    )
-  end
-
   @doc "Inserts one auction row beneath the resource so listing tests can prove R10."
   def insert_null_creator_auction! do
     id = Ecto.UUID.generate()

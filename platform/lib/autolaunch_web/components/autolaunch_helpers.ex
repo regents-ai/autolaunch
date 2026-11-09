@@ -60,9 +60,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <div>
           <dt>Verification</dt><dd>Awaiting current chain confirmation</dd>
         </div>
-        <div :if={@view.downgrade_state != "none"}>
-          <dt>Downgrade</dt><dd>Configuration changed after a verified observation</dd>
-        </div>
       </dl>
     </aside>
     """

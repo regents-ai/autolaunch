@@ -415,7 +415,7 @@ defmodule AutolaunchWeb.Router do
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/create", StocksCreateLive, :create
-      live "/create/revstake", CreateLive, :create
+      live "/agent-business", CreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index

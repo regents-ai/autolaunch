@@ -1,5 +1,5 @@
 defmodule AutolaunchWeb.Components.LaunchKindChoice do
-  @moduledoc "The choice between the two launches, at the top of both Create pages."
+  @moduledoc "The switch between the two launches, beside the title on both Create pages."
   use AutolaunchWeb, :html
 
   attr :current, :atom, required: true, values: [:memestock, :revstake]
@@ -8,21 +8,11 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
   def launch_kind_choice(assigns) do
     ~H"""
     <nav class="launch-kind" aria-label="Launch type">
-      <.link
-        navigate={~p"/create"}
-        class="launch-kind__option"
-        aria-current={@current == :memestock && "page"}
-      >
-        <strong>Memestock</strong>
-        <span>Create a memecoin paired to onchain stock. Holders earn the stock from trading fees.</span>
+      <.link navigate={~p"/create"} aria-current={@current == :memestock && "page"}>
+        Memestock
       </.link>
-      <.link
-        navigate={~p"/create/revstake"}
-        class="launch-kind__option"
-        aria-current={@current == :revstake && "page"}
-      >
-        <strong>Revstake</strong>
-        <span>Tokenize a stablecoin generating service or agent.</span>
+      <.link navigate={~p"/agent-business"} aria-current={@current == :revstake && "page"}>
+        Revstake
       </.link>
     </nav>
     """
