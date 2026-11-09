@@ -1,5 +1,9 @@
 # Changelog
 
+## 9 November 2026: Moving product cards
+- The product cards on the home page and on /stocks now show moving panels of small lit cells in place of their line drawings: Call Options draws a call's payoff past a drifting strike, Memestock two colours meeting along a seam, and Revstake revenue bars rising and falling. Your pointer steers each one while it is over the card.
+- With reduced motion turned on, each panel shows one still picture. Without a graphics card that can draw them, the line drawings stay.
+
 ## 8 November 2026: Settlement states
 - A bid that has filled and is waiting for its claim to open shows as waiting on the portfolio and the bid page, not under history.
 - After you settle a bid, its button no longer comes back while the site reads the auction again.
