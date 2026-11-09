@@ -66,35 +66,27 @@ defmodule Autolaunch.AuctionActivity do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"auction_id" => id}}) do
     case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
-      {:ok, nil} ->
-        {:cancel, :not_listed}
-
-      {:ok, auction} ->
-        case read(auction) do
-          {:ok, :behind} ->
-            {:snooze, 1}
-
-          {:ok, :caught_up} ->
-            {:snooze, wait_s(auction)}
-
-          {:error, reason} when reason in @unavailable ->
-            Logger.warning(
-              "Bid activity for auction #{id} not read (#{reason}); reading again in a minute"
-            )
-
-            {:snooze, 60}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, error} ->
-        {:error, error}
+      {:ok, nil} -> {:cancel, :not_listed}
+      {:ok, auction} -> auction |> read() |> next(auction)
+      {:error, error} -> {:error, error}
     end
   end
 
   @impl Oban.Worker
   def backoff(%Oban.Job{}), do: 60
+
+  defp next({:ok, :behind}, _auction), do: {:snooze, 1}
+  defp next({:ok, :caught_up}, auction), do: {:snooze, wait_s(auction)}
+
+  defp next({:error, reason}, auction) when reason in @unavailable do
+    Logger.warning(
+      "Bid activity for auction #{auction.id} not read (#{reason}); reading again in a minute"
+    )
+
+    {:snooze, 60}
+  end
+
+  defp next({:error, reason}, _auction), do: {:error, reason}
 
   @doc "Every listed auction's reading job (`Autolaunch.ChainWatch`)."
   def jobs, do: Enum.map(listed(), &new(%{auction_id: &1.id}))
