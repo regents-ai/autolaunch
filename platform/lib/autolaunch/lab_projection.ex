@@ -174,8 +174,7 @@ defmodule Autolaunch.LabProjection do
     with {:ok, launch} <- read_launch(auction_id), do: {:ok, launch.agent_id}
   end
 
-  @doc false
-  def auction_attrs(arguments, overrides) when is_map(arguments) and is_map(overrides) do
+  defp auction_attrs(arguments, overrides) do
     Map.merge(
       %{
         title: arguments["name"],
