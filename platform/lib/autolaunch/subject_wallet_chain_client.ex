@@ -10,12 +10,4 @@ defmodule Autolaunch.SubjectWalletChainClient do
   """
 
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
-
-  def module do
-    Application.get_env(
-      :autolaunch,
-      :autolaunch_subject_wallet_chain_client,
-      Autolaunch.SubjectWalletRpcClient
-    )
-  end
 end
