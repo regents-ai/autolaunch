@@ -127,7 +127,7 @@ defmodule Autolaunch.AuctionActivity do
   defp wait_s(%{state: state}) when state in [:graduated, :failed], do: 600
   defp wait_s(_auction), do: 300
 
-  def read(auction) do
+  defp read(auction) do
     with {:ok, venue} <- venue(auction),
          {:ok, head} <- Rpc.latest_block(venue.opts),
          {:ok, clock} <- clock(venue, head),
@@ -569,18 +569,7 @@ defmodule Autolaunch.AuctionActivity do
          complete?
        ) do
     Repo.transaction(fn ->
-      current =
-        Auction
-        |> Ash.Query.for_read(
-          :by_chain_address,
-          %{chain_id: auction.chain_id, auction_address: auction.auction_address},
-          actor: @actor
-        )
-        |> Ash.Query.lock(:for_update)
-        |> Ash.read_one!()
-
-      if current.activity_next_block != auction.activity_next_block,
-        do: Repo.rollback(:superseded)
+      current = locked(auction)
 
       Repo.delete_all(
         from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
@@ -617,7 +606,7 @@ defmodule Autolaunch.AuctionActivity do
           opened_at: opening,
           estimated_end_at: ending,
           bid_volume: if(complete?, do: total),
-          bid_volume_usd: dollar_volume(total, rate, complete?),
+          bid_volume_usd: if(complete? and rate, do: Decimal.mult(total, rate)),
           events_changed: new_events?(current, bids ++ points ++ settlements)
         },
         actor: @actor,
@@ -625,14 +614,7 @@ defmodule Autolaunch.AuctionActivity do
         return_notifications?: true
       )
     end)
-    |> case do
-      {:ok, {_updated, notifications}} ->
-        Ash.Notifier.notify(notifications)
-        :ok
-
-      error ->
-        error
-    end
+    |> notified(:ok)
   end
 
   # Whether the pass saved an event the lists do not have yet. A pass that
@@ -648,55 +630,39 @@ defmodule Autolaunch.AuctionActivity do
   # are written, so a pass never touches one being settled. Robinhood positions
   # are read from the chain when the bidder looks, so none are saved here.
   defp record_positions(auction) do
-    unless Autolaunch.Robinhood.Lab.chain?(auction.chain_id), do: record_base_positions(auction)
+    unless Autolaunch.Robinhood.Lab.chain?(auction.chain_id) do
+      saved =
+        from b in Bid,
+          where: b.auction_id == ^auction.id and not is_nil(b.onchain_bid_id),
+          select: b.onchain_bid_id
+
+      # One SQL anti-join between two system-owned tables, inside the same locked
+      # transaction as the commit; the writes still go through the Ash action.
+      from(a in BidActivity,
+        where: a.auction_id == ^auction.id and a.bid_id not in subquery(saved)
+      )
+      |> Repo.all()
+      |> Enum.map(fn activity ->
+        %{
+          bid_id: Autolaunch.LabProjection.bid_identity(auction.auction_address, activity.bid_id),
+          auction_id: auction.id,
+          owner_address: activity.bidder,
+          amount: Decimal.to_string(activity.amount, :normal),
+          max_price: Decimal.to_string(activity.max_price, :normal),
+          auction_address: auction.auction_address,
+          onchain_bid_id: activity.bid_id
+        }
+      end)
+      |> Ash.bulk_create!(Bid, :record_from_chain, actor: @actor, return_errors?: true)
+    end
   end
-
-  defp record_base_positions(auction) do
-    saved =
-      from b in Bid,
-        where: b.auction_id == ^auction.id and not is_nil(b.onchain_bid_id),
-        select: b.onchain_bid_id
-
-    # One SQL anti-join between two system-owned tables, inside the same locked
-    # transaction as the commit; the writes still go through the Ash action.
-    from(a in BidActivity, where: a.auction_id == ^auction.id and a.bid_id not in subquery(saved))
-    |> Repo.all()
-    |> Enum.map(&position(auction, &1))
-    |> Ash.bulk_create!(Bid, :record_from_chain, actor: @actor, return_errors?: true)
-  end
-
-  defp position(auction, activity),
-    do: %{
-      bid_id: Autolaunch.LabProjection.bid_identity(auction.auction_address, activity.bid_id),
-      auction_id: auction.id,
-      owner_address: activity.bidder,
-      amount: Decimal.to_string(activity.amount, :normal),
-      max_price: Decimal.to_string(activity.max_price, :normal),
-      auction_address: auction.auction_address,
-      onchain_bid_id: activity.bid_id
-    }
-
-  defp dollar_volume(_total, nil, _complete?), do: nil
-  defp dollar_volume(total, rate, true), do: Decimal.mult(total, rate)
-  defp dollar_volume(_total, _rate, false), do: nil
 
   # Invalidation removes only derived event rows while holding the parent lock;
   # Ash clears its cursor and broadcasts that change after this transaction. The
   # auction is then behind, and rebuilt from its first block at once.
   defp invalidate(auction) do
     Repo.transaction(fn ->
-      current =
-        Auction
-        |> Ash.Query.for_read(
-          :by_chain_address,
-          %{chain_id: auction.chain_id, auction_address: auction.auction_address},
-          actor: @actor
-        )
-        |> Ash.Query.lock(:for_update)
-        |> Ash.read_one!()
-
-      if current.activity_next_block != auction.activity_next_block,
-        do: Repo.rollback(:superseded)
+      current = locked(auction)
 
       Repo.delete_all(from b in BidActivity, where: b.auction_id == ^auction.id)
       Repo.delete_all(from p in AuctionPricePoint, where: p.auction_id == ^auction.id)
@@ -717,15 +683,35 @@ defmodule Autolaunch.AuctionActivity do
         return_notifications?: true
       )
     end)
-    |> case do
-      {:ok, {_updated, notifications}} ->
-        Ash.Notifier.notify(notifications)
-        {:ok, :behind}
-
-      error ->
-        error
-    end
+    |> notified({:ok, :behind})
   end
+
+  # The auction row, locked for the rest of the transaction. A pass whose
+  # cursor another pass has already moved gives way.
+  defp locked(auction) do
+    current =
+      Auction
+      |> Ash.Query.for_read(
+        :by_chain_address,
+        %{chain_id: auction.chain_id, auction_address: auction.auction_address},
+        actor: @actor
+      )
+      |> Ash.Query.lock(:for_update)
+      |> Ash.read_one!()
+
+    if current.activity_next_block != auction.activity_next_block,
+      do: Repo.rollback(:superseded)
+
+    current
+  end
+
+  # The auction's own notifications go out once the transaction has committed.
+  defp notified({:ok, {_updated, notifications}}, answer) do
+    Ash.Notifier.notify(notifications)
+    answer
+  end
+
+  defp notified(error, _answer), do: error
 
   defp map_ok(items, read) do
     Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
