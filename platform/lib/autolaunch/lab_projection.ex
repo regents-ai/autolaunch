@@ -280,6 +280,8 @@ defmodule Autolaunch.LabProjection do
          {:ok, _launch, launch_notifications} <-
            create_quietly(LaunchJob, :project_lab, %{
              job_id: launch_identity(result["launch_id"]),
+             status: "active",
+             step: "auction",
              agent_id: subject_id,
              agent_name: facts["name"],
              token_name: facts["name"],

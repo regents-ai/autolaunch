@@ -72,9 +72,9 @@ defmodule Autolaunch.LabProjectionTest do
     {:ok, _active} =
       Autolaunch.refresh_lab_market_auction(one(Auction), :active, "1.5", %{}, actor: @actor)
 
-    # The launch row has been written to since.
+    # The launch has moved on since it was written.
     {1, _rows} =
-      Autolaunch.Repo.update_all("launch_jobs", set: [agent_name: "Renamed Regent"])
+      Autolaunch.Repo.update_all("launch_jobs", set: [status: "complete", step: "graduated"])
 
     written = one(Auction)
 
@@ -96,7 +96,7 @@ defmodule Autolaunch.LabProjectionTest do
     assert %{state: :active, current_clearing_price: "1.5"} = written
     assert %{title: "Local Regent", creator_human_account_id: creator_id} = written
     assert creator_id == creator.id
-    assert %{agent_name: "Renamed Regent"} = one(LaunchJob)
+    assert %{agent_name: "Local Regent", status: "complete", step: "graduated"} = one(LaunchJob)
     assert one(Subject).subject_id == LabProjection.subject_identity(@subject)
   end
 

@@ -111,7 +111,7 @@ defmodule Autolaunch.LaunchOperation do
 
     # Written by nothing; dropped by the next release, once no machine of the
     # release before this one still reads it.
-    attribute :reason, :string, constraints: [max_length: 120], select_by_default?: false
+    attribute :reason, :string, constraints: [max_length: 120]
     attribute :terminal_at, :utc_datetime_usec
     timestamps()
   end
