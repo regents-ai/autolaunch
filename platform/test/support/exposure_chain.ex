@@ -120,6 +120,13 @@ defmodule Autolaunch.ExposureChain do
             {@now - 60, 25_700_000_000}
           ],
           recorded: %{},
+          # What the site's own wallet has broadcast carries over a change of chain state.
+          network:
+            Map.get(
+              Application.get_env(:autolaunch, :exposure_chain, %{}),
+              :network,
+              %{sent: [], receipts: %{}, mined: 0}
+            ),
           pools: %{
             @overnight => {@overnight_pool, 2_640_000},
             @session => {@session_pool, 2_510_000}
@@ -133,6 +140,9 @@ defmodule Autolaunch.ExposureChain do
 
     Application.put_env(:autolaunch, :exposure_chain, state)
   end
+
+  @sends ~w(eth_estimateGas eth_maxPriorityFeePerGas eth_getTransactionCount
+            eth_sendRawTransaction eth_getTransactionReceipt eth_getTransactionByHash)
 
   def post(url, options) do
     case options[:json] do
@@ -149,15 +159,61 @@ defmodule Autolaunch.ExposureChain do
              "result" => %{
                "number" => "0x20",
                "hash" => BaseRpcStub.safe_hash(),
-               "timestamp" => "0x" <> Integer.to_string(state.now, 16)
+               "timestamp" => "0x" <> Integer.to_string(state.now, 16),
+               "baseFeePerGas" => "0x3b9aca00"
              }
            }
          }}
+
+      %{method: method, params: params} when method in @sends ->
+        {:ok, %{status: 200, body: %{"result" => network(method, params)}}}
 
       _other ->
         BaseRpcStub.post(url, options)
     end
   end
+
+  @doc "The raw transactions broadcast so far, oldest first."
+  def broadcasts, do: network_state().sent
+
+  @doc "Mines every broadcast transaction not yet mined, each with this receipt status."
+  def mine(status) do
+    update_network(fn network ->
+      receipts = Map.new(network.sent, &{hash(&1), %{"status" => status}})
+      %{network | receipts: Map.merge(receipts, network.receipts), mined: length(network.sent)}
+    end)
+  end
+
+  # The network the site's own wallet sends to: every broadcast is held until
+  # `mine/1`, and the wallet's nonce is how many it has broadcast.
+  defp network("eth_estimateGas", _params), do: "0x30d40"
+  defp network("eth_maxPriorityFeePerGas", _params), do: "0x1"
+
+  defp network("eth_getTransactionCount", [_wallet, "safe"]),
+    do: "0x" <> Integer.to_string(network_state().mined, 16)
+
+  defp network("eth_getTransactionCount", [_wallet, _pending]),
+    do: "0x" <> Integer.to_string(length(network_state().sent), 16)
+
+  defp network("eth_sendRawTransaction", [raw]) do
+    update_network(&%{&1 | sent: &1.sent ++ [raw]})
+    hash(raw)
+  end
+
+  defp network("eth_getTransactionReceipt", [hash]), do: Map.get(network_state().receipts, hash)
+
+  defp network("eth_getTransactionByHash", [hash]),
+    do: if(Enum.any?(network_state().sent, &(hash(&1) == hash)), do: %{"hash" => hash})
+
+  defp network_state, do: Map.get(Application.fetch_env!(:autolaunch, :exposure_chain), :network)
+
+  defp update_network(fun) do
+    state = Application.fetch_env!(:autolaunch, :exposure_chain)
+    Application.put_env(:autolaunch, :exposure_chain, %{state | network: fun.(state.network)})
+  end
+
+  defp hash("0x" <> raw),
+    do: "0x" <> Base.encode16(ExKeccak.hash_256(Base.decode16!(raw, case: :lower)), case: :lower)
 
   # `unreadable: true` makes every contract read fail, as a chain that can't be reached just now.
   defp call(%{unreadable: true}, _call), do: {:ok, %{status: 503, body: ""}}
@@ -206,11 +262,12 @@ defmodule Autolaunch.ExposureChain do
   defp words("feed()", @oracle, _state, _args), do: [word(@feed)]
   defp words("phase()", @oracle, _state, _args), do: [@phase]
 
-  # A print is recorded for every applied price, and for any price in `recorded`.
+  # A print is recorded for every applied price, and for any price in `recorded`,
+  # an hour after its moment unless `late` names when it was.
   defp words("getPrint(bytes32,uint64,bool)", @oracle, state, [_feed_id, at, _open]) do
     case print(state, at) do
       nil -> [0, 0, 0]
-      price -> [price, at, at + 3_600]
+      price -> [price, at, Map.get(Map.get(state, :late, %{}), at, at + 3_600)]
     end
   end
 

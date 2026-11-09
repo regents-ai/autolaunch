@@ -1,6 +1,8 @@
-defmodule Autolaunch.AuctionFinish.Wallet do
+defmodule Autolaunch.Chain.Wallet do
   @moduledoc """
-  The finishing wallet's key and the address it sends from.
+  A wallet the site sends from on its own, paying the gas: the auction
+  finisher's (`:auction_finisher_key`) and the After-hours price recorder's
+  (`:exposure_recorder_key`), each a key the site is given at start.
 
   It signs one shape of transaction: an EIP-1559 (type 2) call that sends no
   ETH and carries no access list. Inspecting a wallet shows its address and
@@ -14,9 +16,9 @@ defmodule Autolaunch.AuctionFinish.Wallet do
   # The order of the secp256k1 group: a private key is a number from 1 below it.
   @curve_order 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
-  @doc "The wallet the running site finishes auctions from."
-  def configured! do
-    {:ok, wallet} = new(Application.fetch_env!(:autolaunch, :auction_finisher_key))
+  @doc "The wallet whose key the running site holds under `key_name`."
+  def configured!(key_name) do
+    {:ok, wallet} = new(Application.fetch_env!(:autolaunch, key_name))
     wallet
   end
 

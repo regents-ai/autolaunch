@@ -1,7 +1,7 @@
-defmodule Autolaunch.AuctionFinish.WalletTest do
+defmodule Autolaunch.Chain.WalletTest do
   use ExUnit.Case, async: true
 
-  alias Autolaunch.AuctionFinish.Wallet
+  alias Autolaunch.Chain.Wallet
 
   # Anvil's public test account 9, from the well-known "test … junk" mnemonic.
   @key "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"

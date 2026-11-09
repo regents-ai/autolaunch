@@ -142,7 +142,13 @@ Ash domain `Autolaunch.Exposure`, resource `Series` with four generic actions ev
 (not open yet, ended, past the cap, short after a seizure, not enough stock, approval missing,
 unequal amounts before the end, more than held, a price not yet recordable or too old, the
 recording window still open) shows the button disabled with the reason; nothing else blocks a
-press. There is no keeper job yet: anyone can record and apply a price from the page.
+press. Anyone can record and apply a price from the page, and with
+`AUTOLAUNCH_EXPOSURE_RECORDER_ON=true` the site does it itself (`Autolaunch.Exposure.Recording`):
+every five minutes, from its own wallet (`AUTOLAUNCH_EXPOSURE_RECORDER_KEY`), it records each due
+price, applies it once the record is mined, and ends a series whose price can no longer be recorded,
+one transaction per series at a time, each recorded before it is broadcast
+(`Autolaunch.Chain.Sender`, shared with the auction finisher). Added after the first series stalled
+for a week in November 2026 with nobody pressing Record price.
 
 Agent surfaces, one Ash action each, same inputs, results and refusals everywhere
 (`docs/agent-parity.md`):

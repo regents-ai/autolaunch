@@ -21,5 +21,25 @@ defmodule Autolaunch.Exposure do
       define :exposure_holdings, action: :holdings, args: [:series]
       define :prepare_exposure, action: :prepare, args: [:series, :kind]
     end
+
+    resource Autolaunch.Exposure.Recording do
+      define :add_recording, action: :add
+    end
+
+    resource Autolaunch.Exposure.RecorderTransaction do
+      define :record_recorder_transaction, action: :record
+
+      define :unsettled_recorder_transaction,
+        action: :unsettled,
+        args: [:recording_id],
+        not_found_error?: false
+
+      define :highest_recorder_nonce,
+        action: :highest_nonce,
+        args: [:chain_id, :signer],
+        not_found_error?: false
+
+      define :settle_recorder_transaction, action: :settle, args: [:outcome]
+    end
   end
 end

@@ -34,6 +34,7 @@ config :autolaunch, Oban,
   prefix: "autolaunch_app",
   queues: [
     auction_finishing: [limit: 1, paused: true],
+    exposure_recording: [limit: 1, paused: true],
     chain: 4,
     launch_listing: 1,
     outside_calls: 3,

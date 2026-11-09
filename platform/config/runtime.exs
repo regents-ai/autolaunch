@@ -224,6 +224,39 @@ if exposure_on do
     autolaunch_base_exposure_deployment: exposure_path
 end
 
+# The price recorder records and applies every After-hours price as soon as it
+# may, and ends a series whose price can no longer be recorded, from its own
+# wallet, which pays that gas. It runs only on a site switched on with
+# AUTOLAUNCH_EXPOSURE_RECORDER_ON=true, which needs After-hours on and the
+# wallet's key; otherwise its queue stays paused and prices are recorded from
+# the page (Autolaunch.Exposure.Recording).
+recorder_on =
+  case System.get_env("AUTOLAUNCH_EXPOSURE_RECORDER_ON") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_EXPOSURE_RECORDER_ON must be true or unset"
+  end
+
+if recorder_on do
+  if not exposure_on,
+    do: raise("AUTOLAUNCH_EXPOSURE_RECORDER_ON=true needs AUTOLAUNCH_EXPOSURE=true")
+
+  recorder_key = System.fetch_env!("AUTOLAUNCH_EXPOSURE_RECORDER_KEY")
+
+  if Autolaunch.Chain.Wallet.private_key(recorder_key) == :error do
+    raise "AUTOLAUNCH_EXPOSURE_RECORDER_KEY must be 0x and the 64 hex digits of a private key"
+  end
+
+  # Each sender keeps its own record of nonces, so the two never share a wallet.
+  if String.downcase(recorder_key) ==
+       String.downcase(System.get_env("AUTOLAUNCH_FINISHER_KEY", "")) do
+    raise "AUTOLAUNCH_EXPOSURE_RECORDER_KEY must be a wallet of its own, not the finisher's"
+  end
+
+  config :autolaunch, :exposure_recorder_key, recorder_key
+  config :autolaunch, Oban, queues: [exposure_recording: [limit: 1, paused: false]]
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs
@@ -239,7 +272,7 @@ finisher_on =
 if finisher_on do
   finisher_key = System.fetch_env!("AUTOLAUNCH_FINISHER_KEY")
 
-  if Autolaunch.AuctionFinish.Wallet.private_key(finisher_key) == :error do
+  if Autolaunch.Chain.Wallet.private_key(finisher_key) == :error do
     raise "AUTOLAUNCH_FINISHER_KEY must be 0x and the 64 hex digits of a private key"
   end
 

@@ -164,10 +164,16 @@ Isolated Exposure to After-hours Stocks (`/stock/isolated-afters`, the portfolio
 agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
 `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=/abs/path/exposure.json` is required, naming the
 `ExposureSeriesV1` series the site offers, oldest first, on the Base description's chain (`chain_id`,
-`usdc`, `pool_factory`, `series`). On autolaunch.sh it is
+`usdc`, `pool_factory`, `router`, `series`). On autolaunch.sh it is
 `contracts/exposure/deployments/base-mainnet/site-series.json`, copied to
 `platform/deployment/exposure.json` before deploying. Design and evidence:
 [docs/exposure-design.md](docs/exposure-design.md).
+
+Its price recorder is off unless `AUTOLAUNCH_EXPOSURE_RECORDER_ON=true`, which needs
+`AUTOLAUNCH_EXPOSURE=true` and the recorder wallet's key in `AUTOLAUNCH_EXPOSURE_RECORDER_KEY`
+(`0x` and 64 hex digits, a Fly secret). That wallet pays the gas for recording and applying every
+price and for ending a series whose price was missed, so it keeps a little ETH on Base. Off, its
+queue stays paused and prices are recorded from the page.
 
 ## Protected paths
 

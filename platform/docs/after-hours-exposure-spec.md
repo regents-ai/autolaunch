@@ -284,8 +284,8 @@ surfaces as built. Wallet actions are prepared on the server as unsigned steps a
 person's (or agent's) own wallet through the existing `AutolaunchWeb.OnchainSteps` component. The
 site never holds keys and never stores pending transactions; it reads chain state and receipts.
 On-chain buttons are never blocked by page state; a press is disabled only when the chain's current
-state makes it certain to fail, with the reason beside it. Not built yet: a keeper job that records
-and applies prices on schedule, a portfolio section, and a link from the stock page.
+state makes it certain to fail, with the reason beside it. The site's price recorder records and
+applies each price on schedule from its own wallet once switched on (`Autolaunch.Exposure.Recording`).
 
 ## 8. CLI
 
