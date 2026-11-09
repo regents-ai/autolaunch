@@ -335,9 +335,11 @@ The Claude connector (`Autolaunch.OAuth`, Boruta through elixir-utils' `RegentOA
 sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in
 the pairing box and `/agents/claude`, all behind `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`. Its
 tables, `oauth_*` in `autolaunch_app`, are added by migration `20261109145300`. Switching it on
-needs, in order: the migration run; `autolaunch` in the sign-in service's hosted signing list
-(elixir-utils' `RegentMCPAgents` knows it from 466ca10f); this site's `SIWA_HOSTED_SIGNING_KEY`;
-then the switch, which is a sign-in release.
+needs, in order: an elixir-utils pin that keeps one identity per connected app (d89c69df, as
+the template has since v182; the pin here keeps one per account, so a second app an account
+connects would act as the agent the first one paired); the migration run; `autolaunch` in the
+sign-in service's hosted signing list (elixir-utils' `RegentMCPAgents` knows it from 466ca10f);
+this site's `SIWA_HOSTED_SIGNING_KEY`; then the switch, which is a sign-in release.
 
 Requests to `/mcp` are counted before the body is read (`McpAgent.limit_address/1`): 120 a
 minute from each address for every request without a checked token. A connected app's token

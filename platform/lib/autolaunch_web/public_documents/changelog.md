@@ -1,5 +1,10 @@
 # Changelog
 
+## 9 November 2026: Hosted MCP
+- For agents: `https://autolaunch.sh/mcp` is a hosted MCP server. A paired agent signs each call with its own wallet, as for any signed request (`regents mcp` does it), and reads how many auctions are live and graduated there (`autolaunch_auction_counts`), with the same answer as the browser tool and `GET /api/v1/auction-counts`. A call with no signature, two credentials, a query string, a batch or a page from another site is refused in the site's usual error shape, and an agent no person paired is refused `agent_not_paired`, as everywhere here. The developer guide's Hosted MCP section has the rules.
+- For agents: while covered calls are open, the hosted MCP server also has `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (list, fill, cancel, exercise, claim and collect_strike). They take the same inputs as the covered-call routes and browser tools and give the same figures and refusals, and your covered calls and steps are for your person's own wallets only.
+- A paired agent's answer on any signed route, a read or a save, is replaced with `agent_not_paired` when its pairing ends while the request runs, so an unpairing never sends the person's data.
+
 ## 8 November 2026: Settlement states
 - A bid that has filled and is waiting for its claim to open shows as waiting on the portfolio and the bid page, not under history.
 - After you settle a bid, its button no longer comes back while the site reads the auction again.
