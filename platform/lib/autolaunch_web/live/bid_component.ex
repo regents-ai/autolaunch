@@ -21,9 +21,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, BidActions, Lab, LabProjection, Limits}
-  alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
   alias AutolaunchWeb.Live.Session
@@ -354,7 +352,8 @@ defmodule AutolaunchWeb.BidComponent do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
         AutolaunchWeb.Telemetry.wallet_failed(:bid, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
+        note = OnchainSteps.failure_note(socket.assigns, reason, "Base")
+        {:noreply, assign(socket, press_note: note)}
 
       :error ->
         {:noreply, socket}
@@ -391,7 +390,7 @@ defmodule AutolaunchWeb.BidComponent do
         {:noreply, socket}
 
       {{:error, error}, _none} ->
-        reason = refusal(error)
+        reason = OnchainSteps.refusal(error)
         notice = if reason in @told, do: copy(reason), else: socket.assigns.notice
         {:noreply, assign(socket, balances: :unread, notice: notice)}
     end
@@ -408,15 +407,8 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
-  def handle_async({:result, hash}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
-
-    {:noreply, placed(socket, hash, logs)}
-  end
+  def handle_async({:result, hash}, result, socket),
+    do: {:noreply, placed(socket, hash, OnchainSteps.receipt_logs(result))}
 
   attr :prepared, :map, default: nil
   attr :rate, :any, required: true
@@ -486,7 +478,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp start_prepare(socket, key) do
     {signer, request} = request(key)
     inputs = inputs(socket.assigns)
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(preparing: key)
@@ -501,7 +493,7 @@ defmodule AutolaunchWeb.BidComponent do
 
       key ->
         {signer, request} = request(key)
-        result = BidActions.prepare(request, signer, opts(socket))
+        result = BidActions.prepare(request, signer, OnchainSteps.opts(socket))
         socket = reviewed(socket, key, inputs(assigns), result)
         if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
@@ -530,7 +522,7 @@ defmodule AutolaunchWeb.BidComponent do
   end
 
   defp reviewed(socket, key, _inputs, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
+    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the bid it belongs to.
@@ -634,9 +626,8 @@ defmodule AutolaunchWeb.BidComponent do
 
   # A bid landed: what it placed is read from its receipt. A landed approval
   # builds the review again, so the bid it leads to carries fresh deadlines.
-  defp confirmed(socket, %{name: name, hash: hash, review: review})
-       when name in ["bid", "usdc_bid"],
-       do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+  defp confirmed(socket, %{name: name} = entry) when name in ["bid", "usdc_bid"],
+    do: OnchainSteps.read_receipt(socket, entry)
 
   defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
     do: rebuilt(socket, nil)
@@ -673,7 +664,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp read_balance(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
     %{current_human_id: human_id, balances: balances} = socket.assigns
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     case Limits.spend(:wallet_read, {:human, human_id}) do
       :ok ->
@@ -688,17 +679,11 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp read_balance(socket), do: socket
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: "Base"
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
   # Steps
 
   defp steps(%{review: %{} = review, prepared: prepared, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
+      OnchainSteps.step(presses, review, name, step_label(name, prepared))
     end)
   end
 
@@ -713,15 +698,6 @@ defmodule AutolaunchWeb.BidComponent do
     do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
   defp next_step(_assigns, _steps), do: %{name: "bid", label: "Place bid"}
-
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
 
   defp step_label("usdc_approval", _prepared), do: "Approve USDC"
   defp step_label("token_approval", prepared), do: "Approve #{prepared.facts.currency_symbol}"
@@ -801,7 +777,7 @@ defmodule AutolaunchWeb.BidComponent do
   # The bidder's own X account, read when they choose to share.
   defp load_x(socket) do
     connections =
-      case Autolaunch.Accounts.list_my_x_connections(actor: actor(socket)) do
+      case Autolaunch.Accounts.list_my_x_connections(actor: OnchainSteps.actor(socket)) do
         {:ok, connections} -> connections
         {:error, _unavailable} -> []
       end
@@ -811,14 +787,6 @@ defmodule AutolaunchWeb.BidComponent do
       x_enabled: Autolaunch.Accounts.XOAuth.enabled?()
     )
   end
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
 
   # The currency a bidder pays this auction in: USDC where the auction takes it,
   # else its own. USDC bids exist only for Stocks auctions, and only where the
@@ -872,14 +840,6 @@ defmodule AutolaunchWeb.BidComponent do
     do: "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 
   # The dollar price of the auction's currency, read once per auction and
   # apart from the form, so a slow price never holds a bid back.

@@ -11,7 +11,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.Lab
   alias Autolaunch.Stocks.LaunchActions
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, TokenDisplay}
@@ -42,7 +41,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: {:ok, socket |> Session.check_component_lease(&take_account/2) |> LaunchSteps.init()}
 
   # The review on the page, checked against the chain again once it is ten
-  # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
+  # minutes old (`AutolaunchWeb.LaunchSteps.refreshed/4`).
   @impl true
   def update(%{refresh_review: review_id}, socket),
     do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
@@ -64,8 +63,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
-
     ~H"""
     <section
       id={@id}
@@ -80,118 +77,76 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       />
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
-        <p class="launch-wallet-hint">
-          Your wallet confirms the launch. You see every value before anything is sent.
-        </p>
-        <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from <code>{RegentFormat.short_address(@signer)}</code>
-        </p>
-        <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
-        <Regent.Primitives.button
-          class="launch-wallet-primary"
-          type="button"
-          phx-click="review_launch"
-          phx-target={@myself}
-          disabled={@launches_paused?}
-        >
-          Review launch
-        </Regent.Primitives.button>
-      </div>
+      <LaunchSteps.review_button
+        hidden={!!@review or !!@launched}
+        signer={@signer}
+        mismatch={@mismatch}
+        disabled={@launches_paused?}
+        target={@myself}
+      />
 
-      <%!-- The review stays in the page and is only hidden, so its wallet
-           button is never replaced while a person presses it. --%>
-      <section
-        id={"#{@id}-review"}
-        class="launch-wallet-review"
-        aria-label="Launch review"
-        hidden={!@review}
+      <LaunchSteps.review_panel
+        id={@id}
+        review={@review}
+        prepared={@prepared}
+        presses={@presses}
+        chain={explorer_chain()}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@myself}
       >
-        <%= if @review do %>
-          <h4>Review this launch</h4>
+        <:rows>
+          <div>
+            <dt>Auction currency</dt>
+            <dd>
+              {@prepared.facts["stock_symbol"]}
+              <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Minimum raise</dt>
+            <dd>
+              {TokenDisplay.short(@prepared.facts["minimum_raise_units"])} {@prepared.facts[
+                "stock_symbol"
+              ]}. If bids fall short, each bidder takes back their whole bid.
+            </dd>
+          </div>
+          <div>
+            <dt>Bidding opens</dt>
+            <dd>
+              {LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).opens)} after the launch is created
+            </dd>
+          </div>
+          <div>
+            <dt>Auction length</dt>
+            <dd>{LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).length)}</dd>
+          </div>
+          <div>
+            <dt>Starting price</dt>
+            <dd>
+              {TokenDisplay.short(@prepared.facts["floor_price_executable"])} {@prepared.facts[
+                "stock_symbol"
+              ]} per token, the lowest the auction accepts
+            </dd>
+          </div>
+          <div>
+            <dt>Launch fee</dt>
+            <dd>None</dd>
+          </div>
+        </:rows>
+        <Regent.Primitives.disclosure
+          id={"#{@id}-exact-values"}
+          summary="Exact values"
+          class="launch-wallet-details"
+        >
           <dl>
-            <div>
-              <dt>Token</dt>
-              <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
-            </div>
-            <LaunchSteps.token_rows facts={@prepared.facts} />
-            <div>
-              <dt>Auction currency</dt>
-              <dd>
-                {@prepared.facts["stock_symbol"]}
-                <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Minimum raise</dt>
-              <dd>
-                {TokenDisplay.short(@prepared.facts["minimum_raise_units"])} {@prepared.facts[
-                  "stock_symbol"
-                ]}. If bids fall short, each bidder takes back their whole bid.
-              </dd>
-            </div>
-            <div>
-              <dt>Bidding opens</dt>
-              <dd>
-                {LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).opens)} after the launch is created
-              </dd>
-            </div>
-            <div>
-              <dt>Auction length</dt>
-              <dd>{LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).length)}</dd>
-            </div>
-            <div>
-              <dt>Starting price</dt>
-              <dd>
-                {TokenDisplay.short(@prepared.facts["floor_price_executable"])} {@prepared.facts[
-                  "stock_symbol"
-                ]} per token, the lowest the auction accepts
-              </dd>
-            </div>
-            <div>
-              <dt>Launch fee</dt>
-              <dd>None</dd>
-            </div>
-            <div>
-              <dt>Wallet</dt>
-              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
-            </div>
-            <div>
-              <dt>Network</dt>
-              <dd>{@review.chain.name}</dd>
-            </div>
-            <div>
-              <dt>Transactions</dt>
-              <dd>One transaction</dd>
+            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
+              <dt>{label}</dt>
+              <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
-
-          <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
-
-          <Regent.Primitives.disclosure
-            id={"#{@id}-exact-values"}
-            summary="Exact values"
-            class="launch-wallet-details"
-          >
-            <dl>
-              <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
-                <dt>{label}</dt>
-                <dd class="launch-wallet-mono">{value}</dd>
-              </div>
-            </dl>
-          </Regent.Primitives.disclosure>
-        <% end %>
-
-        <LaunchSteps.progress
-          id={"#{@id}-progress"}
-          steps={@steps}
-          review={@review}
-          chain={explorer_chain()}
-          mismatch={@mismatch}
-          press_note={@press_note}
-          target={@myself}
-        />
-      </section>
+        </Regent.Primitives.disclosure>
+      </LaunchSteps.review_panel>
     </section>
     """
   end
@@ -234,21 +189,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: {:noreply, LaunchSteps.found(socket, hash, answer)}
 
   defp prepare(socket, signer) do
-    case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
+    case LaunchActions.prepare(socket.assigns.draft.id, signer, OnchainSteps.opts(socket)) do
       {:ok, prepared} -> {:ok, prepared}
-      {:error, error} -> {:error, copy(refusal(error))}
+      {:error, error} -> {:error, copy(OnchainSteps.refusal(error))}
     end
   end
 
   defp current(_socket), do: &LaunchActions.current/1
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
 
   # A test network has no explorer.
   defp explorer_chain, do: if(Lab.test_chain?(), do: nil, else: :base)
@@ -277,12 +224,4 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

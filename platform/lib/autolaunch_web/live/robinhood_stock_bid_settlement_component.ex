@@ -32,8 +32,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   import AutolaunchWeb.Components.StepState
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Client, Rpc}
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
   alias AutolaunchWeb.Live.Session
@@ -408,7 +407,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
         AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid_settlement, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
+        note = OnchainSteps.failure_note(socket.assigns, reason, Lab.network_name(Lab.chain_id()))
+        {:noreply, assign(socket, press_note: note)}
 
       :error ->
         {:noreply, socket}
@@ -443,7 +443,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
       status == :refused ->
-        {:noreply, assign(socket, status: :refused, notice: copy(refusal(prepared)))}
+        {:noreply, assign(socket, status: :refused, notice: copy(OnchainSteps.refusal(prepared)))}
 
       held?(socket.assigns) ->
         {:noreply, assign(socket, status: status)}
@@ -467,15 +467,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
-  def handle_async({:result, hash}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
-
-    {:noreply, settled(socket, hash, logs)}
-  end
+  def handle_async({:result, hash}, result, socket),
+    do: {:noreply, settled(socket, hash, OnchainSteps.receipt_logs(result))}
 
   # Reviews
 
@@ -495,7 +488,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp start_prepare(socket, {signer, _bid_id, _exited, _filled} = key) do
     request = request(socket.assigns)
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(preparing: key)
@@ -527,7 +520,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   end
 
   defp reviewed(socket, key, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
+    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the settlement it belongs to.
@@ -595,7 +588,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     request = request(assigns)
     acting = if owner?(assigns), do: signer
     offered = if assigns.review, do: :record
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(checking: true)
@@ -633,8 +626,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp confirmed(socket, %{name: "record"}),
     do: socket |> assign(recorded: true, checked_at: nil) |> withdrawn() |> early_check()
 
-  defp confirmed(socket, %{hash: hash, review: review}),
-    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+  defp confirmed(socket, entry), do: OnchainSteps.read_receipt(socket, entry)
 
   # What the step did, from its receipt, whichever of this page's reviews it
   # was sent from; the bid panel reads the wallet's bids again.
@@ -659,8 +651,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp steps(%{review: %{} = review, prepared: prepared, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: label(name, prepared), state: press_state(entry), entry: entry}
+      OnchainSteps.step(presses, review, name, label(name, prepared))
     end)
   end
 
@@ -700,15 +691,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   end
 
   defp early_next(_assigns, _steps), do: nil
-
-  defp press_state(nil), do: :ready
-
-  defp press_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp press_state(%{outcome: :confirmed}), do: :done
-  defp press_state(%{outcome: :reverted}), do: :reverted
-  defp press_state(_not_this_step), do: :other
 
   defp finished?([]), do: false
   defp finished?(steps), do: Enum.all?(steps, &(&1.state == :done))
@@ -828,11 +810,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp owner?(_assigns), do: false
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: Lab.network_name(Lab.chain_id())
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
   # The one line under the bid, from the auction's answer; the minimum still
   # to raise is the auction's own minimum less what it has raised.
   defp line({:minimum, raised}, launch) do
@@ -869,21 +846,5 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp tickers(%{facts: %{stock_symbol: symbol}}, token_symbol), do: [symbol, token_symbol]
   defp tickers(_prepared, token_symbol), do: [token_symbol]
 
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
-
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

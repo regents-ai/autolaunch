@@ -2,9 +2,10 @@ defmodule AutolaunchWeb.LaunchSteps do
   @moduledoc """
   What the three launch cards share (`AutolaunchWeb.LaunchWalletComponent`,
   `AutolaunchWeb.StocksLaunchWalletComponent` and
-  `AutolaunchWeb.RobinhoodStocksLaunchComponent`): the wallet that may act, the
-  one "Create the launch" step of the review on the page, and the lines and
-  buttons under it.
+  `AutolaunchWeb.RobinhoodStocksLaunchComponent`): the wallet that may act,
+  "Review launch", the review on the page with its one "Create the launch"
+  step, and the lines and buttons under it (`review_button/1`,
+  `review_panel/1`).
 
   "Review launch" prepares the review on the server for Privy's active wallet
   when the signed-in account links it (`AutolaunchWeb.OnchainSteps`); with no
@@ -15,8 +16,8 @@ defmodule AutolaunchWeb.LaunchSteps do
   was sent from is dropped when another wallet on the account becomes active.
 
   The review on the page is checked against the chain again once it is ten
-  minutes old and once its step reverts (`rechecked/3`), and built again when
-  what it was built against has changed.
+  minutes old (`refreshed/4`) and once its step reverts (`reverted/4`), and
+  built again when what it was built against has changed.
 
   The lines above the button stay in the page and are only hidden, so one
   appearing never moves the button a person is pressing.
@@ -130,16 +131,14 @@ defmodule AutolaunchWeb.LaunchSteps do
     |> OnchainSteps.refresh_later()
   end
 
-  @doc """
-  Reads the chain again for the review on the page: `current` answers
-  `:current`, `:changed` or `:unread` for what the review was prepared with.
-  On `:changed` the review is built again with `prepare`, called with the
-  review's signer, and `note` goes beside the new review's button; a review
-  that can't be built again stays, with the reason beside its button. While
-  its step is on its way the review stays, and a timer asks again later. The
-  button is never held for this: it sends whatever review is on the page.
-  """
-  def rechecked(socket, current, prepare, note \\ nil) do
+  # Reads the chain again for the review on the page: `current` answers
+  # `:current`, `:changed` or `:unread` for what the review was prepared with.
+  # On `:changed` the review is built again with `prepare`, called with the
+  # review's signer, and `note` goes beside the new review's button; a review
+  # that can't be built again stays, with the reason beside its button. While
+  # its step is on its way the review stays, and a timer asks again later. The
+  # button is never held for this: it sends whatever review is on the page.
+  defp rechecked(socket, current, prepare, note) do
     %{review: review, presses: presses, prepared: prepared} = socket.assigns
 
     cond do
@@ -161,17 +160,20 @@ defmodule AutolaunchWeb.LaunchSteps do
   end
 
   @doc """
-  The card's `update(%{refresh_review: review_id}, socket)` and revert
-  callback: `rechecked/4` when `review_id` is the review on the page. A
-  review built again here can carry what a paired agent changed while it was
-  open, the treasury among them, so its button says to check it again.
+  The card's `update(%{refresh_review: review_id}, socket)`: when `review_id`
+  is the review on the page, the chain is read again for it. `current`
+  answers `:current`, `:changed` or `:unread` for what the review was
+  prepared with, and a changed review is built again with `prepare`, called
+  with the review's signer. A review built again here can carry what a paired
+  agent changed while it was open, the treasury among them, so its button
+  says to check it again.
   """
   def refreshed(%{assigns: %{review: %{id: id}}} = socket, id, current, prepare),
     do: rechecked(socket, current, prepare, @refreshed)
 
   def refreshed(socket, _earlier_review, _current, _prepare), do: socket
 
-  @doc "A launch step that reverted: the review on the page is checked again."
+  @doc "A launch step that reverted: the review on the page is checked again, as `refreshed/4` does."
   def reverted(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}, current, prepare),
     do: rechecked(socket, current, prepare, @rebuilt)
 
@@ -191,8 +193,8 @@ defmodule AutolaunchWeb.LaunchSteps do
     socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
   end
 
-  @doc "What the review a sent step came from was prepared with."
-  def prepared(socket, %{review: %{id: id}}), do: Map.get(socket.assigns.reviews, id)
+  # What the review a sent step came from was prepared with.
+  defp prepared(socket, %{review: %{id: id}}), do: Map.get(socket.assigns.reviews, id)
 
   @doc """
   A launch step the page saw confirmed. The review comes off the page and the
@@ -290,43 +292,135 @@ defmodule AutolaunchWeb.LaunchSteps do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
         Telemetry.wallet_failed(flow, reason)
-        %{linked: linked, active: active, review: review} = socket.assigns
-        chain_name = review && review.chain.name
-        assign(socket, press_note: OnchainSteps.failure_note(reason, linked, active, chain_name))
+        assign(socket, press_note: OnchainSteps.failure_note(socket.assigns, reason, nil))
 
       :error ->
         socket
     end
   end
 
-  @doc "The review's steps as the card shows them."
-  def steps(%{review: %{} = review, presses: presses}) do
-    Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: "Create the launch", state: state(entry), entry: entry}
-    end)
-  end
+  defp steps(%{review: %{} = review, presses: presses}),
+    do: Enum.map(review.steps, &OnchainSteps.step(presses, review, &1.step, "Create the launch"))
 
-  def steps(_assigns), do: []
+  defp steps(_assigns), do: []
 
   @doc "The digest of the exact bytes the launch step asks the wallet to sign."
   def digest(%{steps: [%{data: data}]}),
     do: :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
 
-  @doc "Whether a step of `review` has been sent."
-  def started?(presses, review),
+  defp started?(presses, review),
     do: Enum.any?(review.steps, &OnchainSteps.entry(presses, review, &1.step))
+
+  attr :hidden, :boolean, required: true
+  attr :signer, :string, default: nil
+  attr :mismatch, :string, default: nil
+  attr :disabled, :boolean, default: false
+  attr :target, :any, required: true
+
+  @doc """
+  "Review launch", with the wallet the launch goes from, or the note naming
+  the account's wallets while another one is open (`followed/1`).
+  """
+  def review_button(assigns) do
+    ~H"""
+    <div class="launch-wallet-open" hidden={@hidden}>
+      <p class="launch-wallet-hint">
+        Your wallet confirms the launch. You see every value before anything is sent.
+      </p>
+      <p class="launch-wallet-from" hidden={!@signer}>
+        Launching from <code>{RegentFormat.short_address(@signer)}</code>
+      </p>
+      <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
+      <Regent.Primitives.button
+        class="launch-wallet-primary"
+        type="button"
+        phx-click="review_launch"
+        phx-target={@target}
+        disabled={@disabled}
+      >
+        Review launch
+      </Regent.Primitives.button>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :review, :map, default: nil
+  attr :prepared, :map, default: nil
+  attr :presses, :any, required: true
+  attr :chain, :atom, default: nil, doc: "the explorer's chain; nil on a test network"
+  attr :network, :string, default: nil, doc: "the Network row; the review's chain name when nil"
+  attr :mismatch, :string, default: nil
+  attr :press_note, :string, default: nil
+  attr :target, :any, required: true
+  slot :rows, doc: "the card's own rows, between the token's and the wallet's"
+  slot :inner_block, doc: "what follows the launch's risk"
+
+  @doc """
+  The review on the page: the token as it will read, the card's own rows, the
+  wallet, the network and the one transaction, the launch's risk, then the
+  review's progress and its wallet button.
+  """
+  def review_panel(assigns) do
+    assigns = assign(assigns, steps: steps(assigns))
+
+    ~H"""
+    <%!-- The review stays in the page and is only hidden, so its wallet
+         button is never replaced while a person presses it. --%>
+    <section
+      id={"#{@id}-review"}
+      class="launch-wallet-review"
+      aria-label="Launch review"
+      hidden={!@review}
+    >
+      <%= if @review do %>
+        <h4>Review this launch</h4>
+        <dl>
+          <div>
+            <dt>Token</dt>
+            <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
+          </div>
+          <.token_rows facts={@prepared.facts} />
+          {render_slot(@rows)}
+          <div>
+            <dt>Wallet</dt>
+            <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+          </div>
+          <div>
+            <dt>Network</dt>
+            <dd>{@network || @review.chain.name}</dd>
+          </div>
+          <div>
+            <dt>Transactions</dt>
+            <dd>One transaction</dd>
+          </div>
+        </dl>
+
+        <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
+        {render_slot(@inner_block)}
+      <% end %>
+
+      <.progress
+        id={"#{@id}-progress"}
+        steps={@steps}
+        review={@review}
+        chain={@chain}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@target}
+      />
+    </section>
+    """
+  end
 
   attr :facts, :map, required: true
 
-  @doc """
-  What the token itself will say, as the review on the page was built from the
-  draft as it stood at that moment: the fields the person's agent set, named
-  first; its description, its website, its community links and its picture.
-  A launch without a website of the creator's own names this site, which is
-  not shown as a website.
-  """
-  def token_rows(assigns) do
+  # What the token itself will say, as the review on the page was built from
+  # the draft as it stood at that moment: the fields the person's agent set,
+  # named first; its description, its website, its community links and its
+  # picture. A launch without a website of the creator's own names this site,
+  # which is not shown as a website.
+  defp token_rows(assigns) do
     assigns =
       assign(assigns,
         website: MarketCard.web_link(assigns.facts["website"]),
@@ -371,12 +465,10 @@ defmodule AutolaunchWeb.LaunchSteps do
   attr :press_note, :string, default: nil
   attr :target, :any, required: true
 
-  @doc """
-  The review's progress, with each sent step's transaction on the explorer and
-  a button to copy its hash, the wallet button, and "Cancel" while nothing is
-  on its way.
-  """
-  def progress(assigns) do
+  # The review's progress, with each sent step's transaction on the explorer
+  # and a button to copy its hash, the wallet button, and "Cancel" while
+  # nothing is on its way.
+  defp progress(assigns) do
     assigns =
       assign(assigns,
         next_step: Enum.find(assigns.steps, &(&1.state in [:ready, :reverted, :other])),
@@ -519,15 +611,6 @@ defmodule AutolaunchWeb.LaunchSteps do
   defp explore_copy(%{path: path}) when is_binary(path), do: "It's on Explore now."
   defp explore_copy(%{finding?: true}), do: "Adding it to Explore…"
   defp explore_copy(_launched), do: "It appears on Explore within a minute."
-
-  defp state(nil), do: :ready
-
-  defp state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp state(%{outcome: :confirmed}), do: :done
-  defp state(%{outcome: :reverted}), do: :reverted
-  defp state(_not_this_step), do: :other
 
   defp chip(%{state: :ready}), do: "Ready"
   defp chip(%{state: state}) when state in [:sent, :stalled], do: "Sent"

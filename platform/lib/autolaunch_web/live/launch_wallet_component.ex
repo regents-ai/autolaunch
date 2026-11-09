@@ -12,7 +12,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.{Lab, LaunchActions}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps}
   alias AutolaunchWeb.Live.Session
@@ -63,7 +62,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
        |> assign(fresh_treasury_report_id: nil)}
 
   # The review on the page, checked against the chain again once it is ten
-  # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
+  # minutes old (`AutolaunchWeb.LaunchSteps.refreshed/4`).
   @impl true
   def update(%{refresh_review: review_id}, socket),
     do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
@@ -86,8 +85,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
-
     ~H"""
     <section
       id={@id}
@@ -140,116 +137,73 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
       </p>
 
-      <div class="launch-wallet-open" hidden={!(@authenticated && !@review && !@launched)}>
-        <p class="launch-wallet-hint">
-          Your wallet confirms the launch. You see every value before anything is sent.
-        </p>
-        <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from <code>{RegentFormat.short_address(@signer)}</code>
-        </p>
-        <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
-        <Regent.Primitives.button
-          class="launch-wallet-primary"
-          type="button"
-          phx-click="review_launch"
-          phx-target={@myself}
-          disabled={@launches_paused?}
-        >
-          Review launch
-        </Regent.Primitives.button>
-      </div>
+      <LaunchSteps.review_button
+        hidden={!(@authenticated && !@review && !@launched)}
+        signer={@signer}
+        mismatch={@mismatch}
+        disabled={@launches_paused?}
+        target={@myself}
+      />
 
-      <%!-- The review stays in the page and is only hidden, so its wallet
-           button is never replaced while a person presses it. --%>
-      <section
-        id={"#{@id}-review"}
-        class="launch-wallet-review"
-        aria-label="Launch review"
-        hidden={!@review}
+      <LaunchSteps.review_panel
+        id={@id}
+        review={@review}
+        prepared={@prepared}
+        presses={@presses}
+        chain={explorer_chain(@local_lab?)}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@myself}
       >
-        <%= if @review do %>
-          <h4>Review this launch</h4>
+        <:rows>
+          <div>
+            <dt>Minimum REGENT raised</dt>
+            <dd>{@prepared.facts["required_regent_raised"]} REGENT</dd>
+          </div>
+          <div>
+            <dt>Launch fee</dt>
+            <dd>None</dd>
+          </div>
+          <div>
+            <dt>Treasury</dt>
+            <dd class="launch-wallet-mono">{@prepared.facts["treasury"]}</dd>
+          </div>
+          <div>
+            <dt>Treasury custody</dt>
+            <dd>{custody_label(@prepared.facts["treasury_path"])}</dd>
+          </div>
+        </:rows>
+        <dl class="launch-wallet-terms">
+          <div>
+            <dt>Supply</dt>
+            <dd>{allocation_display(@prepared.facts["terms"])}</dd>
+          </div>
+          <div>
+            <dt>Pool fee</dt>
+            <dd>{pool_fee(@prepared.facts["terms"])}</dd>
+          </div>
+          <div>
+            <dt>Network fee</dt>
+            <dd>Shown in your wallet before confirmation.</dd>
+          </div>
+        </dl>
 
+        <Regent.Primitives.disclosure
+          id={"#{@id}-exact-values"}
+          summary="Exact values"
+          class="launch-wallet-details"
+        >
+          <p>
+            Every launch uses these same terms. Bidding, claiming, and pool opening follow fixed block delays.
+          </p>
           <dl>
-            <div>
-              <dt>Token</dt>
-              <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
-            </div>
-            <LaunchSteps.token_rows facts={@prepared.facts} />
-            <div>
-              <dt>Minimum REGENT raised</dt>
-              <dd>{@prepared.facts["required_regent_raised"]} REGENT</dd>
-            </div>
-            <div>
-              <dt>Launch fee</dt>
-              <dd>None</dd>
-            </div>
-            <div>
-              <dt>Treasury</dt>
-              <dd class="launch-wallet-mono">{@prepared.facts["treasury"]}</dd>
-            </div>
-            <div>
-              <dt>Treasury custody</dt>
-              <dd>{custody_label(@prepared.facts["treasury_path"])}</dd>
-            </div>
-            <div>
-              <dt>Wallet</dt>
-              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
-            </div>
-            <div>
-              <dt>Network</dt>
-              <dd>{@review.chain.name}</dd>
-            </div>
-            <div>
-              <dt>Transactions</dt>
-              <dd>One transaction</dd>
+            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
+              <dt>{label}</dt>
+              <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
-
-          <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
-
-          <dl class="launch-wallet-terms">
-            <div>
-              <dt>Supply</dt>
-              <dd>{allocation_display(@prepared.facts["terms"])}</dd>
-            </div>
-            <div>
-              <dt>Pool fee</dt>
-              <dd>{pool_fee(@prepared.facts["terms"])}</dd>
-            </div>
-            <div>
-              <dt>Network fee</dt>
-              <dd>Shown in your wallet before confirmation.</dd>
-            </div>
-          </dl>
-
-          <Regent.Primitives.disclosure
-            id={"#{@id}-exact-values"}
-            summary="Exact values"
-            class="launch-wallet-details"
-          >
-            <p>
-              Every launch uses these same terms. Bidding, claiming, and pool opening follow fixed block delays.
-            </p>
-            <dl>
-              <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
-                <dt>{label}</dt>
-                <dd class="launch-wallet-mono">{value}</dd>
-              </div>
-            </dl>
-          </Regent.Primitives.disclosure>
-        <% end %>
-
-        <LaunchSteps.progress
-          id={"#{@id}-progress"}
-          steps={@steps}
-          review={@review}
-          chain={explorer_chain(@local_lab?)}
-          mismatch={@mismatch}
-          press_note={@press_note}
-          target={@myself}
-        />
-      </section>
+        </Regent.Primitives.disclosure>
+      </LaunchSteps.review_panel>
     </section>
     """
   end
@@ -300,21 +254,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     do: {:noreply, LaunchSteps.found(socket, hash, answer)}
 
   defp prepare(socket, signer) do
-    case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
+    case LaunchActions.prepare(socket.assigns.draft.id, signer, OnchainSteps.opts(socket)) do
       {:ok, prepared} -> {:ok, prepared}
-      {:error, error} -> {:error, copy(refusal(error))}
+      {:error, error} -> {:error, copy(OnchainSteps.refusal(error))}
     end
   end
 
-  defp current(socket), do: &LaunchActions.current(&1, opts(socket))
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
+  defp current(socket), do: &LaunchActions.current(&1, OnchainSteps.opts(socket))
 
   # Treasury verification
 
@@ -330,7 +276,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         Autolaunch.observe_treasury_security(
           socket.assigns.draft.treasury,
           Map.take(hashes, ["usdc", "regent", "outbound"]),
-          actor: actor(socket)
+          actor: OnchainSteps.actor(socket)
         )
       end)
 
@@ -343,7 +289,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         )
 
       {:error, error} ->
-        assign(socket, fresh_treasury_report_id: nil, notice: copy(refusal(error)))
+        assign(socket, fresh_treasury_report_id: nil, notice: copy(OnchainSteps.refusal(error)))
     end
   end
 
@@ -425,14 +371,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 
   defp custody_label("safe"), do: "2-of-3 Safe"
   defp custody_label("contract"), do: "Existing contract"

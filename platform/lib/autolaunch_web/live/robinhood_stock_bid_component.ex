@@ -27,7 +27,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, BidPrice}
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
@@ -545,7 +544,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
         AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
+        note = OnchainSteps.failure_note(socket.assigns, reason, Lab.network_name(Lab.chain_id()))
+        {:noreply, assign(socket, press_note: note)}
 
       :error ->
         {:noreply, socket}
@@ -583,7 +583,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
          |> told_outbid()}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+        {:noreply, assign(socket, notice: copy(OnchainSteps.refusal(error)))}
     end
   end
 
@@ -615,7 +615,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp start_prepare(socket, key) do
     {signer, request} = request(key)
     inputs = inputs(socket.assigns)
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(preparing: key)
@@ -632,7 +632,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
       key ->
         {signer, request} = request(key)
-        result = StockBidActions.prepare(request, signer, opts(socket))
+        result = StockBidActions.prepare(request, signer, OnchainSteps.opts(socket))
         socket = reviewed(socket, key, inputs(assigns), result)
         if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
@@ -655,7 +655,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp reviewed(socket, key, _inputs, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
+    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
 
   # The review built again from Robinhood Chain with the form as it is, so its
   # quote and deadline are current: once it is ten minutes old, once an approval
@@ -767,23 +767,17 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp read_bids(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
     start_async(socket, :bids, fn -> {wallet, StockBidActions.bids(auction, wallet, opts)} end)
   end
 
   defp read_bids(socket), do: socket
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: Lab.network_name(Lab.chain_id())
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
   # Steps
 
   defp steps(%{review: %{} = review, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name), state: step_state(entry), entry: entry}
+      OnchainSteps.step(presses, review, name, step_label(name))
     end)
   end
 
@@ -798,15 +792,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
   defp next_step(_assigns, _steps), do: %{name: "usdg_bid", label: "Place bid"}
-
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
 
   defp step_label("usdg_approval"), do: "Approve USDG"
   defp step_label(_bid), do: "Place bid"
@@ -868,7 +853,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # The bidder's own X account, read when they choose to share.
   defp load_x(socket) do
     connections =
-      case Autolaunch.Accounts.list_my_x_connections(actor: actor(socket)) do
+      case Autolaunch.Accounts.list_my_x_connections(actor: OnchainSteps.actor(socket)) do
         {:ok, connections} -> connections
         {:error, _unavailable} -> []
       end
@@ -897,14 +882,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
            do: {:ok, %{supply: launch && launch.token_supply}}
     end)
   end
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
 
   # Robinhood's stock prices, read once and apart from the form, so a slow
   # price never holds a bid back.
@@ -1037,12 +1014,4 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp told_outbid(socket), do: socket
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

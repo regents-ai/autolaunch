@@ -20,8 +20,6 @@ defmodule AutolaunchWeb.ConvertComponent do
   """
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, StakeComponent, TokenDisplay}
@@ -263,7 +261,7 @@ defmodule AutolaunchWeb.ConvertComponent do
         {:noreply, assign(socket, notice: no_signer(socket.assigns))}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+        {:noreply, assign(socket, notice: copy(OnchainSteps.refusal(error)))}
     end
   end
 
@@ -274,7 +272,8 @@ defmodule AutolaunchWeb.ConvertComponent do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
         AutolaunchWeb.Telemetry.wallet_failed(:convert, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
+        note = OnchainSteps.failure_note(socket.assigns, reason, "this network")
+        {:noreply, assign(socket, press_note: note)}
 
       :error ->
         {:noreply, socket}
@@ -296,22 +295,16 @@ defmodule AutolaunchWeb.ConvertComponent do
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
   def handle_async({:result, hash}, result, socket) do
-    case {result, socket.assigns.review} do
-      {{:ok, {:ok, %{"logs" => logs}}}, %{id: id}} when is_list(logs) ->
-        {:noreply, finished(socket, id, hash, logs)}
-
-      {_unread, %{id: id}} ->
-        {:noreply, finished(socket, id, hash, nil)}
-
-      {_answer, nil} ->
-        {:noreply, socket}
+    case socket.assigns.review do
+      %{id: id} -> {:noreply, finished(socket, id, hash, OnchainSteps.receipt_logs(result))}
+      nil -> {:noreply, socket}
     end
   end
 
   defp prepare(%{assigns: %{signer: nil}}, _request), do: {:error, :no_signer}
 
   defp prepare(socket, request),
-    do: StakeActions.prepare(request, socket.assigns.signer, opts(socket))
+    do: StakeActions.prepare(request, socket.assigns.signer, OnchainSteps.opts(socket))
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -331,9 +324,9 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   # The conversion landed: the pool is read again, and what it sold is read
   # from its receipt.
-  defp confirmed(socket, %{hash: hash, review: review}) do
+  defp confirmed(socket, entry) do
     send(self(), :reload_pool)
-    start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+    OnchainSteps.read_receipt(socket, entry)
   end
 
   # The open review closes once its conversion landed; a receipt that could not
@@ -359,20 +352,9 @@ defmodule AutolaunchWeb.ConvertComponent do
   end
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: "this network"
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
+  defp no_signer(assigns),
+    do: OnchainSteps.failure_note(assigns, "wallet_unavailable", "this network")
 
   # The form is offered only to the signed-in wallet the hook names as its
   # executor, read from the chain with the pool.
@@ -390,8 +372,7 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   defp steps(%{review: review, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: "Confirm conversion", state: step_state(entry), entry: entry}
+      OnchainSteps.step(presses, review, name, "Confirm conversion")
     end)
   end
 
@@ -400,15 +381,6 @@ defmodule AutolaunchWeb.ConvertComponent do
   # network before the next press can reach the wallet.
   defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
-
   defp reverted(steps) do
     if Enum.any?(steps, &(&1.state == :reverted)),
       do:
@@ -416,14 +388,6 @@ defmodule AutolaunchWeb.ConvertComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 
   attr :id, :string, required: true
   attr :done, :map, required: true

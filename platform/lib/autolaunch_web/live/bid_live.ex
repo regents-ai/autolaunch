@@ -617,7 +617,7 @@ defmodule AutolaunchWeb.BidLive do
          symbol: position.symbol,
          unit: position.stock_symbol,
          image: position.image,
-         path: robinhood_path(position),
+         path: Paths.robinhood_bid_page(position),
          put_in: Decimal.new(position.committed, max_digits: :infinity),
          max_price: Decimal.new(position.max_price, max_digits: :infinity),
          done:
@@ -632,11 +632,6 @@ defmodule AutolaunchWeb.BidLive do
   # Which of a withdraw and a claim the bid has had, by its own standing.
   defp done(exited?, claimed?),
     do: for({kind, true} <- [exit: exited?, claim: claimed?], do: kind)
-
-  defp robinhood_path(%{listing: %{hidden: true}}), do: nil
-  defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
-  defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
-  defp robinhood_path(_position), do: nil
 
   # The bid's own transaction and its withdraws and claims, as the chain
   # watcher recorded them for its auction.
