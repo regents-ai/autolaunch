@@ -12,7 +12,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
   use AutolaunchWeb, :html
 
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
 
   # RegentLBPStrategyV2: START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS,
@@ -385,8 +384,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
   end
 
   defp schedule(:revstake, _chain), do: @revstake_schedule
-  defp schedule(:memestock, :base), do: LaunchActions.schedule()
-  defp schedule(:memestock, :robinhood), do: RobinhoodLaunchActions.schedule()
+  defp schedule(:memestock, chain), do: LaunchActions.schedule(chain)
 
   # Each milestone at its block after the launch, as a time after it.
   defp milestones(chain, %{opens: opens, length: length, claim: claim, pool: pool}) do

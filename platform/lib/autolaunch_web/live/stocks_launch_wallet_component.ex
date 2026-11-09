@@ -133,12 +133,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <div>
               <dt>Bidding opens</dt>
               <dd>
-                {LaunchActions.schedule_copy(LaunchActions.start_lead_blocks())} after the launch is created
+                {LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).opens)} after the launch is created
               </dd>
             </div>
             <div>
               <dt>Auction length</dt>
-              <dd>{LaunchActions.schedule_copy(LaunchActions.auction_duration_blocks())}</dd>
+              <dd>{LaunchActions.schedule_copy(:base, LaunchActions.schedule(:base).length)}</dd>
             </div>
             <div>
               <dt>Starting price</dt>

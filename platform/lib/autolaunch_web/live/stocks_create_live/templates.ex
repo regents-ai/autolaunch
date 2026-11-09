@@ -10,7 +10,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   import AutolaunchWeb.Components.StockSelect
 
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, PriceFeeds}
   alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{DraftMarks, UsdValue}
@@ -67,7 +66,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.configured?())
       |> assign(:stock, stock)
       |> assign(:opening, opening(stock, assigns.market.prices))
-      |> assign(:fixed_terms, fixed_terms(chain, ticker(assigns.draft_values["symbol"])))
+      |> assign(:fixed_terms, LaunchActions.terms(chain, ticker(assigns.draft_values["symbol"])))
 
     ~H"""
     <div class="create-page">
@@ -506,9 +505,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp minimum_raise(stock) do
     "#{RegentFormat.token_amount(LaunchActions.minimum_raise(), stock.decimals)} #{stock.symbol}"
   end
-
-  defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)
-  defp fixed_terms(:robinhood, ticker), do: RobinhoodLaunchActions.terms(ticker)
 
   # Until the creator names a symbol, the supply is counted in plain tokens.
   defp ticker(symbol) do
