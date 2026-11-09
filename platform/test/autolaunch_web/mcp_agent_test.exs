@@ -37,8 +37,8 @@ defmodule AutolaunchWeb.McpAgentTest do
 
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
-      headers = Jason.decode!(body)["headers"]
-      send(test, :asked_sign_in_service)
+      %{"headers" => headers} = payload = Jason.decode!(body)
+      send(test, {:asked_sign_in_service, Map.take(payload, ~w(method path authority))})
 
       if headers["x-siwa-signature"] == "fixture-proof" do
         wallet = headers["x-agent-wallet-address"]
@@ -101,6 +101,19 @@ defmodule AutolaunchWeb.McpAgentTest do
     assert error(refused)["hint"] =~ "Pair New Agent"
   end
 
+  test "a signed call is checked for the site it reached, as every signed request names its site",
+       %{from: from} do
+    agent = paired_wallet()
+
+    for host <- ["autolaunch.sh", "autolaunch.localhost"] do
+      listed = mcp(rpc("tools/list"), from: from, proof: agent, host: host)
+      assert listed.status == 200
+
+      assert_received {:asked_sign_in_service,
+                       %{"method" => "POST", "path" => "/mcp", "authority" => ^host}}
+    end
+  end
+
   test "a paired agent lists and reads the auction counts, with the API's answer", %{from: from} do
     agent = paired_wallet()
 
@@ -159,7 +172,7 @@ defmodule AutolaunchWeb.McpAgentTest do
 
       assert foreign.status == 403
       assert error(foreign)["code"] == "origin_not_allowed"
-      refute_received :asked_sign_in_service
+      refute_received {:asked_sign_in_service, _}
     end
   end
 
@@ -353,6 +366,7 @@ defmodule AutolaunchWeb.McpAgentTest do
 
     conn(:post, path, Jason.encode!(body))
     |> Map.put(:remote_ip, Keyword.fetch!(opts, :from))
+    |> Map.put(:host, opts[:host] || "www.example.com")
     |> then(&if(opts[:origin], do: put_req_header(&1, "origin", opts[:origin]), else: &1))
     |> then(&if(opts[:profile], do: profile_headers(&1, body, opts[:profile]), else: &1))
     |> put_req_header("content-type", "application/json")
