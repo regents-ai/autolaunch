@@ -46,17 +46,14 @@ defmodule Autolaunch.Search do
   def rank(query, "", order), do: Ash.Query.sort(query, order)
 
   def rank(query, search, order) do
-    arguments = %{term: String.downcase(search), address: address_part(search)}
+    term = String.downcase(search)
+    address = if Regex.match?(~r/\A(0x)?[0-9a-f]{6,40}\z/, term), do: term
+    arguments = %{term: term, address: address}
 
     query
     |> Ash.Query.filter(
       search_rank(term: ^arguments.term, address: ^arguments.address) >= ^@match
     )
     |> Ash.Query.sort([{:search_rank, {arguments, :desc}} | order])
-  end
-
-  defp address_part(search) do
-    search = String.downcase(search)
-    if Regex.match?(~r/\A(0x)?[0-9a-f]{6,40}\z/, search), do: search
   end
 end

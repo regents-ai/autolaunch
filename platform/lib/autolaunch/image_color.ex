@@ -85,6 +85,7 @@ defmodule Autolaunch.ImageColor do
       _unreadable -> {:error, :invalid_image}
     end
   rescue
+    # libvips is handed a person's upload; one it raises on is still unreadable.
     _error -> {:error, :invalid_image}
   end
 

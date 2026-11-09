@@ -383,8 +383,6 @@ defmodule Autolaunch.RegentFacts do
     else
       _unavailable -> :unavailable
     end
-  rescue
-    _error -> :unavailable
   end
 
   defp now, do: System.monotonic_time(:millisecond)

@@ -4,12 +4,12 @@ defmodule Autolaunch.AccessContext do
   alias __MODULE__.AccountControl
   alias Autolaunch.PublicIdentity
 
-  @enforce_keys [:principal, :capabilities]
+  @enforce_keys [:principal]
   defstruct @enforce_keys
 
-  def anonymous, do: %__MODULE__{principal: :anonymous, capabilities: [:view_public]}
+  def anonymous, do: %__MODULE__{principal: :anonymous}
 
-  def human(account), do: %__MODULE__{principal: {:human, account}, capabilities: [:view_public]}
+  def human(account), do: %__MODULE__{principal: {:human, account}}
 
   def account_control(%__MODULE__{principal: :anonymous}) do
     %AccountControl{

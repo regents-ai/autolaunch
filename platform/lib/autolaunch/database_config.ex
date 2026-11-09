@@ -132,12 +132,15 @@ defmodule Autolaunch.DatabaseConfig do
     end
   end
 
+  # `URI.new/1` raises on bytes that are not UTF-8, and the boot should name
+  # the variable instead.
   defp parse_uri(value) do
     URI.new(value)
   rescue
     _error -> :error
   end
 
+  # Ecto has no non-raising way to read a URL the way the repository will.
   defp valid_ecto_url?(value) do
     Ecto.Repo.Supervisor.parse_url(value)
     true
@@ -150,17 +153,14 @@ defmodule Autolaunch.DatabaseConfig do
   # admits no query options: even encoded or future aliases cannot weaken TLS
   # or replace the endpoint after this module's checks.
   defp safe_query?(%URI{host: host, query: query}) do
-    not bound_host?(host) or query in [nil, ""]
-  end
-
-  defp safe_port?(%URI{host: host, port: port}) do
-    not bound_host?(host) or port in [nil, 5432]
+    not fly_mpg_host?(host) or query in [nil, ""]
   end
 
   # A managed Postgres venue is fixed by its hostname alone, so it may carry
   # neither query options nor a port other than PostgreSQL's.
-  defp bound_host?(host) when is_binary(host), do: fly_mpg_host?(host)
-  defp bound_host?(_host), do: false
+  defp safe_port?(%URI{host: host, port: port}) do
+    not fly_mpg_host?(host) or port in [nil, 5432]
+  end
 
   defp connection_options(value, host) do
     options = [url: value, socket_options: [:inet6]]
@@ -174,12 +174,10 @@ defmodule Autolaunch.DatabaseConfig do
     end
   end
 
-  defp fly_mpg_host?(host) when is_binary(host) do
+  defp fly_mpg_host?(host) do
     host = String.downcase(host)
     host != "flympg.net" and String.ends_with?(host, ".flympg.net")
   end
-
-  defp fly_mpg_host?(_host), do: false
 
   defp fly_mpg_pgbouncer_host?(host) do
     host |> String.downcase() |> String.starts_with?("pgbouncer.")
