@@ -32,9 +32,6 @@ defmodule AutolaunchWeb.AccountAgentsLive do
   def handle_async({Read, _, _} = name, result, socket),
     do: {:noreply, Read.settle(socket, name, result)}
 
-  @doc "The agents follow an agent change (`AutolaunchWeb.Live.Agents`)."
-  def agents_changed(socket), do: read_agents(socket)
-
   def render(assigns) do
     assigns = assign(assigns, :current_human_id, current_human_id(assigns.access_context))
 
@@ -83,7 +80,8 @@ defmodule AutolaunchWeb.AccountAgentsLive do
     """
   end
 
-  defp read_agents(socket) do
+  @doc "Reads the agents, on arrival and after an agent change (`AutolaunchWeb.Live.Agents`)."
+  def read_agents(socket) do
     case socket.assigns.access_context.principal do
       {:human, account} ->
         Read.start(socket, :agents_read, account.privy_user_id, fn ->
