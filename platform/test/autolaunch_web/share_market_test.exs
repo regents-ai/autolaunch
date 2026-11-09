@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
     end
 
     test "the story closes on the price, the lowest premium and the open strikes" do
-      assert {:ok, story} = MarketStory.covered_calls("AMZNc", nil)
+      assert {:ok, story} = MarketStory.read(:covered_calls, "AMZNc", nil)
 
       assert story.figures == [{"Price", "$254.00"}, {"Calls from", "$3.00"}]
       assert story.badge == "1 call open"
@@ -50,7 +50,11 @@ defmodule AutolaunchWeb.ShareMarketTest do
 
     test "a seller's own story closes on the premium their calls earned, after the 1% fee" do
       assert {:ok, story} =
-               MarketStory.covered_calls("AMZNc", "0x2222222222222222222222222222222222222222")
+               MarketStory.read(
+                 :covered_calls,
+                 "AMZNc",
+                 "0x2222222222222222222222222222222222222222"
+               )
 
       # 4 calls sold at $3.00: $12.00, less $0.12 to REGENT staking.
       assert story.figures == [{"Earned", "$11.88"}, {"Calls held", "0 AMZNc"}]
@@ -66,7 +70,11 @@ defmodule AutolaunchWeb.ShareMarketTest do
       })
 
       assert {:ok, %{figures: [_earned, {"Calls held", "2.00 AMZNc"}]}} =
-               MarketStory.covered_calls("AMZNc", "0x3333333333333333333333333333333333333333")
+               MarketStory.read(
+                 :covered_calls,
+                 "AMZNc",
+                 "0x3333333333333333333333333333333333333333"
+               )
     end
 
     test "the picture is drawn for a market the site offers, and nowhere else", %{conn: conn} do
@@ -210,7 +218,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
     test "a series that ended before its first price shows the price and that none was applied" do
       ExposureChain.put(%{status: 2, end_reason: 4, prices: []})
 
-      assert {:ok, story} = MarketStory.exposure(ExposureChain.series(), nil)
+      assert {:ok, story} = MarketStory.read(:exposure, ExposureChain.series(), nil)
       assert [{"Price", "$257.00"}, {"Prices", "None applied"}] = story.figures
       assert story.bands == []
       assert story.badge == "Ended"
@@ -229,11 +237,15 @@ defmodule AutolaunchWeb.ShareMarketTest do
       assert %{"ahead" => 0} = signed_in |> get(path) |> json_response(202)
 
       assert {:ok, %{figures: [{"After-hours", "0 " <> _}, {"Market-hours", "0 " <> _}]}} =
-               MarketStory.exposure(ExposureChain.series(), account.wallet_address)
+               MarketStory.read(
+                 :exposure,
+                 ExposureChain.series(),
+                 String.downcase(account.wallet_address)
+               )
     end
 
     test "the story colours the line by window and closes on what each token is worth" do
-      assert {:ok, story} = MarketStory.exposure(ExposureChain.series(), nil)
+      assert {:ok, story} = MarketStory.read(:exposure, ExposureChain.series(), nil)
       [close, open | _rest] = ExposureChain.boundaries()
 
       assert [%{from: ^close, to: ^open, window: :after}, %{from: ^open, window: :market} | _rest] =
