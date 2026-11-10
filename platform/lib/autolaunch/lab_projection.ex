@@ -59,17 +59,18 @@ defmodule Autolaunch.LabProjection do
   id, as its bidder's position. The committed amount is the receipt's: the
   amount bid in the auction's currency, or the stock a USDC bid bought.
   """
+  # The receipt carries only the bid's own facts, as the auction's reader does
+  # (`:record_from_chain`): a receipt read after the bid moved on, such as one
+  # checked again once the auction ended, leaves its standing and settlement
+  # amounts as they are.
   def project_bid(context, result) when is_map(result) do
     transact(fn ->
-      create(Bid, :project_lab, %{
+      create(Bid, :record_from_chain, %{
         bid_id: bid_identity(context.auction_address, result["onchain_bid_id"]),
         auction_id: context.auction_id,
         owner_address: context.signer,
         amount: result["amount"],
         max_price: context.max_price,
-        current_clearing_price: "0",
-        estimated_tokens_if_end_now: nil,
-        status: :active,
         auction_address: context.auction_address,
         onchain_bid_id: result["onchain_bid_id"]
       })

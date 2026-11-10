@@ -44,9 +44,13 @@ defmodule Autolaunch.AuctionActivity do
   alias Autolaunch.ChainRefresh
   alias RegentChain.Address
   @actor %System{}
-  # The node did not answer, or answered for a head that has since moved.
+  # The node did not answer, answered with something that is not a block, or
+  # answered for a head that has since moved.
   @unavailable [
     :chain_unavailable,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :wrong_chain,
     :logs_unavailable,
     :header_unavailable,
     :headers_unavailable,
@@ -86,6 +90,8 @@ defmodule Autolaunch.AuctionActivity do
     {:snooze, 60}
   end
 
+  # Another pass moved the cursor first, so this one has nothing to add.
+  defp next({:error, :superseded}, _auction), do: {:snooze, 1}
   defp next({:error, reason}, _auction), do: {:error, reason}
 
   @doc "Every listed auction's reading job (`Autolaunch.ChainWatch`)."
@@ -246,8 +252,11 @@ defmodule Autolaunch.AuctionActivity do
 
   defp cursor_valid(%{activity_next_block: nil}, _, _), do: :ok
 
+  # A head below the cursor is a node answering behind the one that answered
+  # last time, not a reorg: the pass waits. Only a different hash at the last
+  # block read (below) shows the chain changed.
   defp cursor_valid(%{activity_next_block: next}, %{number: head}, _) when next > head + 1,
-    do: {:error, :cursor_changed}
+    do: {:error, :head_moved}
 
   defp cursor_valid(auction, _, opts) do
     case header(auction.activity_next_block - 1, opts) do
@@ -592,15 +601,13 @@ defmodule Autolaunch.AuctionActivity do
 
       Ash.update!(
         current,
-        %{
+        Map.merge(volume(total, rate, complete?), %{
           activity_next_block: last + 1,
           activity_last_hash: hash,
           opened_at: opening,
           estimated_end_at: ending,
-          bid_volume: if(complete?, do: total),
-          bid_volume_usd: if(complete? and rate, do: Decimal.mult(total, rate)),
           events_changed: new_events?(current, bids ++ points ++ settlements)
-        },
+        }),
         actor: @actor,
         action: :refresh_activity,
         return_notifications?: true
@@ -608,6 +615,17 @@ defmodule Autolaunch.AuctionActivity do
     end)
     |> notified(:ok)
   end
+
+  # The totals are written only by a pass that reached the head. A pass still
+  # behind leaves them as stored: blank while a rebuild catches up (only
+  # `invalidate/1` blanks them), unchanged when a caught-up auction has merely
+  # waited longer than one pass's range. A pass with no dollar rate keeps the
+  # dollar total it had.
+  defp volume(_total, _rate, false), do: %{}
+  defp volume(total, nil, true), do: %{bid_volume: total}
+
+  defp volume(total, rate, true),
+    do: %{bid_volume: total, bid_volume_usd: Decimal.mult(total, rate)}
 
   # Whether the pass saved an event the lists do not have yet. A pass that
   # finds no new block reads its last block again; `cursor_valid/3` has checked
