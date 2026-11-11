@@ -5,8 +5,8 @@ defmodule Autolaunch.Exposure.RecorderTest do
   `settle`; it never sends a series a second transaction while the chain has
   not settled the first; a price missed past its window ends the series; and
   a series that has ended is not looked at again. A series the site stops
-  listing is let go only once its own transaction is settled, series sharing
-  an oracle's price record it once, and a failure names what the wallet holds.
+  listing is let go only once its own transaction is settled, one on another
+  chain at once, and every run warns while the wallet is empty.
   """
 
   use Autolaunch.DataCase, async: false
@@ -238,49 +238,33 @@ defmodule Autolaunch.Exposure.RecorderTest do
     assert [%{state: :mined}] = transactions()
   end
 
-  test "series sharing an oracle's price record it once, then each applies it",
-       %{recording: recording} do
-    # A second row the description matches stands in for a second series on the same
-    # oracle and calendar: both read the same print.
-    twin_series = String.replace(String.upcase(@series), "0X", "0x")
-
-    {:ok, twin} =
+  test "a series on another chain is let go at once", %{recording: recording} do
+    {:ok, elsewhere} =
       Recording
-      |> Ash.Changeset.for_create(:add, %{chain_id: recording.chain_id, series: twin_series},
-        actor: @actor
-      )
+      |> Ash.Changeset.for_create(:add, %{chain_id: 84_532, series: @series}, actor: @actor)
       |> Ash.create()
 
     third_price_due()
-    run(recording)
-    run(twin)
+    assert %{state: :ended} = run(elsewhere)
+    assert ExposureChain.broadcasts() == []
 
+    run(recording)
     assert [record] = ExposureChain.broadcasts()
     assert calls?(record, @oracle, "record(uint64,bool,uint64)")
-
-    ExposureChain.mine("0x1")
-
-    ExposureChain.put(%{
-      now: Enum.at(@boundaries, 2) + 3_660,
-      recorded: %{Enum.at(@boundaries, 2) => 257 * @wad}
-    })
-
-    run(twin)
-    assert [_record, settle] = ExposureChain.broadcasts()
-    assert calls?(settle, @series, "settle()")
   end
 
-  test "a send the network refuses names what the recorder wallet holds", %{recording: recording} do
+  test "every run warns while the recorder wallet is empty", %{recording: recording} do
     third_price_due()
     ExposureChain.put(%{now: Enum.at(@boundaries, 2) + 3_660, empty_wallet: true})
 
-    capture_log(fn ->
-      assert {:error, error} =
-               recording
-               |> Ash.Changeset.for_update(:record, %{}, actor: @actor)
-               |> Ash.update()
+    first =
+      capture_log(fn ->
+        recording |> Ash.Changeset.for_update(:record, %{}, actor: @actor) |> Ash.update()
+      end)
 
-      assert Exception.message(error) =~ "holds 0 ETH"
-    end)
+    second = capture_log(fn -> run(recording) end)
+
+    assert first =~ "holds 0 ETH"
+    assert second =~ "holds 0 ETH"
   end
 end

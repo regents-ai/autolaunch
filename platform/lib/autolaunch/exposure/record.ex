@@ -11,14 +11,15 @@ defmodule Autolaunch.Exposure.Record do
     * missed (recorded too late, or the feed had no price in time) once the
       recording window has passed: `endOnMissingPrint`
     * no next price: the series has ended, and the row is not looked at again
-    * a series the site no longer lists on its chain is not followed any more,
-      once its own transaction is settled: one left signed would hold every
-      later nonce of the wallet behind it
+    * a series on another chain is not followed any more
+    * a series the site no longer lists is not followed any more, once its own
+      transaction is settled: one left signed would hold every later nonce of
+      the wallet behind it
 
   The chain is read after the settle, so a price whose `record` has just been
-  mined is applied rather than recorded again. Series on one oracle share its
-  prices, so while another series' `record` is unsettled a series records
-  nothing: once that one is mined, it applies the price instead.
+  mined is applied rather than recorded again. Each run warns while the
+  wallet runs low, since a node refuses an empty wallet's transaction as it
+  would answer an outage.
   """
 
   use Ash.Resource.Change
@@ -26,7 +27,7 @@ defmodule Autolaunch.Exposure.Record do
   require Logger
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.Chain.Sender
+  alias Autolaunch.Chain.{Rpc, Sender}
   alias Autolaunch.Exposure.{Chain, Deployment, Recorder, Steps}
 
   @actor %System{}
@@ -47,11 +48,13 @@ defmodule Autolaunch.Exposure.Record do
 
   defp record(%{data: recording} = changeset) do
     with {:ok, config} <- Deployment.current(),
+         true <- recording.chain_id == config.chain_id || :unlisted,
          {:ok, _block, opts} <- Chain.latest(config.lab),
          chain = %{chain_id: config.chain_id, opts: opts},
-         {:ok, :clear} <- Sender.settle(Recorder, chain, %{recording: recording, step: nil}),
-         true <- listed?(recording, config) || :unlisted,
          wallet = Recorder.wallet(),
+         :ok <- warn_when_low(wallet, opts),
+         {:ok, :clear} <- Sender.settle(Recorder, chain, %{recording: recording, step: nil}),
+         true <- match?({:ok, _}, Deployment.series(recording.series)) || :unlisted,
          {:ok, outcome} <- next(recording, wallet, chain) do
       apply_outcome(changeset, outcome)
     else
@@ -64,34 +67,25 @@ defmodule Autolaunch.Exposure.Record do
       {:error, reason} ->
         Ash.Changeset.add_error(
           changeset,
-          "could not record a price for series #{recording.series}: #{refusal(reason)}"
+          "could not record a price for series #{recording.series}: #{inspect(reason)}"
         )
     end
   end
 
-  # A node answers a transaction the wallet cannot pay for as it answers an
-  # outage, so every failure names what the wallet holds: an empty wallet
-  # never reads as the chain being down.
-  defp refusal(reason) do
-    wallet = Recorder.wallet()
+  # Enough for hundreds of prices at Base's usual fees.
+  @low_wei 500_000_000_000_000
 
-    held =
-      with {:ok, config} <- Deployment.current(),
-           opts = Autolaunch.Lab.rpc_opts(config.lab, "autolaunch exposure"),
-           {:ok, "0x" <> hex} <-
-             Autolaunch.Chain.Rpc.request("eth_getBalance", [wallet.address, "latest"], opts) do
-        "holds #{Autolaunch.Chain.Rpc.format_units(String.to_integer(hex, 16), 18)} ETH"
-      else
-        _unread -> "could not be read"
-      end
+  defp warn_when_low(wallet, opts) do
+    with {:ok, "0x" <> hex} <- Rpc.request("eth_getBalance", [wallet.address, "latest"], opts),
+         {wei, ""} when wei < @low_wei <- Integer.parse(hex, 16) do
+      Logger.warning(
+        "exposure price recorder wallet #{wallet.address} holds #{Rpc.format_units(wei, 18)} ETH; " <>
+          "send it ETH on Base, or its transactions will be refused"
+      )
+    end
 
-    "#{inspect(reason)}; the recorder wallet #{wallet.address} #{held}"
+    :ok
   end
-
-  defp listed?(recording, config),
-    do:
-      recording.chain_id == config.chain_id and
-        match?({:ok, _}, Deployment.series(recording.series))
 
   defp next(recording, wallet, chain) do
     with {:ok, update} <- prepare(recording, :update, wallet) do
@@ -100,7 +94,7 @@ defmodule Autolaunch.Exposure.Record do
           {:ok, :ended}
 
         %{blocked: nil, steps: [step | _]} ->
-          send_unshared(recording, wallet, chain, step)
+          send(recording, wallet, chain, step)
 
         %{blocked: :too_early} ->
           {:ok, :not_yet}
@@ -119,20 +113,6 @@ defmodule Autolaunch.Exposure.Record do
         %{blocked: _not_yet} -> {:ok, :not_yet}
       end
     end
-  end
-
-  # A `record` waits while another series' is unsettled: it may be the same price.
-  defp send_unshared(recording, wallet, chain, %{step: "record"} = step) do
-    if another_record_open?(recording),
-      do: {:ok, :not_yet},
-      else: send(recording, wallet, chain, step)
-  end
-
-  defp send_unshared(recording, wallet, chain, step), do: send(recording, wallet, chain, step)
-
-  defp another_record_open?(recording) do
-    {:ok, open} = Autolaunch.Exposure.unsettled_recorder_records(actor: @actor)
-    Enum.any?(open, &(&1.recording_id != recording.id))
   end
 
   defp prepare(recording, kind, wallet),
