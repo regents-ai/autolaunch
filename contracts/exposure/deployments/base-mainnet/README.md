@@ -80,11 +80,11 @@ cap 40 AMZNc, seven-day recording window, 9 prices from Mon 2 Nov 21:00 UTC. Leg
 series and both tokens are verified on Sourcify (match) and on Basescan (matched to the first series'
 verified code); constructor values in [`verify/`](verify/).
 
-## Series for 13 to 20 November 2026 (draft terms awaiting approval)
+## Series for 13 to 20 November 2026 (terms approved by Sean, 11 Nov 2026, 2a)
 
 [`safe-create-series-1120.json`](safe-create-series-1120.json): one `createSeries` call, as
 `weekSeriesCall` prints it for the V2 recorder, the Friday close of 13 Nov (1794603600) and the draft
-terms (`platform/priv/exposure_terms/0x9132b65b01dce94d14514e45374c8b34f43809aa6baa7795bc9770c744804662.md`). Decoded: AMZNc, the V2 recorder and its
+approved terms (`platform/priv/exposure_terms/0x9132b65b01dce94d14514e45374c8b34f43809aa6baa7795bc9770c744804662.md`). Decoded: AMZNc, the V2 recorder and its
 feed id, a seven-day recording window, a 40 AMZNc cap, the 11 closes and opens from Fri 13 Nov 21:00
 UTC to Fri 20 Nov 21:00 UTC (New York stays on one clock that week and has no market holiday), legs
 "AMZNc After-hours 13 to 20 Nov 2026" (AMZNc-AH-1120) and "AMZNc Market-hours 13 to 20 Nov 2026"
