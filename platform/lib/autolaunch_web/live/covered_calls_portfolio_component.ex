@@ -1,18 +1,21 @@
 defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   @moduledoc """
   The portfolio's covered calls: for each market, the calls the signed-in
-  wallet sold and the calls it holds, each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Under each listing its
-  parts, as far as they have gone: how much sold and how much is still for
-  sale, then how much was exercised, the calls held, and the stock to collect.
-  A part with a next step has its own wallet panel beside it (Stop selling the
-  rest, Collect USDC for the exercised part, Exercise, Collect the stock), so
-  every button there reviews its action, and is disabled, with the reason
-  beside it, only while the chain makes it certain to fail (before Friday's
-  close, Exercise says when it opens). The page re-reads it with
-  `send_update(id: ..., read: true)` after a press lands, when its Refresh is
-  pressed and when a listing's expiry or window closes, and hands it what a
-  confirmed action moved with `send_update(id: ..., done: done)`.
+  wallet sold, the calls it holds and the bids it made, each read now from the
+  contract (`Autolaunch.CoveredCalls.covered_call_positions/2`). Under each
+  listing its parts, as far as they have gone: how much sold and how much is
+  still for sale, then how much was exercised, the calls held, and the stock
+  to collect. Under each bid how much was sold into it, the premium it still
+  holds and what a refund sends now; calls sold into a bid are the bidder's
+  held calls like any others. A part with a next step has its own wallet panel
+  beside it (Stop selling the rest, Collect USDC for the exercised part,
+  Exercise, Collect the stock; Raise, Stop and Refund a bid), so every button
+  there reviews its action, and is disabled, with the reason beside it, only
+  while the chain makes it certain to fail (before Friday's close, Exercise
+  says when it opens). The page re-reads it with `send_update(id: ...,
+  read: true)` after a press lands, when its Refresh is pressed and when a
+  listing's or bid's expiry or a window closes, and hands it what a confirmed
+  action moved with `send_update(id: ..., done: done)`.
   """
   use AutolaunchWeb, :live_component
 
@@ -41,7 +44,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
        )}
 
   # A press reads again only when it came from this wallet or was on one of
-  # its listings; every other ask reads again.
+  # its listings or bids; every other ask reads again.
   @impl true
   def update(%{read: true, pressed: press}, socket),
     do: {:ok, if(mine?(socket.assigns.positions.result, press), do: read(socket), else: socket)}
@@ -101,33 +104,40 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   defp mine?(nil, _press), do: true
 
-  defp mine?(markets, %{listing_id: id, wallet: wallet, seller: seller}) do
+  defp mine?(markets, press) do
     Enum.any?(markets, fn
       {_symbol, {:ok, positions}} ->
-        Address.equal?(positions.wallet, wallet) or Address.equal?(positions.wallet, seller) or
-          id in listing_ids(positions)
+        Enum.any?(
+          [press.wallet, press.seller, press.bidder],
+          &Address.equal?(positions.wallet, &1)
+        ) or
+          press.listing_id in listing_ids(positions) or
+          press.bid_id in Enum.map(positions.bids, & &1.id)
 
       {_symbol, {:error, _reason}} ->
         true
     end)
   end
 
-  # When the wallet's own listings next change what they allow.
-  defp changes(%{book: book} = positions) do
+  # When the wallet's own listings and bids next change what they allow.
+  defp changes(%{book: book, bids: bids} = positions) do
     mine = listing_ids(positions)
 
-    for %{id: id, expiry: expiry} <- book.listings,
-        id in mine,
-        at <- [expiry, expiry + Terms.exercise_window()],
-        do: at
+    for(
+      %{id: id, expiry: expiry} <- book.listings,
+      id in mine,
+      at <- [expiry, expiry + Terms.exercise_window()],
+      do: at
+    ) ++ Enum.map(bids, & &1.expiry)
   end
 
   defp listing_ids(%{sold: sold, holdings: holdings}),
     do: Enum.map(sold, & &1.id) ++ Enum.map(holdings, & &1.listing_id)
 
   # A listing changes what it allows at its expiry and when its window
-  # closes, with no press on the chain: the section reads again just after
-  # the next of those times among the wallet's own listings, each counted from
+  # closes, and a bid at its expiry, with no press on the chain: the section
+  # reads again just after the next of those times among the wallet's own
+  # listings and bids, each counted from
   # the block its figures were read at: a read that lands on a node a moment
   # behind a change, or fails and keeps older figures, is timed again for it
   # (the page passes `:covered_calls_due` back as `read: true`).
@@ -221,6 +231,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       |> Enum.map(fn {side, listing} ->
         row(side, listing, holdings[listing.id], positions.now)
       end)
+      |> Enum.concat(Enum.map(positions.bids, &bid_row(&1, book.unit, positions.now)))
       # An open exercise window comes first: it is the one that closes soon.
       |> Enum.sort_by(&(&1.stage != :exercise))
 
@@ -247,17 +258,17 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
             <th scope="col">Status</th>
           </tr>
         </thead>
-        <tbody :for={row <- @rows} id={"#{@id}-#{row.side}-#{row.listing.id}"}>
+        <tbody :for={row <- @rows} id={"#{@id}-#{row.key}"}>
           <tr>
-            <td data-label="Side">{side(row.side)}</td>
-            <td data-label="Strike">{F.usd(row.listing.strike_per_token)}</td>
+            <td data-label="Side">{row.side}</td>
+            <td data-label="Strike">{F.usd(row.strike)}</td>
             <td :if={row.stage != :exercise} data-label="Exercise window">
-              {F.window_days(row.listing.expiry)}
+              {F.window_days(row.expiry)}
             </td>
             <td :if={row.stage == :exercise} data-label="Exercise window">
               <.closes
-                id={"#{@id}-#{row.side}-#{row.listing.id}-closes"}
-                at={row.listing.expiry + Terms.exercise_window()}
+                id={"#{@id}-#{row.key}-closes"}
+                at={row.expiry + Terms.exercise_window()}
                 now={@now}
               />
             </td>
@@ -268,24 +279,20 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           <tr :if={row.parts != []} class="portfolio__actions">
             <td colspan="4">
               <ul class="covered-calls__parts" aria-label="Parts">
-                <li
-                  :for={part <- row.parts}
-                  id={"#{@id}-#{row.side}-#{row.listing.id}-#{part.name}"}
-                >
+                <li :for={part <- row.parts} id={"#{@id}-#{row.key}-#{part.name}"}>
                   <strong>{part.label}</strong>
                   <span>{figure(part.figure, @unit, @symbol)}</span>
                   <.live_component
                     :if={part.step}
                     module={CoveredCallComponent}
-                    id={"#{@id}-#{part.step}-#{row.listing.id}"}
+                    id={"#{@id}-#{part.step}-#{row.id}"}
                     kind={part.step}
                     variant="secondary"
                     symbol={@symbol}
                     unit={@unit}
-                    listing={row.listing}
-                    holding={row.holding && row.holding.held}
                     session_lease={@session_lease}
                     current_human_id={@current_human_id}
+                    {row.on}
                   />
                 </li>
               </ul>
@@ -319,21 +326,68 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     """
   end
 
+  # A row: its key in the page's ids, the listing's or bid's id for its
+  # panels', what its panels act on (`on`), and its figures, status and parts.
   defp row(side, listing, holding, now) do
     stage = Terms.stage(listing, now)
 
     %{
-      side: side,
+      key: "#{side}-#{listing.id}",
+      id: listing.id,
+      on: %{listing: listing, holding: holding && holding.held},
+      side: side(side),
+      strike: listing.strike_per_token,
+      expiry: listing.expiry,
       stage: stage,
-      listing: listing,
-      holding: holding,
       status: status(side, stage),
       parts: parts(side, stage, listing, holding)
     }
   end
 
+  defp bid_row(bid, unit, now) do
+    stage = Terms.bid_stage(bid, now)
+
+    %{
+      key: "bid-#{bid.id}",
+      id: bid.id,
+      on: %{bid: bid},
+      side: "Bidder",
+      strike: bid.strike_per_token,
+      expiry: bid.expiry,
+      stage: stage,
+      status: bid_status(stage),
+      parts: bid_parts(bid, stage, unit)
+    }
+  end
+
   defp side(:sold), do: "Seller"
   defp side(:held), do: "Buyer"
+
+  # A bid's parts: how much was sold into it, raised while it is open; the
+  # premium it still holds for the rest, which Stop frees while it is open; and
+  # what a refund sends now (the freed premium, and after the expiry what was
+  # never spent).
+  defp bid_parts(bid, stage, unit) do
+    [
+      bid.amount > 0 &&
+        %{
+          name: :sold,
+          label: "Sold",
+          figure: {bid.filled, bid.amount},
+          step: if(stage == :open, do: :raise_bid)
+        },
+      stage == :open &&
+        %{
+          name: :escrow,
+          label: "Escrow",
+          figure: {:usd, Terms.escrow_left(bid, unit)},
+          step: :cancel_bid
+        },
+      bid.refundable > 0 &&
+        %{name: :refund, label: "Refund", figure: {:usd, bid.refundable}, step: :refund_bid}
+    ]
+    |> Enum.filter(& &1)
+  end
 
   # Each part of a listing for the wallet's side of it, as far as it has gone,
   # and the step each part still has. The seller can stop selling the unsold
@@ -414,6 +468,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp strike_step(:exercise, _listing), do: :collect_strike
   defp strike_step(:closed, listing), do: if(Terms.strike_due(listing) > 0, do: :collect_strike)
 
+  defp figure({:usd, micro}, _unit, _symbol), do: F.usd(micro)
+
   defp figure({part, whole}, unit, symbol),
     do: "#{F.tokens(part, unit)} of #{F.tokens(whole, unit)} #{symbol}"
 
@@ -427,4 +483,11 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp status(:held, :exercise), do: %{label: "Exercise", tone: "warning"}
   defp status(:sold, :exercise), do: %{label: "Exercising", tone: "neutral"}
   defp status(_side, :closed), do: %{label: "Closed", tone: "neutral"}
+
+  # A bid stopped after part of it sold reads as sold (`Terms.bid_stage/2`), so
+  # both read as closed.
+  defp bid_status(:open), do: %{label: "Open", tone: "info"}
+  defp bid_status(:sold), do: %{label: "Closed", tone: "neutral"}
+  defp bid_status(:cancelled), do: %{label: "Stopped", tone: "neutral"}
+  defp bid_status(:expired), do: %{label: "Expired", tone: "neutral"}
 end

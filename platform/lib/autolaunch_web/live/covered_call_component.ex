@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.CoveredCallComponent do
   @moduledoc """
   The wallet panel for one covered-call action: list calls, buy them, exercise,
-  stop selling, collect stock or collect USDC, the way the token page's Stake
-  and Claim and the Buy window work. Its button opens a review over the panel
+  stop selling, collect stock or collect USDC, and for bids place one, sell
+  into one, raise, stop or refund one, the way the token page's Stake and
+  Claim and the Buy window work. Its button opens a review over the panel
   with the steps the wallet sends, one button at a time, and the review closes
   when the chain confirms the last one. The page then shows what moved (`toast/1`), from
   `{:covered_call_done, done}`: an action can take its own panel off the page
@@ -17,20 +18,23 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   reason beside it.
 
   The page passes `kind`, `symbol`, `unit` (raw units per whole token), the
-  `listing` an action is on, the panel's `session_lease` and `current_human_id`,
-  and, for a row of actions such as the portfolio's, `variant="secondary"` for
-  its button. Listing and buying take the page's ticket as `order`, the
-  action's arguments (`nil` until every figure of it reads); an exercise has
-  its own amount field, starting at `holding`. A landed
-  step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
-  naming the listing and its seller (both `nil` for a new one) and the wallet
-  that sent it.
+  `listing` or `bid` an action is on, the panel's `session_lease` and
+  `current_human_id`, and, for a row of actions such as the portfolio's,
+  `variant="secondary"` for its button. Listing, buying, bidding and selling
+  into a bid take the page's ticket as `order`, the action's arguments (`nil`
+  until every figure of it reads); an exercise and a raise have their own
+  amount field, an exercise starting at `holding`. A landed step tells the
+  page with `{:covered_calls_changed, symbol, press}`, `press` naming the
+  listing and its seller, the bid and its bidder (`nil` where the action has
+  none) and the wallet that sent it.
 
-  The listing panel also tells the page how much of the stock the signed-in
-  account's wallet holds, the Sell ticket's Max, with
+  The listing and sale panels also tell the page how much of the stock the
+  signed-in account's wallet holds, for the Sell tickets' Max, with
   `{:covered_call_balance, symbol, balance}` (`nil` signed out or unread): the
   wallet the panel shows figures for, read at the latest block when it
-  changes, when the page comes back into view and when a step lands.
+  changes, when the page comes back into view and when a step lands. The sale
+  panel hands the page what a sale pays, as the prepared step counts it at the
+  latest block, with `{:covered_call_sale, facts}`.
   """
   use AutolaunchWeb, :live_component
 
@@ -43,6 +47,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   alias Phoenix.LiveView.JS
   alias Regent.Primitives, as: P
   alias RegentChain.{Presses, Review}
+
+  # The actions whose figures are the page's ticket, and those with an amount
+  # typed in their own panel.
+  @tickets [:list, :fill, :bid, :sell_to_bid]
+  @typed [:exercise, :raise_bid]
 
   @impl true
   def mount(socket) do
@@ -60,6 +69,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        typed: false,
        notice: nil,
        listing: nil,
+       bid: nil,
        holding: nil,
        order: nil,
        variant: "primary",
@@ -73,7 +83,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     socket = assign(socket, assigns)
 
     # Until the person types, an exercise follows the holding as the page reads
-    # it. Listing and buying follow the page's ticket (`order`).
+    # it. The page's tickets follow its fields (`order`).
     socket =
       if socket.assigns.typed,
         do: socket,
@@ -102,12 +112,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     {:noreply, sync(socket)}
   end
 
-  # The exercise form sends its amount with the press, so a figure typed a
-  # moment ago is the one reviewed. The page's ticket reaches the panel before
-  # a press after it: the page hears its form's change first.
+  # The exercise and raise forms send their amount with the press, so a figure
+  # typed a moment ago is the one reviewed. The page's ticket reaches the panel
+  # before a press after it: the page hears its form's change first.
   def handle_event("review", params, socket) do
     socket =
-      if socket.assigns.kind == :exercise and is_map_key(params, "amount"),
+      if typed?(socket.assigns.kind) and is_map_key(params, "amount"),
         do: assign(socket, inputs: Map.take(params, ["amount"]), typed: true),
         else: socket
 
@@ -142,7 +152,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
+          {:noreply, socket |> quoted({request, signer, prepared}) |> assign(refusal: nil)}
 
         {:error, reason} ->
           {:noreply, assign(socket, quote: nil, refusal: reason)}
@@ -196,10 +206,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     |> read_balance()
   end
 
-  # The listing panel's wallet stock, for the page's Max: the wallet the panel
-  # shows figures for while signed in, read again for each new wallet and each
-  # ask (`balance_reads`).
-  defp read_balance(%{assigns: %{kind: :list} = assigns} = socket) do
+  # The wallet's stock, for the page's Max: the wallet the panel shows figures
+  # for while signed in, read again for each new wallet and each ask
+  # (`balance_reads`).
+  defp read_balance(%{assigns: %{kind: kind} = assigns} = socket)
+       when kind in [:list, :sell_to_bid] do
     wallet =
       if is_list(assigns.linked),
         do: OnchainSteps.shown_wallet(assigns.linked, assigns.signed_in, assigns.active)
@@ -253,16 +264,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
             socket
             |> assign(reviewed: prepared, landed: MapSet.new(), openings: openings)
-            |> assign(
-              notice: nil,
-              press_note: nil,
-              quote: {request, signer, prepared}
-            )
+            |> assign(notice: nil, press_note: nil)
+            |> quoted({request, signer, prepared})
             |> OnchainSteps.put_review(review)
 
           {:ok, prepared} ->
             socket
-            |> assign(quote: {request, signer, prepared})
+            |> quoted({request, signer, prepared})
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
@@ -271,8 +279,17 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     end
   end
 
+  # The figures for the action as it stands. A sale's go to the page too, for
+  # its receipt.
+  defp quoted(socket, {_request, _signer, prepared} = quote) do
+    if socket.assigns.kind == :sell_to_bid,
+      do: send(self(), {:covered_call_sale, prepared.facts})
+
+    assign(socket, quote: quote)
+  end
+
   # A ticket whose figures don't read: what each figure takes.
-  defp unreadable(:list),
+  defp unreadable(kind) when kind in [:list, :bid],
     do: "Enter an amount above zero and prices to the cent, with a dot for decimals (1.50)."
 
   defp unreadable(_kind), do: "Enter an amount above zero, with a dot for decimals (1.5)."
@@ -295,6 +312,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        %{
          listing_id: socket.assigns.listing[:id],
          seller: socket.assigns.listing[:seller],
+         bid_id: socket.assigns.bid[:id],
+         bidder: socket.assigns.bid[:bidder],
          wallet: signer
        }}
     )
@@ -351,30 +370,34 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp take_account(socket, account),
     do: OnchainSteps.take_account(socket, account, &sync/1)
 
-  # The action's arguments: the page's ticket, the typed exercise, or the
-  # listing alone.
-  defp request(%{kind: kind, order: nil}) when kind in [:list, :fill],
-    do: {:error, :invalid_amount}
+  # The action's arguments: the page's ticket, the typed amount on the listing
+  # or bid, or the listing or bid alone.
+  defp request(%{kind: kind, order: nil}) when kind in @tickets, do: {:error, :invalid_amount}
+  defp request(%{kind: kind, order: order}) when kind in @tickets, do: {:ok, order}
 
-  defp request(%{kind: kind, order: order}) when kind in [:list, :fill], do: {:ok, order}
-
-  defp request(%{kind: :exercise, inputs: inputs, unit: unit, listing: listing}) do
+  defp request(%{kind: kind, inputs: inputs, unit: unit} = assigns) when kind in @typed do
     case F.parse_tokens(inputs["amount"], unit) do
       nil -> {:error, :invalid_amount}
-      amount -> {:ok, %{listing_id: listing.id, amount: amount}}
+      amount -> {:ok, Map.put(subject(assigns), :amount, amount)}
     end
   end
 
-  defp request(%{listing: listing}), do: {:ok, %{listing_id: listing.id}}
+  defp request(assigns), do: {:ok, subject(assigns)}
+
+  defp subject(%{bid: nil, listing: listing}), do: %{listing_id: listing.id}
+  defp subject(%{bid: bid}), do: %{bid_id: bid.id}
+
+  defp typed?(kind), do: kind in @typed
 
   defp defaults(%{kind: :exercise, listing: listing, unit: unit, holding: held}),
     do: %{"amount" => F.tokens(held || listing.filled, unit)}
 
   defp defaults(_assigns), do: %{}
 
-  # The page clears its own ticket (`{:covered_call_done, done}`); an exercise
-  # follows the holding again as the page reads it next (`update/2`).
-  defp cleared(kind, _assigns) when kind in [:list, :fill], do: []
+  # The page clears its own tickets (`{:covered_call_done, done}`); an exercise
+  # follows the holding again as the page reads it next (`update/2`), and a
+  # raise starts empty.
+  defp cleared(kind, _assigns) when kind in @tickets, do: []
   defp cleared(_kind, assigns), do: [inputs: defaults(assigns), typed: false]
 
   defp approval?(name), do: name in ~w(stock_approval usdc_approval)
@@ -412,7 +435,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       >
         <div class="covered-call-panel__body" inert={!is_nil(@review)}>
           <form
-            :if={@kind == :exercise}
+            :if={typed?(@kind)}
             id={"#{@id}-form"}
             class="covered-call-panel__form"
             phx-change="change"
@@ -428,7 +451,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             />
             <.action {action_assigns(assigns)} type="submit" />
           </form>
-          <.action :if={@kind != :exercise} {action_assigns(assigns)} type="button" />
+          <.action :if={!typed?(@kind)} {action_assigns(assigns)} type="button" />
         </div>
 
         <StakeComponent.stake_review
@@ -487,13 +510,16 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   attr :variant, :string, default: "primary"
   attr :myself, :any, required: true
 
-  # What the action comes to (the page's receipt says it for listing and
-  # buying), and the button that reviews it: a submit inside the exercise form,
-  # so the press carries the amount as typed, or a plain button. Neither sends
-  # anything to the wallet.
+  # What the action comes to (the page's receipt says it for a ticket, and a
+  # bid's row its figures), and the button that reviews it: a submit inside an
+  # amount form, so the press carries the amount as typed, or a plain button.
+  # Neither sends anything to the wallet.
   defp action(assigns) do
     ~H"""
-    <dl :if={@prepared && @kind not in [:list, :fill]} class="covered-call-panel__facts">
+    <dl
+      :if={@prepared && @kind in [:exercise, :claim, :collect_strike, :cancel]}
+      class="covered-call-panel__facts"
+    >
       <div :for={[label, value] <- facts(@kind, @prepared.facts, assigns)}>
         <dt>{label}</dt>
         <dd>{value}</dd>
@@ -652,6 +678,36 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["Window closes", F.window_closes(facts.expiry)]
     ]
 
+  defp facts(:bid, facts, %{unit: unit, symbol: symbol}),
+    do: [
+      ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
+      ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
+      ["Exercise window", F.window(facts.expiry)],
+      ["You pay", F.usd_due(facts.escrow)]
+    ]
+
+  defp facts(:sell_to_bid, facts, %{unit: unit, symbol: symbol}),
+    do: [
+      ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
+      ["You receive", "#{F.usd(facts.receive)} now, after the 1% fee"],
+      ["If exercised", F.usd(facts.strike)],
+      ["Exercise window", F.window(facts.expiry)]
+    ]
+
+  defp facts(:raise_bid, facts, %{unit: unit, symbol: symbol}),
+    do: [
+      ["More calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
+      ["You pay", F.usd_due(facts.escrow)]
+    ]
+
+  defp facts(:cancel_bid, facts, %{unit: unit, symbol: symbol}),
+    do: [
+      ["Unsold", "#{F.tokens(facts.unsold, unit)} #{symbol}"],
+      ["To refund", F.usd(facts.released)]
+    ]
+
+  defp facts(:refund_bid, facts, _assigns), do: [["You receive", F.usd(facts.amount)]]
+
   # Nothing to collect or stop is said once, as the button's reason, not as a zero.
   defp facts(kind, %{amount: 0}, _assigns) when kind in [:claim, :collect_strike], do: []
   defp facts(:cancel, %{unsold: 0}, _assigns), do: []
@@ -684,6 +740,22 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp done_lines(:cancel, facts, %{unit: unit, symbol: symbol}),
     do: ["#{F.tokens(facts.unsold, unit)} #{symbol} unsold, ready to collect"]
+
+  defp done_lines(:bid, facts, %{unit: unit, symbol: symbol}),
+    do: [
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window_days(facts.expiry)}"
+    ]
+
+  defp done_lines(:sell_to_bid, facts, %{unit: unit, symbol: symbol}),
+    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd(facts.receive)}"]
+
+  defp done_lines(:raise_bid, facts, %{unit: unit, symbol: symbol}),
+    do: ["#{F.tokens(facts.amount, unit)} #{symbol} more for #{F.usd_due(facts.escrow)}"]
+
+  defp done_lines(:cancel_bid, facts, _assigns),
+    do: ["#{F.usd(facts.released)} ready to refund"]
+
+  defp done_lines(:refund_bid, facts, _assigns), do: [F.usd(facts.amount)]
 
   defp steps(%{review: nil}), do: []
 
@@ -732,6 +804,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do:
       "The purchase did not go through and nothing moved. Someone may have bought these first: close this and review again."
 
+  defp reverted_copy(:sell_to_bid),
+    do:
+      "The sale did not go through and nothing moved. Someone may have sold into this bid first: close this and review again."
+
   defp reverted_copy(_kind),
     do: "That did not go through and nothing moved. Close this and review again."
 
@@ -741,6 +817,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp action_label(:cancel, _symbol), do: "Stop selling"
   defp action_label(:claim, symbol), do: "Collect #{symbol}"
   defp action_label(:collect_strike, _symbol), do: "Collect USDC"
+  defp action_label(:bid, _symbol), do: "Place bid"
+  defp action_label(:sell_to_bid, _symbol), do: "Sell now"
+  defp action_label(:raise_bid, _symbol), do: "Raise"
+  defp action_label(:cancel_bid, _symbol), do: "Stop"
+  defp action_label(:refund_bid, _symbol), do: "Refund"
 
   defp step_label("stock_approval", %{symbol: symbol}), do: "Approve #{symbol}"
   defp step_label("usdc_approval", _assigns), do: "Approve USDC"
@@ -749,18 +830,32 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp step_label("exercise", _assigns), do: "Confirm exercise"
   defp step_label("cancel", _assigns), do: "Confirm stop"
   defp step_label(name, _assigns) when name in ~w(claim collect_strike), do: "Confirm collection"
+  defp step_label("bid", _assigns), do: "Confirm bid"
+  defp step_label("sell_to_bid", _assigns), do: "Confirm sale"
+  defp step_label("raise_bid", _assigns), do: "Confirm raise"
+  defp step_label("cancel_bid", _assigns), do: "Confirm stop"
+  defp step_label("refund_bid", _assigns), do: "Confirm refund"
 
   defp title(:list), do: "You’re listing"
   defp title(:fill), do: "You’re buying"
   defp title(:exercise), do: "You’re exercising"
   defp title(:cancel), do: "You’re stopping sales"
-  defp title(kind) when kind in [:claim, :collect_strike], do: "You’re collecting"
+  defp title(kind) when kind in [:claim, :collect_strike, :refund_bid], do: "You’re collecting"
+  defp title(:bid), do: "You’re bidding"
+  defp title(:sell_to_bid), do: "You’re selling"
+  defp title(:raise_bid), do: "You’re raising"
+  defp title(:cancel_bid), do: "You’re stopping"
 
   defp done_title(:list), do: "Listed"
   defp done_title(:fill), do: "Bought"
   defp done_title(:exercise), do: "Exercised"
   defp done_title(:cancel), do: "Stopped"
   defp done_title(kind) when kind in [:claim, :collect_strike], do: "Collected"
+  defp done_title(:bid), do: "Bid placed"
+  defp done_title(:sell_to_bid), do: "Sold"
+  defp done_title(:raise_bid), do: "Raised"
+  defp done_title(:cancel_bid), do: "Stopped"
+  defp done_title(:refund_bid), do: "Refunded"
 
   # An approval still to send is a step of the review, never a reason to stop.
   defp blocked_words(blocked, _assigns) when blocked in [nil, :approve_first], do: nil
@@ -786,12 +881,21 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp blocked_words(:nothing_to_cancel, _assigns), do: "Nothing left to stop"
   defp blocked_words(:nothing_to_claim, _assigns), do: "Nothing to collect yet"
   defp blocked_words(:nothing_to_collect, _assigns), do: "No USDC to collect yet"
+  defp blocked_words(:not_bidder, _assigns), do: "Only the bidder's wallet can do this"
+  defp blocked_words(:bid_expired, _assigns), do: "Bid expired"
+  defp blocked_words(:more_than_bid, _assigns), do: "More than the bid wants"
+
+  defp blocked_words(:below_minimum_sale, %{bid: bid, unit: unit, symbol: symbol}),
+    do: "Minimum sale #{F.tokens(bid.min_sale, unit)} #{symbol}"
+
+  defp blocked_words(:nothing_to_refund, _assigns), do: "Nothing to refund"
 
   defp refusal_words(nil), do: nil
   defp refusal_words(:invalid_amount), do: nil
   defp refusal_words(:not_a_weekly_expiry), do: "Choose one of the Friday expiries."
   defp refusal_words(:expiry_passed), do: "That expiry has passed. Choose a later Friday."
   defp refusal_words(:unknown_listing), do: "This listing isn't on Base."
+  defp refusal_words(:unknown_bid), do: "This bid isn't on Base."
   defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
   defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
 end

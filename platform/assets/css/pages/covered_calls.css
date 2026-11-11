@@ -75,6 +75,8 @@
 .covered-calls__status { overflow: hidden; margin-inline-start: auto; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 
 /* A choice of a few, side by side, the chosen one under a block that travels to it (MotionTabs). */
+/* Buy's switch between buying a listing and posting a bid: two choices, no wider than they need. */
+.covered-calls__switch { inline-size: min(100%, 14rem); }
 .covered-calls__pills { position: relative; display: grid; grid-template-columns: repeat(var(--pills), minmax(0, 1fr)); padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
 .covered-calls__pills > button { position: relative; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 2px; min-width: 0; min-block-size: 3rem; padding: 0 var(--space-1); border: 0; background: none; color: var(--color-fg-muted); font: .9375rem/1.15 var(--font-family-ui); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
 .covered-calls__pills > button small { font-size: .75rem; }

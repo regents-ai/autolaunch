@@ -3,9 +3,10 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   `/stock/covered-call` shows what the contract holds: the Buy tab lists only the
   calls still for sale with the amount left, a listing's ticket opens from its
   own address, the Sell ticket's receipt is the quote's for the ticket as it
-  stands, and with covered calls switched off the address is not found and the
-  stock page offers nothing. The portfolio lists each listing's parts, each
-  with its own step.
+  stands, the Sell tab lists the open bids with a Sell now ticket each, the Bid
+  ticket counts what a bid holds, and with covered calls switched off the
+  address is not found and the stock page offers nothing. The portfolio lists
+  each listing's and bid's parts, each with its own step.
 
   A panel works as the token page's Stake does: its button reviews the ticket as
   it stands and opens the wallet steps over it, one wallet button at a time;
@@ -611,6 +612,305 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, ".covered-calls__note[role=status]", "Listing 7 isn't for sale now")
   end
 
+  test "the Sell tab lists the open bids under the ticket, with what each still wants",
+       %{conn: conn} do
+    first = hd(Terms.expiries(CoveredCallsChain.now()))
+
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{}),
+        CoveredCallsChain.bid(%{amount: 3 * @unit, filled: 3 * @unit}),
+        CoveredCallsChain.bid(%{amount: 0, filled: 0}),
+        CoveredCallsChain.bid(%{expiry: first - 7 * 86_400})
+      ]
+    })
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    html = settled(view)
+
+    assert has_element?(view, "#covered-call-bids-1", "6 AMZNc")
+    assert has_element?(view, "#covered-call-bids-1 a[href='/stock/covered-call?bid=1']", "Sell")
+
+    for id <- 2..4, do: refute(has_element?(view, "#covered-call-bids-#{id}"))
+
+    # The listing ticket stays the first thing on Sell.
+    assert position(html, "covered-calls-sell") < position(html, "covered-calls-bids-title")
+  end
+
+  test "with no open bids the Sell tab has no Bids", %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{amount: 0, filled: 0})]})
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+
+    assert has_element?(view, "#covered-calls-sell")
+    refute has_element?(view, "#covered-calls-bids-title")
+  end
+
+  test "a bid's address opens its Sell now ticket with the bid's strike on the price line",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    put_line()
+    {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
+    settled(view)
+
+    assert has_element?(view, "#covered-calls-tabs a[data-tab=sell][aria-current=page]")
+    assert has_element?(view, "#covered-call-bids-1 tr.covered-calls__chosen")
+    assert has_element?(view, "#covered-call-sell-1", "Sell now")
+    assert plot(view, "covered-call-sell-1-price", "data-levels") == [260.0]
+
+    # Signed out, what a sale pays waits for the wallet's prepared step.
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
+    assert text(view, "#covered-call-sell-1-receive") == "—"
+    assert text(view, "#covered-call-sell-1-exercised") == "$520.00"
+    assert has_element?(view, "#covered-call-sale-1 button[data-account-target=sign-in]")
+  end
+
+  test "a bid's address that isn't open says so", %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{amount: 0, filled: 0})]})
+    {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
+    settled(view)
+    assert has_element?(view, ".covered-calls__note[role=status]", "Bid 1 isn't open now")
+  end
+
+  test "signed in, Max on Sell now fills what the bid still wants or the wallet holds, the less",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
+    assert text(view, "#covered-call-sell-1-balance") =~ "10 AMZNc"
+    assert max_fill(view, "#covered-call-sell-1-max") == 6 * @unit
+
+    CoveredCallsChain.install(%{balance: 2 * @unit, bids: [CoveredCallsChain.bid(%{})]})
+    {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
+    assert max_fill(view, "#covered-call-sell-1-max") == 2 * @unit
+  end
+
+  test "Sell now's receipt is the prepared sale's, paid now, and its review approves the stock, then sells",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
+
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
+    settled(view)
+
+    # 2 AMZNc at $3 premium each is $6.00, less the 1% fee.
+    assert text(view, "#covered-call-sell-1-receive") == "$5.94"
+    assert has_element?(view, "#covered-call-sell-1-receipt", "Paid now")
+    assert text(view, "#covered-call-sell-1-outcomes li:first-child span") == "$5.94"
+
+    view |> element("#covered-call-sale-1-review") |> render_click()
+
+    refute has_element?(view, "#covered-call-sale-1-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-sale-1-review-panel", "$5.94 now")
+    assert has_element?(view, "#covered-call-sale-1-review-panel [data-step=stock_approval]")
+    assert has_element?(view, "#covered-call-sale-1-review-panel [data-step=sell_to_bid]")
+
+    assert has_element?(
+             view,
+             "#covered-call-sale-1 [data-onchain-step=stock_approval]",
+             "Approve AMZNc"
+           )
+  end
+
+  test "a sale below the bid's minimum or past what it wants is disabled with the reason",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
+
+    for {amount, why} <- [{"0.5", "Minimum sale 1 AMZNc"}, {"7", "More than the bid wants"}] do
+      view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => amount})
+      settled(view)
+      assert has_element?(view, "#covered-call-sale-1-review[disabled]")
+      assert has_element?(view, "#covered-call-sale-1-why", why)
+    end
+  end
+
+  test "Buy's switch opens the Bid ticket at its own address, and back", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
+    settled(view)
+
+    assert has_element?(view, "#covered-calls-buy-mode button[data-tab=buy][aria-pressed=true]")
+    assert has_element?(view, "#covered-call-1")
+
+    view |> element("#covered-calls-buy-mode button[data-tab=bid]") |> render_click()
+    assert_patch(view, "/stock/covered-call?tab=bid")
+    settled(view)
+
+    assert has_element?(view, "#covered-calls-buy-mode button[data-tab=bid][aria-pressed=true]")
+    assert has_element?(view, "#covered-calls-tabs a[data-tab=buy][aria-current=page]")
+    assert has_element?(view, "#covered-calls-bid")
+    refute has_element?(view, "#covered-call-1")
+
+    view |> element("#covered-calls-buy-mode button[data-tab=buy]") |> render_click()
+    assert_patch(view, "/stock/covered-call?tab=buy")
+    assert has_element?(view, "#covered-call-1")
+  end
+
+  test "the Bid receipt counts what the bid holds, its exercise and break-even, with the minimum sale in its note",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    put_line()
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=bid")
+    settled(view)
+
+    view |> element("#covered-calls-bid-strike button[data-tab=custom]") |> render_click()
+    form = element(view, "#covered-calls-bid-form")
+    render_change(form, %{"amount" => "0.5", "custom" => "270", "_target" => ["custom"]})
+    render_change(form, %{"premium" => "4", "_target" => ["premium"]})
+    settled(view)
+
+    assert text(view, "#covered-calls-bid-pay") == "$2.00"
+    assert text(view, "#covered-calls-bid-exercise") == "$135.00"
+    assert text(view, "#covered-calls-bid-get") == "0.5 AMZNc"
+    assert text(view, "#covered-calls-bid-break-even") == "$274.00 per AMZNc"
+    assert plot(view, "covered-calls-bid-price", "data-levels") == [270.0, 274.0]
+
+    # The page sets the minimum sale: the whole bid when it asks for less than a token.
+    assert has_element?(view, "#covered-calls-bid-receipt-tip", "at least 0.5 AMZNc")
+    render_change(form, %{"amount" => "3", "_target" => ["amount"]})
+    assert has_element?(view, "#covered-calls-bid-receipt-tip", "at least 1 AMZNc")
+    assert text(view, "#covered-calls-bid-pay") == "$12.00"
+  end
+
+  test "Place bid reviews the USDC approval, then the bid", %{conn: conn} do
+    CoveredCallsChain.install()
+    {view, _panel} = signed_in(conn, "/stock/covered-call?tab=bid", "#covered-call-bid")
+
+    view
+    |> element("#covered-calls-bid-form")
+    |> render_change(%{"amount" => "2", "_target" => ["amount"]})
+
+    settled(view)
+    view |> element("#covered-call-bid-review") |> render_click()
+
+    refute has_element?(view, "#covered-call-bid-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-bid-review-panel", "You pay")
+    assert has_element?(view, "#covered-call-bid-review-panel [data-step=usdc_approval]")
+    assert has_element?(view, "#covered-call-bid-review-panel [data-step=bid]")
+
+    assert has_element?(
+             view,
+             "#covered-call-bid [data-onchain-step=usdc_approval]",
+             "Approve USDC"
+           )
+  end
+
+  test "a bid the wallet can't pay for is disabled with the reason", %{conn: conn} do
+    CoveredCallsChain.install(%{usdc_balance: 1_000_000})
+    {view, _panel} = signed_in(conn, "/stock/covered-call?tab=bid", "#covered-call-bid")
+
+    view
+    |> element("#covered-calls-bid-form")
+    |> render_change(%{"amount" => "2", "_target" => ["amount"]})
+
+    settled(view)
+    assert has_element?(view, "#covered-call-bid-review[disabled]")
+    assert has_element?(view, "#covered-call-bid-why", "Not enough USDC on Base")
+  end
+
+  test "the portfolio shows each of the wallet's bids with its parts and steps", %{conn: conn} do
+    account = TestSupport.register_creator!()
+    first = hd(Terms.expiries(CoveredCallsChain.now()))
+    mine = &CoveredCallsChain.bid(Map.put(&1, :bidder, account.wallet_address))
+
+    CoveredCallsChain.install(%{
+      listings: [],
+      bids: [
+        mine.(%{filled: 0}),
+        mine.(%{filled: 3 * @unit}),
+        mine.(%{amount: 0, filled: 0, refund_due: 30_000_000, refundable: 30_000_000}),
+        mine.(%{expiry: first - 7 * 86_400, refundable: 18_000_000}),
+        CoveredCallsChain.bid(%{})
+      ]
+    })
+
+    {view, _account} = portfolio(conn, account)
+
+    # Open: nothing sold yet, the whole premium held, raised or stopped from here.
+    assert has_element?(view, "#portfolio-covered-calls-bid-1", "Bidder")
+    assert has_element?(view, "#portfolio-covered-calls-bid-1", "Open")
+    assert has_element?(view, "#portfolio-covered-calls-bid-1-sold", "0 of 10 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-bid-1-escrow", "$30.00")
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-bid-1-sold #portfolio-covered-calls-raise_bid-1-amount"
+           )
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-bid-1-escrow #portfolio-covered-calls-cancel_bid-1",
+             "Stop"
+           )
+
+    refute has_element?(view, "#portfolio-covered-calls-bid-1-refund")
+
+    # Partly sold: the premium left behind the rest.
+    assert has_element?(view, "#portfolio-covered-calls-bid-2-sold", "3 of 10 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-bid-2-escrow", "$21.00")
+
+    # Stopped before any sold: only the refund.
+    assert has_element?(view, "#portfolio-covered-calls-bid-3", "Stopped")
+    refute has_element?(view, "#portfolio-covered-calls-bid-3-sold")
+    refute has_element?(view, "#portfolio-covered-calls-bid-3-escrow")
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-bid-3-refund #portfolio-covered-calls-refund_bid-3",
+             "Refund"
+           )
+
+    assert has_element?(view, "#portfolio-covered-calls-bid-3-refund", "$30.00")
+
+    # Expired with part unsold: what was sold, and the premium never spent to refund.
+    assert has_element?(view, "#portfolio-covered-calls-bid-4", "Expired")
+    assert has_element?(view, "#portfolio-covered-calls-bid-4-sold", "4 of 10 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-bid-4-refund", "$18.00")
+    refute has_element?(view, "#portfolio-covered-calls-raise_bid-4")
+    refute has_element?(view, "#portfolio-covered-calls-cancel_bid-4")
+
+    refute has_element?(view, "#portfolio-covered-calls-bid-5")
+  end
+
+  test "a bid's Raise, Stop and Refund each review their own step", %{conn: conn} do
+    account = TestSupport.register_creator!()
+    mine = &CoveredCallsChain.bid(Map.put(&1, :bidder, account.wallet_address))
+
+    CoveredCallsChain.install(%{
+      listings: [],
+      bids: [
+        mine.(%{filled: 0}),
+        mine.(%{amount: 0, filled: 0, refund_due: 30_000_000, refundable: 30_000_000})
+      ]
+    })
+
+    {view, account} = portfolio(conn, account)
+
+    for panel <- ~w(raise_bid-1 cancel_bid-1 refund_bid-2) do
+      view
+      |> with_target("#portfolio-covered-calls-#{panel}")
+      |> render_hook("onchain_active_wallet", %{"address" => account.wallet_address})
+    end
+
+    render_async(view, @async_ms)
+
+    view
+    |> element("#portfolio-covered-calls-raise_bid-1-form")
+    |> render_submit(%{"amount" => "2"})
+
+    assert has_element?(view, "#portfolio-covered-calls-raise_bid-1-review-panel", "$6.00")
+    assert has_element?(view, "#portfolio-covered-calls-raise_bid-1 [data-step=usdc_approval]")
+    assert has_element?(view, "#portfolio-covered-calls-raise_bid-1 [data-step=raise_bid]")
+
+    view |> element("#portfolio-covered-calls-cancel_bid-1-review") |> render_click()
+    assert has_element?(view, "#portfolio-covered-calls-cancel_bid-1-review-panel", "$30.00")
+    assert has_element?(view, "#portfolio-covered-calls-cancel_bid-1 [data-step=cancel_bid]")
+
+    view |> element("#portfolio-covered-calls-refund_bid-2-review") |> render_click()
+    assert has_element?(view, "#portfolio-covered-calls-refund_bid-2-review-panel", "$30.00")
+    assert has_element?(view, "#portfolio-covered-calls-refund_bid-2 [data-step=refund_bid]")
+  end
+
   # The receipt's figures against the quote for the same request, the action
   # an agent reads before listing.
   defp assert_receipt(view, request) do
@@ -635,7 +935,14 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   end
 
   # A new signed-in person on a listing's Buy ticket, their wallet open.
-  defp signed_in_panel(conn) do
+  defp signed_in_panel(conn),
+    do: signed_in(conn, "/stock/covered-call?listing=1", "#covered-call-fill-1")
+
+  # A new signed-in person on the Sell ticket, their wallet open.
+  defp signed_in_sell(conn), do: signed_in(conn, "/stock/covered-call", "#covered-call-list")
+
+  # A new signed-in person at `path`, their wallet open in `panel`.
+  defp signed_in(conn, path, panel) do
     account = TestSupport.register_creator!()
     session = signed_in_session(account.id)
 
@@ -643,31 +950,27 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/stock/covered-call?listing=1")
+      |> live(path)
 
-    render_async(view, @async_ms)
-    panel = with_target(view, "#covered-call-fill-1")
+    settled(view)
+    panel = with_target(view, panel)
     render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
-    render_async(view, @async_ms)
+    settled(view)
     {view, panel}
   end
 
-  # A new signed-in person on the Sell ticket, their wallet open.
-  defp signed_in_sell(conn) do
-    account = TestSupport.register_creator!()
-    session = signed_in_session(account.id)
+  # What a Max button fills its box with in the browser, in raw units.
+  defp max_fill(view, selector) do
+    [fill] =
+      view
+      |> element(selector)
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.attribute("phx-click")
+      |> Enum.flat_map(&JSON.decode!/1)
 
-    {:ok, view, _html} =
-      conn
-      |> Phoenix.ConnTest.init_test_session(session)
-      |> connects_with(session)
-      |> live("/stock/covered-call")
-
-    settled(view)
-    panel = with_target(view, "#covered-call-list")
-    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
-    settled(view)
-    {view, panel}
+    assert ["dispatch", %{"event" => "autolaunch:fill", "detail" => %{"value" => value}}] = fill
+    F.parse_tokens(value, @unit)
   end
 
   # The signed-in portfolio, its covered calls read.

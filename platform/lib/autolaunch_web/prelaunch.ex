@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
     AutolaunchWeb.CoveredCallsLive =>
-      ~w(refresh sell sell_expiry sell_strike suggested_premium buy dismiss_done),
+      ~w(refresh sell sell_expiry sell_strike sell_suggested bid bid_expiry bid_strike bid_suggested buy sale mode dismiss_done),
     AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done)
   }
 
