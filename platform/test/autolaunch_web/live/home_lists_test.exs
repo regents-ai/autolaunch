@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.HomeListsTest do
   @moduledoc """
   The home page opens on its products, each card linking to its own page, then
-  one list chosen from Auctions, Tokens and Options. Tokens choose a type: All,
+  one list chosen from Auctions, Tokens and Calls. Tokens choose a type: All,
   Memestock or Revstake. A product switched off on the site has no card and no
   choice.
   """
@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     {:ok, view, _html} = live(conn, "/")
 
     for {id, title, path} <- [
-          {"calls", "Call Options", "/stock/covered-call"},
+          {"calls", "Covered calls", "/stock/covered-call"},
           {"memestock", "Memestock", "/create"},
           {"revstake", "Revstake", "/agent-business"}
         ] do
@@ -49,13 +49,13 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert has_element?(view, "#home-product-memestock")
     refute has_element?(view, "#home-lists a[data-tab=options]")
 
-    # An Options address on a site without them shows the auctions.
+    # A Calls address on a site without them shows the auctions.
     {:ok, view, _html} = live(conn, "/?view=options")
     assert has_element?(view, "#home-lists a[data-tab=auctions][aria-current=page]")
     assert has_element?(view, "#home-market")
   end
 
-  test "Options lists the calls still for sale, each opening its Buy panel", %{conn: conn} do
+  test "Calls lists the calls still for sale, each opening its Buy panel", %{conn: conn} do
     expiry = hd(Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now()))
     unit = CoveredCallsChain.unit()
 
@@ -83,7 +83,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert conn |> get("/?view=options") |> html_response(200) =~ "Strike $260.00"
   end
 
-  test "Options with nothing for sale says so and offers selling", %{conn: conn} do
+  test "Calls with nothing for sale says so and offers selling", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, _html} = live(conn, "/?view=options")
     render_async(view, @async_ms)
@@ -92,7 +92,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert has_element?(view, "#home-calls a[href='/stock/covered-call']", "Sell calls")
   end
 
-  test "Options that cannot be read say so and read again on Try again", %{conn: conn} do
+  test "Calls that cannot be read say so and read again on Try again", %{conn: conn} do
     CoveredCallsChain.install(%{unreadable: true})
     {:ok, view, _html} = live(conn, "/?view=options")
     render_async(view, @async_ms)

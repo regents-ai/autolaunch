@@ -32,7 +32,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   # What the list shows: auctions, launched tokens, or the covered calls for
   # sale. Tokens choose a type below it.
-  @lists [auctions: "Auctions", tokens: "Tokens", options: "Options"]
+  @lists [auctions: "Auctions", tokens: "Tokens", options: "Calls"]
   @token_kinds [
     {"all", "All"},
     {"memestock", "Memestock"},
