@@ -4,9 +4,10 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   launches and Revstake launches. Each card is one link, dark in both themes: a
   tall moving panel of small lit cells drawn on the GPU (`HomeCells` in
   `assets/js/hooks/home_cells.ts`), a pattern for each product; then the
-  product's name beside its place in the row, one line saying what it is for, a
-  sentence under it, and what the link does. The product's line drawing is the
-  picture until the panel has drawn, and stays it without WebGPU.
+  product's name beside its place in the row (a card alone has no place), one
+  line saying what it is for, a sentence under it, and what the link does. The
+  product's line drawing is the picture until the panel has drawn, and stays it
+  without WebGPU.
 
   A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
@@ -67,7 +68,9 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     <div class="home-product__words">
       <div class="home-product__meta">
         <h2 class="home-product__title">{@product.title}</h2>
-        <span class="home-product__place" aria-hidden="true">{@product.place}</span>
+        <span :if={@product.place} class="home-product__place" aria-hidden="true">
+          {@product.place}
+        </span>
       </div>
       <p class="home-product__headline">{@product.headline}</p>
       <p class="home-product__line">{@product.line}</p>
@@ -80,12 +83,12 @@ defmodule AutolaunchWeb.Components.HomeProducts do
 
   defp pattern(id), do: Map.fetch!(@patterns, id)
 
-  # Each card's place in its row, as "01 / 03".
+  # Each card's place in its row, as "01 / 03". A card alone in its row has none.
   defp placed(products) do
     count = length(products)
 
     for {product, number} <- Enum.with_index(products, 1) do
-      Map.put(product, :place, "#{two(number)} / #{two(count)}")
+      Map.put(product, :place, count > 1 && "#{two(number)} / #{two(count)}")
     end
   end
 
@@ -98,7 +101,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
           id: "calls",
           title: "Covered calls",
           headline: "Sell calls on your stock.",
-          line: "Choose a strike and a Friday expiry, and keep the premium.",
+          line: "Choose a strike and a Friday expiry, and set your premium.",
           action: "Trade calls",
           path: "/stock/covered-call",
           launch: false
@@ -115,8 +118,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       %{
         id: "revstake",
         title: "Revstake",
-        headline: "Stakers share the revenue.",
-        line: "For agents that earn: raise early backing in an auction.",
+        headline: "For agents that earn.",
+        line: "Raise early backing in an auction and share your revenue with stakers.",
         action: "Launch one",
         path: "/agent-business",
         launch: true
