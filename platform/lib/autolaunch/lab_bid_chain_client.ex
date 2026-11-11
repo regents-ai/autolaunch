@@ -1,37 +1,41 @@
 defmodule Autolaunch.LabBidChainClient do
-  @moduledoc false
+  @moduledoc """
+  The Base reads a bid is shown and reviewed from.
 
-  @behaviour Autolaunch.ChainClient
+  `balances/1` answers what a wallet can bid with: the auction's own currency,
+  the wallet's balance of it and, on a Stocks auction that takes USDC, its
+  USDC. It reads nothing about the auction's bidding window, so a balance shows
+  before an auction opens.
 
-  alias Autolaunch.Chain.Abi
+  `snapshot/1` answers the whole reviewed question at once: the auction's own
+  currency, the wallet's balance of it, both allowances that stand between it
+  and the auction, and the bounded predecessor tick the canonical call needs.
+  There is no partial answer: a review is derived from one snapshot or from none.
 
-  alias Autolaunch.{Lab, LabAbi, LabRpc}
+  A test answers both callbacks itself, installed under
+  `:autolaunch_bid_chain_client` (`Autolaunch.BidActions`).
+  """
+
+  alias Autolaunch.{BidPrice, Lab, LabAbi, LabRpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
+
+  @callback balances(map()) :: {:ok, map()} | {:error, atom()}
+  @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
 
   @max_tick_walk 256
   @max_uint256 Integer.pow(2, 256) - 1
 
-  # The auction's own `currency()` is the token every balance and allowance is
-  # read from: REGENT for an Agent auction, the admitted stock for a Stocks one.
-  @impl true
   def balances(%{auction: auction, signer: signer, usdc: usdc?}) do
-    with {:ok, auction} <- Address.normalize(auction),
-         {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
-         :ok <- LabRpc.ensure_contract(auction, block, opts),
-         {:ok, currency} <- call_address(config, auction, "currency()", [], block, opts),
-         {:ok, currency_balance} <-
-           LabRpc.call_uint(
-             config,
-             currency,
-             "token",
-             "balanceOf(address)",
-             [signer],
-             block,
-             opts
-           ),
-         {:ok, usdc_balance} <- usdc_balance(usdc?, signer, block, opts) do
-      {:ok, %{currency: currency, currency_balance: currency_balance, usdc_balance: usdc_balance}}
+    with {:ok, held} <- currency_balance(auction, signer),
+         {:ok, usdc_balance} <- usdc_balance(usdc?, signer, held.block, held.opts) do
+      {:ok,
+       %{
+         currency: held.currency,
+         currency_balance: held.currency_balance,
+         usdc_balance: usdc_balance
+       }}
     else
       :error -> {:error, :invalid_chain_response}
       {:error, reason} -> {:error, reason}
@@ -39,22 +43,16 @@ defmodule Autolaunch.LabBidChainClient do
     end
   end
 
-  @impl true
   def snapshot(%{auction: auction, signer: signer, max_price_q96: max_price}) do
-    with {:ok, auction} <- Address.normalize(auction),
-         {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
-         :ok <- LabRpc.ensure_contract(auction, block, opts),
-         {:ok, currency} <- call_address(config, auction, "currency()", [], block, opts),
-         {:ok, currency_balance} <-
-           LabRpc.call_uint(
-             config,
-             currency,
-             "token",
-             "balanceOf(address)",
-             [signer],
-             block,
-             opts
-           ),
+    with {:ok,
+          %{
+            auction: auction,
+            config: config,
+            block: block,
+            opts: opts,
+            currency: currency,
+            currency_balance: currency_balance
+          }} <- currency_balance(auction, signer),
          {:ok, token_allowance} <-
            LabRpc.call_uint(
              config,
@@ -89,7 +87,7 @@ defmodule Autolaunch.LabBidChainClient do
            clearing_price_q96: clearing,
            max_bid_price_q96: cap
          },
-         {:ok, aligned} <- Autolaunch.BidPrice.align(max_price, limits),
+         {:ok, aligned} <- BidPrice.align(max_price, limits),
          {:ok, prev_tick_price_q96} <- predecessor(config, auction, aligned, block, opts) do
       {:ok,
        %{
@@ -120,14 +118,14 @@ defmodule Autolaunch.LabBidChainClient do
   """
   def usdc_snapshot(%{stock: stock, signer: signer, usdc_amount: usdc_amount}) do
     with {:ok, config} <- StocksLab.current(),
-         opts <- StocksLab.rpc_opts(config),
-         {:ok, block} <- Autolaunch.Chain.Rpc.latest_block(opts),
-         usdc <- StocksLab.address!(config, :usdc),
-         adapter <- StocksLab.address!(config, :bid_adapter),
-         launchpad <- StocksLab.address!(config, :launchpad),
+         opts = StocksLab.rpc_opts(config),
+         {:ok, block} <- Rpc.latest_block(opts),
+         usdc = StocksLab.address!(config, :usdc),
+         adapter = StocksLab.address!(config, :bid_adapter),
+         launchpad = StocksLab.address!(config, :launchpad),
          :ok <- LabRpc.ensure_contract(adapter, block, opts),
          {:ok, [admitted, _decimals, route_word]} <-
-           Autolaunch.Chain.Rpc.call_words(
+           Rpc.call_words(
              launchpad,
              LabAbi.encode(StocksLab.abi!(config, :launchpad), "stockAdmission(address)", [stock]),
              block,
@@ -137,14 +135,14 @@ defmodule Autolaunch.LabBidChainClient do
          true <- admitted != 0,
          {:ok, route} <- Abi.word_address(route_word),
          {:ok, usdc_balance} <-
-           Autolaunch.Chain.Rpc.call_uint(
+           Rpc.call_uint(
              usdc,
              LabAbi.encode(StocksLab.abi!(config, :erc20), "balanceOf(address)", [signer]),
              block,
              opts
            ),
          {:ok, usdc_allowance} <-
-           Autolaunch.Chain.Rpc.call_uint(
+           Rpc.call_uint(
              usdc,
              LabAbi.encode(StocksLab.abi!(config, :erc20), "allowance(address,address)", [
                signer,
@@ -154,7 +152,7 @@ defmodule Autolaunch.LabBidChainClient do
              opts
            ),
          {:ok, stock_quote} <-
-           Autolaunch.Chain.Rpc.call_uint(
+           Rpc.call_uint(
              route,
              LabAbi.encode(
                StocksLab.abi!(config, :route),
@@ -186,6 +184,35 @@ defmodule Autolaunch.LabBidChainClient do
     end
   end
 
+  # The auction's own `currency()` is the token every balance and allowance is
+  # read from: REGENT for an Agent auction, the admitted stock for a Stocks one.
+  defp currency_balance(auction, signer) do
+    with {:ok, auction} <- Address.normalize(auction),
+         {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
+         :ok <- LabRpc.ensure_contract(auction, block, opts),
+         {:ok, currency} <- call_address(config, auction, "currency()", [], block, opts),
+         {:ok, currency_balance} <-
+           LabRpc.call_uint(
+             config,
+             currency,
+             "token",
+             "balanceOf(address)",
+             [signer],
+             block,
+             opts
+           ) do
+      {:ok,
+       %{
+         auction: auction,
+         config: config,
+         block: block,
+         opts: opts,
+         currency: currency,
+         currency_balance: currency_balance
+       }}
+    end
+  end
+
   # The auction refuses `checkpoint()` before its start block, so an auction
   # that has not opened is told apart from a chain that could not be read.
   defp started(%{number: number}, start_block) when number >= start_block, do: :ok
@@ -195,7 +222,7 @@ defmodule Autolaunch.LabBidChainClient do
 
   defp usdc_balance(true, signer, block, opts) do
     with {:ok, config} <- StocksLab.current() do
-      Autolaunch.Chain.Rpc.call_uint(
+      Rpc.call_uint(
         StocksLab.address!(config, :usdc),
         LabAbi.encode(StocksLab.abi!(config, :erc20), "balanceOf(address)", [signer]),
         block,
@@ -230,7 +257,7 @@ defmodule Autolaunch.LabBidChainClient do
   end
 
   defp call_address(config, address, signature, arguments, block, opts) do
-    Autolaunch.Chain.Rpc.call_address(
+    Rpc.call_address(
       address,
       LabAbi.encode(Lab.abi!(config, :auction), signature, arguments),
       block,

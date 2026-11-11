@@ -54,7 +54,6 @@ defmodule AutolaunchWeb.OnchainCalls do
 
   @doc "The newest batch sent from `review`, or `nil`."
   def newest(batches, %{id: id}), do: Enum.find(batches, &(&1.review.id == id))
-  def newest(_batches, nil), do: nil
 
   @doc """
   What the newest batch from the review on the page is doing, in the states

@@ -21,7 +21,6 @@ defmodule Autolaunch.Stocks.Lab do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.Address
 
-  @stock_chain_id 8453
   @test_chain_id 31_337
 
   @address_keys ~w(
@@ -150,7 +149,6 @@ defmodule Autolaunch.Stocks.Lab do
 
   @doc "The Base deployment's chain id, which this description shares."
   def chain_id, do: Lab.chain_id()
-  def stock_chain_id, do: @stock_chain_id
 
   def rpc_opts(config, scope \\ "autolaunch stocks lab") do
     [

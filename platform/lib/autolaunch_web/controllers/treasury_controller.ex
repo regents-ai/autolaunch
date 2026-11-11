@@ -1,22 +1,18 @@
 defmodule AutolaunchWeb.TreasuryController do
   use AutolaunchWeb, :controller
 
-  alias Autolaunch
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.{ApiError, ReadFailure}
 
   def show(conn, %{"address" => address} = params) do
-    autolaunch = conn.private[:treasury_controller_autolaunch] || Autolaunch
-
     with true <- Map.keys(params) == ["address"],
          {:ok, report} when not is_nil(report) <-
-           autolaunch.current_treasury_security(address, actor: nil) do
+           Autolaunch.current_treasury_security(address, actor: nil) do
       json(conn, %{data: TreasurySecurity.public_view(report)})
     else
       false -> invalid_request(conn)
       :error -> invalid_request(conn)
       {:ok, nil} -> not_found(conn)
-      {:error, :invalid_address} -> invalid_request(conn)
       {:error, error} -> internal_error(conn, error)
     end
   end

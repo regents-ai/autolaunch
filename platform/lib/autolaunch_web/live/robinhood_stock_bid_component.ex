@@ -27,7 +27,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, BidPrice}
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
@@ -36,7 +35,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
-  alias RegentChain.{Presses, Review}
+  alias RegentChain.Review
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -64,7 +63,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     usdg_route_unavailable: "USDG cannot be converted for this auction right now.",
     stock_route_unavailable: "USDG cannot be converted for this auction right now.",
     quote_out_of_range: "USDG cannot be converted for this auction right now.",
-    stock_not_listed: "This auction's stock is not one this site lists."
+    stock_not_listed: "This auction's stock is not one this site lists.",
+    invalid_slippage:
+      "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
   }
 
   @generic "That did not go through. Try again in a moment."
@@ -113,15 +114,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign_new(:ended, fn -> nil end)
-     |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:outbid_banner, fn -> false end)
-     |> assign_new(:authenticated, fn -> false end)
-     |> assign_new(:page, fn -> nil end)
-     |> assign_new(:current_human_id, fn -> nil end)
-     |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
-     |> assign_new(:form, fn -> %{blank() | amount: Map.get(assigns, :preset_amount) || ""} end)
+     |> assign_new(:form, &blank/0)
      |> assign_book_and_supply()
      |> assign_usd_prices()
      |> OnchainSteps.adopt()
@@ -188,14 +183,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   @impl true
   def render(assigns) do
-    usd_rate = UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(assigns.reading))
+    steps = steps(assigns)
 
     assigns =
       assign(assigns,
-        usd_rate: usd_rate,
+        usd_rate: usd_rate(assigns),
         rows: rows(assigns),
-        steps: steps(assigns),
-        next_step: next_step(assigns),
+        steps: steps,
+        next_step: next_step(assigns, steps),
+        progress: progress_copy(steps),
+        pending_hash: pending_hash(steps),
         shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
       )
 
@@ -297,17 +294,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               class="bid-progress__status"
               role="status"
               aria-live="polite"
-              hidden={!progress_copy(@steps)}
+              hidden={!@progress}
             >
-              <TokenDisplay.marked text={progress_copy(@steps) || ""} tickers={["USDG"]} />
+              <TokenDisplay.marked text={@progress || ""} tickers={["USDG"]} />
             </p>
             <a
-              href={
-                pending_hash(@steps) && BidPlaced.transaction_url(:robinhood, pending_hash(@steps))
-              }
+              href={@pending_hash && BidPlaced.transaction_url(:robinhood, @pending_hash)}
               target="_blank"
               rel="noopener noreferrer"
-              hidden={!pending_hash(@steps) || Lab.test_chain?(@review && @review.chain.chain_id)}
+              hidden={!@pending_hash || Lab.test_chain?(@review && @review.chain.chain_id)}
             >
               View on Blockscout ↗
             </a>
@@ -475,16 +470,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, socket |> followed() |> prepare_when_ready()}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do:
+      {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> prepare_when_ready()}
 
   def handle_event("bid_form_changed", params, socket) do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
@@ -512,9 +500,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A new bid for an outbid one: about the same money, at the current price.
   def handle_event("raise_bid", %{"bid_id" => bid_id}, socket) do
-    %{usd_prices: prices, reading: reading} = socket.assigns
-    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
-    amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(rate)
+    amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(usd_rate(socket.assigns))
     {:noreply, new_bid_entered(socket, %{blank() | amount: amount})}
   end
 
@@ -534,16 +520,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do:
+      {:noreply,
+       OnchainSteps.failed(socket, params, :robinhood_bid, Lab.network_name(Lab.chain_id()))}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
@@ -576,7 +556,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
          |> told_outbid()}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+        {:noreply, assign(socket, notice: copy(OnchainSteps.refusal(error)))}
     end
   end
 
@@ -608,7 +588,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp start_prepare(socket, key) do
     {signer, request} = request(key)
     inputs = inputs(socket.assigns)
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(preparing: key)
@@ -625,7 +605,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
       key ->
         {signer, request} = request(key)
-        result = StockBidActions.prepare(request, signer, opts(socket))
+        result = StockBidActions.prepare(request, signer, OnchainSteps.opts(socket))
         socket = reviewed(socket, key, inputs(assigns), result)
         if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
@@ -648,7 +628,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp reviewed(socket, key, _inputs, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
+    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
 
   # What a bid's approval allows: this wallet's amount of USDG to this
   # auction, whatever the most per token.
@@ -688,14 +668,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp text(value) when is_binary(value), do: String.slice(value, 0, 256)
   defp text(_value), do: ""
 
-  defp inputs(%{form: form, reading: reading} = assigns),
+  defp inputs(assigns),
     do:
       BidForm.inputs(
-        form,
+        assigns.form,
         assigns.book,
         supply(assigns.supply),
-        UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(reading)),
-        stock_symbol(reading),
+        usd_rate(assigns),
+        stock_symbol(assigns.reading),
         []
       )
 
@@ -728,9 +708,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp drafted(socket), do: socket
 
-  defp max_price(%{usd_prices: prices, reading: reading} = assigns) do
-    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
-    {_unit, factor} = BidForm.fdv_currency("USDG", stock_symbol(reading), rate)
+  defp max_price(assigns) do
+    {_unit, factor} =
+      BidForm.fdv_currency("USDG", stock_symbol(assigns.reading), usd_rate(assigns))
+
     BidForm.max_price(assigns.form, assigns.book, supply(assigns.supply), factor)
   end
 
@@ -763,16 +744,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp read_bids(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
-    opts = opts(socket)
+    opts = OnchainSteps.opts(socket)
     start_async(socket, :bids, fn -> {wallet, StockBidActions.bids(auction, wallet, opts)} end)
   end
 
   defp read_bids(socket), do: socket
-
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: Lab.network_name(Lab.chain_id())
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
 
   # Steps
 
@@ -780,9 +756,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # later press of it does.
   defp steps(%{review: %{} = review, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
-      %{name: name, label: step_label(name), state: state, entry: entry}
+      step = OnchainSteps.step(presses, review, name, step_label(name))
+      if OnchainSteps.approved?(assigns, name), do: %{step | state: :done}, else: step
     end)
   end
 
@@ -793,19 +768,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # button places the bid, and pressing it prepares one. A sent step moves the
   # button on at once; nothing waits for the network before the next press can
   # reach the wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+  defp next_step(%{review: %{}}, steps),
+    do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
-  defp next_step(_assigns), do: %{name: "usdg_bid", label: "Place bid"}
-
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
+  defp next_step(_assigns, _steps), do: %{name: "usdg_bid", label: "Place bid"}
 
   defp step_label("usdg_approval"), do: "Approve USDG"
   defp step_label(_bid), do: "Place bid"
@@ -867,7 +833,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # The bidder's own X account, read when they choose to share.
   defp load_x(socket) do
     connections =
-      case Autolaunch.Accounts.list_my_x_connections(actor: actor(socket)) do
+      case Autolaunch.Accounts.list_my_x_connections(actor: OnchainSteps.actor(socket)) do
         {:ok, connections} -> connections
         {:error, _unavailable} -> []
       end
@@ -897,14 +863,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end)
   end
 
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
-
   # Robinhood's stock prices, read once and apart from the form, so a slow
   # price never holds a bid back.
   defp assign_usd_prices(%{assigns: %{usd_prices: _prices}} = socket), do: socket
@@ -914,6 +872,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       UsdValue.assign_rate(socket, :usd_prices, :robinhood, fn ->
         {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
       end)
+
+  # The dollar price of the auction's stock, once both are read.
+  defp usd_rate(%{usd_prices: prices, reading: reading}),
+    do: UsdValue.stock_rate(prices.result, reading_symbol(reading))
 
   defp reading_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
   defp reading_symbol(nil), do: nil
@@ -1031,16 +993,5 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp told_outbid(socket), do: socket
 
-  defp copy(:invalid_slippage),
-    do: "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
-
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

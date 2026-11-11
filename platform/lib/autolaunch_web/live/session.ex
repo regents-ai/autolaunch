@@ -158,22 +158,22 @@ defmodule AutolaunchWeb.Live.Session do
     |> Phoenix.Component.assign(:session_lease, lease)
     |> recheck_on_params(lease)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
-      recheck(socket, lease, & &1)
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_info, :handle_info, fn
       %{topic: ^ens_topic}, socket ->
-        {_cont_or_halt, socket} = recheck(socket, lease, & &1)
+        {_cont_or_halt, socket} = recheck(socket, lease)
         {:halt, socket}
 
       {__MODULE__, :component_lease_lapsed}, socket ->
-        {_cont_or_halt, socket} = recheck(socket, lease, & &1)
+        {_cont_or_halt, socket} = recheck(socket, lease)
         {:halt, socket}
 
       _message, socket ->
-        recheck(socket, lease, & &1)
+        recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_async, :handle_async, fn _name, _result, socket ->
-      recheck(socket, lease, & &1)
+      recheck(socket, lease)
     end)
   end
 
@@ -277,12 +277,15 @@ defmodule AutolaunchWeb.Live.Session do
   defp recheck_on_params(socket, lease),
     do:
       attach_hook(socket, :session_authority_params, :handle_params, fn _params, _uri, socket ->
-        recheck(socket, lease, &redirect(&1, to: @public_root))
+        case recheck(socket, lease) do
+          {:halt, socket} -> {:halt, redirect(socket, to: @public_root)}
+          continued -> continued
+        end
       end)
 
-  defp recheck(socket, lease, lapsed) do
+  defp recheck(socket, lease) do
     case leased(lease) do
-      {:ok, nil} -> {:halt, socket |> lapse() |> lapsed.()}
+      {:ok, nil} -> {:halt, lapse(socket)}
       {:ok, account} -> {:cont, assign_principal(socket, account)}
       :unreadable -> {:cont, socket}
     end
@@ -365,7 +368,7 @@ defmodule AutolaunchWeb.Live.Session do
   defp account_control(account),
     do: account |> access_context() |> AccessContext.account_control()
 
-  defp path_of(uri) when is_binary(uri) do
+  defp path_of(uri) do
     case URI.parse(uri).path do
       path when is_binary(path) and path != "" -> path
       _missing -> "/"

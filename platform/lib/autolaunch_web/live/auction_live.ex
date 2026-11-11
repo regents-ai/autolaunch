@@ -7,8 +7,10 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
-  import AutolaunchWeb.Components.AuctionHistory
-  import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
+
+  import AutolaunchWeb.Components.AuctionPage,
+    only: [auction_activity: 1, details_window: 1, history_note: 1]
+
   import AutolaunchWeb.Components.AuctionNext
 
   alias Autolaunch.{AuctionBook, AuctionSnapshot, BidReceipt, ChainHead}
@@ -172,35 +174,23 @@ defmodule AutolaunchWeb.AuctionLive do
     do: {:noreply, assign(socket, :draft_price, price)}
 
   def render(assigns) do
-    assigns =
-      assign(assigns,
-        local_lab?: Lab.test_chain?(),
-        page_record: page_record(assigns.page),
-        page_status: page_status(assigns.page, :error),
-        creator_connections: page_connections(assigns.page),
-        usd_rate: assigns.usd_rate.result
-      )
+    page_record = page_record(assigns.page)
+    bidding_ended? = bidding_ended?(page_record, assigns.clock, assigns.reading)
 
-    assigns =
-      assign(assigns,
-        graduated_token: page_token(assigns.page),
-        bidding_ended?: bidding_ended?(assigns.page_record, assigns.clock, assigns.reading)
-      )
-
-    assigns =
-      assign(
-        assigns,
-        :outbid,
-        if(bidding_open?(assigns.bidding_ended?), do: outbid(assigns.my_positions, assigns.book))
-      )
-
-    assigns =
-      assign(assigns,
-        receipts_read: @receipts_read,
-        receipts_left_out: max(length(onchain_bids(assigns.my_positions)) - @receipts_read, 0)
-      )
-
-    page(assigns)
+    assigns
+    |> assign(
+      local_lab?: Lab.test_chain?(),
+      page_record: page_record,
+      page_status: page_status(assigns.page, :error),
+      creator_connections: page_connections(assigns.page),
+      usd_rate: assigns.usd_rate.result,
+      graduated_token: page_token(assigns.page),
+      bidding_ended?: bidding_ended?,
+      outbid: if(bidding_open?(bidding_ended?), do: outbid(assigns.my_positions, assigns.book)),
+      receipts_read: @receipts_read,
+      receipts_left_out: max(length(onchain_bids(assigns.my_positions)) - @receipts_read, 0)
+    )
+    |> page()
   end
 
   # The bid form is named after its auction, so a form never carries one
@@ -219,7 +209,7 @@ defmodule AutolaunchWeb.AuctionLive do
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
+          <h1 class="rg-section-bar__label">{@page_record.title}</h1>
         </Regent.Structure.section_bar>
         <CreatorLabel.creator auction={@page_record} connections={@creator_connections} />
         <ShareLaunch.share_launch
@@ -466,7 +456,7 @@ defmodule AutolaunchWeb.AuctionLive do
     </section>
     <div :if={@lab} id="autolaunch-lab-position"></div>
     <.live_component
-      :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
+      :if={Autolaunch.Stocks.Faucet.available?() && @account_control.kind == :signed_in}
       module={AutolaunchWeb.TestFundsComponent}
       id="autolaunch-test-funds"
       current_human_id={current_human_id(@access_context)}
@@ -511,10 +501,19 @@ defmodule AutolaunchWeb.AuctionLive do
         report={report(@page_record)}
         surface="auction-detail"
       />
-      <.lab_treasury_unavailable
+      <%!-- A local-fork site has no treasury evidence to show: the fixture the lab
+        runs on is not a chain observation, so the page says so instead. --%>
+      <aside
         :if={@page_record.kind == :agent && @lab}
-        surface="auction-detail"
-      />
+        id="treasury-security-auction-detail"
+        class="treasury-security"
+        role="status"
+      >
+        <h3>Treasury security</h3>
+        <p class="treasury-security--warning">
+          Treasury verification is not available on this Base fork. Custody is unverified here.
+        </p>
+      </aside>
     </section>
     """
   end
@@ -783,10 +782,8 @@ defmodule AutolaunchWeb.AuctionLive do
     id = socket.assigns.record_id
 
     UsdValue.assign_rate(socket, :usd_rate, :base, fn ->
-      with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-           {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid) do
-        {:ok, %{usd_rate: UsdValue.rate(auction)}}
-      else
+      case Autolaunch.get_public_auction(id) do
+        {:ok, %Autolaunch.Auction{} = auction} -> {:ok, %{usd_rate: UsdValue.rate(auction)}}
         _missing -> {:error, :no_auction}
       end
     end)
@@ -794,23 +791,17 @@ defmodule AutolaunchWeb.AuctionLive do
 
   # The signed-in wallet's own positions on this auction, for settlement once
   # bidding has ended. A read that fails says so rather than showing no bids.
-  defp assign_positions(socket) do
-    with actor when not is_nil(actor) <- human_actor(socket.assigns.access_context),
-         {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []) do
-      wallet = signed_in_wallet(socket.assigns.access_context)
-
-      case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
-        {:ok, positions} ->
-          assign(socket,
-            my_positions: Enum.filter(positions, &(&1.auction_id == uuid)),
-            positions_unread: false
-          )
-
-        {:error, _reason} ->
-          assign(socket, my_positions: [], positions_unread: true)
-      end
+  defp assign_positions(%{assigns: %{access_context: context, record_id: id}} = socket) do
+    with actor when not is_nil(actor) <- human_actor(context),
+         {:ok, positions} <-
+           Autolaunch.list_wallet_bid_positions(signed_in_wallet(context), actor: actor) do
+      assign(socket,
+        my_positions: Enum.filter(positions, &(&1.auction_id == id)),
+        positions_unread: false
+      )
     else
-      _signed_out -> assign(socket, my_positions: [], positions_unread: false)
+      nil -> assign(socket, my_positions: [], positions_unread: false)
+      {:error, _reason} -> assign(socket, my_positions: [], positions_unread: true)
     end
   end
 

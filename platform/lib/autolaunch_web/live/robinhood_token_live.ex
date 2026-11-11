@@ -97,9 +97,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
-  def render(assigns), do: page(assigns)
-
-  defp page(assigns) do
+  def render(assigns) do
     ~H"""
     <article
       :if={@open? && @token}

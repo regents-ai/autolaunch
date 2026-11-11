@@ -542,14 +542,12 @@ defmodule AutolaunchWeb.Components.SwapForm do
     """
   end
 
-  @doc """
-  The step a review panel's wallet button sends: the next one, or, once
-  every step is sent, the last one again until every step is confirmed.
-  """
-  def pressable(nil, steps),
+  # The step a review panel's wallet button sends: the next one, or, once
+  # every step is sent, the last one again until every step is confirmed.
+  defp pressable(nil, steps),
     do: if(Enum.all?(steps, &(&1.state == :done)), do: nil, else: List.last(steps))
 
-  def pressable(next_step, _steps), do: next_step
+  defp pressable(next_step, _steps), do: next_step
 
   # The approvals the button has moved on from: sent from this review, or
   # already on the chain when it was built. A batch sends every step from its

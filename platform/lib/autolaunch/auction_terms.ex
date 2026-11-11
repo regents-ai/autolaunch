@@ -36,25 +36,4 @@ defmodule Autolaunch.AuctionTerms do
        }}
     end
   end
-
-  @doc "Whether the auction row still lacks either figure."
-  @spec missing?(map()) :: boolean()
-  def missing?(auction), do: is_nil(auction.floor_price) or is_nil(auction.token_supply)
-
-  @doc "Whether a reading of the amount raised differs from the row's."
-  @spec raised_changed?(map(), String.t()) :: boolean()
-  def raised_changed?(%{currency_raised: nil}, _raised), do: true
-
-  def raised_changed?(%{currency_raised: stored}, raised),
-    do: not Decimal.eq?(stored, Decimal.new(raised))
-
-  @doc "The market fields a feed reading writes to its auction row."
-  @spec fields(map()) :: map()
-  def fields(%{minimum_reached: minimum_reached, currency_raised: raised, terms: terms}),
-    do: %{
-      minimum_reached: minimum_reached,
-      currency_raised: raised,
-      floor_price: terms.floor_price,
-      token_supply: terms.token_supply
-    }
 end

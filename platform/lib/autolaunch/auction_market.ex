@@ -42,7 +42,6 @@ defmodule Autolaunch.AuctionMarket do
   alias Autolaunch.{
     Auction,
     AuctionReading,
-    AuctionTerms,
     ChainRefresh,
     ChainWatch,
     LabPositions,
@@ -127,8 +126,8 @@ defmodule Autolaunch.AuctionMarket do
     |> Enum.filter(&({&1.chain_id, &1.kind} in venues))
   end
 
-  @doc "One pass over `auction`: read, then write what changed."
-  def read(auction) do
+  # One pass over `auction`: read, then write what changed.
+  defp read(auction) do
     with {:ok, venue} <- Read.venue(auction),
          {:ok, head} <- Read.head(venue),
          {:ok, held} <- Autolaunch.get_auction_reading(auction.id, actor: @actor),
@@ -192,21 +191,26 @@ defmodule Autolaunch.AuctionMarket do
   # The auction row, its bidders' positions and its token. A launch seen
   # graduating becomes a public token in the same transaction, so its pool page
   # exists as soon as the row says so, and the token's price is the pool's from
-  # the same reading.
+  # the same reading. The row is written when a figure moved, or while it
+  # still lacks its floor price or token supply.
   defp project(auction, snapshot) do
     market = %{
       state: MarketState.join(auction.state, snapshot.state),
       price: snapshot.current_clearing_price,
-      minimum_reached: snapshot.minimum_reached,
-      currency_raised: snapshot.currency_raised,
-      terms: snapshot.terms
+      fields: %{
+        minimum_reached: snapshot.minimum_reached,
+        currency_raised: snapshot.currency_raised,
+        floor_price: snapshot.terms.floor_price,
+        token_supply: snapshot.terms.token_supply
+      }
     }
 
     changed? =
       auction.state != market.state or auction.current_clearing_price != market.price or
-        auction.minimum_reached != market.minimum_reached or
-        AuctionTerms.raised_changed?(auction, market.currency_raised) or
-        AuctionTerms.missing?(auction)
+        auction.minimum_reached != market.fields.minimum_reached or
+        is_nil(auction.currency_raised) or
+        not Decimal.eq?(auction.currency_raised, Decimal.new(market.fields.currency_raised)) or
+        is_nil(auction.floor_price) or is_nil(auction.token_supply)
 
     with {:ok, _positions_changed?} <- LabPositions.project(snapshot.positions),
          :ok <- refresh_row(auction, changed?, market),
@@ -223,7 +227,7 @@ defmodule Autolaunch.AuctionMarket do
              auction,
              market.state,
              market.price,
-             AuctionTerms.fields(market),
+             market.fields,
              actor: @actor
            ),
          do: LabProjection.project_graduated_token(row)

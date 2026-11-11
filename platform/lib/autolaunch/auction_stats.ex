@@ -43,7 +43,8 @@ defmodule Autolaunch.AuctionStats do
   defp count(filter) do
     Auction
     |> Ash.Query.for_read(:listed, %{}, actor: nil)
-    |> Ash.Query.do_filter(filter)
+    # An auction an operator hid is in no list, so it is in no count.
+    |> Ash.Query.do_filter([{:hidden, false} | filter])
     |> Ash.count()
   end
 end

@@ -68,7 +68,7 @@ defmodule Autolaunch.LabLaunchChainClient do
          {:ok, event} <- LaunchAbi.launch_created(logs, Lab.address!(config, :factory)),
          true <- Address.equal?(event.launcher, signer),
          true <- Address.equal?(event.treasury, facts["treasury"]),
-         opts <- LabRpc.opts(config),
+         opts = LabRpc.opts(config),
          {:ok, record_words} <-
            LabRpc.words(config, :factory, "launches(uint256)", [event.launch_id], 5, block, opts),
          {:ok, launch_id} <-

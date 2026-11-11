@@ -117,16 +117,8 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, followed(socket)}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed()}
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
@@ -190,10 +182,8 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
 
   # The step
 
-  defp step(%{review: %{} = review, presses: presses}) do
-    entry = OnchainSteps.entry(presses, review, "finish")
-    %{name: "finish", label: "Finish auction", state: press_state(entry), entry: entry}
-  end
+  defp step(%{review: %{} = review, presses: presses}),
+    do: OnchainSteps.step(presses, review, "finish", "Finish auction")
 
   defp step(_assigns), do: nil
 
@@ -204,15 +194,6 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   defp next_step(nil, nil), do: %{name: "finish", label: "Finish auction"}
   defp next_step(%{state: state} = step, nil) when state in [:ready, :reverted, :other], do: step
   defp next_step(_step, nil), do: nil
-
-  defp press_state(nil), do: :ready
-
-  defp press_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp press_state(%{outcome: :confirmed}), do: :done
-  defp press_state(%{outcome: :reverted}), do: :reverted
-  defp press_state(_not_this_step), do: :other
 
   # Why the finish is certain to fail now, from the chain's own reading.
   defp blocked(%{state: :running, clock: clock, migration_block: migration_block})

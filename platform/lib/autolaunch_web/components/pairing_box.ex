@@ -77,11 +77,9 @@ defmodule AutolaunchWeb.PairingBox do
     """
   end
 
-  @doc """
-  The agents to choose from, as the shared pairing box takes them: the ten
-  featured agents, then Claude while its connector is on.
-  """
-  def choices,
+  # The agents to choose from, as the shared pairing box takes them: the ten
+  # featured agents, then Claude while its connector is on.
+  defp choices,
     do:
       for(
         harness <- Harness.featured() ++ Harness.hosted(),

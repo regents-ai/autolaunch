@@ -17,7 +17,7 @@ defmodule Autolaunch.SubjectWalletActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{Auction, BidActions, Lab, Pool, SubjectWalletChainClient}
+  alias Autolaunch.{Auction, BidActions, Lab, Pool, SubjectWalletRpcClient}
   alias Autolaunch.Chain.{Abi, Client, Rpc, SubjectAbi}
   alias RegentChain.{Address, Review}
 
@@ -73,9 +73,9 @@ defmodule Autolaunch.SubjectWalletActions do
          {:ok, signer} <- current_wallet(address, opts),
          {:ok, config} <- lab(),
          {:ok, subject} <- actionable(auction_id),
-         {:ok, asset} <- selected_asset(kind, params),
+         {:ok, asset} <- selected_asset(params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
-         {:ok, plan} <- planned(kind, asset, params, snapshot, signer) do
+         {:ok, plan} <- planned(kind, asset, params, snapshot) do
       {:ok,
        %{
          signer: signer,
@@ -113,9 +113,9 @@ defmodule Autolaunch.SubjectWalletActions do
   end
 
   # Every rule the plan fixes for one action, answered from the one snapshot.
-  defp planned(:pay, asset, params, snapshot, _signer) do
+  defp planned(:pay, asset, params, snapshot) do
     with {:ok, amount} <- positive_amount(params, asset),
-         :ok <- at_most(amount, balance(snapshot, asset), :amount_above_balance) do
+         true <- amount <= snapshot.balances[asset] do
       reference = payment_reference()
 
       {:ok,
@@ -125,12 +125,15 @@ defmodule Autolaunch.SubjectWalletActions do
          payment_reference: reference,
          data: SubjectAbi.encode_pay(asset_address(snapshot, asset), amount, reference)
        }}
+    else
+      false -> unavailable(:amount_above_balance)
+      error -> error
     end
   end
 
   # The receiver's own current balance is what a sweep routes, so it is reviewed
   # rather than chosen, and the event supplies the amount that actually moved.
-  defp planned(:sweep, asset, _params, snapshot, _signer) do
+  defp planned(:sweep, asset, _params, snapshot) do
     held = snapshot.receiver.balances[asset]
 
     if held > 0 do
@@ -212,7 +215,15 @@ defmodule Autolaunch.SubjectWalletActions do
       spender: spender_request(kind, subject)
     }
 
-    case SubjectWalletChainClient.module().snapshot(request) do
+    # The Base reads (`Autolaunch.SubjectWalletRpcClient`), or the answers a test installed.
+    client =
+      Application.get_env(
+        :autolaunch,
+        :autolaunch_subject_wallet_chain_client,
+        SubjectWalletRpcClient
+      )
+
+    case client.snapshot(request) do
       {:ok, snapshot} -> snapshot |> put_addresses(subject) |> proved(subject, kind)
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)
@@ -355,7 +366,7 @@ defmodule Autolaunch.SubjectWalletActions do
 
   # Assets and amounts
 
-  defp selected_asset(_kind, params) do
+  defp selected_asset(params) do
     case params["asset"] do
       "subject" -> {:ok, :subject}
       "usdc" -> {:ok, :usdc}
@@ -372,15 +383,10 @@ defmodule Autolaunch.SubjectWalletActions do
          do: unavailable(reason)
   end
 
-  defp at_most(amount, limit, _reason) when amount <= limit, do: :ok
-  defp at_most(_amount, _limit, reason), do: unavailable(reason)
-
   # Every payment carries its own cryptographically random reference, so two
   # payments of the same amount are never the same reviewed transaction.
   defp payment_reference,
     do: "0x" <> (32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower))
-
-  defp balance(snapshot, asset), do: snapshot.balances[asset]
 
   defp asset_address(snapshot, :subject), do: snapshot.splitter.subject
   defp asset_address(snapshot, :usdc), do: snapshot.splitter.usdc
@@ -395,7 +401,7 @@ defmodule Autolaunch.SubjectWalletActions do
     %{
       signer: signer,
       auction_id: subject.auction_id,
-      balances: Map.new(@assets, &{&1, units(balance(snapshot, &1), &1)}),
+      balances: Map.new(@assets, &{&1, units(snapshot.balances[&1], &1)}),
       receiver: receiver_view(snapshot)
     }
   end

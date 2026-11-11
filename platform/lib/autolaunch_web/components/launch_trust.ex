@@ -18,17 +18,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.LaunchActions
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.TokenDisplay
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
 
   attr :connections, :map,
     default: nil,
     doc: "the creator's connected accounts; nil while they are still being read"
-
-  attr :pool, :map,
-    default: nil,
-    doc: "the launched pool as read from the chain, when the page has read it"
 
   attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
 
@@ -42,10 +37,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     assigns =
       assign(assigns,
         address_chain: address_chain(auction),
-        contracts: contracts(auction, assigns.pool),
+        contracts: contracts(auction, nil),
         split: split(auction),
         supply: supply(auction.token_supply),
-        liquidity: liquidity_state(auction.state, assigns.pool)
+        liquidity: liquidity_state(auction.state)
       )
 
     ~H"""
@@ -75,17 +70,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
               />
             </dd>
           </div>
-          <div :if={@pool}>
-            <dt>Pool</dt>
-            <dd>
-              <Regent.Primitives.address
-                id="launch-trust-pool"
-                address={@pool.pool_id}
-                kind="id"
-                chain={@address_chain}
-              />
-            </dd>
-          </div>
         </dl>
 
         <h3 class="autolaunch-micro">Token supply</h3>
@@ -106,14 +90,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         </p>
 
         <h3 class="autolaunch-micro">Uniswap Liquidity Pool</h3>
-        <.liquidity
-          liquidity={@liquidity}
-          split={@split}
-          address_chain={@address_chain}
-          pool={@pool}
-          token_path={@token_path}
-          locked={@locked}
-        />
+        <.liquidity liquidity={@liquidity} split={@split} token_path={@token_path} locked={@locked} />
       </section>
     </div>
     """
@@ -265,8 +242,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   attr :liquidity, :atom, required: true
   attr :split, :map, required: true
-  attr :address_chain, :string, required: true
-  attr :pool, :map, default: nil
   attr :token_path, :string, default: nil
   attr :locked, :boolean, default: nil
 
@@ -307,33 +282,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     """
   end
 
-  defp liquidity(%{liquidity: :read} = assigns) do
-    ~H"""
-    <p class="launch-trust__status">
-      {deposited_status(Enum.all?(@pool.positions, & &1.locked?))}
-    </p>
-    <ul class="launch-trust__positions">
-      <li :for={{position, index} <- Enum.with_index(@pool.positions)}>
-        <TokenDisplay.tokens amount={position.token_amount} unit={@pool.token.symbol} /> and
-        <TokenDisplay.tokens amount={position.currency_amount} unit={@pool.currency.symbol} />
-        deposited
-        <span :if={position.locked?} class="launch-trust__muted">
-          · locked forever in the locker above
-        </span>
-        <span :if={!position.locked?} class="launch-trust__muted">
-          · held by
-          <Regent.Primitives.address
-            id={"launch-trust-owner-#{index}"}
-            address={position.owner}
-            chain={@address_chain}
-          />, not the locker
-        </span>
-      </li>
-    </ul>
-    <.uniswap_note split={@split} />
-    """
-  end
-
   defp deposited_status(true), do: "Deposited and locked"
   defp deposited_status(false), do: "Deposited, not all of it locked"
   defp deposited_status(nil), do: "Deposited when the auction launched"
@@ -350,13 +298,13 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     """
   end
 
-  # Each account kind the creator could connect, with the matching accounts
-  # or nil for a kind they have not connected; Company X only when there is one.
   # A creator's Telegram group or Discord invite as a link, labelled by its
   # address without https://.
   defp named_link("https://" <> label = url), do: %{url: url, label: label}
   defp named_link(_url), do: nil
 
+  # Each account kind the creator could connect, with the matching accounts
+  # or nil for a kind they have not connected; Company X only when there is one.
   defp accounts(nil), do: nil
 
   defp accounts(connections) do
@@ -449,8 +397,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   defp supply(nil), do: nil
 
-  defp liquidity_state(:graduated, %{positions: [_ | _]}), do: :read
-  defp liquidity_state(:graduated, _pool), do: :deposited
-  defp liquidity_state(:failed, _pool), do: :none
-  defp liquidity_state(_state, _pool), do: :reserved
+  defp liquidity_state(:graduated), do: :deposited
+  defp liquidity_state(:failed), do: :none
+  defp liquidity_state(_state), do: :reserved
 end

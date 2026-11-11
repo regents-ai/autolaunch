@@ -33,6 +33,11 @@ defmodule Autolaunch.LaunchOperation do
     end
   end
 
+  # `Autolaunch.LaunchActions` saves a review inside the mounted lease.
+  code_interface do
+    define :prepare
+  end
+
   actions do
     defaults [:read]
 

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.Components.AuctionStats do
   @moduledoc """
   The thin band of Revstake and Memestock auction counts shown on the
-  auctions and create pages. Each group loads on its own, so a slow or failed
+  auctions page. Each group loads on its own, so a slow or failed
   Robinhood read leaves the Revstake counts in place. A failed re-read keeps
   the last counts and says they are the last ones read.
   """

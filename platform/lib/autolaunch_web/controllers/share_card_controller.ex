@@ -41,18 +41,18 @@ defmodule AutolaunchWeb.ShareCardController do
   wallet; for anyone else there is nothing at the address.
   """
   def wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
-    account = conn.assigns[:current_human_account]
+    {wallet, account_id} = own_wallet!(conn, wallet)
 
-    with {:ok, wallet} <- Address.normalize(wallet),
-         true <- linked?(account, wallet),
-         {:ok, auction, _token} <- Paths.find_token(symbol, tail) do
-      send_video(
-        conn,
-        "private",
-        ShareVideo.fetch(auction, :token, wallet, account.id, DateTime.utc_now())
-      )
-    else
-      _not_theirs -> raise NotFoundError
+    case Paths.find_token(symbol, tail) do
+      {:ok, auction, _token} ->
+        send_video(
+          conn,
+          "private",
+          ShareVideo.fetch(auction, :token, wallet, account_id, DateTime.utc_now())
+        )
+
+      :error ->
+        raise NotFoundError
     end
   end
 
@@ -79,23 +79,21 @@ defmodule AutolaunchWeb.ShareCardController do
 
   @doc "One wallet's share video of the auction, on the same terms as `wallet_video/2`."
   def auction_wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
-    account = conn.assigns[:current_human_account]
+    {wallet, account_id} = own_wallet!(conn, wallet)
 
-    with {:ok, wallet} <- Address.normalize(wallet),
-         true <- linked?(account, wallet),
-         {:ok, auction} <- Paths.find_auction(symbol, tail) do
-      now = DateTime.utc_now()
+    case Paths.find_auction(symbol, tail) do
+      {:ok, %{state: :graduated} = auction} ->
+        moved(conn, ShareVideo.url(auction, wallet, DateTime.utc_now()))
 
-      if auction.state == :graduated,
-        do: moved(conn, ShareVideo.url(auction, wallet, now)),
-        else:
-          send_video(
-            conn,
-            "private",
-            ShareVideo.fetch(auction, :auction, wallet, account.id, now)
-          )
-    else
-      _not_theirs -> raise NotFoundError
+      {:ok, auction} ->
+        send_video(
+          conn,
+          "private",
+          ShareVideo.fetch(auction, :auction, wallet, account_id, DateTime.utc_now())
+        )
+
+      :error ->
+        raise NotFoundError
     end
   end
 
@@ -151,15 +149,24 @@ defmodule AutolaunchWeb.ShareCardController do
   defp market_card(_conn, {:error, _reason}), do: raise(UnavailableError)
 
   defp market_wallet_video(conn, kind, subject, wallet) do
+    {wallet, account_id} = own_wallet!(conn, wallet)
+
+    send_video(
+      conn,
+      "private",
+      ShareVideo.fetch_market(kind, subject, wallet, account_id, DateTime.utc_now())
+    )
+  end
+
+  # A wallet's own video is only for the signed-in account that links the
+  # wallet: its address and that account's id. For anyone else there is
+  # nothing at the address.
+  defp own_wallet!(conn, wallet) do
     account = conn.assigns[:current_human_account]
 
     with {:ok, wallet} <- Address.normalize(wallet),
          true <- linked?(account, wallet) do
-      send_video(
-        conn,
-        "private",
-        ShareVideo.fetch_market(kind, subject, wallet, account.id, DateTime.utc_now())
-      )
+      {wallet, account.id}
     else
       _not_theirs -> raise NotFoundError
     end

@@ -529,11 +529,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   # The account a sign-in names, while its provider evidence is current:
   # `{:ok, nil}` when there is no such account or its evidence has lapsed, and
   # the read's own error when it could not be read.
-  defp verified(account_id, lock \\ nil)
-
-  defp verified(nil, _lock), do: {:ok, nil}
-
-  defp verified(account_id, lock), do: account_id |> verified_read(lock) |> logged()
+  defp verified(account_id), do: account_id |> verified_read(nil) |> logged()
 
   defp verified_read(nil, _lock), do: {:ok, nil}
 

@@ -29,19 +29,45 @@ defmodule AutolaunchWeb.ShareVideo.Story do
 
   @type t :: map()
 
-  @doc "The token's story as it stands now, for everyone."
-  @spec token(struct(), struct()) :: {:ok, t()} | {:error, term()}
-  def token(auction, token), do: read(auction, token, nil)
+  @doc """
+  The token's story as it stands now: everyone's, or with `wallet`'s own moves
+  in it. A wallet is lowercase, as its request stores it.
+  """
+  @spec token(struct(), struct(), String.t() | nil) :: {:ok, t()} | {:error, term()}
+  def token(auction, token, wallet) do
+    with {:ok, supply} <- supply(auction),
+         {:ok, pool} <- pool(auction),
+         %{points: [_ | _] = history} <- pool.prices || {:error, :no_trading_history},
+         {:ok, venue} <- TokenTrades.venue(auction),
+         {:ok, opened} <- opened(pool, venue),
+         {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil),
+         {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil),
+         {:ok, trades} <- Autolaunch.token_trades(token.id, actor: nil) do
+      clock = clock(bids, trades, [opened, {pool.block.number, pool.block.timestamp}])
 
-  @doc "The token's story with `wallet`'s own moves in it."
-  @spec wallet(struct(), struct(), String.t()) :: {:ok, t()} | {:error, term()}
-  def wallet(auction, token, wallet), do: read(auction, token, String.downcase(wallet))
+      story = %{
+        auction: auction,
+        ticker: Draw.ticker(auction),
+        earn_symbol: pool.currency.symbol,
+        token_symbol: pool.token.symbol,
+        rate: Draw.rate(auction),
+        supply: supply,
+        auction_line: Enum.map(points, &{clock.(&1.block_number), float(&1.clearing_price)}),
+        trade_line: Enum.map(history, fn [block, price] -> {clock.(block), price} end),
+        now: pool.block.timestamp,
+        marks: [],
+        stake: nil
+      }
+
+      if wallet,
+        do: with_wallet(story, pool, venue, wallet, bids, trades, clock),
+        else: {:ok, story}
+    end
+  end
 
   @doc "An auction's story while it runs, with `wallet`'s bids in it when one is given."
   @spec auction(struct(), String.t() | nil) :: {:ok, t()} | {:error, term()}
   def auction(auction, wallet) do
-    wallet = wallet && String.downcase(wallet)
-
     with {:ok, supply} <- supply(auction),
          {:ok, venue} <- TokenTrades.venue(auction),
          {:ok, head} <- Rpc.latest_block(venue.opts),
@@ -107,37 +133,6 @@ defmodule AutolaunchWeb.ShareVideo.Story do
   defp bid_marks(story, bids, wallet, clock) do
     for bid <- bids, bid.bidder == wallet do
       %{at: clock.(bid.block_number), side: :buy, verb: "Bid", amount: bid_amount(bid, story)}
-    end
-  end
-
-  defp read(auction, token, wallet) do
-    with {:ok, supply} <- supply(auction),
-         {:ok, pool} <- pool(auction),
-         %{points: [_ | _] = history} <- pool.prices || {:error, :no_trading_history},
-         {:ok, venue} <- TokenTrades.venue(auction),
-         {:ok, opened} <- opened(pool, venue),
-         {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil),
-         {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil),
-         {:ok, trades} <- Autolaunch.token_trades(token.id, actor: nil) do
-      clock = clock(bids, trades, [opened, {pool.block.number, pool.block.timestamp}])
-
-      story = %{
-        auction: auction,
-        ticker: Draw.ticker(auction),
-        earn_symbol: pool.currency.symbol,
-        token_symbol: pool.token.symbol,
-        rate: Draw.rate(auction),
-        supply: supply,
-        auction_line: Enum.map(points, &{clock.(&1.block_number), float(&1.clearing_price)}),
-        trade_line: Enum.map(history, fn [block, price] -> {clock.(block), price} end),
-        now: pool.block.timestamp,
-        marks: [],
-        stake: nil
-      }
-
-      if wallet,
-        do: with_wallet(story, pool, venue, wallet, bids, trades, clock),
-        else: {:ok, story}
     end
   end
 
