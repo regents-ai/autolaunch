@@ -96,6 +96,10 @@
 .covered-calls__table tr.covered-calls__chosen > td { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: inset 3px 0 0 var(--color-fg); }
 .covered-calls__row-action { text-align: right; }
+/* An open window's time left, over when it closes. */
+.covered-calls__closes { display: grid; gap: 2px; }
+.covered-calls__closes > strong { font-weight: var(--font-weight-medium, 500); }
+.covered-calls__closes > span { display: flex; flex-wrap: wrap; gap: 0 var(--space-1); color: var(--color-fg-muted); font-size: .8125rem; }
 .covered-calls__table.market-list__table tbody td:first-child { text-align: left; }
 /* A listing's parts sit side by side, each its figure and, when it has a next step, its button. */
 .covered-calls__parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; padding: 0; list-style: none; }

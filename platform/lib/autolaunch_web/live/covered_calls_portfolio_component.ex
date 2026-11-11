@@ -221,6 +221,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       |> Enum.map(fn {side, listing} ->
         row(side, listing, holdings[listing.id], positions.now)
       end)
+      # An open exercise window comes first: it is the one that closes soon.
+      |> Enum.sort_by(&(&1.stage != :exercise))
 
     assigns =
       assign(assigns,
@@ -249,7 +251,16 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           <tr>
             <td data-label="Side">{side(row.side)}</td>
             <td data-label="Strike">{F.usd(row.listing.strike_per_token)}</td>
-            <td data-label="Exercise window">{F.window_days(row.listing.expiry)}</td>
+            <td :if={row.stage != :exercise} data-label="Exercise window">
+              {F.window_days(row.listing.expiry)}
+            </td>
+            <td :if={row.stage == :exercise} data-label="Exercise window">
+              <.closes
+                id={"#{@id}-#{row.side}-#{row.listing.id}-closes"}
+                at={row.listing.expiry + Terms.exercise_window()}
+                now={@now}
+              />
+            </td>
             <td data-label="Status">
               <P.status tone={row.status.tone}>{row.status.label}</P.status>
             </td>
@@ -291,11 +302,29 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     """
   end
 
+  attr :id, :string, required: true
+  attr :at, :integer, required: true, doc: "when the window closes, Unix seconds"
+  attr :now, :integer, required: true, doc: "the chain's time at the reading"
+
+  # An open window's time left, counted down in the browser from the chain's
+  # time at the reading (`Countdown`), over when it closes in the reader's time.
+  defp closes(assigns) do
+    ~H"""
+    <span class="covered-calls__closes">
+      <strong id={@id} phx-hook="Countdown" data-closes={@at} data-now={@now}>
+        {F.closes_in(@at - @now)}
+      </strong>
+      <span><CoveredCallComponent.local_time id={"#{@id}-at"} at={@at} /></span>
+    </span>
+    """
+  end
+
   defp row(side, listing, holding, now) do
     stage = Terms.stage(listing, now)
 
     %{
       side: side,
+      stage: stage,
       listing: listing,
       holding: holding,
       status: status(side, stage),

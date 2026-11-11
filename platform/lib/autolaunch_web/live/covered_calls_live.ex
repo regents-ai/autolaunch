@@ -786,12 +786,17 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>Opens</dt>
-              <dd><.local_time id="covered-calls-sell-opens" at={@t.expiry} /></dd>
+              <dd>
+                <CoveredCallComponent.local_time id="covered-calls-sell-opens" at={@t.expiry} />
+              </dd>
             </div>
             <div>
               <dt>Closes</dt>
               <dd>
-                <.local_time id="covered-calls-sell-closes" at={@t.expiry + Terms.exercise_window()} />
+                <CoveredCallComponent.local_time
+                  id="covered-calls-sell-closes"
+                  at={@t.expiry + Terms.exercise_window()}
+                />
               </dd>
             </div>
           </dl>
@@ -933,12 +938,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>Opens</dt>
-              <dd><.local_time id={"#{@id}-opens"} at={@listing.expiry} /></dd>
+              <dd><CoveredCallComponent.local_time id={"#{@id}-opens"} at={@listing.expiry} /></dd>
             </div>
             <div>
               <dt>Closes</dt>
               <dd>
-                <.local_time id={"#{@id}-closes"} at={@listing.expiry + Terms.exercise_window()} />
+                <CoveredCallComponent.local_time
+                  id={"#{@id}-closes"}
+                  at={@listing.expiry + Terms.exercise_window()}
+                />
               </dd>
             </div>
           </dl>
@@ -1010,23 +1018,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         {render_slot(pill)}
       </button>
     </div>
-    """
-  end
-
-  attr :id, :string, required: true
-  attr :at, :integer, required: true
-
-  # A time in the reader's own time zone once the page is live (`LocalTime`),
-  # with the time in UTC, the time the contract keeps, beside it.
-  defp local_time(assigns) do
-    ~H"""
-    <time
-      id={@id}
-      class="covered-calls__local"
-      datetime={@at |> DateTime.from_unix!() |> DateTime.to_iso8601()}
-      phx-hook="LocalTime"
-      phx-mounted={JS.ignore_attributes(["data-local"])}
-    >{F.expiry(@at)}</time><small class="covered-calls__utc">{F.utc_time(@at)}</small>
     """
   end
 

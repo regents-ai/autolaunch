@@ -22,6 +22,7 @@ import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
 import {HomeCells} from "./hooks/home_cells"
+import {Countdown} from "./hooks/countdown"
 import {LocalTime} from "./hooks/local_time"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
@@ -57,6 +58,7 @@ const hooks = {
   PriceChart,
   HomeCells,
   LocalTime,
+  Countdown,
   PublicName,
   XConnections,
   CreatorConnections,

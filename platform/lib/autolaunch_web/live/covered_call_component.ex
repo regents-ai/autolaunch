@@ -604,6 +604,25 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     """
   end
 
+  attr :id, :string, required: true
+  attr :at, :integer, required: true
+
+  @doc """
+  A time in the reader's own time zone once the page is live (`LocalTime`),
+  with the time in UTC, the time the contract keeps, beside it.
+  """
+  def local_time(assigns) do
+    ~H"""
+    <time
+      id={@id}
+      class="covered-calls__local"
+      datetime={@at |> DateTime.from_unix!() |> DateTime.to_iso8601()}
+      phx-hook="LocalTime"
+      phx-mounted={JS.ignore_attributes(["data-local"])}
+    >{F.expiry(@at)}</time><small class="covered-calls__utc">{F.utc_time(@at)}</small>
+    """
+  end
+
   # What the action comes to, as label and value, in the form and its review.
   defp facts(:list, facts, %{unit: unit, symbol: symbol}) do
     premium = F.total(facts.amount, facts.premium_per_token, unit)

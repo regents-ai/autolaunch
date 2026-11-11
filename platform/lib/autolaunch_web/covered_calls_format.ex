@@ -86,6 +86,15 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_days(expiry) when is_integer(expiry),
     do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"
 
+  @doc """
+  How long is left of an exercise window `seconds` before it closes: whole
+  hours from an hour up, whole minutes below, and never under a minute until
+  it has closed. The `Countdown` hook says the same as it counts down.
+  """
+  def closes_in(seconds) when seconds <= 0, do: "Closed"
+  def closes_in(seconds) when seconds >= 3_600, do: "Closes in #{div(seconds, 3_600)} h"
+  def closes_in(seconds), do: "Closes in #{max(div(seconds, 60), 1)} min"
+
   @doc "USDC micro-units as a dollar price a form takes back: digits and a dot, to the cent."
   def plain_usd(micro) when is_integer(micro) do
     cents = div(micro + 5_000, 10_000)

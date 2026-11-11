@@ -373,6 +373,40 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-claim-1")
   end
 
+  test "an open exercise window comes first on the portfolio, with the time it has left",
+       %{conn: conn} do
+    now = CoveredCallsChain.now()
+    closes = now - 3_600 + Terms.exercise_window()
+
+    # Listing 1 is still for sale; listing 2 is an hour into its window. The
+    # wallet holds calls on both.
+    CoveredCallsChain.install(%{
+      held: 2 * @unit,
+      listings: [
+        CoveredCallsChain.listing(%{}),
+        CoveredCallsChain.listing(%{expiry: now - 3_600})
+      ]
+    })
+
+    {view, _account} = portfolio(conn)
+    html = render(view)
+
+    assert position(html, "portfolio-covered-calls-held-2") <
+             position(html, "portfolio-covered-calls-held-1")
+
+    # Counted down in the browser from the chain's time at the reading.
+    countdown = "#portfolio-covered-calls-held-2-closes"
+    assert has_element?(view, "#{countdown}[data-closes='#{closes}'][data-now='#{now}']")
+    assert text(view, countdown) == F.closes_in(closes - now)
+
+    assert has_element?(
+             view,
+             "#{countdown}-at[datetime='#{DateTime.from_unix!(closes) |> DateTime.to_iso8601()}']"
+           )
+
+    refute has_element?(view, "#portfolio-covered-calls-held-1-closes")
+  end
+
   test "a holder's lapsed calls stay listed on the portfolio with nothing left to press",
        %{conn: conn} do
     CoveredCallsChain.install()
@@ -592,6 +626,11 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   end
 
   defp text(view, selector), do: view |> element(selector) |> render() |> words()
+
+  defp position(html, id) do
+    {at, _length} = :binary.match(html, ~s(id="#{id}"))
+    at
+  end
 
   # A page's visible words, tags dropped and spaces made single.
   defp words(html),

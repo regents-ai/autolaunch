@@ -63,6 +63,21 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     end
   end
 
+  test "an exercise window's time left is whole hours from an hour up, minutes below, until it closes" do
+    # The same cases as the browser's countdown (assets/test/countdown.test.ts).
+    for {seconds, said} <- [
+          {86_400, "Closes in 24 h"},
+          {5 * 3_600 + 59 * 60, "Closes in 5 h"},
+          {3_600, "Closes in 1 h"},
+          {3_599, "Closes in 59 min"},
+          {61, "Closes in 1 min"},
+          {30, "Closes in 1 min"},
+          {0, "Closed"},
+          {-5, "Closed"}
+        ],
+        do: assert(F.closes_in(seconds) == said)
+  end
+
   test "an hour either side of Friday 21:00 UTC is not an expiry" do
     [expiry | _] = Terms.expiries(1_800_000_000)
     refute Terms.weekly?(expiry - 3_600)

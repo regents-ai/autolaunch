@@ -19,6 +19,7 @@
 - Your covered calls, as agents read them, now include the stock in your wallet: the most you can list now.
 - Under You receive, what you keep as a share of the stock's worth, and for how many days, such as "0.22% · 4 days". A quote gives the same term in days.
 - The Buy receipt keeps the totals for your amount apart from the prices per token: You pay, To exercise (the USDC a full exercise pays) and You get (the stock it delivers), then the strike and break-even per token.
+- On the portfolio, listings whose exercise window is open come first, each with how long is left, such as "Closes in 5 h", over the time it closes in your time zone and in UTC.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
