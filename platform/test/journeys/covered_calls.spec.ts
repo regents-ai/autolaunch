@@ -142,7 +142,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await signIn(page, people.a)
   await page.goto("/stock/covered-call")
   await ready(page)
-  await page.locator("summary", {hasText: "Terms"}).click()
+  await page.getByRole("button", {name: "About the amount"}).click()
   await expect(page.getByText(/Dividends during the week stay with the tokens/)).toBeVisible()
   // While on, the page's own styles are served (off, that address is not found: switched_off.spec.ts).
   const styles = await page.request.get("/assets/js/covered_calls.css")
@@ -151,8 +151,9 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   expect(await styles.text()).toContain(".covered-calls__tabs")
   const unchanged = await page.request.get("/assets/js/covered_calls.css", {headers: {"if-none-match": styles.headers()["etag"]}})
   expect(unchanged.status(), "the browser's copy is kept while the file is the same").toBe(304)
-  await page.getByLabel("Amount").fill("3")
-  await page.getByLabel("Strike price").fill("300")
+  await page.getByLabel("Amount", {exact: true}).fill("3")
+  await page.getByRole("button", {name: "Custom", exact: true}).click()
+  await page.getByLabel("Custom strike").fill("300")
   await page.getByLabel("Premium", {exact: true}).fill("3")
   await fitsAndPresses(page, touch)
   await review(page, "List calls")
@@ -180,7 +181,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
     }, {timeout: 60_000})
     .toBe(1)
   await expect(b.getByText("Available to eligible people outside the US.")).toBeVisible()
-  await b.getByLabel("Amount").fill("1")
+  await b.getByLabel("Amount", {exact: true}).fill("1")
   await fitsAndPresses(b, touch)
   await review(b, "Buy calls")
   await fitsAndPresses(b, touch)
@@ -190,10 +191,10 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   expect((await press(b, bought, "Confirm purchase")).status).toBe("0x1")
   await expect(toast(b, "Bought")).toBeVisible()
   expect(await read("held", [id, fresh.wallet])).toBe(UNIT)
-  // The form takes the amount left from the listing as it now reads.
-  await expect(b.getByLabel("Amount")).toHaveValue("2")
+  // The ticket takes the amount left from the listing as it now reads.
+  await expect(b.getByLabel("Amount", {exact: true})).toHaveValue("2")
   // The same purchase again is a review of its own: it starts at the approval, never "done".
-  await b.getByLabel("Amount").fill("1")
+  await b.getByLabel("Amount", {exact: true}).fill("1")
   await review(b, "Buy calls")
   await expect(b.locator("[data-step=usdc_approval]")).toHaveAttribute("data-state", "ready")
   expect((await press(b, bought, "Approve USDC")).status).toBe("0x1")

@@ -64,14 +64,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
-    # Listing and buying follow the page's ticket; until the person types, an
-    # exercise follows the holding as the page reads it.
+    # Until the person types, an exercise follows the holding as the page reads
+    # it. Listing and buying follow the page's ticket (`order`).
     socket =
-      cond do
-        socket.assigns.kind in [:list, :fill] -> assign(socket, inputs: socket.assigns.order)
-        socket.assigns.typed -> socket
-        true -> assign(socket, inputs: defaults(socket.assigns))
-      end
+      if socket.assigns.typed,
+        do: socket,
+        else: assign(socket, inputs: defaults(socket.assigns))
 
     {:ok, socket |> OnchainSteps.adopt() |> sync()}
   end
@@ -131,11 +129,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
 
   @impl true
-  def handle_async(:quote, {:ok, {inputs, signer, result}}, socket) do
-    if inputs == socket.assigns.inputs and signer == signer(socket) do
+  def handle_async(:quote, {:ok, {request, signer, result}}, socket) do
+    if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, assign(socket, quote: {inputs, signer, prepared}, refusal: nil)}
+          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
 
         {:error, reason} ->
           {:noreply, assign(socket, quote: nil, refusal: reason)}
@@ -166,12 +164,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     case {signer, request(socket.assigns)} do
       {signer, {:ok, request}} when is_binary(signer) ->
-        %{inputs: inputs} = socket.assigns
         assigns = Map.take(socket.assigns, [:symbol, :kind, :current_human_id])
 
         socket
         |> assign(refusal: nil)
-        |> start_async(:quote, fn -> {inputs, signer, prepare(assigns, request, signer)} end)
+        |> start_async(:quote, fn -> {request, signer, prepare(assigns, request, signer)} end)
 
       {_signer, request} ->
         refusal = if match?({:error, _}, request), do: elem(request, 1)
@@ -208,13 +205,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             |> assign(
               notice: nil,
               press_note: nil,
-              quote: {socket.assigns.inputs, signer, prepared}
+              quote: {request, signer, prepared}
             )
             |> OnchainSteps.put_review(review)
 
           {:ok, prepared} ->
             socket
-            |> assign(quote: {socket.assigns.inputs, signer, prepared})
+            |> assign(quote: {request, signer, prepared})
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
@@ -330,10 +327,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp approval?(name), do: name in ~w(stock_approval usdc_approval)
 
-  # The figures for the form as it stands and the wallet that may act, once the
-  # chain has been read for them.
-  defp current(%{quote: {inputs, signer, prepared}, inputs: inputs} = assigns) do
-    if signer == OnchainSteps.signer(assigns.linked, assigns.active), do: prepared
+  # The figures for the action as it stands and the wallet that may act, once
+  # the chain has been read for them.
+  defp current(%{quote: {request, signer, prepared}} = assigns) do
+    if {:ok, request} == request(assigns) and
+         signer == OnchainSteps.signer(assigns.linked, assigns.active),
+       do: prepared
   end
 
   defp current(_assigns), do: nil

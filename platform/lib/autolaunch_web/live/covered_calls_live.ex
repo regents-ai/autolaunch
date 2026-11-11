@@ -453,7 +453,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           human_id={@human_id}
         />
         <div :if={@reading && @open == []} class="market-list__scroll market-list__empty">
-          <h2>No calls for sale right now</h2>
+          <h2>No calls for sale</h2>
           <.link patch={~p"/stock/covered-call"} class="rg-button rg-button--secondary">
             Sell calls
           </.link>
@@ -706,7 +706,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>If exercised</dt>
-              <dd id="covered-calls-sell-strike" data-count>
+              <dd id="covered-calls-sell-exercised" data-count>
                 {F.usd(@t.receipt && @t.receipt.strike)}
               </dd>
             </div>
