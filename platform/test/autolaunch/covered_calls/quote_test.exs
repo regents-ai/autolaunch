@@ -139,6 +139,17 @@ defmodule Autolaunch.CoveredCalls.QuoteTest do
     assert {answer.expiry, answer.exercise_closes_at} == {later, later + @window}
   end
 
+  test "the term is the days to the chosen expiry: early Sunday to Friday evening is six" do
+    # The chain double's latest block is Sunday 03:48 UTC; its next expiry is
+    # Friday 21:00 UTC, 5 days 17 hours later.
+    assert DateTime.from_unix!(@now) |> Date.day_of_week() == 7
+
+    for {expiry, weeks} <- Enum.with_index(Terms.expiries(@now)) do
+      assert {:ok, %{term_days: days}} = ask(%{expiry: expiry})
+      assert days == 6 + 7 * weeks
+    end
+  end
+
   test "an expiry that is not a Friday close, one already passed, a stale price and a zero amount are refused" do
     assert refusal(%{expiry: @expiry + 3_600}) == :not_a_weekly_expiry
     assert refusal(%{expiry: @expiry - 7 * 86_400}) == :expiry_passed

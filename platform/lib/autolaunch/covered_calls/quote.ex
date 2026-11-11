@@ -5,7 +5,8 @@ defmodule Autolaunch.CoveredCalls.Quote do
   the shared book.
 
     * the reference price per whole token and when the feed last updated it
-    * the next weekly expiries, each with its exercise window
+    * the next weekly expiries, each with its exercise window, and the chosen
+      one's term in whole days (`Terms.term_days/2`)
     * three suggested strikes above the reference price (`@presets`), each
       with how far above it is and its suggested premium
     * for the chosen strike (the middle suggestion when none is asked) and
@@ -66,6 +67,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
          presets: Enum.map(presets, &Map.put(&1, :premium, total(amount, &1, book.unit))),
          expiry: expiry,
          exercise_closes_at: expiry + Terms.exercise_window(),
+         term_days: Terms.term_days(expiry, book.now),
          amount: amount,
          strike_per_token: strike,
          suggested_premium_per_token: suggested,
@@ -146,7 +148,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
   # it: the premium if all of it is bought at once, the 1% fee taken from it,
   # what the seller keeps, and the strike if all of it is exercised; beside
   # them the stock's worth at the reference price, and the premium kept as a
-  # fraction of that worth for the term (not a yearly rate).
+  # fraction of that worth for the term to expiry (not a yearly rate).
   defp receipt(nil, _spot, _strike, _premium, _unit), do: nil
 
   defp receipt(amount, spot, strike, premium, unit) do

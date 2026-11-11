@@ -6,7 +6,8 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   alias AutolaunchWeb.CoveredCallsFormat, as: F
 
   @unit 100_000_000
-  @week 7 * 86_400
+  @day 86_400
+  @week 7 * @day
 
   property "a fill or an exercise pays the exact amount rounded up, as the contract does" do
     check all(amount <- integer(1..(1_000 * @unit)), per_token <- integer(1..10_000_000_000)) do
@@ -50,6 +51,15 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
         assert Date.day_of_week(at) == 5
         assert {at.hour, at.minute, at.second} == {21, 0, 0}
       end
+    end
+  end
+
+  property "a listing's term is the days to its expiry, to the nearest day and never under one" do
+    check all(now <- integer(1_700_000_000..2_100_000_000), ahead <- integer(1..(40 * @day))) do
+      days = Terms.term_days(now + ahead, now)
+
+      assert days >= 1
+      assert abs(days * @day - ahead) <= div(@day, 2) or (days == 1 and ahead < @day)
     end
   end
 

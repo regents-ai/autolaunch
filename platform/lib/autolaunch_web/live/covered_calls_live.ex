@@ -265,7 +265,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       premium: premium,
       order: order,
       value: value(amount, quote),
-      receipt: receipt(order, quote)
+      receipt: receipt(order, quote),
+      lead: lead(order, quote)
     }
   end
 
@@ -301,6 +302,21 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   defp receipt(nil, _quote), do: nil
   defp receipt(order, quote), do: if(answers?(quote, order), do: quote.receipt)
+
+  # Under You receive: what the seller keeps as a share of the stock's worth,
+  # for the term to expiry.
+  defp lead(order, quote) do
+    case receipt(order, quote) do
+      nil ->
+        nil
+
+      %{net_premium_yield: share} ->
+        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% · #{days(quote.term_days)}"
+    end
+  end
+
+  defp days(1), do: "1 day"
+  defp days(count), do: "#{count} days"
 
   # The strike chosen and the premium suggested for it at the chosen expiry,
   # once the quote has answered for that expiry (and, for a custom strike, for
@@ -751,8 +767,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <dl id="covered-calls-sell-receipt" class="covered-calls__lines">
             <div>
               <dt>You receive</dt>
-              <dd id="covered-calls-sell-net" data-count>
-                {F.usd(@t.receipt && @t.receipt.net_premium)}
+              <dd class="covered-calls__lead">
+                <span id="covered-calls-sell-net" data-count>
+                  {F.usd(@t.receipt && @t.receipt.net_premium)}
+                </span>
+                <small id="covered-calls-sell-yield">{@t.lead}</small>
               </dd>
             </div>
             <div>

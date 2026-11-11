@@ -169,6 +169,33 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert text(view, "#covered-calls-sell-value") == "≈ #{F.usd(receipt.reference_value)}"
   end
 
+  test "under You receive, the quote's share of the stock's worth and its term", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+    refute text(view, "#covered-calls-sell-yield") =~ "%"
+
+    [first | _later] = Terms.expiries(CoveredCallsChain.now())
+
+    render_change(element(view, "#covered-calls-sell-form"), %{
+      "amount" => "2",
+      "_target" => ["amount"]
+    })
+
+    settled(view)
+
+    {:ok, quote} =
+      CoveredCalls.covered_call_quote("AMZNc", %{expiry: first, amount: 2 * @unit}, actor: nil)
+
+    [percent, days] =
+      Regex.run(~r/([\d.]+)%\D+(\d+)/, text(view, "#covered-calls-sell-yield"),
+        capture: :all_but_first
+      )
+
+    assert_in_delta String.to_float(percent), quote.receipt.net_premium_yield * 100, 0.005
+    assert String.to_integer(days) == quote.term_days
+  end
+
   test "signed in, the Sell ticket shows the wallet's stock and Max fills the amount with it",
        %{conn: conn} do
     CoveredCallsChain.install(%{balance: 7 * @unit + div(@unit, 2)})

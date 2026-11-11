@@ -9,15 +9,16 @@ defmodule Autolaunch.CoveredCalls.Terms do
   token; every USDC amount rounds up, as the contract rounds it.
   """
 
-  @week 7 * 86_400
+  @day 86_400
+  @week 7 * @day
   # Unix time began on a Thursday, so Friday 21:00 UTC is 1 day 21 hours into
   # an epoch-aligned week: the contract's `WEEKLY_EXPIRY_OFFSET`.
-  @expiry_offset 86_400 + 21 * 3_600
-  @window 86_400
+  @expiry_offset @day + 21 * 3_600
+  @window @day
   @fee_bps 100
   @bps 10_000
   @usdc_unit 1_000_000
-  @year 365 * 86_400
+  @year 365 * @day
 
   def exercise_window, do: @window
   def fee_bps, do: @fee_bps
@@ -32,6 +33,13 @@ defmodule Autolaunch.CoveredCalls.Terms do
     first = if first <= now, do: first + @week, else: first
     for n <- 0..(count - 1), do: first + n * @week
   end
+
+  @doc """
+  A listing's term as a page names it: the whole days from `now` to `expiry`,
+  to the nearest day and never under one.
+  """
+  def term_days(expiry, now) when is_integer(expiry) and is_integer(now) and expiry > now,
+    do: max(div(expiry - now + div(@day, 2), @day), 1)
 
   @doc "`amount` raw units at `per_token` USDC per whole token of `unit` raw units, rounded up."
   def usdc_for(amount, per_token, unit), do: ceil_div(amount * per_token, unit)

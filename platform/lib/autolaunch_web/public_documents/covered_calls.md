@@ -4,7 +4,7 @@ Covered calls on Base stock tokens are open on this site. A seller locks stock t
 
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 
-A quote gives the reference price, the next four expiries with their exercise windows, and three suggested strikes above the reference price, each with a suggested premium. For the strike and premium you choose (the middle suggestion and its premium when you leave them out) and an `amount`, its `receipt` says what the listing pays if all of it is bought at once and all of it exercised: the premium, the 1% fee, what the seller keeps and the strike, each exactly what the contract counts, so it matches the steps you prepare for the same listing.
+A quote gives the reference price, the next four expiries with their exercise windows, and three suggested strikes above the reference price, each with a suggested premium. For the strike and premium you choose (the middle suggestion and its premium when you leave them out) and an `amount`, its `receipt` says what the listing pays if all of it is bought at once and all of it exercised: the premium, the 1% fee, what the seller keeps and the strike, each exactly what the contract counts, so it matches the steps you prepare for the same listing. Beside them, `net_premium_yield` is what the seller keeps as a share of the stock's worth for the term, and `term_days` is that term: the whole days to the expiry.
 
 | Action | WebMCP tool | HTTP |
 | --- | --- | --- |

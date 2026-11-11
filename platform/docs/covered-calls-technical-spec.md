@@ -3795,6 +3795,7 @@ components:
           - presets
           - expiry
           - exercise_closes_at
+          - term_days
           - amount
           - strike_per_token
           - suggested_premium_per_token
@@ -3830,6 +3831,10 @@ components:
             exercise_closes_at:
               type: integer
               description: When the chosen expiry's exercise window closes, Unix seconds.
+            term_days:
+              type: integer
+              description: Whole days from now to the chosen expiry, to the nearest day and at least
+                one; the term net_premium_yield is for.
             amount:
               type:
               - integer
