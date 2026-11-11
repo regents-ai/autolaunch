@@ -46,7 +46,11 @@
 .price-line__level { position: absolute; inset-inline: 0; inset-block-start: 0; block-size: 0; }
 .price-line__level[hidden] { display: none; }
 .price-line__level::before { content: ""; position: absolute; inset-inline: 0 var(--price-line-margin); inset-block-start: -.5px; border-block-start: 1px dashed var(--color-fg-muted); }
-.price-line__level > span { position: absolute; inset-inline-start: calc(100% - var(--price-line-margin)); inset-block-start: 0; padding-inline-start: .375rem; color: var(--color-fg); font-size: .75rem; line-height: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateY(calc(-50% + var(--nudge, 0px))); }
+.price-line__level > span { position: absolute; inset-inline-start: calc(100% - var(--price-line-margin)); inset-block-start: 0; display: flex; align-items: baseline; justify-content: space-between; gap: .25rem; inline-size: var(--price-line-margin); padding-inline-start: .375rem; color: var(--color-fg); font-size: .75rem; line-height: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateY(calc(-50% + var(--nudge, 0px))); }
+/* Named levels (Buy's strike and break-even): the margin holds each name before its figure, and the break-even is dotted and lighter. */
+.price-line:has(.price-line__name) { --price-line-margin: 7.5rem; }
+.price-line__name { color: var(--color-fg-muted); font-size: .6875rem; }
+.price-line__level--dotted::before { border-block-start-style: dotted; border-color: color-mix(in srgb, var(--color-fg-muted) 60%, transparent); }
 .covered-calls__field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); min-width: 0; margin: 0; padding: 0; border: 0; }
 .covered-calls__label { display: flex; align-items: center; gap: .25rem; min-block-size: 1.75rem; padding: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .covered-calls__label > :is(label, h3, h4) { margin: 0; color: inherit; font-size: inherit; font-weight: var(--font-weight-regular, 400); }

@@ -618,9 +618,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <PriceChart.price_line
           id="covered-calls-sell-price"
           points={@line}
-          levels={[dollars(@t.strike)]}
           follow="covered-calls-sell-form"
-        />
+        >
+          <:level price={dollars(@t.strike)} />
+        </PriceChart.price_line>
 
         <form id="covered-calls-sell-form" phx-change="sell" phx-submit="sell">
           <div class="covered-calls__field">
@@ -891,11 +892,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <div class="covered-calls__market">
           <h3 id={"#{@id}-title"} class="covered-calls__title">Buy calls</h3>
         </div>
-        <PriceChart.price_line
-          id={"#{@id}-price"}
-          points={@line}
-          levels={[dollars(@listing.strike_per_token), dollars(@break_even)]}
-        />
+        <PriceChart.price_line id={"#{@id}-price"} points={@line}>
+          <:level price={dollars(@listing.strike_per_token)} name="Strike" />
+          <:level price={dollars(@break_even)} name="Break-even" dotted />
+        </PriceChart.price_line>
         <form id={"#{@id}-form"} phx-change="buy" phx-submit="buy">
           <div class="covered-calls__field">
             <div class="covered-calls__label">

@@ -61,20 +61,22 @@ defmodule AutolaunchWeb.Components.PriceChart do
     required: true,
     doc: "`[unix seconds, dollars]` pairs, oldest first, or nil while there is no line"
 
-  attr :levels, :list,
-    required: true,
-    doc: "the prices in dollars drawn flat across it, nil for one not set"
-
   attr :follow, :string,
     default: nil,
     doc: "the Sell form whose strike the first level follows as it is chosen or typed"
 
+  slot :level, required: true, doc: "a price drawn flat across it, its figure at the end" do
+    attr :price, :float, required: true, doc: "in dollars, nil while it is not set"
+    attr :name, :string, doc: "the word before its figure"
+    attr :dotted, :boolean, doc: "drawn dotted and lighter, to tell it from a dashed one"
+  end
+
   @doc """
   A covered-call ticket's small price line: a stock's last 30 days, with prices
   drawn flat across it and each one's figure at its end (the strike, and on Buy
-  the break-even). The PriceLine hook draws it with this module's renderer. Its
-  box keeps its size while there is no line, and a browser that cannot draw
-  keeps the caption.
+  the break-even, each named, the break-even dotted). The PriceLine hook draws
+  it with this module's renderer. Its box keeps its size while there is no
+  line, and a browser that cannot draw keeps the caption.
   """
   def price_line(assigns) do
     ~H"""
@@ -89,12 +91,17 @@ defmodule AutolaunchWeb.Components.PriceChart do
         class="price-line__plot"
         phx-hook="PriceLine"
         data-points={Jason.encode!(@points)}
-        data-levels={Jason.encode!(@levels)}
+        data-levels={Jason.encode!(Enum.map(@level, & &1.price))}
         data-follow={@follow}
       >
         <canvas id={"#{@id}-line"} phx-update="ignore" aria-hidden="true"></canvas>
         <div id={"#{@id}-levels"} class="price-line__levels" phx-update="ignore" aria-hidden="true">
-          <span :for={_level <- @levels} class="price-line__level" data-level="" hidden><span></span></span>
+          <span
+            :for={level <- @level}
+            class={["price-line__level", level[:dotted] && "price-line__level--dotted"]}
+            data-level=""
+            hidden
+          ><span><small :if={level[:name]} class="price-line__name">{level.name}</small><span data-figure></span></span></span>
         </div>
       </div>
       <div :if={!@points} id={"#{@id}-empty"} class="price-line__plot"></div>

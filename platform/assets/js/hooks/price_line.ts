@@ -29,7 +29,7 @@ export function typedPrice(text: string): number | null {
 function setLevel(root: HTMLElement, index: number, price: number | null) {
   const level = root.querySelectorAll<HTMLElement>("[data-level]")[index]
   level.dataset.level = price === null ? "" : String(price)
-  level.firstElementChild!.textContent = price === null ? "" : `$${cents.format(price)}`
+  level.querySelector("[data-figure]")!.textContent = price === null ? "" : `$${cents.format(price)}`
 }
 
 function setLevels(root: HTMLElement, prices: (number | null)[]) {

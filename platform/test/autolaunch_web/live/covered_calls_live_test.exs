@@ -299,6 +299,19 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     assert plot(view, "covered-call-buy-1-price", "data-levels") == [260.0, 263.0]
     assert [_first, _second | _rest] = plot(view, "covered-call-buy-1-price", "data-points")
+
+    # Each is named before its figure; the break-even is the dotted one.
+    assert has_element?(
+             view,
+             "#covered-call-buy-1-price-levels > :first-child:not(.price-line__level--dotted)",
+             "Strike"
+           )
+
+    assert has_element?(
+             view,
+             "#covered-call-buy-1-price-levels > .price-line__level--dotted:last-child",
+             "Break-even"
+           )
   end
 
   test "the Buy receipt counts the amount typed as the contract does, apart from the prices per token",
