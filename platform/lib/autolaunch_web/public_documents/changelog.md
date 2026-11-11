@@ -57,6 +57,9 @@
 - View portfolio is written in sentence case everywhere it appears.
 - On a phone, a button that does not fit beside the others moves to its own line instead of cutting its label short.
 
+## 11 November 2026: Not available in your region
+- Opening a page that isn’t offered where you are now shows that on an Autolaunch page, with the menu and sidebar, so you can carry on to the rest of the site.
+
 ## 11 November 2026: Credits
 - Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
 - Agents no longer read Credits: the balances and Credits history reads are gone, with their browser tools.

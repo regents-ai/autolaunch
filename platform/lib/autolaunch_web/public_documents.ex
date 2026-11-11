@@ -149,7 +149,8 @@ defmodule AutolaunchWeb.PublicDocuments do
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
     "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
-    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
+    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."},
+    "/unavailable" => {"Not available in your region", "This page isn’t offered where you are."}
   }
 
   # The fixed pages both sitemaps list.
