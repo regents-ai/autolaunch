@@ -1,5 +1,12 @@
 # Changelog
 
+## 11 November 2026: Auction lengths
+- Pages and guides now give the real length of a Base auction since Base went to five blocks a second: about 2 hours for a Memestock and about 5 hours for a Revstake. A Base Memestock creator's tokens are released over about 3 days. Robinhood Chain's figures are unchanged.
+- The How it works share picture no longer names a length.
+
+## 11 November 2026: Your bids
+- Under "Your bids on this auction", an open bid offers Add and Raise again.
+
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.
