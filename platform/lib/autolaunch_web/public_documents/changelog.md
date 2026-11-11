@@ -2,6 +2,7 @@
 
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
+- On the exposure panel, a confirmed approval now shows its green border too.
 
 ## 11 November 2026: Auction page
 - The block a figure was read at and the blocks left until bidding ends sit under Exact, beside the exact price per token.
