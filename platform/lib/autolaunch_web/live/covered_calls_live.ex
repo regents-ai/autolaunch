@@ -240,21 +240,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp ticket(sell, book, quote) do
     expiries = Terms.expiries(book.now)
     expiry = Enum.find(expiries, hd(expiries), &(Integer.to_string(&1) == sell["expiry"]))
-    presets = (quote && quote.presets) || []
-    priced = if quote && quote.expiry == expiry, do: quote
+    presets = quoted_presets(quote)
     amount = F.parse_tokens(sell["amount"], book.unit)
-    {strike, suggested} = strike(sell, presets, priced)
-    typed = sell["premium"] && F.parse_usd(sell["premium"])
-    premium = if sell["premium"], do: typed, else: suggested
-
-    order =
-      if amount && strike && premium,
-        do: %{
-          amount: amount,
-          strike_per_token: strike,
-          premium_per_token: premium,
-          expiry: expiry
-        }
+    {strike, suggested} = strike(sell, presets, priced(quote, expiry))
+    {typed, premium} = premium(sell["premium"], suggested)
+    order = order(amount, strike, premium, expiry)
 
     %{
       expiries: expiries,
@@ -267,9 +257,35 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       typed: typed,
       premium: premium,
       order: order,
-      receipt: if(order && answers?(quote, order), do: quote.receipt)
+      receipt: receipt(order, quote)
     }
   end
+
+  defp quoted_presets(nil), do: []
+  defp quoted_presets(%{presets: presets}), do: presets
+
+  # The quote prices the ticket only when it answered for the chosen expiry.
+  defp priced(%{expiry: expiry} = quote, expiry), do: quote
+  defp priced(_quote, _expiry), do: nil
+
+  # The premium typed in, and the one the ticket uses: the typed one once
+  # there is one, until then the suggestion.
+  defp premium(nil, suggested), do: {nil, suggested}
+
+  defp premium(field, _suggested) do
+    typed = F.parse_usd(field)
+    {typed, typed}
+  end
+
+  defp order(amount, strike, premium, _expiry)
+       when is_nil(amount) or is_nil(strike) or is_nil(premium),
+       do: nil
+
+  defp order(amount, strike, premium, expiry),
+    do: %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}
+
+  defp receipt(nil, _quote), do: nil
+  defp receipt(order, quote), do: if(answers?(quote, order), do: quote.receipt)
 
   # The strike chosen and the premium suggested for it at the chosen expiry,
   # once the quote has answered for that expiry (and, for a custom strike, for

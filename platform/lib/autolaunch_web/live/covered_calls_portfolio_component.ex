@@ -315,48 +315,75 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   # or exercised, and for a seller from the expiry on the calls sold and not
   # exercised (its button saying so until the window closes, when the chain
   # also counts the unsold part in what it returns).
+  @parts [:sold, :for_sale, :unsold, :exercised, :held, :lapsed, :to_collect]
+  @after_expiry [:exercise, :closed]
+  @no_holding %{held: 0, claimable: 0}
+
   defp parts(side, stage, listing, holding) do
-    held = (holding && holding.held) || 0
-    claimable = (holding && holding.claimable) || 0
-    seller? = side == :sold
-    after_expiry? = stage in [:exercise, :closed]
-    unsold = if seller? and not listing.stock_returned, do: Terms.available(listing), else: 0
+    %{held: held, claimable: claimable} = holding || @no_holding
+    unsold = unsold(side, listing)
 
-    to_collect =
-      cond do
-        seller? and stage == :exercise and not listing.stock_returned ->
-          claimable + listing.filled - listing.exercised
+    facts = %{
+      side: side,
+      stage: stage,
+      listing: listing,
+      held: held,
+      unsold: unsold,
+      to_collect: to_collect(side, stage, listing, claimable, unsold)
+    }
 
-        seller? and stage == :closed ->
-          claimable - unsold
-
-        true ->
-          claimable
-      end
-
-    [
-      (seller? and listing.amount > 0) &&
-        %{name: :sold, label: "Sold", figure: {listing.filled, listing.amount}, step: nil},
-      (unsold > 0 and not after_expiry?) &&
-        %{name: :for_sale, label: "For sale", figure: unsold, step: :cancel},
-      (unsold > 0 and after_expiry?) &&
-        %{name: :unsold, label: "Unsold", figure: unsold, step: :cancel},
-      (seller? and after_expiry? and listing.filled > 0) &&
-        %{
-          name: :exercised,
-          label: "Exercised",
-          figure: {listing.exercised, listing.filled},
-          step: (stage == :exercise or Terms.strike_due(listing) > 0) && :collect_strike
-        },
-      (held > 0 and stage != :closed) &&
-        %{name: :held, label: "Held", figure: held, step: :exercise},
-      (held > 0 and stage == :closed) &&
-        %{name: :lapsed, label: "Lapsed", figure: held, step: nil},
-      to_collect > 0 &&
-        %{name: :to_collect, label: "To collect", figure: to_collect, step: :claim}
-    ]
-    |> Enum.filter(& &1)
+    @parts |> Enum.map(&part(&1, facts)) |> Enum.reject(&is_nil/1)
   end
+
+  defp part(:sold, %{side: :sold, listing: %{amount: amount, filled: filled}}) when amount > 0,
+    do: %{name: :sold, label: "Sold", figure: {filled, amount}, step: nil}
+
+  defp part(:for_sale, %{unsold: unsold, stage: stage})
+       when unsold > 0 and stage not in @after_expiry,
+       do: %{name: :for_sale, label: "For sale", figure: unsold, step: :cancel}
+
+  defp part(:unsold, %{unsold: unsold, stage: stage})
+       when unsold > 0 and stage in @after_expiry,
+       do: %{name: :unsold, label: "Unsold", figure: unsold, step: :cancel}
+
+  defp part(:exercised, %{side: :sold, stage: stage, listing: %{filled: filled} = listing})
+       when stage in @after_expiry and filled > 0 do
+    %{
+      name: :exercised,
+      label: "Exercised",
+      figure: {listing.exercised, filled},
+      step: strike_step(stage, listing)
+    }
+  end
+
+  defp part(:held, %{held: held, stage: stage}) when held > 0 and stage != :closed,
+    do: %{name: :held, label: "Held", figure: held, step: :exercise}
+
+  defp part(:lapsed, %{held: held, stage: :closed}) when held > 0,
+    do: %{name: :lapsed, label: "Lapsed", figure: held, step: nil}
+
+  defp part(:to_collect, %{to_collect: to_collect}) when to_collect > 0,
+    do: %{name: :to_collect, label: "To collect", figure: to_collect, step: :claim}
+
+  defp part(_name, _facts), do: nil
+
+  # What the seller has not sold, until its stock is returned.
+  defp unsold(:sold, %{stock_returned: false} = listing), do: Terms.available(listing)
+  defp unsold(_side, _listing), do: 0
+
+  # The stock the chain lets the wallet claim, as the page counts it: for a
+  # seller in the window also the calls sold and not exercised, and once the
+  # window has closed without the unsold part, which shows as its own.
+  defp to_collect(:sold, :exercise, %{stock_returned: false} = listing, claimable, _unsold),
+    do: claimable + listing.filled - listing.exercised
+
+  defp to_collect(:sold, :closed, _listing, claimable, unsold), do: claimable - unsold
+  defp to_collect(_side, _stage, _listing, claimable, _unsold), do: claimable
+
+  # The strike for the exercised part is collected through the window, and
+  # after it while any is still due.
+  defp strike_step(:exercise, _listing), do: :collect_strike
+  defp strike_step(:closed, listing), do: if(Terms.strike_due(listing) > 0, do: :collect_strike)
 
   defp figure({part, whole}, unit, symbol),
     do: "#{F.tokens(part, unit)} of #{F.tokens(whole, unit)} #{symbol}"
