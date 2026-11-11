@@ -1,5 +1,9 @@
 # Changelog
 
+## 11 November 2026: Auction page
+- The block a figure was read at and the blocks left until bidding ends sit under Exact, beside the exact price per token.
+- The price chart is titled Price, with one line under it saying what the line, the dashed line and the bars show.
+
 ## 11 November 2026: Approve
 - Once you send an approval from a review, Approve stays under the next step's button, the same size, and pressing it asks your wallet again. When the approval is confirmed it turns grey with a green border.
 
