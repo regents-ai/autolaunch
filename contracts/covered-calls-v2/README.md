@@ -5,8 +5,9 @@ does everything V1 does, unchanged, and adds one thing: a buyer can post a bid f
 escrow its premium, and any seller can sell into that bid and be paid at once. It is written so
 the site can move to V2 alone; it neither imports nor calls V1.
 
-Status: **not deployed.** Deploying it is a contract deployment, which needs Sean's go. Nothing for
-it is prepared here: no deploy packet, script, salt, dry run, rehearsal or Base fork suite.
+Status: **not deployed; waits for Sean.** Deploying it is a contract deployment, which needs
+Sean's go. Its deploy packet is ready in [deploy/](deploy/README.md): one transaction that places
+it at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` on Base, rehearsed on a local copy of Base.
 
 ## In plain words
 
@@ -273,7 +274,7 @@ calls.
 - Each new action needs its row and five surfaces in `docs/agent-parity.md`.
 
 **The cutover.** The market record's `contract`
-(`contracts/covered-calls/deploy/site-markets.json`, copied to the site's deployment file) changes
+(`contracts/covered-calls-v2/deploy/site-markets.json`, copied to the site's deployment file) changes
 to the V2 address in the same release that ships the bid pages; no code path keeps reading V1. V2
 counts listing and bid ids from 1, and the site reads one contract per market, so ids never meet
 V1's. V1 has no owner and every pull on it has no deadline, so nothing on V1 is lost by the site
@@ -281,10 +282,12 @@ moving: the release should land after V1's last exercise window has closed, with
 latest block listing any V1 stock or strike still unclaimed. Whether the site must show those
 leftovers, or their owners claim on V1 directly, is a decision for Sean before the release.
 
-**Deployment** of V2 is a contract deployment and needs Sean's go. It is not prepared here; V1's
-[deploy/](../covered-calls/deploy/README.md) shows the shape it would follow (deterministic
-CREATE2, an independently reviewed packet, a dry run on the latest Base block, and a Base fork
-suite against the real AMZNc, USDC and REGENT staking).
+**Deployment** of V2 is a contract deployment and needs Sean's go. Its packet,
+[deploy/](deploy/README.md), is built the way V1's [deploy/](../covered-calls/deploy/README.md)
+was: deterministic CREATE2, a deploy script that sends exactly the packet's transaction, and a
+rehearsal on a local copy of Base that runs a whole life with the real AMZNc, USDC and REGENT
+staking. V1 also had an independent review of its packet, a dry run on the latest Base block once
+deployed, and a Base fork suite; V2 has none of those yet.
 
 ## Checks
 
@@ -306,4 +309,6 @@ The offline gate: `forge fmt --check`, `forge build`, and every suite. It builds
 | `CoveredCallsV2.attacks.t.sol` | 5 | reentry through stock, USDC and staking; nobody reaches another's funds; overflow |
 | `CoveredCallsV2.invariant.t.sol` | 9 invariants | the Invariants above |
 
-There is no Base fork suite yet: it needs a Base RPC, and it belongs with the deployment work.
+There is no Base fork suite yet. The deploy packet's rehearsal (`deploy/rehearse.sh`) runs the
+contract on a local copy of Base with the real AMZNc, USDC and REGENT staking, but not the
+issuer's pause, blocklist or corporate actions.
