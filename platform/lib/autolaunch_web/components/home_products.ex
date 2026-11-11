@@ -1,16 +1,16 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
   The home page's products, at the top of the page: covered calls, Memestock
-  launches and Revstake launches. Each card is one link: a moving panel of
+  launches and Revstake launches. Each card is one dark link: a moving panel of
   small lit cells drawn on the GPU (`HomeCells` in `assets/js/hooks/home_cells.ts`),
-  a pattern for each product, then a title and what the link does. The
-  product's line drawing is the picture until the panel has drawn, and stays
-  it without WebGPU.
+  a pattern and a colour for each product; under it the product's name in its
+  colour with its place in the row, what it is for, and what the link does. The
+  product's line drawing is the picture until the panel has drawn, and stays it
+  without WebGPU.
 
   A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
   launch cards keep their place, not a link, and say so where the action would be.
-
 
   `/stocks` shows the stock products' cards, Memestock and covered calls, with `only`.
   """
@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     <section id="home-products" class="home-products" aria-label="Products" phx-update="ignore">
       <ul class="home-products__row" data-count={length(@products)}>
         <li
-          :for={product <- @products}
+          :for={{product, place} <- Enum.with_index(@products, 1)}
           id={"home-product-#{product.id}"}
           class="home-product"
           phx-hook="HomeCells"
@@ -41,10 +41,10 @@ defmodule AutolaunchWeb.Components.HomeProducts do
             navigate={product.path}
             class="home-product__face"
           >
-            <.face product={product} action={product.action} />
+            <.face product={product} place={place} count={length(@products)} action={product.action} />
           </.link>
           <div :if={product.launch and !@launches_open} class="home-product__face">
-            <.face product={product} action="Opens soon" />
+            <.face product={product} place={place} count={length(@products)} action="Opens soon" />
           </div>
         </li>
       </ul>
@@ -53,6 +53,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   end
 
   attr :product, :map, required: true
+  attr :place, :integer, required: true
+  attr :count, :integer, required: true
   attr :action, :string, required: true
 
   defp face(assigns) do
@@ -64,13 +66,20 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       <.drawing id={"home-product-drawing-#{@product.id}"} product={@product.id} />
     </div>
     <div class="home-product__words">
-      <h2 class="home-product__title">{@product.title}</h2>
+      <div class="home-product__meta">
+        <h2 class="home-product__title">{@product.title}</h2>
+        <span class="home-product__place" aria-hidden="true">{place(@place)} / {place(@count)}</span>
+      </div>
+      <p class="home-product__headline">{@product.headline}</p>
+      <p class="home-product__line">{@product.line}</p>
       <p class="home-product__action">
         {@action}<Regent.Icons.icon name="arrow-right" class="home-product__arrow" />
       </p>
     </div>
     """
   end
+
+  defp place(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
 
   defp pattern(id), do: Map.fetch!(@patterns, id)
 
@@ -80,6 +89,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         %{
           id: "calls",
           title: "Covered calls",
+          headline: "Earn on stock you hold.",
+          line: "Sell weekly calls for a premium in USDC, or buy one.",
           action: "Trade calls",
           path: "/stock/covered-call",
           launch: false
@@ -87,6 +98,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       %{
         id: "memestock",
         title: "Memestock",
+        headline: "Memecoins tied to stocks.",
+        line: "Bids are paid in the stock and go into the token's locked pool.",
         action: "Launch one",
         path: "/create",
         launch: true
@@ -94,6 +107,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       %{
         id: "revstake",
         title: "Revstake",
+        headline: "Tokens that share revenue.",
+        line: "Agents and projects raise REGENT, and stakers share their fees and payments.",
         action: "Launch one",
         path: "/agent-business",
         launch: true
