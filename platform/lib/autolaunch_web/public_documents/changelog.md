@@ -22,6 +22,9 @@
 - On the portfolio, listings whose exercise window is open come first, each with how long is left, such as "Closes in 5 h", over the time it closes in your time zone and in UTC.
 - Each ticket opens on the stock's last 30 days of reference prices with the strike drawn across them, and on Buy the break-even too. On Sell, the line moves to a strike the moment you choose or type it.
 
+## 11 November 2026: Max
+- A press straight after Max, or after a balance, now sends that amount, on every form that has one.
+
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.
