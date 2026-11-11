@@ -150,8 +150,9 @@ defmodule Autolaunch.CoveredCalls.QuoteTest do
     end
   end
 
-  test "an expiry that is not a Friday close, one already passed, a stale price and a zero amount are refused" do
-    assert refusal(%{expiry: @expiry + 3_600}) == :not_a_weekly_expiry
+  test "an expiry that is not a Friday close or past the four offered, one already passed, a stale price and a zero amount are refused" do
+    assert refusal(%{expiry: @expiry + 3_600}) == :expiry_not_offered
+    assert refusal(%{expiry: Enum.at(Terms.expiries(@now, 5), 4)}) == :expiry_not_offered
     assert refusal(%{expiry: @expiry - 7 * 86_400}) == :expiry_passed
     assert {:error, %Ash.Error.Invalid{}} = ask(%{amount: 0})
 

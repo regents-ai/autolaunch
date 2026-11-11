@@ -35,16 +35,16 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     end
   end
 
-  property "every expiry offered is a future Friday at 21:00 UTC, a week apart" do
-    check all(now <- integer(1_700_000_000..2_100_000_000)) do
-      expiries = Terms.expiries(now)
-      assert length(expiries) == 4
-      assert Enum.all?(expiries, &(Terms.weekly?(&1) and &1 > now))
-      assert hd(expiries) - now <= @week
+  property "the expiries offered are `count` future Fridays at 21:00 UTC in order, at most two left out in a row" do
+    check all(now <- integer(1_700_000_000..2_100_000_000), count <- integer(1..8)) do
+      expiries = Terms.expiries(now, count)
+      assert length(expiries) == count
+      assert hd(expiries) > now
+      # Christmas and New Year's Day on a Friday leave out two Fridays in a row.
+      assert hd(expiries) - now <= 3 * @week
 
-      assert expiries
-             |> Enum.chunk_every(2, 1, :discard)
-             |> Enum.all?(fn [a, b] -> b - a == @week end)
+      for [a, b] <- Enum.chunk_every(expiries, 2, 1, :discard),
+          do: assert((b - a) in [@week, 2 * @week, 3 * @week])
 
       for expiry <- expiries do
         at = DateTime.from_unix!(expiry)
@@ -52,6 +52,59 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
         assert {at.hour, at.minute, at.second} == {21, 0, 0}
       end
     end
+  end
+
+  property "an expiry offered stays offered until it passes, so steps built later take what a page offered" do
+    check all(now <- integer(1_700_000_000..2_100_000_000), later <- integer(0..(5 * @week))) do
+      still = Enum.filter(Terms.expiries(now), &(&1 > now + later))
+      assert still == Enum.take(Terms.expiries(now + later), length(still))
+    end
+  end
+
+  # The Fridays NYSE's own calendar shuts or closes early at 13:00 New York
+  # time in 2026, 2027 and 2028 (nyse.com/markets/hours-calendars, read 11
+  # November 2026). Its other holidays and early closes fall on other days.
+  @nyse_fridays [
+    # Good Friday, Juneteenth, Independence Day observed, the early close after
+    # Thanksgiving, Christmas.
+    ~D[2026-04-03],
+    ~D[2026-06-19],
+    ~D[2026-07-03],
+    ~D[2026-11-27],
+    ~D[2026-12-25],
+    # New Year's Day, Good Friday, Juneteenth observed, the early close after
+    # Thanksgiving, Christmas observed.
+    ~D[2027-01-01],
+    ~D[2027-03-26],
+    ~D[2027-06-18],
+    ~D[2027-11-26],
+    ~D[2027-12-24],
+    # Good Friday, the early close after Thanksgiving. New Year's Day 2028 is a
+    # Saturday and NYSE observes none, so Friday 31 December 2027 trades.
+    ~D[2028-04-14],
+    ~D[2028-11-24]
+  ]
+
+  defp unix(date), do: date |> DateTime.new!(~T[00:00:00]) |> DateTime.to_unix()
+  defp day(expiry), do: expiry |> DateTime.from_unix!() |> DateTime.to_date()
+
+  test "every Friday from 2026 to 2028 is offered but those NYSE is shut or closes early" do
+    fridays =
+      ~D[2026-01-02] |> Stream.iterate(&Date.add(&1, 7)) |> Enum.take_while(&(&1.year <= 2028))
+
+    count = length(fridays) - length(@nyse_fridays)
+    offered = Terms.expiries(unix(~D[2026-01-01]), count)
+
+    assert length(offered) == count
+    assert Enum.map(offered, &day/1) == fridays -- @nyse_fridays
+  end
+
+  test "four are still offered when Christmas and New Year's Day leave out two Fridays in a row" do
+    # Friday 18 December 2026 at 21:00 UTC, the moment that expiry passes.
+    now = unix(~D[2026-12-18]) + 21 * 3_600
+
+    assert Enum.map(Terms.expiries(now), &day/1) ==
+             [~D[2027-01-08], ~D[2027-01-15], ~D[2027-01-22], ~D[2027-01-29]]
   end
 
   property "a listing's term is the days to its expiry, to the nearest day and never under one" do
@@ -76,12 +129,6 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
           {-5, "Closed"}
         ],
         do: assert(F.closes_in(seconds) == said)
-  end
-
-  test "an hour either side of Friday 21:00 UTC is not an expiry" do
-    [expiry | _] = Terms.expiries(1_800_000_000)
-    refute Terms.weekly?(expiry - 3_600)
-    refute Terms.weekly?(expiry + 3_600)
   end
 
   test "a listing moves from open to the exercise window to closed" do

@@ -300,7 +300,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
     assert quote.(%{"strike_per_token" => 250_000_000, "expiry" => expiry() + 3_600})
            |> json_response(422)
-           |> code() == "not_a_weekly_expiry"
+           |> code() == "expiry_not_offered"
 
     assert quote.(%{"strike_per_token" => 250_000_000, "expiry" => expiry(), "x" => 1})
            |> json_response(422)

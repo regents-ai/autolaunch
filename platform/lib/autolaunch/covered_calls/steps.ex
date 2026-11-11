@@ -23,7 +23,8 @@ defmodule Autolaunch.CoveredCalls.Steps do
   and `approved` saying whether the allowance already covers it; its steps are
   still built, so a press the chain has since allowed reaches the wallet.
   A request that cannot name a real action (an unknown listing or bid, a zero
-  amount, a date that is not a weekly expiry) is refused outright.
+  amount, a new listing's or bid's expiry that is not one the site offers,
+  `Terms.expiries/2`) is refused outright.
   """
 
   alias Autolaunch.Chain.{Abi, Client}
@@ -450,15 +451,15 @@ defmodule Autolaunch.CoveredCalls.Steps do
          do: {:ok, Map.put(funds, :token, token)}
   end
 
-  defp expiry(expiry, block) when is_integer(expiry) do
+  # A new listing's or bid's expiry: one of those the site offers at the
+  # latest block, the list a page's ticket and a quote give.
+  defp expiry(expiry, block) do
     cond do
-      not Terms.weekly?(expiry) -> {:error, :not_a_weekly_expiry}
-      expiry <= block.timestamp -> {:error, :expiry_passed}
-      true -> {:ok, expiry}
+      expiry in Terms.expiries(block.timestamp) -> {:ok, expiry}
+      is_integer(expiry) and expiry <= block.timestamp -> {:error, :expiry_passed}
+      true -> {:error, :expiry_not_offered}
     end
   end
-
-  defp expiry(_expiry, _block), do: {:error, :not_a_weekly_expiry}
 
   defp positive(value) when is_integer(value) and value > 0, do: {:ok, value}
   defp positive(_value), do: {:error, :invalid_amount}

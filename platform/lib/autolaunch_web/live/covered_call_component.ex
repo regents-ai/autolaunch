@@ -886,7 +886,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp refusal_words(nil), do: nil
   defp refusal_words(:invalid_amount), do: nil
-  defp refusal_words(:not_a_weekly_expiry), do: "Choose one of the Friday expiries."
+  defp refusal_words(:expiry_not_offered), do: "Choose one of the Friday expiries."
   defp refusal_words(:expiry_passed), do: "That expiry has passed. Choose a later Friday."
   defp refusal_words(:unknown_listing), do: "This listing isn't on Base."
   defp refusal_words(:unknown_bid), do: "This bid isn't on Base."

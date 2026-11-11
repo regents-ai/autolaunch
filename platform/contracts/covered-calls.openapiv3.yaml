@@ -48,7 +48,8 @@ paths:
       operationId: quoteCoveredCall
       summary: Suggest a covered-call premium
       description: A seller's quote for a call expiring at `expiry`, from the stock's reference price, as a
-        guide before listing. It gives the reference price, the next four weekly expiries with their exercise
+        guide before listing. It gives the reference price, the next four weekly expiries a listing may take
+        (Fridays when the US stock market is shut or closes early are left out) with their exercise
         windows, three suggested strikes above the reference price with a suggested premium for each, and,
         for the chosen strike (the middle suggestion when `strike_per_token` is left out) and premium (the
         suggestion when `premium_per_token` is left out), what a listing of `amount` pays if all of it is
@@ -79,9 +80,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
         '422':
-          description: The expiry is not a Friday at 21:00 UTC or has passed, or the body leaves out the expiry,
-            names another field, or gives a field that is not a whole number in range (not_a_weekly_expiry,
-            expiry_passed, invalid_request)
+          description: The expiry has passed or is not one of the four a quote offers, or the body leaves out
+            the expiry, names another field, or gives a field that is not a whole number in range
+            (expiry_not_offered, expiry_passed, invalid_request)
           content:
             application/json:
               schema:
@@ -232,8 +233,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
         '422':
-          description: An unknown field, kind or type, an amount below one, or an expiry that is not a
-            future Friday at 21:00 UTC (invalid_request, invalid_amount, not_a_weekly_expiry, expiry_passed)
+          description: An unknown field, kind or type, an amount below one, or a list or bid expiry that has
+            passed or is not one of the four a quote offers (invalid_request, invalid_amount,
+            expiry_not_offered, expiry_passed)
           content:
             application/json:
               schema:
@@ -508,7 +510,8 @@ components:
       properties:
         expiry:
           type: integer
-          description: A Friday at 21:00 UTC, Unix seconds.
+          description: One of the next four Fridays at 21:00 UTC a quote offers, Unix seconds; Fridays when
+            the US stock market is shut or closes early are left out.
         amount:
           type: integer
           minimum: 1
@@ -637,7 +640,8 @@ components:
               description: The yearly volatility the suggestion assumes.
             expiries:
               type: array
-              description: The next four weekly expiries.
+              description: The next four weekly expiries a listing may take, leaving out Fridays when the
+                US stock market is shut or closes early.
               items:
                 $ref: '#/components/schemas/CoveredCallExpiry'
             presets:
@@ -779,7 +783,8 @@ components:
           maximum: 9007199254740991
         expiry:
           type: integer
-          description: 'For list and bid: a Friday at 21:00 UTC, Unix seconds.'
+          description: 'For list and bid: one of the next four Fridays at 21:00 UTC a quote offers, Unix
+            seconds; Fridays when the US stock market is shut or closes early are left out.'
         signer:
           type: string
           description: One of the person's own wallet addresses; omit it for the wallet they signed in
@@ -937,7 +942,7 @@ components:
               - unknown_listing
               - unknown_bid
               - invalid_amount
-              - not_a_weekly_expiry
+              - expiry_not_offered
               - expiry_passed
               - invalid_request
               - wrong_signer

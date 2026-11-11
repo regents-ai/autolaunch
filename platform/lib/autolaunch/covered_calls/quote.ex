@@ -5,8 +5,9 @@ defmodule Autolaunch.CoveredCalls.Quote do
   the shared book.
 
     * the reference price per whole token and when the feed last updated it
-    * the next weekly expiries, each with its exercise window, and the chosen
-      one's term in whole days (`Terms.term_days/2`)
+    * the next expiries a new listing may take (`Terms.expiries/2`), each
+      with its exercise window, and the chosen one's term in whole days
+      (`Terms.term_days/2`)
     * three suggested strikes above the reference price (`@presets`), each
       with how far above it is and its suggested premium
     * for the chosen strike (the middle suggestion when none is asked) and
@@ -47,8 +48,8 @@ defmodule Autolaunch.CoveredCalls.Quote do
   @spec read(map()) :: {:ok, map()} | {:error, atom()}
   def read(%{symbol: symbol, expiry: expiry} = request) do
     with {:ok, book} <- Book.read(symbol),
-         true <- Terms.weekly?(expiry) || {:error, :not_a_weekly_expiry},
          true <- expiry > book.now || {:error, :expiry_passed},
+         true <- expiry in Terms.expiries(book.now) || {:error, :expiry_not_offered},
          {:ok, spot} <- spot(book) do
       amount = request[:amount]
       [_near, middle, _far] = presets = presets(spot, expiry, book.now)

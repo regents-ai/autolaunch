@@ -35,7 +35,7 @@
     {
       "name": "autolaunch_covered_call_quote",
       "title": "Suggest a covered-call premium",
-      "description": "Quote a covered call on one Base stock token before listing it, for a weekly expiry: the stock's reference price (spot_per_token, micro-USDC per whole token) and when its feed last updated it; the next four weekly expiries, each with its exercise window (Unix seconds), and the chosen one's term in whole days (term_days); three suggested strikes above the reference price (presets), each with how far above it is as a fraction and a suggested premium per whole token; and, for the chosen strike (the middle suggestion when none is given) and premium (the suggestion when none is given), what a listing of amount raw token units pays if all of it is bought at once and all of it exercised (receipt): the premium, the 1% fee, what the seller keeps, the strike, the stock's worth at the reference price, and the premium kept as a fraction of that worth for the term (net_premium_yield, not a yearly rate). Without an amount the per-token figures still come back and the totals are null. Every USDC figure is what the contract counts, rounded up. A guide for a seller only: the contract enforces no suggestion, and the quote is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
+      "description": "Quote a covered call on one Base stock token before listing it, for a weekly expiry: the stock's reference price (spot_per_token, micro-USDC per whole token) and when its feed last updated it; the next four weekly expiries a listing may take, leaving out Fridays when the US stock market is shut or closes early, each with its exercise window (Unix seconds), and the chosen one's term in whole days (term_days); three suggested strikes above the reference price (presets), each with how far above it is as a fraction and a suggested premium per whole token; and, for the chosen strike (the middle suggestion when none is given) and premium (the suggestion when none is given), what a listing of amount raw token units pays if all of it is bought at once and all of it exercised (receipt): the premium, the 1% fee, what the seller keeps, the strike, the stock's worth at the reference price, and the premium kept as a fraction of that worth for the term (net_premium_yield, not a yearly rate). Without an amount the per-token figures still come back and the totals are null. Every USDC figure is what the contract counts, rounded up. A guide for a seller only: the contract enforces no suggestion, and the quote is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -47,7 +47,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
+            "description": "One of the next four Fridays at 21:00 UTC a quote offers, as Unix seconds; Fridays when the US stock market is shut or closes early are left out, and listings take no other expiry."
           },
           "amount": {
             "type": "integer",
@@ -190,7 +190,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "For list and bid: a Friday at 21:00 UTC, as Unix seconds."
+            "description": "For list and bid: one of the next four Fridays at 21:00 UTC a quote offers, as Unix seconds; Fridays when the US stock market is shut or closes early are left out."
           },
           "signer": {
             "type": "string",

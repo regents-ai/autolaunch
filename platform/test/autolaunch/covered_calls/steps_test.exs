@@ -108,18 +108,33 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
     assert {:ok, %{blocked: nil}} = prepare(context, :list, %{request | amount: 2 * @unit})
   end
 
-  test "an expiry that is not a Friday at 21:00 UTC is refused, not blocked", context do
+  test "an expiry the site does not offer is refused, not blocked: not a Friday close, or past the four offered",
+       context do
     chain(%{})
+    request = %{amount: @unit, strike_per_token: 1, premium_per_token: 1}
 
-    assert {:error, error} =
-             prepare(context, :list, %{
-               amount: @unit,
-               strike_per_token: 1,
-               premium_per_token: 1,
-               expiry: @expiry + 3_600
-             })
+    for expiry <- [@expiry + 3_600, Enum.at(Terms.expiries(@now, 5), 4)] do
+      assert {:error, error} = prepare(context, :list, Map.put(request, :expiry, expiry))
+      assert CoveredCalls.reason(error) == :expiry_not_offered
+    end
+  end
 
-    assert CoveredCalls.reason(error) == :not_a_weekly_expiry
+  test "a listing or bid already made for a Friday the site leaves out can still be bought and sold into",
+       context do
+    # Juneteenth, Friday 19 June 2026: NYSE is shut, so no new listing or bid takes it.
+    juneteenth = DateTime.to_unix(~U[2026-06-19 21:00:00Z])
+
+    chain(%{
+      listing: listing(%{expiry: juneteenth}),
+      bids: [bid(%{expiry: juneteenth})],
+      usdc_allowance: 10_000_000_000,
+      allowance: 6 * @unit
+    })
+
+    assert {:ok, %{blocked: nil}} = prepare(context, :fill, %{listing_id: 1, amount: @unit})
+
+    assert {:ok, %{blocked: nil, facts: %{expiry: ^juneteenth}}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
   end
 
   test "buying pays the premium rounded up and is blocked when not that many are left", context do
@@ -265,7 +280,7 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
     assert {:ok, %{blocked: :corporate_action}} = prepare(context, :bid, request)
 
     assert {:error, error} = prepare(context, :bid, %{request | expiry: @expiry + 3_600})
-    assert CoveredCalls.reason(error) == :not_a_weekly_expiry
+    assert CoveredCalls.reason(error) == :expiry_not_offered
   end
 
   test "selling into a bid is an exact stock approval then sellToBid, paying its slice of the premium less the fee",

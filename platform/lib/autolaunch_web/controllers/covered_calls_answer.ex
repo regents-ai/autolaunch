@@ -53,9 +53,9 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     unknown_listing: {:not_found, "There is no listing with that number on this market."},
     unknown_bid: {:not_found, "There is no bid with that number on this market."},
     invalid_amount: {:unprocessable_entity, "Send each amount as a whole number above zero."},
-    not_a_weekly_expiry:
+    expiry_not_offered:
       {:unprocessable_entity,
-       "The expiry must be a Friday at 21:00 UTC, given as Unix time in seconds."},
+       "The expiry must be one of the next four a quote offers: Fridays at 21:00 UTC, given as Unix time in seconds, leaving out any Friday the US stock market is shut or closes early."},
     expiry_passed: {:unprocessable_entity, "That expiry has already passed."},
     invalid_request:
       {:unprocessable_entity,

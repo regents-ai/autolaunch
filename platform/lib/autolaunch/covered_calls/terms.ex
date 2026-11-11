@@ -1,9 +1,10 @@
 defmodule Autolaunch.CoveredCalls.Terms do
   @moduledoc """
-  The arithmetic of a covered call, exactly as `CoveredCallsV2` does it: weekly
-  expiries, the premium and strike a fill or an exercise pays, the 1% fee, what
-  a bid escrows and what a sale into one pays, a listing's or a bid's state at a
-  moment, and the suggested premium a page offers as a guide.
+  The weekly expiries the site offers, and the arithmetic of a covered call
+  exactly as `CoveredCallsV2` does it: the premium and strike a fill or an
+  exercise pays, the 1% fee, what a bid escrows and what a sale into one pays,
+  a listing's or a bid's state at a moment, and the suggested premium a page
+  offers as a guide.
 
   Stock amounts are raw token units; prices are USDC (6 decimals) per whole
   token; every USDC amount rounds up, as the contract rounds it.
@@ -23,15 +24,48 @@ defmodule Autolaunch.CoveredCalls.Terms do
   def exercise_window, do: @window
   def fee_bps, do: @fee_bps
 
-  @doc "Whether `expiry` is a Friday at 21:00 UTC, the only expiry the contract takes."
-  def weekly?(expiry) when is_integer(expiry), do: rem(expiry, @week) == @expiry_offset
-  def weekly?(_expiry), do: false
-
-  @doc "The next `count` weekly expiries after `now`."
+  @doc """
+  The next `count` expiries after `now` that a new listing or bid may take:
+  Fridays at 21:00 UTC, the only expiry the contract takes, leaving out every
+  Friday on which the New York Stock Exchange is shut or closes early. On those
+  the day's price is known hours or a day before 21:00 UTC, while the contract
+  still lets calls be bought and sold into until then.
+  """
   def expiries(now, count \\ 4) when is_integer(now) and count > 0 do
     first = now - rem(now, @week) + @expiry_offset
     first = if first <= now, do: first + @week, else: first
-    for n <- 0..(count - 1), do: first + n * @week
+
+    first
+    |> Stream.iterate(&(&1 + @week))
+    |> Stream.reject(&(&1 |> DateTime.from_unix!() |> DateTime.to_date() |> short_friday?()))
+    |> Enum.take(count)
+  end
+
+  # The Fridays NYSE is shut or closes early, from its own rules (Rule 7.2 and
+  # its yearly early closes), so no year is ever added by hand: New Year's Day,
+  # Juneteenth, Independence Day and Christmas on a Friday, the last three also
+  # on the Friday before when they fall on a Saturday (NYSE trades the last day
+  # of the year, so a Saturday New Year's Day shuts no Friday); Good Friday,
+  # two days before Easter Sunday; and the day after Thanksgiving (the fourth
+  # Thursday of November, so that Friday is the 23rd to the 29th), when it
+  # closes at 13:00 New York time.
+  @shut_fridays [{1, 1}, {6, 18}, {6, 19}, {7, 3}, {7, 4}, {12, 24}, {12, 25}]
+
+  defp short_friday?(%Date{year: year, month: month, day: day} = friday),
+    do:
+      {month, day} in @shut_fridays or (month == 11 and day in 23..29) or
+        friday == Date.add(easter(year), -2)
+
+  # Easter Sunday in the Gregorian calendar: the anonymous Gregorian algorithm
+  # (Meeus, Astronomical Algorithms, chapter 8).
+  defp easter(year) do
+    {a, b, c} = {rem(year, 19), div(year, 100), rem(year, 100)}
+    g = div(b - div(b + 8, 25) + 1, 3)
+    h = rem(19 * a + b - div(b, 4) - g + 15, 30)
+    l = rem(32 + 2 * rem(b, 4) + 2 * div(c, 4) - h - rem(c, 4), 7)
+    m = div(a + 11 * h + 22 * l, 451)
+    n = h + l - 7 * m + 114
+    Date.new!(year, div(n, 31), rem(n, 31) + 1)
   end
 
   @doc """
