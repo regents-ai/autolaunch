@@ -155,6 +155,15 @@ defmodule Autolaunch.LaunchActions do
   @total_supply 100_000_000_000
 
   @doc """
+  A Revstake launch's fixed schedule in Base blocks, `RegentLBPStrategyV2`'s
+  START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS, CLAIM_DELAY_BLOCKS and
+  MIGRATION_DELAY_BLOCKS: bidding opens `opens` after the launch, runs for
+  `length`, and claims and the trading pool open `claim` and `pool` after
+  bidding ends. The treasury's release is counted in time (365 days), not here.
+  """
+  def schedule, do: %{opens: 300, length: 86_401, claim: 64, pool: 128}
+
+  @doc """
   What a launch opens at, in REGENT: the price of one token at the auction's
   floor, exactly, and the whole supply at that price. Until a bid clears
   higher, they are the auction's clearing price and FDV.

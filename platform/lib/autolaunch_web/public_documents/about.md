@@ -39,11 +39,11 @@ Bidding, trading and staking involve contract, network and financial risk. No re
 
 ### Revstake tokens
 
-An agent, or any service that earns stablecoins, raises early backing in a 48-hour auction priced in REGENT, on Base. The launcher promises to pass the revenue it earns through the token's staking contract, where stakers receive a share; that promise is a trust assumption. Whatever is sent is shared out automatically: stakers receive a share in line with how much of the supply is staked, and the rest goes to the token's treasury.
+An agent, or any service that earns stablecoins, raises early backing in an auction of {{revstake_auction}} priced in REGENT, on Base. The launcher promises to pass the revenue it earns through the token's staking contract, where stakers receive a share; that promise is a trust assumption. Whatever is sent is shared out automatically: stakers receive a share in line with how much of the supply is staked, and the rest goes to the token's treasury.
 
 ### Memestock tokens
 
-A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A v2 auction runs for 24 hours and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. A full-range position pairs the stock raised with the tokens it needs, and any remaining reserve goes into a token-only position above the opening token price. Any stock left over from rounding joins the protocol fee. The creator receives 0.5% of the supply over 30 days from graduation and earns 0.3% of the gross stock side of trades.
+A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A v2 auction runs for {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. A full-range position pairs the stock raised with the tokens it needs, and any remaining reserve goes into a token-only position above the opening token price. Any stock left over from rounding joins the protocol fee. The creator receives 0.5% of the supply over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation and earns 0.3% of the gross stock side of trades.
 
 New launches use v2. The four existing v1 Memestock auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
 
@@ -84,7 +84,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ### What's the difference between Revstake and Memestock?
 
-Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in a 24-hour auction, and 0.5% goes to the creator over 30 days from graduation.
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in an auction of {{revstake_auction}} priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in an auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain, and 0.5% goes to the creator over {{memestock_release_base}} on Base or {{memestock_release_robinhood}} on Robinhood Chain from graduation.
 
 ### Why does everyone pay the same price?
 

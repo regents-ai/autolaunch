@@ -1,5 +1,12 @@
 # Changelog
 
+## 11 November 2026: Auction lengths
+- Pages and guides now give the real length of a Base auction since Base went to five blocks a second: about 2 hours for a Memestock and about 5 hours for a Revstake. A Base Memestock creator's tokens are released over about 3 days. Robinhood Chain's figures are unchanged.
+- The How it works share picture no longer names a length.
+
+## 11 November 2026: Your bids
+- Under "Your bids on this auction", an open bid offers Add and Raise again.
+
 ## 11 November 2026: Call quotes
 - A covered-call quote now gives the next four expiries with their exercise windows, and three suggested strikes about 2%, 5% and 10% above the reference price, each with its suggested premium.
 - Given an amount, it shows what the listing pays: the premium, the 1% fee, what the seller keeps and the strike, counted exactly as the contract counts them.

@@ -2,13 +2,16 @@ defmodule AutolaunchWeb.HowItWorksLive do
   @moduledoc false
   use AutolaunchWeb, :live_view
 
-  alias Autolaunch.Stocks.FeeSchedule
+  alias Autolaunch.LaunchActions, as: RevstakeLaunchActions
+  alias Autolaunch.LaunchChain
+  alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
   alias AutolaunchWeb.ShareCard
 
   # Every figure here is a fixed contract rule: RegentLBPStrategyV2 and
   # ConditionalVestingEscrowV2 (Revstake supply), StocksPreset (Memestock
   # supply), RegentFeeHook and the Memestock fee hooks (fees), SubjectSplitterV1
-  # and MemestockSplitterCore (staking rewards).
+  # and MemestockSplitterCore (staking rewards). Auction lengths and a Memestock
+  # creator's release are worked out from each launch's schedule in blocks.
   def mount(_params, _session, socket),
     do:
       {:ok,
@@ -16,7 +19,13 @@ defmodule AutolaunchWeb.HowItWorksLive do
        |> assign(AutolaunchWeb.PublicDocuments.page("/how-it-works"))
        |> assign(
          share: if(connected?(socket), do: nil, else: ShareCard.how_it_works_meta()),
-         agent_guide: AutolaunchWeb.PublicDocuments.agent_guide()
+         agent_guide: AutolaunchWeb.PublicDocuments.agent_guide(),
+         auction: %{
+           revstake: auction_length(:revstake, :base),
+           base: auction_length(:memestock, :base),
+           robinhood: auction_length(:memestock, :robinhood)
+         },
+         release: %{base: creator_release(:base), robinhood: creator_release(:robinhood)}
        )}
 
   def render(assigns) do
@@ -90,7 +99,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
           <li>Just real price discovery.</li>
         </ul>
         <p>
-          Even if you bid $10b FDV on the first day, you would not have overpaid, and instead
+          Even if you bid $10b FDV at the start, you would not have overpaid, and instead
           executed at a DCA price between floor and clearing.
         </p>
         <p>
@@ -104,8 +113,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Revstake supply <span class="fact-page__total">100 billion</span>
         </h2>
         <p>
-          Revstake token auctions have a 48 hour duration, with 20% of tokens for the auction, up to 10%
-          locked in the trading pool, and 70% vesting to the launch's treasury over one year. This small amount
+          Revstake token auctions last {@auction.revstake}, with 20% of tokens for
+          the auction, up to 10% locked in the trading pool, and 70% vesting to the launch's treasury over one year. This small amount
           of float is because launching a revstake is close in concept to a company doing a preseed
           round. Best practice is for the founders to retain most of the equity.
         </p>
@@ -169,9 +178,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Memestock supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
-          Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is
-          reserved for the locked trading pool, and 0.5% goes to the token's creator over 30 days
-          from graduation. Stakers earn the onchain stock from fees.
+          Memestock launches last {@auction.base} on Base and {@auction.robinhood} on Robinhood
+          Chain. 49.75% of the tokens are sold in the auction, 49.75% is reserved for the locked
+          trading pool, and 0.5% goes to the token's creator over {@release.base} on Base and {@release.robinhood} on Robinhood Chain from graduation. Stakers earn the onchain stock
+          from fees.
         </p>
         <table class="fact-table">
           <thead>
@@ -209,8 +219,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
                 <strong>5 million (0.5%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Released to the token's creator block by block over <strong>30 days</strong>
-                from graduation. Anyone can send the release, and it always pays the
+                Released to the token's creator block by block over <strong>{@release.base}</strong>
+                on Base and <strong>{@release.robinhood}</strong>
+                on Robinhood Chain from graduation. Anyone can send the release, and it always pays the
                 creator. The creator also earns a share of trading fees.
               </td>
             </tr>
@@ -348,6 +359,17 @@ defmodule AutolaunchWeb.HowItWorksLive do
     </div>
     """
   end
+
+  # How long a launch's auction runs on `chain`, in words, from its fixed schedule.
+  defp auction_length(:revstake, :base),
+    do: LaunchChain.time_estimate(:base, RevstakeLaunchActions.schedule().length)
+
+  defp auction_length(:memestock, chain),
+    do: LaunchChain.time_estimate(chain, LaunchActions.schedule(chain).length)
+
+  # How long a Memestock creator's tokens take to be released on `chain`, in words.
+  defp creator_release(chain),
+    do: LaunchChain.time_estimate(chain, LaunchActions.schedule(chain).vesting)
 
   # Where each share of a Memestock trading fee goes on `chain`.
   defp memestock_fees(chain, regent_route),

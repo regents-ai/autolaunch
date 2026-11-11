@@ -13,7 +13,9 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   """
   use Phoenix.Component
 
+  alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Stocks.LaunchActions
   alias AutolaunchWeb.Components.{BidPlaced, MarketCard}
   alias AutolaunchWeb.TokenDisplay
 
@@ -433,8 +435,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       ]
     }
 
-  defp split(%{kind: :stocks, contracts_version: :v2}),
-    do: %{
+  # The creator's release takes the time its chain's schedule gives it.
+  defp split(%{kind: :stocks, contracts_version: :v2} = auction) do
+    chain = chain(auction)
+    vesting = LaunchChain.time_estimate(chain, LaunchActions.schedule(chain).vesting)
+
+    %{
       name: "Memestock",
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
@@ -446,9 +452,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         {"Reserved for liquidity", "497.5 million (49.75%)",
          "the stock raised funds a full-range position, apart from a tiny amount left over from rounding; remaining reserve is locked in a token-only position above the opening token price"},
         {"Creator", "5 million (0.5%)",
-         "released to the creator block by block over 30 days from graduation; the creator also earns a share of trading fees"}
+         "released to the creator block by block over #{vesting} from graduation; the creator also earns a share of trading fees"}
       ]
     }
+  end
 
   defp supply(%Decimal{} = supply), do: RegentFormat.amount(supply)
 

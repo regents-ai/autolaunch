@@ -8,6 +8,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   every other address reaches it with its own sessions and policies.
   """
 
+  alias Autolaunch.LaunchActions, as: RevstakeLaunchActions
+  alias Autolaunch.LaunchChain
+  alias Autolaunch.Stocks.LaunchActions
   alias AutolaunchWeb.{AgentGuides, Paths, ToolManifest}
   alias AutolaunchWeb.Components.AutolaunchHelpers
 
@@ -539,6 +542,29 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
     |> String.replace("{{read_only}}", read_only_now())
     |> String.replace("{{memestock_launchpad}}", memestock_launchpad())
+    |> durations()
+  end
+
+  # How long each launch's auction runs and a Memestock creator's release takes,
+  # in words, from the launches' fixed schedules in blocks, as the pages say it.
+  defp durations(markdown) do
+    revstake = RevstakeLaunchActions.schedule()
+    base = LaunchActions.schedule(:base)
+    robinhood = LaunchActions.schedule(:robinhood)
+
+    Enum.reduce(
+      [
+        {"{{revstake_auction}}", :base, revstake.length},
+        {"{{memestock_auction_base}}", :base, base.length},
+        {"{{memestock_auction_robinhood}}", :robinhood, robinhood.length},
+        {"{{memestock_release_base}}", :base, base.vesting},
+        {"{{memestock_release_robinhood}}", :robinhood, robinhood.vesting}
+      ],
+      markdown,
+      fn {mark, chain, blocks}, text ->
+        String.replace(text, mark, LaunchChain.time_estimate(chain, blocks))
+      end
+    )
   end
 
   # Every tool the pages register now (`AutolaunchWeb.ToolManifest`).
