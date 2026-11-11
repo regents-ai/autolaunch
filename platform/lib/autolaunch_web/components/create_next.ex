@@ -301,8 +301,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
         label: "Token stakers",
         rate: "2.00%",
         percent: 2.0,
-        note:
-          "Of every trade, sent to the launch's revenue splitter before its 2% protocol deduction."
+        note: "Of every trade, sent to the token's staking, which sends 2% of it to Regent."
       },
       %{
         label: "Pool fee",
@@ -345,7 +344,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "497.5 million",
           share: 49.75,
           note:
-            "The stock raised funds a full-range position at the final price; any stock left over from rounding joins the protocol fee. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
+            "At the final price, the stock raised funds liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is liquidity in the token alone, for prices above the opening token price. Both are locked forever."
         },
         %{
           key: :creator,

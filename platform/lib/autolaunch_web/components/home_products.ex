@@ -79,7 +79,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{
           id: "calls",
-          title: "Call Options",
+          title: "Covered calls",
           action: "Trade calls",
           path: "/stock/covered-call",
           launch: false

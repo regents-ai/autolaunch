@@ -43,6 +43,7 @@ launches.
 | Search window (⌘ K) | Find an auction or token from any page | **Gap** |
 | `/docs`, `/about`, `/privacy`, `/terms` | Guides and policies | `autolaunch_web/content_negotiation_test.exs` › "HTML pages reject JSON selected by Accept or _format", › "a browser or an Accept header with an HTML fallback still gets LiveView HTML" |
 | `/blog`, `/blog/<slug>` | Posts | **Gap** |
+| `/unavailable` | Where the site's edge sends a visitor whose region a page is not offered in (the redirect rule in `operations/edge-rules.md`): the message inside the shell, top bar and rail, and Return to Autolaunch | `autolaunch_web/controllers/unavailable_controller_test.exs` |
 | Error pages | Not found (404), Try again only for a lost database connection (503), plain error (500) | `market_page_test.exs` (all four cases); `autolaunch_web/controllers/old_link_controller_test.exs` (both cases) |
 
 ## Sign-in and account

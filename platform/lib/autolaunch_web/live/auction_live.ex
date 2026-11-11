@@ -310,7 +310,7 @@ defmodule AutolaunchWeb.AuctionLive do
             aria-labelledby="auction-my-receipts-title"
           >
             <header class="auction-next-card__head">
-              <h2 id="auction-my-receipts-title">Your bids, as the auction holds them</h2>
+              <h2 id="auction-my-receipts-title">Bid details</h2>
             </header>
             <.receipt
               :for={receipt <- @my_receipts.result}
@@ -383,7 +383,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="prelaunch-actions"
       aria-label="Bidding unavailable"
     >
-      <h2>Place a bid</h2>
+      <h2>New bid</h2>
       <p>Bidding opens soon.</p>
       <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
     </section>
@@ -391,6 +391,7 @@ defmodule AutolaunchWeb.AuctionLive do
       :if={!Autolaunch.Prelaunch.read_only?() && !@ended}
       module={AutolaunchWeb.BidComponent}
       id={bid_form_id(@page_record.id)}
+      page={:auction}
       draft_marker={@draft_marker}
       auction={@page_record}
       book={@book}
@@ -404,7 +405,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="bid-panel"
       aria-label="Your bids"
     >
-      <h3>Your bids on this auction</h3>
+      <h3>Your bids</h3>
       <ul role="list" class="bid-positions">
         <li :for={position <- @my_positions}>
           <.live_component
@@ -427,7 +428,7 @@ defmodule AutolaunchWeb.AuctionLive do
     >
       <AutolaunchWeb.Components.BidForm.title
         id="autolaunch-settlement"
-        title="Bidding has ended"
+        title="Bidding ended"
       />
       <p class="bid-ended">{ended_copy(@page_record)}</p>
       <.live_component
@@ -544,7 +545,13 @@ defmodule AutolaunchWeb.AuctionLive do
         </div>
         <div :if={@page_record.quote_token_address}>
           <dt>Currency address</dt>
-          <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
+          <dd>
+            <Regent.Primitives.address
+              id="auction-currency-address"
+              address={@page_record.quote_token_address}
+              chain={if Lab.test_chain?(), do: "test", else: "base"}
+            />
+          </dd>
         </div>
       </dl>
       <dl :if={@reading} class="autolaunch-live-market" aria-label="Latest reading">

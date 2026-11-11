@@ -357,12 +357,12 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     SharedReading.delete(key)
     SharedReading.subscribe(key)
     head = start_supervised!({ChainHead, {"robinhood", 60_000}})
-    assert_receive {:shared_reading, ^key}, 2_000
+    assert_receive {:shared_reading, ^key}
     refute ChainHead.stale?("robinhood")
 
     Chain.update(&%{&1 | down?: true})
     send(head, :read)
-    assert_receive {:shared_reading, ^key}, 2_000
+    assert_receive {:shared_reading, ^key}
     assert ChainHead.stale?("robinhood")
 
     assert {:snooze, 60} = pass(row(@site_auction))

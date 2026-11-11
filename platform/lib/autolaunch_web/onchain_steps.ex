@@ -32,7 +32,15 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc "The assigns a wallet panel starts with."
   def init(socket),
-    do: assign(socket, presses: Presses.new(), review: nil, press_note: nil, active: nil)
+    do:
+      assign(socket,
+        presses: Presses.new(),
+        review: nil,
+        press_note: nil,
+        active: nil,
+        approved: [],
+        approves: nil
+      )
 
   @doc """
   Reads the signed-in account's wallets once for each session lease the panel
@@ -137,7 +145,8 @@ defmodule AutolaunchWeb.OnchainSteps do
   @doc """
   Puts `review` (or none) on the page when it is not the one already there. A
   review is fixed once built, so a new signer, chain or figure is a new review,
-  and the page drops the old one as soon as this arrives.
+  and the page drops the old one as soon as this arrives. With none, no
+  approval is kept for the next one (`with_approved/3`).
   """
   def put_review(socket, review) do
     if review_id(review) == review_id(socket.assigns.review) do
@@ -150,8 +159,52 @@ defmodule AutolaunchWeb.OnchainSteps do
 
       socket
       |> assign(review: review, presses: presses)
+      |> then(&if review, do: &1, else: assign(&1, approved: [], approves: nil))
       |> push_event("onchain-steps:review", %{component_id: socket.assigns.id, review: review})
     end
+  end
+
+  @doc """
+  The steps of a new review, with the approvals that landed from the review it
+  replaces in front of them, and the socket that remembers which they are.
+  `approves` is the panel's own term for what its approvals allow (the
+  wallet, the spender's side and the amount): only a review that approves the
+  same keeps them. An approval the new steps carry again is left as built.
+
+  A kept approval sends the same transaction as before. It shows as done
+  (`approved?/2`) and a press on it still reaches the wallet, so Approve stays
+  on the page, grey with a green border, once the chain holds its allowance.
+  """
+  def with_approved(socket, approves, steps) do
+    %{approved: approved, approves: before} = socket.assigns
+    names = MapSet.new(steps, & &1.step)
+
+    kept =
+      if approves == before,
+        do: Enum.reject(approved, &MapSet.member?(names, &1.step)),
+        else: []
+
+    {kept ++ steps, assign(socket, approved: kept, approves: approves)}
+  end
+
+  @doc "Keeps the approval `entry` sent for the next review (`with_approved/3`), once it landed."
+  def approval_landed(%{assigns: %{approved: approved}} = socket, %{step: %{step: name} = step}) do
+    if approved?(socket.assigns, name),
+      do: socket,
+      else: assign(socket, approved: approved ++ [step])
+  end
+
+  @doc "Whether the step `name` is an approval kept from an earlier review, so it shows as done."
+  def approved?(%{approved: approved}, name), do: Enum.any?(approved, &(&1.step == name))
+
+  @doc """
+  The step a press sends when the server builds its review (`prepare_and_send`):
+  the first one the builder made, after any approval `with_approved/3` kept,
+  which the chain already holds.
+  """
+  def first_built(assigns, %{steps: steps}) do
+    %{step: name} = Enum.find(steps, &(not approved?(assigns, &1.step)))
+    name
   end
 
   @doc "The wallet sent a step; it is read from now on against the review it was sent from."

@@ -122,7 +122,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         <dl class="subject-wallet-balances" hidden={!!@review}>
           <div>
             <dt>Wallet</dt>
-            <dd class="subject-wallet-mono">{RegentFormat.short_address(@state.signer)}</dd>
+            <dd>
+              <Regent.Primitives.address
+                id={"#{@id}-wallet"}
+                address={@state.signer}
+                variant="compact"
+              />
+            </dd>
           </div>
           <div :for={asset <- @assets}>
             <dt>{asset_label(asset.key, @symbol)}</dt>
@@ -177,7 +183,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </div>
 
           <p :if={@state.receiver} class="subject-wallet-hint">
-            Payment address {RegentFormat.short_address(@state.receiver.address)}
+            Payment address
+            <Regent.Primitives.address
+              id={"#{@id}-receiver"}
+              address={@state.receiver.address}
+              variant="compact"
+            />
           </p>
           <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
 
@@ -231,7 +242,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
               </div>
               <div>
                 <dt>Wallet</dt>
-                <dd class="subject-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+                <dd>
+                  <Regent.Primitives.address
+                    id={"#{@id}-signer"}
+                    address={@review.signer}
+                    variant="compact"
+                  />
+                </dd>
               </div>
               <div>
                 <dt>Network</dt>
@@ -261,8 +278,14 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
                 <TokenDisplay.marked text={step.label} tickers={[@symbol, "USDC", "REGENT"]} />
               </span>
               <.step_state state={chip(step)} />
-              <span class="subject-wallet-mono" hidden={!step.entry}>
-                {step.entry && RegentFormat.short_hash(step.entry.hash)}
+              <span hidden={!step.entry}>
+                <Regent.Primitives.address
+                  :if={step.entry}
+                  id={"#{@id}-#{step.name}-hash"}
+                  address={step.entry.hash}
+                  kind="tx"
+                  chain={if Autolaunch.Lab.test_chain?(), do: "test", else: "base"}
+                />
               </span>
             </li>
           </ol>
@@ -281,6 +304,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </p>
           <p class="subject-wallet-notice" role="status" hidden={!@press_note}>{@press_note}</p>
           <SwapForm.wallet_step
+            id={@id <> "-sender"}
             next_step={next_step(@steps)}
             steps={@steps}
             reverted={reverted(@steps)}

@@ -81,29 +81,29 @@ Memestock supply: 1 billion tokens.
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
 | Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 497.5 million (49.75%) | A full-range position pairs the stock raised with the tokens it needs at the final clearing price. Remaining reserve is locked in a token-only position above the opening token price, available as that price rises. Both positions are locked forever; any stock left over from rounding joins the protocol fee. |
+| Liquidity reserve | 497.5 million (49.75%) | At the final clearing price, the stock raised and the tokens it needs become liquidity at every price. Remaining reserve is locked as liquidity in the token alone, for prices above the opening token price, available as that price rises. Both are locked forever; any stock left over from rounding is added to the REGENT stakers' fee. |
 | Creator | 5 million (0.5%) | Released to the token's creator block by block over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
 Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
-The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
+The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% trading fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
 
 ## Trading fees
 
-V2 Revstake trades pay a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestock trades pay a 4.3% hook fee on the gross stock side: 3% enters the launch's staking splitter, 1% follows the protocol route and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% LP fee, and what the locked liquidity earns enters the launch's revenue splitter.
+V2 Revstake trades pay a 3% trading fee: 2% goes to the token's staking and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees: 3% goes to the token's staking, 1% is the REGENT stakers' fee and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% pool fee, and what the locked liquidity earns goes to the token's staking.
 
 | Launch | Fee paid in | Where it goes |
 | --- | --- | --- |
-| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent directly to REGENT staking when paid in REGENT, or to the Regent Safe when paid in the launch token. 2% enters the launch's revenue splitter. |
-| Memestock (Base) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
-| Memestock (Robinhood Chain) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
+| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent directly to REGENT staking when paid in REGENT, or to the Regent Safe when paid in the launch token. 2% goes to the token's staking. |
+| Memestock (Base) | The paired stock, buying or selling | 3% goes to the token's staking. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
+| Memestock (Robinhood Chain) | The paired stock, buying or selling | 3% goes to the token's staking. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
 - Revstake fees come from the side of the trade you did not set: out of what you receive, or added to what you pay.
 - Memestock fees are held in the stock and paid onward after the trade.
 - Anyone can settle Memestock creator and token-staker fees. Protocol conversion requires the authorized executor. Creator fees always pay the original launcher in stock.
-- When a trade's fee is divided, any tiny leftover from rounding goes to the launch's revenue splitter.
+- When a trade's fee is divided, any tiny leftover from rounding goes to the token's staking.
 - The rates are fixed in the contracts and cannot be changed.
 
 ## Staking rewards
@@ -137,11 +137,11 @@ Where the USDC comes from:
 | Product | Revenue |
 | --- | --- |
 | Regents Labs | REGENT/ETH pool fees (0.1–0.3% of volume); x402 service payments |
-| Autolaunch | Base Memestock's 1% stock fee, converted to USDC; 2% of recognized USDC revenue in launch splitters |
+| Autolaunch | Base Memestock's 1% stock fee, converted to USDC; the 2% of USDC revenue each token's staking sends to Regent |
 | Techtree | 5% of paid artifact sales; environment revenue |
 | Patchbay | 10% of priority question payments |
 
-Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood's protocol fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
+Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. The 2% each token's staking sends to Regent also goes to the Safe when it is in launch tokens or paired tokens. Robinhood's REGENT stakers' fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
 
 REGENT that does not circulate yet:
 
@@ -182,7 +182,7 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
 - `GET https://autolaunch.sh/api/v1/health`: `{"status": "ok"}`, or `503` with `unavailable`.
 - `GET https://autolaunch.sh/api/v1/about` and `GET https://autolaunch.sh/api/v1/docs`: the About page and the developer guide as `{"title", "markdown"}`.
-- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, the list's price, market cap and bid volume figures, quote-token denomination, nullable supply and, for a Revstake token, `revenue_history` (each payment its splitter recognized, newest first; null for a Memestock token). No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli {{regents_cli}}.
+- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, the list's price, market cap and bid volume figures, quote-token denomination, nullable supply and, for a Revstake token, `revenue_history` (each payment the token's staking received, newest first; null for a Memestock token). No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli {{regents_cli}}.
 - `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 
 Any website's page may read the public `GET` endpoints from a browser (`Access-Control-Allow-Origin: *`, no cookies). From an auction or token page, its `<link rel="alternate" type="application/json">` names that page's record in the API. Prices, and the market caps worked out from them, are decimal strings to 18 significant digits, rounded up, so a bid at a stated clearing price still reaches it. The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.

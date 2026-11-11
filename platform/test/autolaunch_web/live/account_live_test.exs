@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       |> connects_with(session)
       |> live("/account/agents")
 
-    render_async(view, 1_000)
+    render_async(view)
     agents = view |> element("#account-agents") |> render()
     assert agents =~ "Account Page Agent"
     assert agents =~ "Codex"
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       |> connects_with(session)
       |> live("/account/agents")
 
-    render_async(view, 1_000)
+    render_async(view)
     box = form(view, "#shell-pairing-box")
     shown = fn -> pairing_code(view) end
 
@@ -134,13 +134,13 @@ defmodule AutolaunchWeb.AccountLiveTest do
     # The Agents page's Pair New Agent opens the same window; the page holds no
     # second box.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account/agents")
-    render_async(page, 1_000)
+    render_async(page)
     assert has_element?(page, ~s(#account-agents button[aria-controls="shell-pairing"]))
     assert length(Regex.scan(~r/class="rg-account__pair"/, render(page))) == 1
 
     # The Account page puts this site's own sections before the account card.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
-    render_async(page, 1_000)
+    render_async(page)
     html = render(page)
     {connections, _} = :binary.match(html, ~s(id="account-connections"))
     {identity, _} = :binary.match(html, ~s(id="account-identity"))

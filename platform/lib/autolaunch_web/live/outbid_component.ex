@@ -113,6 +113,7 @@ defmodule AutolaunchWeb.OutbidComponent do
         <.live_component
           module={AutolaunchWeb.BidComponent}
           id={"#{@id}-bid"}
+          page={:auction}
           auction={@auction}
           book={@book}
           heading={heading(@open)}
@@ -146,8 +147,8 @@ defmodule AutolaunchWeb.OutbidComponent do
   defp settled_label(:awaiting_claim), do: "Claim opens soon"
   defp settled_label(status), do: display_status(status)
 
-  defp heading(:raise), do: "Raise my bid"
-  defp heading(:add), do: "Add to this bid"
+  defp heading(:raise), do: "Higher bid"
+  defp heading(:add), do: "Extra bid"
 
   # The auction page hands over the book it already reads; anywhere else the
   # component reads it itself, once.

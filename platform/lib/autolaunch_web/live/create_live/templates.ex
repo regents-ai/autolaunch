@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     {"Your treasury",
      "At least half the raise at graduation, and 70% of the tokens, plus unpaired reserve and auction rounding leftovers, over 365 days from graduation"},
     {"Trading fees",
-     "2% enters the launch’s revenue splitter; 1% goes to REGENT staking when collected in REGENT, or to the Regent Safe when collected in launch tokens. The 0.30% LP fee is separate"}
+     "2% goes to the token’s staking; 1% goes to REGENT staking when collected in REGENT, or to the Regent Safe when collected in launch tokens. The 0.30% pool fee is separate"}
   ]
 
   @stored_params Enum.map(@token_detail_fields, & &1.param) ++

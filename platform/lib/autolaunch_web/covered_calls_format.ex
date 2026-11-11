@@ -79,9 +79,6 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
 
-  @doc "The exercise window that opens at `expiry`, in full: when it opens and when it closes."
-  def window(expiry) when is_integer(expiry), do: "#{expiry(expiry)} to #{window_closes(expiry)}"
-
   @doc "The exercise window that opens at `expiry` as its two days, for a list or a choice."
   def window_days(expiry) when is_integer(expiry),
     do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"

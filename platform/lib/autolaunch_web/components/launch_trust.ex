@@ -13,10 +13,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   """
   use Phoenix.Component
 
-  alias Autolaunch.LaunchChain
+  alias Autolaunch.{Lab, LaunchChain}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.LaunchActions
-  alias AutolaunchWeb.Components.{BidPlaced, MarketCard}
+  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.TokenDisplay
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
     assigns =
       assign(assigns,
-        chain: chain(auction),
+        address_chain: address_chain(auction),
         contracts: contracts(auction, assigns.pool),
         split: split(auction),
         supply: supply(auction.token_supply),
@@ -64,20 +64,26 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
         <h3 class="autolaunch-micro">Contracts</h3>
         <dl class="launch-trust__rows">
-          <div :for={{label, address} <- @contracts}>
+          <div :for={{{label, address}, index} <- Enum.with_index(@contracts)}>
             <dt>{label}</dt>
             <dd>
-              <a
-                class="autolaunch-exact-value"
-                href={BidPlaced.address_url(@chain, address)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >{address}</a>
+              <Regent.Primitives.address
+                id={"launch-trust-contract-#{index}"}
+                address={address}
+                chain={@address_chain}
+              />
             </dd>
           </div>
           <div :if={@pool}>
             <dt>Pool</dt>
-            <dd class="autolaunch-exact-value">{@pool.pool_id}</dd>
+            <dd>
+              <Regent.Primitives.address
+                id="launch-trust-pool"
+                address={@pool.pool_id}
+                kind="id"
+                chain={@address_chain}
+              />
+            </dd>
           </div>
         </dl>
 
@@ -102,7 +108,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         <.liquidity
           liquidity={@liquidity}
           split={@split}
-          chain={@chain}
+          address_chain={@address_chain}
           pool={@pool}
           token_path={@token_path}
           locked={@locked}
@@ -128,7 +134,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
     assigns =
       assign(assigns,
-        chain: chain(auction),
+        address_chain: address_chain(auction),
         name: split(auction).name,
         contracts: contracts(auction, assigns.pool),
         supply: supply(auction.token_supply),
@@ -150,20 +156,26 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
             <dt>Price to 18 decimals</dt>
             <dd class="autolaunch-exact-value">{@price} {@unit}</dd>
           </div>
-          <div :for={{label, address} <- @contracts}>
+          <div :for={{{label, address}, index} <- Enum.with_index(@contracts)}>
             <dt>{label}</dt>
             <dd>
-              <a
-                class="autolaunch-exact-value"
-                href={BidPlaced.address_url(@chain, address)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >{address}</a>
+              <Regent.Primitives.address
+                id={"launch-trust-contract-#{index}"}
+                address={address}
+                chain={@address_chain}
+              />
             </dd>
           </div>
           <div :if={@pool}>
             <dt>Pool</dt>
-            <dd class="autolaunch-exact-value">{@pool.pool_id}</dd>
+            <dd>
+              <Regent.Primitives.address
+                id="launch-trust-pool"
+                address={@pool.pool_id}
+                kind="id"
+                chain={@address_chain}
+              />
+            </dd>
           </div>
           <div :if={@supply}>
             <dt>Total supply</dt>
@@ -200,7 +212,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
     assigns =
       assign(assigns,
-        chain: chain(auction),
+        address_chain: address_chain(auction),
         wallet: auction.creator_address,
         accounts: accounts(assigns.connections),
         website: MarketCard.web_link(auction.website),
@@ -216,12 +228,11 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         <div :if={@wallet}>
           <dt>Launch wallet</dt>
           <dd>
-            <a
-              class="autolaunch-exact-value"
-              href={BidPlaced.address_url(@chain, @wallet)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >{@wallet}</a>
+            <Regent.Primitives.address
+              id="launch-trust-wallet"
+              address={@wallet}
+              chain={@address_chain}
+            />
           </dd>
         </div>
         <div :for={{label, account} <- @accounts || []}>
@@ -275,9 +286,17 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   defp chain(auction), do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
 
+  # The chain `Regent.Primitives.address` opens the launch's addresses on; a local
+  # test chain has no explorer.
+  defp address_chain(auction) do
+    if Lab.test_chain?(auction.chain_id) or RobinhoodLab.test_chain?(auction.chain_id),
+      do: "test",
+      else: Atom.to_string(chain(auction))
+  end
+
   attr :liquidity, :atom, required: true
   attr :split, :map, required: true
-  attr :chain, :atom, required: true
+  attr :address_chain, :string, required: true
   attr :pool, :map, default: nil
   attr :token_path, :string, default: nil
   attr :locked, :boolean, default: nil
@@ -325,7 +344,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       {deposited_status(Enum.all?(@pool.positions, & &1.locked?))}
     </p>
     <ul class="launch-trust__positions">
-      <li :for={position <- @pool.positions}>
+      <li :for={{position, index} <- Enum.with_index(@pool.positions)}>
         <TokenDisplay.tokens amount={position.token_amount} unit={@pool.token.symbol} /> and
         <TokenDisplay.tokens amount={position.currency_amount} unit={@pool.currency.symbol} />
         deposited
@@ -333,12 +352,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           · locked forever in the locker above
         </span>
         <span :if={!position.locked?} class="launch-trust__muted">
-          · held by <a
-            class="autolaunch-exact-value"
-            href={BidPlaced.address_url(@chain, position.owner)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >{position.owner}</a>, not the locker
+          · held by
+          <Regent.Primitives.address
+            id={"launch-trust-owner-#{index}"}
+            address={position.owner}
+            chain={@address_chain}
+          />, not the locker
         </span>
       </li>
     </ul>
@@ -445,12 +464,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
       unused:
-        "is locked in a token-only position above the opening token price, apart from a tiny amount left over from rounding",
+        "is locked as liquidity in the token alone, for prices above the opening token price, apart from a tiny amount left over from rounding",
       rows: [
         {"Sold in the auction", "497.5 million (49.75%)",
          "winning bidders claim what they bought"},
         {"Reserved for liquidity", "497.5 million (49.75%)",
-         "the stock raised funds a full-range position, apart from a tiny amount left over from rounding; remaining reserve is locked in a token-only position above the opening token price"},
+         "the stock raised and the tokens it needs become liquidity at every price, apart from a tiny amount left over from rounding; remaining reserve is locked as liquidity in the token alone, for prices above the opening token price"},
         {"Creator", "5 million (0.5%)",
          "released to the creator block by block over #{vesting} from graduation; the creator also earns a share of trading fees"}
       ]

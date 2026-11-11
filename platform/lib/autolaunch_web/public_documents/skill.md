@@ -107,7 +107,7 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 {{exposure}}
 ## Price movement without misleading comparisons
 
-A Revstake token read also carries `revenue_history`: each payment its splitter recognized,
+A Revstake token read also carries `revenue_history`: each payment the token's staking received,
 with amount, asset, day and transaction link. It is a record of what arrived, not a promise
 of what will. A token read can carry a stored price (`price_quote`, in quote-token units, with `price_usd`
 in dollars) and a nullable `price_updated_at`. Call it a stored observation, not a live quote; a missing time does not

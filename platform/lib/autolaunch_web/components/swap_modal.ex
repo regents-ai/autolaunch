@@ -90,6 +90,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
   def bid_modal(assigns) do
     ~H"""
@@ -112,6 +113,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
         module={AutolaunchWeb.BidComponent}
         id={@id <> "-input"}
         auction={@auction}
+        page={@page}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
@@ -131,6 +133,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
   def robinhood_bid_modal(assigns) do
     ~H"""
@@ -159,6 +162,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
         ended={@ended}
         stake_path={@stake_path}
         token_symbol={@auction.token_symbol}
+        page={@page}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}

@@ -78,7 +78,8 @@
 .exposure-panel__step { display: grid; grid-template-columns: minmax(12.5rem, max-content) minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
 .exposure-panel__step .rg-button { inline-size: 100%; min-inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
 .exposure-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
-.exposure-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
+.exposure-panel__step[data-state="done"] .rg-button--secondary { color: var(--color-fg-muted); }
+.exposure-panel__step[data-state="done"] .rg-button--secondary::before { border-color: var(--color-success); }
 
 @media (hover: none) and (pointer: coarse) {
   .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }

@@ -340,6 +340,7 @@ defmodule AutolaunchWeb.Router do
 
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
+    get "/unavailable", UnavailableController, :show
 
     get "/auth/x/callback", XOAuthController, :callback, log: false
 

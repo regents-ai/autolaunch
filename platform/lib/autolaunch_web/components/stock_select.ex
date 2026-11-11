@@ -164,7 +164,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
                   <span class="stock-select__symbol">{stock.symbol}</span>
                   <span class="stock-select__name">{stock.company}</span>
                 </span>
-                <span class="stock-card__volume">{volume_line(stock.volume)}</span>
+                <span :if={stock.volume} class="stock-card__volume">{volume_line(stock.volume)}</span>
               </label>
               <a
                 :if={stock.website}
@@ -285,8 +285,6 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   # A floor, from a stock whose pools GeckoTerminal lists over more than one
   # page, reads as at least that much.
-  defp volume_line(nil), do: "Volume unavailable"
-
   defp volume_line(%{usd: usd, complete?: complete?, through: through}) do
     floor = if complete?, do: "", else: "+"
 

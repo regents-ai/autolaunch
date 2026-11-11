@@ -39,9 +39,9 @@
 /* Pinned to the circle's inside edge, so a tall or wide picture is cropped to the circle in every browser. */
 .market-list__art img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .market-list__art .market-list__chain { position: absolute; right: -4px; bottom: -4px; box-sizing: border-box; inline-size: 18px; block-size: 18px; padding: 2px; border-radius: var(--radius); background: var(--color-surface); }
-/* The name, then its ticker on the same line; a long name is cut short, the ticker always shows. */
+/* The name over its ticker, so the figures beside them never squeeze the name to a letter or two; a long name is cut short. */
 .market-list__label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
-.market-list__name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.market-list__name { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .market-list__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); font-size: .75rem; }
 /* A row's one button sits last, as narrow as its label. */
 .market-list__table .market-list__action { width: 1%; padding-left: 0; }
@@ -54,8 +54,8 @@
 .market-list__quick .rg-button + .rg-button { margin-left: 8px; }
 .market-list__buy { opacity: 0; transition: opacity .12s ease; }
 .market-list__row:is(:hover, :focus-within) .market-list__buy { opacity: 1; }
-.market-list__name strong { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); }
-.market-list__name small { flex-shrink: 0; color: var(--color-fg-muted); font-size: .8125rem; white-space: nowrap; }
+.market-list__name strong { min-width: 0; max-width: min(100%, 260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); }
+.market-list__name small { color: var(--color-fg-muted); font-size: .8125rem; white-space: nowrap; }
 .market-list__skeleton td { height: 64px; }
 .market-list__skeleton .loading-block { height: 1rem; }
 .market-list__routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
@@ -98,9 +98,7 @@
   .market-list__buy { display: none; }
   .market-list__rest { display: none; }
   .market-list__token { gap: 8px; }
-  /* The ticker goes under the name; who made it and when wait for the token's page. */
-  .market-list__name { flex-direction: column; align-items: flex-start; gap: 0; }
-  .market-list__name strong { max-width: 100%; }
+  /* Who made it and when wait for the token's page. */
   .market-list__detail { display: none; }
   .auction-figures__time { width: 100%; }
   /* Wallet actions and outcomes follow the token identity on phones. */

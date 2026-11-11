@@ -104,8 +104,9 @@ defmodule AutolaunchWeb.BidComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign_new(:heading, fn -> "Place a bid" end)
+     |> assign_new(:heading, fn -> "New bid" end)
      |> assign_new(:authenticated, fn -> false end)
+     |> assign_new(:page, fn -> nil end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
@@ -202,6 +203,7 @@ defmodule AutolaunchWeb.BidComponent do
               share_image={ShareCard.auction_image_url(@auction, DateTime.utc_now())}
               x_connection={@x_connection}
               x_enabled={@x_enabled}
+              page={@page}
             />
           <% end %>
           <Regent.Primitives.button
@@ -272,6 +274,7 @@ defmodule AutolaunchWeb.BidComponent do
             </a>
             <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
             <SwapForm.wallet_step
+              id={@id <> "-sender"}
               next_step={@next_step}
               steps={@steps}
               reverted={reverted(@steps)}
@@ -307,13 +310,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
-  # pressed and its first step handed back to send.
+  # pressed and the first step it built handed back to send.
   def handle_event("prepare_and_send", %{"form" => inputs}, socket) when is_map(inputs) do
     socket = assign(socket, form: pressed_form(socket.assigns, inputs), notice: nil)
 
     case prepared_now(socket) do
-      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
-        {:reply, %{review: review, send: first}, socket}
+      {:ok, %{assigns: %{review: %{} = review} = assigns} = socket} ->
+        {:reply, %{review: review, send: OnchainSteps.first_built(assigns, review)}, socket}
 
       {:error, socket} ->
         {:reply, %{}, socket}
@@ -504,8 +507,8 @@ defmodule AutolaunchWeb.BidComponent do
        }}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
-    review =
-      Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps, inputs)
+    {steps, socket} = OnchainSteps.with_approved(socket, approves(key), prepared.steps)
+    review = Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, steps, inputs)
 
     socket
     |> assign(prepared_for: key, notice: nil, press_note: socket.assigns.carried_note)
@@ -516,6 +519,11 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp reviewed(socket, key, _inputs, {:error, error}),
     do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
+
+  # What a bid's approvals allow: this wallet's amount of this currency to this
+  # auction, whatever the most per token.
+  defp approves({auction_id, signer, pay_with, amount, _max_price, _slippage}),
+    do: {auction_id, signer, pay_with, amount}
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the bid it belongs to.
@@ -534,7 +542,7 @@ defmodule AutolaunchWeb.BidComponent do
   # The review built again from Base with the form as it is, so its deadline,
   # allowance window and tick hint are current: once it is ten minutes old,
   # once an approval lands, and once a step reverts, when `note` says so beside
-  # the new button. While a step sent from it is on its way it stays, and a
+  # the new button. An approval that landed stays in it, done. While a step sent from it is on its way it stays, and a
   # timer asks again later.
   defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
     if OnchainSteps.pending?(presses, review),
@@ -618,13 +626,14 @@ defmodule AutolaunchWeb.BidComponent do
   # Outcomes
 
   # A bid landed: what it placed is read from its receipt. A landed approval
-  # builds the review again, so the bid it leads to carries fresh deadlines.
+  # builds the review again, so the bid it leads to carries fresh deadlines,
+  # and stays in it, done.
   defp confirmed(socket, %{name: name, hash: hash, review: review})
        when name in ["bid", "usdc_bid"],
        do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
 
-  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
-    do: rebuilt(socket, nil)
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
   defp confirmed(socket, _earlier_review), do: socket
 
@@ -680,10 +689,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   # Steps
 
-  defp steps(%{review: %{} = review, prepared: prepared, presses: presses}) do
+  # An approval kept from the review this one replaced is done, whatever a
+  # later press of it does.
+  defp steps(%{review: %{} = review, prepared: prepared, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
+      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
+      %{name: name, label: step_label(name, prepared), state: state, entry: entry}
     end)
   end
 

@@ -21,10 +21,6 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
   @moduletag :capture_log
   @ens "account_ens_identities"
   @ticket "/stock/covered-call?listing=1"
-  # The page's book is read in the background; a loaded machine can take longer
-  # than LiveViewTest's 100 ms.
-  @async_ms 2_000
-
   # The account's wallets are read once the page has mounted (the panel's first
   # update), and that read loses its connection, as when one pooled connection
   # is lost and the page's own read just before it was not.
@@ -62,7 +58,7 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     lose_wallet_reads_after_mount(CoveredCallsLive)
 
     {:ok, view, _html} = signed_in(conn, account)
-    render_async(view, @async_ms)
+    render_async(view)
 
     # The person's own wallet is the one open in their wallet app.
     view
@@ -107,12 +103,33 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
 
     on_exit(fn -> :telemetry.detach(handler) end)
 
-    # The ticket, and so its read of the account, comes once the page's book is
-    # read; the page then ends, and its end reaches this case.
-    Process.flag(:trap_exit, true)
-    {:ok, _view, _html} = signed_in(conn, account)
+    # The ticket raising is what ends the page, reported here.
+    test = self()
+    raised = "ticket-raised-#{inspect(self())}"
 
-    assert_receive {:EXIT, _page, {%ReadFailedError{}, _stack}}, @async_ms
+    :telemetry.attach(
+      raised,
+      [:phoenix, :live_component, :update, :exception],
+      fn _event, _measurements, %{kind: :error, reason: reason}, _config ->
+        send(test, {:ticket_raised, reason})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(raised) end)
+
+    # The ticket, and so its read of the account, comes once the page's book is
+    # read in the background, so the page ends while it is still opening or just
+    # after it opened; which one depends on how fast the book is read.
+    Process.flag(:trap_exit, true)
+
+    try do
+      signed_in(conn, account)
+    catch
+      :exit, _page_ended_while_opening -> :ok
+    end
+
+    assert_receive {:ticket_raised, %ReadFailedError{}}
   end
 
   test "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again" do

@@ -87,11 +87,14 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
-        <p class="launch-wallet-hint">
-          Your wallet confirms the launch. You see every value before anything is sent.
-        </p>
         <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from <code>{RegentFormat.short_address(@signer)}</code>
+          Launching from
+          <Regent.Primitives.address
+            :if={@signer}
+            id={"#{@id}-launcher"}
+            address={@signer}
+            variant="compact"
+          />
         </p>
         <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
         <Regent.Primitives.button
@@ -124,7 +127,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
               <dt>Auction currency</dt>
               <dd>
                 {@prepared.facts["stock_symbol"]}
-                <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
+                <Regent.Primitives.address
+                  id={"#{@id}-stock"}
+                  address={@prepared.facts["stock"]}
+                  variant="full"
+                  chain={LaunchSteps.address_chain(explorer_chain())}
+                />
               </dd>
             </div>
             <div :for={[label, value] <- @prepared.review}>
@@ -133,7 +141,13 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
             </div>
             <div>
               <dt>Wallet</dt>
-              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+              <dd>
+                <Regent.Primitives.address
+                  id={"#{@id}-signer"}
+                  address={@review.signer}
+                  chain={LaunchSteps.address_chain(explorer_chain())}
+                />
+              </dd>
             </div>
             <div>
               <dt>Network</dt>
@@ -190,12 +204,13 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <ul role="list">
           <li :for={launch <- @launches}>
             Launch #{launch["launch_id"]} · {lifecycle(launch["lifecycle"])} ·
-            <.link :if={launch["page"]} navigate={launch["page"]}>
-              Auction <span class="launch-wallet-mono">{launch["auction"]}</span>
-            </.link>
-            <span :if={!launch["page"]}>
-              Auction <span class="launch-wallet-mono">{launch["auction"]}</span>
-            </span>
+            <.link :if={launch["page"]} navigate={launch["page"]}>Auction</.link>
+            <span :if={!launch["page"]}>Auction</span>
+            <Regent.Primitives.address
+              id={"#{@id}-launch-#{launch["launch_id"]}"}
+              address={launch["auction"]}
+              chain={LaunchSteps.address_chain(explorer_chain())}
+            />
           </li>
         </ul>
       </section>

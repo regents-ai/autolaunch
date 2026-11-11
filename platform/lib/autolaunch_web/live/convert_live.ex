@@ -50,6 +50,7 @@ defmodule AutolaunchWeb.ConvertLive do
       <.chain
         id="convert-base"
         title={if Autolaunch.Lab.test_chain?(), do: "Base test network", else: "Base"}
+        address_chain={if Autolaunch.Lab.test_chain?(), do: "test", else: "base"}
         rows={@base}
         open?={StocksLab.configured?()}
         authenticated={@account_control.kind == :signed_in}
@@ -59,6 +60,7 @@ defmodule AutolaunchWeb.ConvertLive do
       <.chain
         id="convert-robinhood"
         title={if RobinhoodLab.test_chain?(), do: "Robinhood test network", else: "Robinhood Chain"}
+        address_chain={if RobinhoodLab.test_chain?(), do: "test", else: "robinhood"}
         rows={@robinhood}
         open?={RobinhoodLab.configured?()}
         authenticated={@account_control.kind == :signed_in}
@@ -71,6 +73,7 @@ defmodule AutolaunchWeb.ConvertLive do
 
   attr :id, :string, required: true
   attr :title, :string, required: true
+  attr :address_chain, :string, required: true, doc: "the chain addresses open on"
   attr :rows, Phoenix.LiveView.AsyncResult, required: true
   attr :open?, :boolean, required: true
   attr :authenticated, :boolean, required: true
@@ -91,7 +94,12 @@ defmodule AutolaunchWeb.ConvertLive do
       </p>
       <p :if={@open? && @rows.result == []}>No Memestock token has graduated yet.</p>
       <p :if={converter(@rows.result)} class="autolaunch-convert__muted">
-        Converter wallet <span class="autolaunch-exact-value">{converter(@rows.result)}</span>
+        Converter wallet
+        <Regent.Primitives.address
+          id={"#{@id}-converter"}
+          address={converter(@rows.result)}
+          chain={@address_chain}
+        />
       </p>
       <div :for={row <- @rows.result || []} id={"#{row.id}-row"} class="autolaunch-convert__row">
         <h3 class="autolaunch-convert__name">

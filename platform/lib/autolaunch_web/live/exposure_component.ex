@@ -169,7 +169,7 @@ defmodule AutolaunchWeb.ExposureComponent do
       "You sold #{F.tokens(amount, series.stock.decimals)} #{Map.fetch!(series, leg).symbol} for USDC."
     ]
 
-  @doc "The note a landed split or redemption leaves on the page, with View Portfolio."
+  @doc "The note a landed split or redemption leaves on the page, with View portfolio."
   attr :id, :string, required: true
   attr :done, :map, required: true
   attr :dismiss, :string, required: true

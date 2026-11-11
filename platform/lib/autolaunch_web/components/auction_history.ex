@@ -76,7 +76,13 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
                 </thead>
                 <tbody>
                   <tr :for={bid <- @newest}>
-                    <td title={bid.bidder}>{RegentFormat.short_address(bid.bidder)}</td>
+                    <td>
+                      <Regent.Primitives.address
+                        id={"#{@id}-bidder-#{bid.transaction_hash}"}
+                        address={bid.bidder}
+                        chain={if @test_chain, do: "test", else: Atom.to_string(@chain)}
+                      />
+                    </td>
                     <td>
                       <time datetime={DateTime.to_iso8601(bid.occurred_at)}>{RegentFormat.relative_time(
                         bid.occurred_at,

@@ -185,10 +185,16 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           >
             <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
           </strong>
-          <span class="auction-next-figure__note">
-            Exact: <TokenDisplay.price amount={@snapshot.clearing} unit={@symbol} /> per token.
-            Read from the chain at block {grouped(@snapshot.block.number)}.
-          </span>
+          <Regent.Primitives.disclosure
+            id="auction-next-exact"
+            summary="Exact"
+            class="auction-next-figure__note"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+          >
+            <p><TokenDisplay.price amount={@snapshot.clearing} unit={@symbol} /> per token.</p>
+            <p>Read from the chain at block {grouped(@snapshot.block.number)}.</p>
+            <p>{ending(@snapshot)}</p>
+          </Regent.Primitives.disclosure>
         </dd>
       </div>
       <div :if={@raised} class="auction-next-figure">
@@ -202,9 +208,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           >
             <TokenDisplay.price amount={@raised} unit={@symbol} />
           </strong>
-          <span class="auction-next-figure__note">
-            Spent by bids so far. Read from the chain at block {grouped(@snapshot.block.number)}.
-          </span>
+          <span class="auction-next-figure__note">Spent by bids so far.</span>
         </dd>
       </div>
       <div class="auction-next-figure">
@@ -222,7 +226,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </strong>
           <strong :if={!@ends_at} class="auction-next-figure__value">Ended</strong>
           <span class="auction-next-figure__block">Block {grouped(@snapshot.blocks.end)}</span>
-          <span class="auction-next-figure__note">{ending(@snapshot)}</span>
           <span class="auction-next-figure__short">
             <.minimum_warning id="auction-next-minimum" from={@short_from}>
               Below the
@@ -304,7 +307,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card auction-next-howto" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>How bidding works</h2>
+        <h2 id={"#{@id}-title"}>Bidding</h2>
       </header>
       <ul class="auction-next-howto__list">
         <li>You set a total budget and the max price you would pay for a token.</li>
@@ -354,28 +357,16 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card auction-next-film" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-film__head">
-        <h2 id={"#{@id}-title"}>Token Bid Price</h2>
-        <p class="auction-next-film__subtitle">Price per 1M {@token_symbol}</p>
+        <h2 id={"#{@id}-title"}>Price</h2>
+        <p class="auction-next-film__subtitle">Per 1M {@token_symbol}</p>
       </header>
-      <p class="auction-next-lead">The solid line is the price each block recorded.</p>
-      <ul class="auction-next-film__tips">
-        <li>
-          The line only steps up when there is enough demand to buy the rest of the auction at a
-          higher price. While it stays flat, every bid is still buying at that price.
-        </li>
-        <li :if={!@ended}>
-          Type a max price in the bid form to see it here as a dashed line. Each block the price
-          stays below it, part of your budget buys tokens; once the price passes it, the rest of
-          your budget stops buying.
-        </li>
-        <li :if={!@ended}>
-          Your budget is spread over the blocks left, so bidding earlier buys over more blocks.
-          Waiting only gets you a worse average price.
-        </li>
-        <li>
-          The bars underneath show how much of the supply each stage of the schedule releases.
-        </li>
-      </ul>
+      <p class="auction-next-lead">
+        {if @ended,
+          do:
+            "The line is the price each block recorded; the bars are the supply each stage releases.",
+          else:
+            "The line is the price each block recorded, the dashed line is your max price, and the bars are the supply each stage releases."}
+      </p>
       <div class="auction-next-film__plot">
         <span class="auction-next-film__axis auction-next-film__axis--top">
           <TokenDisplay.price amount={per_million(@film.top)} unit={@symbol} />
@@ -534,7 +525,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         from the auction at block {grouped(@snapshot.block.number)}. No future price is drawn.
       </p>
 
-      <Regent.Primitives.disclosure id={"#{@id}-table"} summary="The chart as a table">
+      <Regent.Primitives.disclosure id={"#{@id}-table"} summary="Table">
         <table class="auction-next-table">
           <caption>Recorded prices, per 1M {@token_symbol}</caption>
           <thead>
@@ -764,7 +755,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card auction-next-ladder" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>Where bids are waiting</h2>
+        <h2 id={"#{@id}-title"}>Waiting bids</h2>
         <Regent.Primitives.status>Price per 1M {@token_symbol}</Regent.Primitives.status>
       </header>
       <p class="auction-next-lead">
@@ -828,7 +819,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
                 <TokenDisplay.price amount={per_million(@handle.effective)} unit={@symbol} /> per 1M
               </span>
               <span :if={!@handle.effective}>Drag or use the arrow keys</span>
-              <small class="autolaunch-exact-value">{@handle.effective || "—"}</small>
             </dd>
           </div>
           <div>
@@ -896,14 +886,13 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <Regent.Primitives.disclosure
         :if={@snapshot.ladder.rungs != []}
         id={"#{@id}-table"}
-        summary={table_summary(@snapshot.ladder)}
+        summary="Table"
       >
         <table class="auction-next-table">
           <caption>Prices bids are waiting at, lowest first</caption>
           <thead>
             <tr>
               <th scope="col">Price per 1M</th>
-              <th scope="col">Exact price per token</th>
               <th scope="col">Bidding here</th>
               <th scope="col">More bidding needed</th>
             </tr>
@@ -911,7 +900,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           <tbody>
             <tr :for={rung <- @snapshot.ladder.rungs}>
               <td><TokenDisplay.price amount={per_million(rung.price)} unit={@symbol} /></td>
-              <td class="autolaunch-exact-value">{rung.price}</td>
               <td><TokenDisplay.price amount={rung.bidding} unit={@symbol} /></td>
               <td><TokenDisplay.price amount={rung.needed} unit={@symbol} fallback="Reached" /></td>
             </tr>
@@ -926,11 +914,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     </section>
     """
   end
-
-  defp table_summary(%{rungs: rungs, more: 0}), do: "All #{length(rungs)} prices as a table"
-
-  defp table_summary(%{rungs: rungs}),
-    do: "The #{length(rungs)} prices nearest the price now, as a table"
 
   defp ladder_view(%{snapshot: snapshot, draft: draft}) do
     rungs = snapshot.ladder.rungs
@@ -1163,7 +1146,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         <div>
           <dt>Owner</dt>
           <dd>
-            <span title={@receipt.owner}>{RegentFormat.short_address(@receipt.owner)}</span>
+            <Regent.Primitives.address id={"#{@id}-owner"} address={@receipt.owner} variant="compact" />
             <small>{owner_note(@receipt.owner, @wallet)}</small>
           </dd>
         </div>
@@ -1239,7 +1222,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>Check a bid</h2>
+        <h2 id={"#{@id}-title"}>Bid lookup</h2>
       </header>
       <p class="auction-next-lead">
         A bid is a total budget with a max price, not a fixed number of tokens. Enter a bid's

@@ -117,6 +117,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:outbid_banner, fn -> false end)
      |> assign_new(:authenticated, fn -> false end)
+     |> assign_new(:page, fn -> nil end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
@@ -204,7 +205,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       class="bid-panel"
       phx-hook="OnchainSteps"
     >
-      <BidForm.title id={@id} title={if @ended, do: "Bidding has ended", else: "Place a bid"}>
+      <BidForm.title id={@id} title={if @ended, do: "Bidding ended", else: "New bid"}>
         <:help :if={!@ended}>
           <p>
             Bid with <span class="ticker">USDG</span>. It is converted into the auction's stock inside the bid, and any
@@ -251,6 +252,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               share_image={ShareCard.auction_image_url(@launch, DateTime.utc_now())}
               x_connection={@x_connection}
               x_enabled={@x_enabled}
+              page={@page}
             />
           <% end %>
           <Regent.Primitives.button
@@ -311,6 +313,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             </a>
             <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
             <SwapForm.wallet_step
+              id={@id <> "-sender"}
               next_step={@next_step}
               steps={@steps}
               reverted={reverted(@steps)}
@@ -328,7 +331,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           class="launch-wallet-settled"
           aria-label="Your bids"
         >
-          <h3>Your bids on this auction</h3>
+          <h3>Your bids</h3>
           <ul role="list">
             <li :for={{bid, standing} <- @rows} id={"#{@id}-bid-#{bid["bid_id"]}"}>
               <p>
@@ -494,13 +497,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
-  # pressed and its first step handed back to send.
+  # pressed and the first step it built handed back to send.
   def handle_event("prepare_and_send", %{"form" => inputs}, socket) when is_map(inputs) do
     socket = assign(socket, form: pressed_form(socket.assigns, inputs), notice: nil)
 
     case prepared_now(socket) do
-      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
-        {:reply, %{review: review, send: first}, socket}
+      {:ok, %{assigns: %{review: %{} = review} = assigns} = socket} ->
+        {:reply, %{review: review, send: OnchainSteps.first_built(assigns, review)}, socket}
 
       {:error, socket} ->
         {:reply, %{}, socket}
@@ -634,8 +637,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
        %{auction: auction, usdg_amount: amount, max_price: max_price, slippage_percent: slippage}}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
-    review =
-      Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps, inputs)
+    {steps, socket} = OnchainSteps.with_approved(socket, approves(key), prepared.steps)
+    review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, steps, inputs)
 
     socket
     |> assign(prepared: prepared, prepared_for: key, notice: nil)
@@ -647,11 +650,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp reviewed(socket, key, _inputs, {:error, error}),
     do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
 
+  # What a bid's approval allows: this wallet's amount of USDG to this
+  # auction, whatever the most per token.
+  defp approves({auction, signer, amount, _max_price, _slippage}), do: {auction, signer, amount}
+
   # The review built again from Robinhood Chain with the form as it is, so its
   # quote and deadline are current: once it is ten minutes old, once an approval
   # lands, and once a step reverts, when `note` says so beside the new button.
-  # While a step sent from it is on its way it stays, and a timer asks again
-  # later.
+  # An approval that landed stays in it, done. While a step sent from it is on
+  # its way it stays, and a timer asks again later.
   defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
     if OnchainSteps.pending?(presses, review),
       do: OnchainSteps.refresh_later(socket),
@@ -736,7 +743,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A bid landed: the panel shows it placed and reads the wallet's bids again.
   # A landed approval builds the review again, so the bid it leads to carries a
-  # fresh deadline.
+  # fresh deadline, and stays in it, done.
   defp confirmed(socket, %{name: "usdg_bid", hash: hash, review: review}) do
     socket
     |> assign(placed: %{hash: hash, chain_id: review.chain.chain_id}, new_bid: false)
@@ -744,8 +751,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     |> read_bids()
   end
 
-  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
-    do: rebuilt(socket, nil)
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
   defp confirmed(socket, _earlier_review), do: socket
 
@@ -769,10 +776,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # Steps
 
-  defp steps(%{review: %{} = review, presses: presses}) do
+  # An approval kept from the review this one replaced is done, whatever a
+  # later press of it does.
+  defp steps(%{review: %{} = review, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name), state: step_state(entry), entry: entry}
+      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
+      %{name: name, label: step_label(name), state: state, entry: entry}
     end)
   end
 

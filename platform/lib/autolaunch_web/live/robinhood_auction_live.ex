@@ -308,6 +308,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     <.live_component
       module={AutolaunchWeb.RobinhoodStockBidComponent}
       id={bid_form_id(@auction)}
+      page={:auction}
       outbid_banner
       draft_marker={@draft_marker}
       auction={@auction}
@@ -402,7 +403,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </div>
         <div>
           <dt>Auction address</dt>
-          <dd class="autolaunch-exact-value">{@launch.auction_address}</dd>
+          <dd>
+            <Regent.Primitives.address
+              id="robinhood-auction-address"
+              address={@launch.auction_address}
+              chain={if Lab.test_chain?(), do: "test", else: "robinhood"}
+            />
+          </dd>
         </div>
       </dl>
     </.details_window>
