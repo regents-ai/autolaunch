@@ -310,13 +310,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
-  # pressed and its first step handed back to send.
+  # pressed and the first step it built handed back to send.
   def handle_event("prepare_and_send", %{"form" => inputs}, socket) when is_map(inputs) do
     socket = assign(socket, form: pressed_form(socket.assigns, inputs), notice: nil)
 
     case prepared_now(socket) do
-      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
-        {:reply, %{review: review, send: first}, socket}
+      {:ok, %{assigns: %{review: %{} = review} = assigns} = socket} ->
+        {:reply, %{review: review, send: OnchainSteps.first_built(assigns, review)}, socket}
 
       {:error, socket} ->
         {:reply, %{}, socket}

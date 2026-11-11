@@ -197,6 +197,16 @@ defmodule AutolaunchWeb.OnchainSteps do
   @doc "Whether the step `name` is an approval kept from an earlier review, so it shows as done."
   def approved?(%{approved: approved}, name), do: Enum.any?(approved, &(&1.step == name))
 
+  @doc """
+  The step a press sends when the server builds its review (`prepare_and_send`):
+  the first one the builder made, after any approval `with_approved/3` kept,
+  which the chain already holds.
+  """
+  def first_built(assigns, %{steps: steps}) do
+    %{step: name} = Enum.find(steps, &(not approved?(assigns, &1.step)))
+    name
+  end
+
   @doc "The wallet sent a step; it is read from now on against the review it was sent from."
   def sent(socket, params) do
     case Presses.sent(socket.assigns.presses, params) do

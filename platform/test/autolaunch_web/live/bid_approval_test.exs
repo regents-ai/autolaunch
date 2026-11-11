@@ -80,6 +80,7 @@ defmodule AutolaunchWeb.BidApprovalTest do
     assert_push_event(view, "onchain-steps:review", %{
       review: %{
         id: first_id,
+        inputs: first_inputs,
         chain: %{chain_id: chain_id},
         steps: [%{step: "token_approval"} = approval, %{step: "bid"} = bid]
       }
@@ -133,5 +134,15 @@ defmodule AutolaunchWeb.BidApprovalTest do
                wallet,
                opts
              )
+
+    # A press the server prepares (the page's form no longer matched its
+    # review) builds the bid for the values pressed: the approval stays in it,
+    # done, and the press sends the bid, not the approval the chain holds.
+    render_hook(panel, "prepare_and_send", %{"form" => first_inputs, "step" => "bid"})
+
+    assert_reply(view, %{
+      send: "bid",
+      review: %{steps: [^approval, %{step: "bid"}]}
+    })
   end
 end
