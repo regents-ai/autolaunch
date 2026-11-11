@@ -103,14 +103,6 @@ defmodule Autolaunch.CoveredCalls.Terms do
     max(round(price * @usdc_unit), 1)
   end
 
-  @doc """
-  The seller's result per whole token at expiry if the stock is at `price`,
-  against `basis` (what they count the stock as worth today), with the premium
-  kept: below the strike the stock stays theirs; above it, the strike is what
-  they receive. All USDC per token, 6 decimals.
-  """
-  def payoff(price, strike, premium, basis), do: min(price, strike) + premium - basis
-
   defp normal_cdf(x), do: 0.5 * (1 + :math.erf(x / :math.sqrt(2)))
 
   defp ceil_div(numerator, denominator), do: div(numerator + denominator - 1, denominator)

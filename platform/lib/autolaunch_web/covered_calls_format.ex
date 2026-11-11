@@ -67,6 +67,14 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def expiry(unix) when is_integer(unix),
     do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b, %H:%M UTC")
 
+  @doc "A weekly expiry as its date in UTC, for a choice of a few."
+  def date(unix) when is_integer(unix),
+    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%-d %b")
+
+  @doc "A time as its weekday and time in UTC, shown beside the reader's own time."
+  def utc_time(unix) when is_integer(unix),
+    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %H:%M UTC")
+
   @doc "The 24-hour window after an expiry, as the time it closes."
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
