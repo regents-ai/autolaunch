@@ -122,7 +122,14 @@ function claimable(uint256 listingId, address account) external view returns (ui
   the market is open, and the contract needs no daylight-saving rule. Every surface, site, WebMCP
   and agents calling the contract directly, meets only weekly series. The exercise window is
   `[expiry, expiry + 24h)`; fills close at expiry. (Coordinator review, 28 Oct: one way on chain so
-  agents cannot drift.)
+  agents cannot drift.) A new listing or bid takes only one of the next four Fridays on which the
+  New York Stock Exchange trades the whole day (`Terms.expiries/2`, the one list the page, the
+  quote and the prepared steps share): on a Friday it is shut or closes early the price is known
+  before 21:00 UTC, while the contract still lets calls be bought and sold into until then. The
+  dates come from NYSE's own rules, so no year is added by hand: Good Friday from the Easter date;
+  New Year's Day, Juneteenth, Independence Day and Christmas on a Friday, the last three also on
+  the Friday before a Saturday holiday; and the early close the day after Thanksgiving. Listings
+  and bids already made keep their Friday. (11 Nov.)
 - **Coverage.** Each listing holds exactly the raw stock it may deliver. Fills can never exceed
   `amount − filled`; exercise can never exceed what the caller holds; `cancel` frees only the
   unsold remainder; after the window the seller's `claim` books only `amount − exercised`, once.

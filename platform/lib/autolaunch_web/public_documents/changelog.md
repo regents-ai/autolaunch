@@ -30,6 +30,7 @@
 - Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in.
 - Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or the whole bid when it is smaller.
 - The portfolio shows each of your bids: how much has sold, the premium still held, Raise and Stop while it is open, and Refund for what was not spent. Calls bought through a bid show with your other calls.
+- New listings and bids no longer take a Friday when the US stock market is shut or closes early, such as Good Friday, Christmas or the day after Thanksgiving: Sell, Bid and the quote offer the next four other Fridays, to people and agents alike. Listings and bids already made keep their Friday.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
