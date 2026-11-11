@@ -14,7 +14,6 @@
 /* The ticker and its paired currency read in the brand's orange (figures.css). The name
    sits over its ticker and both wrap, so a row's buttons never cut the name short. */
 .portfolio .market-list__name small { color: var(--orange-ink); }
-.portfolio .market-list__name { flex-direction: column; align-items: stretch; gap: 0; }
 .portfolio .market-list__name :is(strong, small) { max-width: none; white-space: normal; overflow-wrap: anywhere; }
 /* A bid is its row and its buttons: one block between hairlines. */
 .portfolio__table tbody + tbody > tr:first-child > * { border-top: 1px solid var(--hairline); }

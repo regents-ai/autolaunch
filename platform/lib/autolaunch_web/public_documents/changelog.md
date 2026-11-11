@@ -1,5 +1,8 @@
 # Changelog
 
+## 11 November 2026: Lists
+- In the auction, token and call lists, a name sits over its ticker, so the figures beside it no longer cut the name to a letter or two.
+
 ## 11 November 2026: Bid form
 - Switching what you pay with no longer changes the bid form's height: the slippage box, asked for only when a stock is bought with dollars, sits after Receive and keeps its room while it is not needed.
 
