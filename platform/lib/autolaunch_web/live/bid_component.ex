@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.BidComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign_new(:heading, fn -> "Place a bid" end)
+     |> assign_new(:heading, fn -> "New bid" end)
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:page, fn -> nil end)
      |> assign_new(:current_human_id, fn -> nil end)

@@ -383,7 +383,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="prelaunch-actions"
       aria-label="Bidding unavailable"
     >
-      <h2>Place a bid</h2>
+      <h2>New bid</h2>
       <p>Bidding opens soon.</p>
       <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
     </section>
@@ -428,7 +428,7 @@ defmodule AutolaunchWeb.AuctionLive do
     >
       <AutolaunchWeb.Components.BidForm.title
         id="autolaunch-settlement"
-        title="Bidding has ended"
+        title="Bidding ended"
       />
       <p class="bid-ended">{ended_copy(@page_record)}</p>
       <.live_component

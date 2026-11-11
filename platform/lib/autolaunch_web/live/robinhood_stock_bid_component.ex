@@ -205,7 +205,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       class="bid-panel"
       phx-hook="OnchainSteps"
     >
-      <BidForm.title id={@id} title={if @ended, do: "Bidding has ended", else: "Place a bid"}>
+      <BidForm.title id={@id} title={if @ended, do: "Bidding ended", else: "New bid"}>
         <:help :if={!@ended}>
           <p>
             Bid with <span class="ticker">USDG</span>. It is converted into the auction's stock inside the bid, and any

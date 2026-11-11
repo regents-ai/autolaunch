@@ -304,7 +304,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card auction-next-howto" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>How bidding works</h2>
+        <h2 id={"#{@id}-title"}>Bidding</h2>
       </header>
       <ul class="auction-next-howto__list">
         <li>You set a total budget and the max price you would pay for a token.</li>
@@ -534,7 +534,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         from the auction at block {grouped(@snapshot.block.number)}. No future price is drawn.
       </p>
 
-      <Regent.Primitives.disclosure id={"#{@id}-table"} summary="The chart as a table">
+      <Regent.Primitives.disclosure id={"#{@id}-table"} summary="Table">
         <table class="auction-next-table">
           <caption>Recorded prices, per 1M {@token_symbol}</caption>
           <thead>
@@ -764,7 +764,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card auction-next-ladder" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>Where bids are waiting</h2>
+        <h2 id={"#{@id}-title"}>Waiting bids</h2>
         <Regent.Primitives.status>Price per 1M {@token_symbol}</Regent.Primitives.status>
       </header>
       <p class="auction-next-lead">
@@ -828,7 +828,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
                 <TokenDisplay.price amount={per_million(@handle.effective)} unit={@symbol} /> per 1M
               </span>
               <span :if={!@handle.effective}>Drag or use the arrow keys</span>
-              <small class="autolaunch-exact-value">{@handle.effective || "—"}</small>
             </dd>
           </div>
           <div>
@@ -896,14 +895,13 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <Regent.Primitives.disclosure
         :if={@snapshot.ladder.rungs != []}
         id={"#{@id}-table"}
-        summary={table_summary(@snapshot.ladder)}
+        summary="Table"
       >
         <table class="auction-next-table">
           <caption>Prices bids are waiting at, lowest first</caption>
           <thead>
             <tr>
               <th scope="col">Price per 1M</th>
-              <th scope="col">Exact price per token</th>
               <th scope="col">Bidding here</th>
               <th scope="col">More bidding needed</th>
             </tr>
@@ -911,7 +909,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           <tbody>
             <tr :for={rung <- @snapshot.ladder.rungs}>
               <td><TokenDisplay.price amount={per_million(rung.price)} unit={@symbol} /></td>
-              <td class="autolaunch-exact-value">{rung.price}</td>
               <td><TokenDisplay.price amount={rung.bidding} unit={@symbol} /></td>
               <td><TokenDisplay.price amount={rung.needed} unit={@symbol} fallback="Reached" /></td>
             </tr>
@@ -926,11 +923,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     </section>
     """
   end
-
-  defp table_summary(%{rungs: rungs, more: 0}), do: "All #{length(rungs)} prices as a table"
-
-  defp table_summary(%{rungs: rungs}),
-    do: "The #{length(rungs)} prices nearest the price now, as a table"
 
   defp ladder_view(%{snapshot: snapshot, draft: draft}) do
     rungs = snapshot.ladder.rungs
@@ -1239,7 +1231,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <section id={@id} class="auction-next-card" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>Check a bid</h2>
+        <h2 id={"#{@id}-title"}>Bid lookup</h2>
       </header>
       <p class="auction-next-lead">
         A bid is a total budget with a max price, not a fixed number of tokens. Enter a bid's

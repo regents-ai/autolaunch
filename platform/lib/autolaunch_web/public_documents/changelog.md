@@ -1,5 +1,10 @@
 # Changelog
 
+## 11 November 2026: Auction titles
+- Auction page sections have short names: Bidding, Waiting bids, Bid lookup and Table.
+- The bid form is titled New bid, or Higher bid and Extra bid when you raise or add to a bid, and Bidding ended once the auction closes.
+- The price limit and the waiting-bids table no longer print each price with every one of its decimals.
+
 ## 11 November 2026: Placed bids
 - Once a bid is placed, the note says so and comes into view, wherever the bid form sits on the page.
 - The note links on to the auction and your portfolio, leaving out the page you are already on.
