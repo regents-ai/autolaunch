@@ -147,9 +147,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       </p>
 
       <div class="launch-wallet-open" hidden={!(@authenticated && !@review && !@launched)}>
-        <p class="launch-wallet-hint">
-          Your wallet confirms the launch. You see every value before anything is sent.
-        </p>
         <p class="launch-wallet-from" hidden={!@signer}>
           Launching from
           <Regent.Primitives.address

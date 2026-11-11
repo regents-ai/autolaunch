@@ -81,9 +81,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
-        <p class="launch-wallet-hint">
-          Your wallet confirms the launch. You see every value before anything is sent.
-        </p>
         <p class="launch-wallet-from" hidden={!@signer}>
           Launching from
           <Regent.Primitives.address
