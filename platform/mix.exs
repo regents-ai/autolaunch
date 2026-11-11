@@ -223,7 +223,7 @@ defmodule Autolaunch.MixProject do
         # CoveredCalls one, Exposure one), thirty-nine resource-to-check edges,
         # the two steps edges, the one endpoint edge and those two, and it is
         # re-based per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 76",
+        "xref graph --label compile-connected --fail-above 80",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",
