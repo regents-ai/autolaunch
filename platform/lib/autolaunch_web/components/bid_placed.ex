@@ -14,8 +14,8 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   use AutolaunchWeb, :verified_routes
 
   alias Autolaunch.Accounts.XOAuth
-  alias Phoenix.LiveView.JS
   alias AutolaunchWeb.Components.ShareDialog
+  alias Phoenix.LiveView.JS
 
   @doc "The bidder's personal X connection, connected or not."
   def profile_x(connections), do: Enum.find(connections, &(&1.role == :profile))
