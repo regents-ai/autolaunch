@@ -18,6 +18,7 @@
 - Under the Sell ticket's amount, its worth at the reference price. Signed in, the amount row shows how much of the stock your wallet holds, with a Max that fills the amount with it. Stock already listed is held by the contract and is not counted.
 - Your covered calls, as agents read them, now include the stock in your wallet: the most you can list now.
 - Under You receive, what you keep as a share of the stock's worth, and for how many days, such as "0.22% · 4 days". A quote gives the same term in days.
+- The Buy receipt keeps the totals for your amount apart from the prices per token: You pay, To exercise (the USDC a full exercise pays) and You get (the stock it delivers), then the strike and break-even per token.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.

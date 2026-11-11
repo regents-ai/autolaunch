@@ -255,18 +255,33 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-list button[data-account-target=sign-in]")
   end
 
-  test "the Buy receipt counts the amount typed as the contract does", %{conn: conn} do
+  test "the Buy receipt counts the amount typed as the contract does, apart from the prices per token",
+       %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
     render_async(view, @async_ms)
 
-    view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "2"})
+    view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "2.5"})
+    amount = 2 * @unit + div(@unit, 2)
 
+    # For the amount: the premium paid now, the strike a full exercise pays and
+    # the stock it delivers.
     assert text(view, "#covered-call-buy-1-pay") ==
-             F.usd_due(Terms.usdc_for(2 * @unit, 3_000_000, @unit))
+             F.usd_due(Terms.usdc_for(amount, 3_000_000, @unit))
 
-    assert text(view, "#covered-call-buy-1-strike") == F.usd(260_000_000)
-    assert text(view, "#covered-call-buy-1-break-even") == F.usd(263_000_000)
+    assert text(view, "#covered-call-buy-1-exercise") ==
+             F.usd_due(Terms.usdc_for(amount, 260_000_000, @unit))
+
+    assert text(view, "#covered-call-buy-1-get") == "2.5 AMZNc"
+
+    # Per token, whatever the amount.
+    assert text(view, "#covered-call-buy-1-strike") |> String.starts_with?(F.usd(260_000_000))
+    assert text(view, "#covered-call-buy-1-break-even") |> String.starts_with?(F.usd(263_000_000))
+
+    # An amount that doesn't read leaves the totals empty.
+    view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "x"})
+    assert text(view, "#covered-call-buy-1-exercise") == F.usd(nil)
+    assert text(view, "#covered-call-buy-1-get") == F.usd(nil)
   end
 
   test "Buy calls reviews the amount as typed: the USDC approval, then the purchase",

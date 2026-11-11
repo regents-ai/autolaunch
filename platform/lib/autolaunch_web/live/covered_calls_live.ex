@@ -844,8 +844,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         unit: unit,
         value: typed || F.tokens(left, unit),
         left: F.tokens(left, unit),
+        amount: amount,
         order: amount && %{listing_id: listing.id, amount: amount},
         pay: amount && Terms.usdc_for(amount, listing.premium_per_token, unit),
+        exercise: amount && Terms.usdc_for(amount, listing.strike_per_token, unit),
         break_even: break_even
       )
 
@@ -905,12 +907,29 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               <dd id={"#{@id}-pay"} data-count>{if @pay, do: F.usd_due(@pay), else: F.usd(nil)}</dd>
             </div>
             <div>
+              <dt>To exercise</dt>
+              <dd id={"#{@id}-exercise"} data-count>
+                {if @exercise, do: F.usd_due(@exercise), else: F.usd(nil)}
+              </dd>
+            </div>
+            <div>
+              <dt>You get</dt>
+              <dd id={"#{@id}-get"}>
+                <span data-count>{if @amount, do: "#{F.tokens(@amount, @unit)} #{@symbol}", else: "—"}</span>
+                <small :if={@amount && shares?(@reading)}>{shares(@amount, @reading)}</small>
+              </dd>
+            </div>
+            <div>
               <dt>Strike</dt>
-              <dd id={"#{@id}-strike"}>{F.usd(@listing.strike_per_token)}</dd>
+              <dd id={"#{@id}-strike"}>
+                {F.usd(@listing.strike_per_token)} <small>per {@symbol}</small>
+              </dd>
             </div>
             <div>
               <dt>Break-even</dt>
-              <dd id={"#{@id}-break-even"}>{F.usd(@break_even)}</dd>
+              <dd id={"#{@id}-break-even"}>
+                {F.usd(@break_even)} <small>per {@symbol}</small>
+              </dd>
             </div>
             <div>
               <dt>Opens</dt>

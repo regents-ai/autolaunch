@@ -80,6 +80,7 @@
 /* Under You receive, what it is as a share of the stock's worth for the term, on a line kept for it. */
 .covered-calls__lines .covered-calls__lead { display: grid; justify-items: end; }
 .covered-calls__lead > small { min-block-size: 1.25rem; color: var(--color-fg-muted); font-size: .8125rem; letter-spacing: normal; line-height: 1.25rem; }
+.covered-calls__lines dd > small { color: var(--color-fg-muted); font-size: .8125rem; }
 .covered-calls__local, .covered-calls__utc { white-space: nowrap; }
 .covered-calls__utc { display: none; color: var(--color-fg-muted); font-size: .8125rem; }
 .covered-calls__local[data-local] + .covered-calls__utc { display: inline; }
