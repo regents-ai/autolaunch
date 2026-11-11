@@ -24,8 +24,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @receivers %{
     creator: {"Creator's fee", "the wallet that created the launch"},
     regent: {"REGENT stakers' fee", "REGENT staking"},
-    stakers:
-      {"Token stakers' fee", "the token’s staking, which sends 2% of it to Regent"}
+    stakers: {"Token stakers' fee", "the token’s staking, which sends 2% of it to Regent"}
   }
 
   @type chain :: :base | :robinhood
