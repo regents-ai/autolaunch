@@ -12,6 +12,11 @@
  *
  * On its first draw the line grows from the pool's opening to now, the dot
  * leading, timed by anime.js; a reader who asks for less motion sees it whole.
+ *
+ * Prices drawn flat across the line (a covered call's strike) are elements in
+ * the chart marked `data-level` with a price: the height spans them too, and
+ * each is placed at its price once the line is drawn, its figure kept a line
+ * apart from the others'. One whose `data-level` is empty is hidden.
  */
 
 import {prepareShader} from "@vgpu/wgsl/prepare"
@@ -105,22 +110,48 @@ function channels(css: string): Channels {
   return [0, 2, 4].map(at => Number.parseInt(hex.slice(at, at + 2), 16) / 255).concat(1) as Channels
 }
 
-// The page's [block, price] pairs, spread 0–1 across by block and 0–1 up by
-// price with room above and below; a flat price sits in the middle.
-function normalized(root: HTMLElement): Float32Array<ArrayBuffer> {
-  const pairs = JSON.parse(root.dataset.points!) as [number, number][]
-  const first = pairs[0][0]
-  const blocks = pairs[pairs.length - 1][0] - first || 1
-  const prices = pairs.map(([, price]) => price)
+// The page's [block or time, price] pairs, spread 0–1 across by the first
+// and 0–1 up by price with room above and below, the levels' prices counted
+// in the range; a flat price sits in the middle.
+function normalized(pairs: [number, number][], levels: number[]): (price: number) => number {
+  const prices = pairs.map(([, price]) => price).concat(levels)
   const low = Math.min(...prices)
   const range = Math.max(...prices) - low
+  return price => (range ? 0.12 + ((price - low) / range) * 0.76 : 0.5)
+}
 
-  return new Float32Array(
-    pairs.flatMap(([block, price]) => [
-      (block - first) / blocks,
-      range ? 0.12 + ((price - low) / range) * 0.76 : 0.5,
-    ]),
-  )
+type Level = {el: HTMLElement; up: number}
+
+// The chart's `data-level` elements with a price; the others are hidden.
+function levels(root: HTMLElement): {el: HTMLElement; price: number}[] {
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-level]")).flatMap(el => {
+    const price = Number.parseFloat(el.dataset.level!)
+    if (Number.isFinite(price)) return [{el, price}]
+    el.hidden = true
+    return []
+  })
+}
+
+// Each level at its height (CSS pixels from the canvas's top) and its figure
+// at least `gap` from the others', as near its own line as that allows,
+// inside the box.
+function place(marks: Level[], top: (up: number) => number, height: number) {
+  const shown = marks.map(mark => {
+    mark.el.hidden = false
+    return {el: mark.el, at: top(mark.up)}
+  })
+  const gap = Math.max(0, ...shown.map(({el}) => el.firstElementChild?.clientHeight ?? 0))
+  const order = shown.slice().sort((a, b) => a.at - b.at)
+  const figures = order.map(({at}) => at)
+  for (let i = 1; i < figures.length; i++) figures[i] = Math.max(figures[i], figures[i - 1] + gap)
+  for (let i = figures.length - 1; i >= 0; i--) {
+    const below = i === figures.length - 1 ? height - gap / 2 : figures[i + 1] - gap
+    figures[i] = Math.max(Math.min(figures[i], below), gap / 2)
+  }
+  order.forEach(({el, at}, i) => {
+    el.style.top = `${at}px`
+    el.style.setProperty("--nudge", `${figures[i] - at}px`)
+  })
 }
 
 export async function paint(root: HTMLElement): Promise<Painter> {
@@ -146,14 +177,20 @@ export async function paint(root: HTMLElement): Promise<Painter> {
   })
 
   let count = 0
+  let marks: Level[] = []
   // How much of the line is drawn, 0 to 1, and how many points that is: at
   // least the first segment, so the dot always has a line behind it.
   let shown = 1
   const visible = () => Math.max(2, Math.ceil(shown * count))
   const load = () => {
-    const data = normalized(root)
-    count = data.length / 2
-    points.write(data)
+    const pairs = JSON.parse(root.dataset.points!) as [number, number][]
+    const shown = levels(root)
+    const up = normalized(pairs, shown.map(({price}) => price))
+    const first = pairs[0][0]
+    const span = pairs[pairs.length - 1][0] - first || 1
+    count = pairs.length
+    points.write(new Float32Array(pairs.flatMap(([x, price]) => [(x - first) / span, up(price)])))
+    marks = shown.map(({el, price}) => ({el, up: up(price)}))
   }
 
   // A frame cannot open inside a resize report, so each draw waits for the
@@ -173,6 +210,9 @@ export async function paint(root: HTMLElement): Promise<Painter> {
     }
     fill.set({params, points})
     line.set({params, points})
+    // The levels in CSS pixels, where the shader puts the same heights.
+    const height = canvas.clientHeight
+    place(marks, up => 6 + (1 - up) * (height - 12), height)
     frame(gpu, f =>
       f.pass({target: canvasSurface, clear: [0, 0, 0, 0]}, pass => {
         pass.draw(fill, {instances: visible() - 1})

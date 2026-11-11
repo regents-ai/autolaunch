@@ -14,6 +14,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   listing's ticket opens below the list at `?listing=<id>`: the amount, what it costs
   and the three ways it can end, counted by `Autolaunch.CoveredCalls.Terms`.
 
+  Each ticket opens on the stock's last 30 days of reference prices with its
+  strike drawn across them (on Buy, the break-even too), from the line every
+  open page shares (`Autolaunch.CoveredCalls.PriceLine`).
+
   The page owns each ticket's fields; every press goes to the wallet through
   `AutolaunchWeb.CoveredCallComponent`, handed the ticket's order as it stands.
 
@@ -24,7 +28,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, Quote, Terms}
+  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, PriceLine, Quote, Terms}
+  alias Autolaunch.SharedReading
+  alias AutolaunchWeb.Components.PriceChart
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.{NotFoundError, Read}
@@ -39,7 +45,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   def mount(_params, _session, socket) do
     with true <- Deployment.enabled?(),
          {:ok, %{chain_id: chain_id, markets: [market | _]}} <- Deployment.current() do
-      if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(market))
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(market))
+        SharedReading.subscribe(PriceLine.key(market.symbol))
+      end
 
       {:ok,
        socket
@@ -62,7 +71,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          due: nil,
          sell: @sell,
          balance: nil,
-         buy: nil
+         buy: nil,
+         line: PriceLine.line(market.symbol)
        )
        |> read_book()}
     else
@@ -158,6 +168,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_info({:covered_call_balance, _symbol, balance}, socket),
     do: {:noreply, assign(socket, balance: balance)}
+
+  def handle_info({:shared_reading, _price_history}, socket),
+    do: {:noreply, assign(socket, line: PriceLine.line(socket.assigns.market.symbol))}
 
   # A listing's expiry or a scheduled multiplier change came: the shared book
   # is taken anew unless it was taken in the last ten seconds, and the page
@@ -495,6 +508,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           listing={listing}
           market={@market}
           reading={@reading}
+          line={@line}
           typed={@buy}
           session_lease={@session_lease}
           human_id={@human_id}
@@ -515,6 +529,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           :if={@reading}
           market={@market}
           reading={@reading}
+          line={@line}
           sell={@sell}
           quote={@quote}
           balance={@balance}
@@ -561,6 +576,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   attr :market, :map, required: true
   attr :reading, :map, required: true
+  attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
   attr :sell, :map, required: true
   attr :quote, Read, required: true
 
@@ -571,8 +587,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   attr :session_lease, :any, required: true
   attr :human_id, :any, required: true
 
-  # The Sell ticket: amount, expiry, strike and premium, then the wallet's
-  # button, beside the receipt and the three ways the listing can end.
+  # The Sell ticket: the price line with the strike across it, amount, expiry,
+  # strike and premium, then the wallet's button, beside the receipt and the
+  # three ways the listing can end. The strike's line follows the form in the
+  # browser as it is chosen or typed.
   defp sell_ticket(%{sell: sell, reading: reading, quote: quote} = assigns) do
     ticket = ticket(sell, reading, quote.value)
     spot = spot(reading)
@@ -597,6 +615,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             {price_words(@reading, @symbol)}
           </P.tip>
         </div>
+        <PriceChart.price_line
+          id="covered-calls-sell-price"
+          points={@line}
+          levels={[dollars(@t.strike)]}
+          follow="covered-calls-sell-form"
+        />
 
         <form id="covered-calls-sell-form" phx-change="sell" phx-submit="sell">
           <div class="covered-calls__field">
@@ -680,11 +704,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 event="sell_strike"
                 name="strike"
                 disabled={is_nil(preset)}
+                strike={preset && F.plain_usd(preset.strike_per_token)}
               >
                 <span>{F.usd(preset && preset.strike_per_token)}</span>
                 <small>{above(preset)}</small>
               </:pill>
-              <:pill value="custom" event="sell_strike" name="strike">Custom</:pill>
+              <:pill value="custom" event="sell_strike" name="strike" strike="custom">
+                Custom
+              </:pill>
             </.pills>
             <span class="covered-calls__input covered-calls__custom" inert={!@custom?}>
               <input
@@ -829,13 +856,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   attr :listing, :map, required: true
   attr :market, :map, required: true
   attr :reading, :map, required: true
+  attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
   attr :typed, :string, default: nil, doc: "the amount typed; nil for all that is left"
   attr :session_lease, :any, required: true
   attr :human_id, :any, required: true
 
   # The chosen listing's Buy ticket, under the list so it is never wider than
-  # the screen: the amount, what it costs and how it can end, counted as the
-  # contract counts them.
+  # the screen: the price line with its strike and break-even across it, the
+  # amount, what it costs and how it can end, counted as the contract counts
+  # them.
   defp buy_ticket(%{listing: listing, reading: reading, typed: typed} = assigns) do
     unit = reading.unit
     left = Terms.available(listing)
@@ -862,6 +891,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <div class="covered-calls__market">
           <h3 id={"#{@id}-title"} class="covered-calls__title">Buy calls</h3>
         </div>
+        <PriceChart.price_line
+          id={"#{@id}-price"}
+          points={@line}
+          levels={[dollars(@listing.strike_per_token), dollars(@break_even)]}
+        />
         <form id={"#{@id}-form"} phx-change="buy" phx-submit="buy">
           <div class="covered-calls__field">
             <div class="covered-calls__label">
@@ -983,6 +1017,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     attr :name, :string, required: true, doc: "the event's value name"
     attr :label, :string, doc: "the choice's name when its words are short"
     attr :disabled, :boolean
+
+    attr :strike, :string,
+      doc: "a strike's price in dollars, or \"custom\" for the typed one, for the price line"
   end
 
   # One choice of a few, side by side, the chosen one marked by a block that
@@ -1012,6 +1049,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         aria-pressed={to_string(to_string(pill.value) == to_string(@active))}
         aria-label={pill[:label]}
         disabled={pill[:disabled]}
+        data-strike={pill[:strike]}
         phx-click={pill.event}
         {%{"phx-value-#{pill.name}" => pill.value}}
       >
@@ -1033,6 +1071,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # The way back to the suggestion, once a different premium is typed.
   defp suggest?(%{edited?: edited?, typed: typed, suggested: suggested}),
     do: edited? and is_integer(suggested) and typed != suggested
+
+  # A USDC price per token in dollars, as the price line draws it.
+  defp dollars(nil), do: nil
+  defp dollars(micro), do: micro / 1_000_000
 
   defp held(nil, _unit, _symbol), do: "—"
   defp held(amount, unit, symbol), do: "#{F.tokens(amount, unit)} #{symbol}"

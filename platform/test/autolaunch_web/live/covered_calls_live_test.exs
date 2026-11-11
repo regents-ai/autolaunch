@@ -15,8 +15,8 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{CoveredCalls, CoveredCallsChain, TestSupport}
-  alias Autolaunch.CoveredCalls.Terms
+  alias Autolaunch.{CoveredCalls, CoveredCallsChain, SharedReading, TestSupport}
+  alias Autolaunch.CoveredCalls.{PriceLine, Terms}
   alias AutolaunchWeb.CoveredCallsFormat, as: F
 
   @unit CoveredCallsChain.unit()
@@ -253,6 +253,52 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
            )
 
     assert has_element?(view, "#covered-call-list button[data-account-target=sign-in]")
+  end
+
+  test "the Sell ticket's price line: an empty box until the 30 days are read, then the line with the chosen strike across it",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    forget_line()
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+
+    assert has_element?(view, "#covered-calls-sell-price-empty")
+    refute has_element?(view, "#covered-calls-sell-price-plot")
+
+    # The reader's first read reaches the open page.
+    put_line()
+    assert [[_at, 250.0] | _] = plot(view, "covered-calls-sell-price", "data-points")
+    refute has_element?(view, "#covered-calls-sell-price-empty")
+
+    # Each suggested strike carries its price, which the line takes the moment
+    # it is pressed, and the server's level follows once the press reaches it.
+    [chosen] = plot(view, "covered-calls-sell-price", "data-levels")
+    assert chosen == pill_strike(view, "1")
+
+    assert attribute(view, "#covered-calls-sell-strike button[data-tab=custom]", "data-strike") ==
+             "custom"
+
+    view |> element("#covered-calls-sell-strike button[data-tab='0']") |> render_click()
+    settled(view)
+    assert plot(view, "covered-calls-sell-price", "data-levels") == [pill_strike(view, "0")]
+    assert pill_strike(view, "0") < chosen
+
+    # A read that fails leaves the box as it was and draws no line.
+    SharedReading.degraded(PriceLine.key("AMZNc"))
+    render(view)
+    assert has_element?(view, "#covered-calls-sell-price-empty")
+    refute has_element?(view, "#covered-calls-sell-price-plot")
+  end
+
+  test "the Buy ticket's price line carries the listing's strike and break-even", %{conn: conn} do
+    CoveredCallsChain.install()
+    forget_line()
+    put_line()
+    {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
+    render_async(view, @async_ms)
+
+    assert plot(view, "covered-call-buy-1-price", "data-levels") == [260.0, 263.0]
+    assert [_first, _second | _rest] = plot(view, "covered-call-buy-1-price", "data-points")
   end
 
   test "the Buy receipt counts the amount typed as the contract does, apart from the prices per token",
@@ -623,6 +669,48 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     render_async(view, @async_ms)
     {view, account}
+  end
+
+  # No line held for the market, now and once the test ends.
+  defp forget_line do
+    key = PriceLine.key("AMZNc")
+    :ok = SharedReading.delete(key)
+    on_exit(fn -> SharedReading.delete(key) end)
+  end
+
+  # The market's last 30 days as the reader holds them: from $250 to $254.
+  defp put_line do
+    now = CoveredCallsChain.now()
+
+    :ok =
+      SharedReading.put(PriceLine.key("AMZNc"), %{
+        decimals: 8,
+        points: [{now - 20 * 86_400, 25_000_000_000}, {now, 25_400_000_000}]
+      })
+  end
+
+  # A price line's plot attribute, decoded.
+  defp plot(view, id, name), do: view |> attribute("##{id}-plot", name) |> JSON.decode!()
+
+  # A suggested strike's price in dollars, as its pill carries it.
+  defp pill_strike(view, choice) do
+    {price, ""} =
+      view
+      |> attribute("#covered-calls-sell-strike button[data-tab='#{choice}']", "data-strike")
+      |> Float.parse()
+
+    price
+  end
+
+  defp attribute(view, selector, name) do
+    [value] =
+      view
+      |> element(selector)
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.attribute(name)
+
+    value
   end
 
   defp text(view, selector), do: view |> element(selector) |> render() |> words()

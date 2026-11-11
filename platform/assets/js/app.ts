@@ -21,6 +21,7 @@ import {MenuAgents} from "./hooks/menu_agents"
 import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
+import {PriceLine} from "./hooks/price_line"
 import {HomeCells} from "./hooks/home_cells"
 import {Countdown} from "./hooks/countdown"
 import {LocalTime} from "./hooks/local_time"
@@ -56,6 +57,7 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PriceChart,
+  PriceLine,
   HomeCells,
   LocalTime,
   Countdown,

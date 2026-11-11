@@ -87,6 +87,15 @@ defmodule Autolaunch.SharedReading do
       keys: 2,
       bytes: 128,
       within: 330
+    },
+    # The last 30 days of each covered-call market's reference price, at most
+    # 240 points (`Autolaunch.CoveredCalls.PriceLine`), by the market's symbol.
+    # Read every five minutes.
+    price_history: %{
+      open: "a Chainlink feed's past prices are public on the chain itself",
+      keys: 4,
+      bytes: 8_192,
+      within: 330
     }
   }
 

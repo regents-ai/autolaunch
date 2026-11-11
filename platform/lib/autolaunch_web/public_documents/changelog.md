@@ -20,6 +20,7 @@
 - Under You receive, what you keep as a share of the stock's worth, and for how many days, such as "0.22% · 4 days". A quote gives the same term in days.
 - The Buy receipt keeps the totals for your amount apart from the prices per token: You pay, To exercise (the USDC a full exercise pays) and You get (the stock it delivers), then the strike and break-even per token.
 - On the portfolio, listings whose exercise window is open come first, each with how long is left, such as "Closes in 5 h", over the time it closes in your time zone and in UTC.
+- Each ticket opens on the stock's last 30 days of reference prices with the strike drawn across them, and on Buy the break-even too. On Sell, the line moves to a strike the moment you choose or type it.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.

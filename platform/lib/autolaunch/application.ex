@@ -74,7 +74,7 @@ defmodule Autolaunch.Application do
       ),
       autolaunch_jobs_child(),
       stock_admissions_child(),
-      chain_head_children(),
+      chain_reader_children(),
       Autolaunch.LaunchDiscovery.Count.children(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
@@ -132,12 +132,13 @@ defmodule Autolaunch.Application do
     end
   end
 
-  # Each deployment's newest block, read on every machine that serves pages
-  # (`Autolaunch.ChainHead`).
-  defp chain_head_children do
+  # Each deployment's newest block and each covered-call market's last 30 days
+  # of prices, read on every machine that serves pages (`Autolaunch.ChainHead`,
+  # `Autolaunch.CoveredCalls.PriceLine`).
+  defp chain_reader_children do
     if !Autolaunch.Prelaunch.read_only?() and
          Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
-       do: Autolaunch.ChainHead.children()
+       do: Autolaunch.ChainHead.children() ++ Autolaunch.CoveredCalls.PriceLine.children()
   end
 
   # Tell Phoenix to update the endpoint configuration
