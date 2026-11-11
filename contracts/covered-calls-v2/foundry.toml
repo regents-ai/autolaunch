@@ -1,6 +1,7 @@
 [profile.default]
 src = "src"
 test = "test"
+script = "script"
 out = "out"
 # Built against the same dependency snapshot as V1 (contracts/stocks-v2/lib, filled by its
 # bootstrap-deps.py); it uses forge-std and solady only.
@@ -19,6 +20,9 @@ cbor_metadata = false
 ffi = false
 fs_permissions = []
 
+# `test/rehearsal/` runs only under `deploy/rehearse.sh`.
+no_match_path = "test/rehearsal/**"
+
 [profile.default.fuzz]
 runs = 512
 seed = "0x434f564552"
@@ -28,8 +32,18 @@ runs = 256
 depth = 128
 fail_on_revert = false
 
+# The deploy packet's rehearsal (deploy/rehearse.sh), against a Base copy the packet's transaction
+# has just been sent on.
+[profile.rehearsal]
+test = "test/rehearsal"
+out = "out-fork"
+cache_path = "cache-fork"
+match_path = "test/rehearsal/**"
+no_match_path = "none/**"
+fs_permissions = [{ access = "read", path = "./deploy/packet.json" }]
+
 [lint]
-ignore = ["test/**/*.sol"]
+ignore = ["test/**/*.sol", "script/**/*.sol"]
 # Expiry and the exercise window are the product, so time comparisons are intended. The only
 # external call before an event is the stock's `effectiveAt()` view, and every state-changing
 # function is `nonReentrant` and moves tokens after its event.
