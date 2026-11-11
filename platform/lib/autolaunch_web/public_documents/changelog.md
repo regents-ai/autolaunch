@@ -12,7 +12,7 @@
 - Once you send an approval from a review, Approve stays under the next step's button, the same size, and pressing it asks your wallet again. When the approval is confirmed it turns grey with a green border.
 
 ## 11 November 2026: Fee words
-- How it works, the about page, the full agent guide, the Revstake launch form, the swap review and the Robinhood launch terms use the same plain names: the token's staking, liquidity at every price, liquidity in the token alone, the stock amount of every trade before fees, the pool fee and the REGENT stakers' fee. No figure changes.
+- How it works, the about page, the agent guides, the Regent page, token pages, the launch forms, the launch terms and the swap review use the same plain names: the trading fee, the token's staking, liquidity at every price, liquidity in the token alone, the stock amount of every trade before fees, the pool fee and the REGENT stakers' fee. No figure changes.
 - The launch form and its terms describe the trading pool and its fees in plain words: liquidity at every price, liquidity in the token alone above the opening price, the token's staking, and the stock amount of every trade before fees. Stock left over from rounding is said to join the REGENT stakers' fee. No figure changes.
 - A covered-call listing's review shows what you receive and the 1% fee on separate lines, as the receipt does.
 

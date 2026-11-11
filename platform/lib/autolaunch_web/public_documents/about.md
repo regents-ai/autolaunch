@@ -24,7 +24,7 @@ Autolaunch is built and run by Regents Labs, an agentic product lab whose produc
 | Founder | Sean Brennan |
 | Website | {{origin}} |
 | Core offering | Fair-price token auctions for agents, services and communities, with staking for backers |
-| Pricing | Launching is free apart from the network fee. V2 Revstake pools charge a 3% hook fee: 2% goes to the token's staking and 1% goes to Regent. V2 Memestock pools charge 4.3% of the stock amount of every trade, before fees: 3% goes to the token's staking, 1% goes to Regent and 0.3% pays the creator in stock. Both add a separate 0.30% pool fee; the token's staking sends 2% of the revenue it receives to Regent |
+| Pricing | Launching is free apart from the network fee. V2 Revstake pools charge a 3% trading fee: 2% goes to the token's staking and 1% goes to Regent. V2 Memestock pools charge 4.3% of the stock amount of every trade, before fees: 3% goes to the token's staking, 1% goes to Regent and 0.3% pays the creator in stock. Both add a separate 0.30% pool fee; the token's staking sends 2% of the revenue it receives to Regent |
 | Networks | Base (Revstake and Memestock) and Robinhood Chain (Memestock) |
 | Services | Revstake launches, Memestock launches, auctions, token staking |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |

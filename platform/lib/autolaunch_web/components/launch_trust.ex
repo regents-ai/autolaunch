@@ -464,12 +464,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
       unused:
-        "is locked in a token-only position above the opening token price, apart from a tiny amount left over from rounding",
+        "is locked as liquidity in the token alone, for prices above the opening token price, apart from a tiny amount left over from rounding",
       rows: [
         {"Sold in the auction", "497.5 million (49.75%)",
          "winning bidders claim what they bought"},
         {"Reserved for liquidity", "497.5 million (49.75%)",
-         "the stock raised funds a full-range position, apart from a tiny amount left over from rounding; remaining reserve is locked in a token-only position above the opening token price"},
+         "the stock raised and the tokens it needs become liquidity at every price, apart from a tiny amount left over from rounding; remaining reserve is locked as liquidity in the token alone, for prices above the opening token price"},
         {"Creator", "5 million (0.5%)",
          "released to the creator block by block over #{vesting} from graduation; the creator also earns a share of trading fees"}
       ]

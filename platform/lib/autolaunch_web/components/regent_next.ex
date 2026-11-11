@@ -263,7 +263,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
         <h2 id="regent-next-memestock-title">Memestock's share, chain by chain</h2>
       </header>
       <p class="regent-next-lead">
-        Every Memestock trade pays a share of its stock side for REGENT stakers. Each chain's share
+        Every Memestock trade pays a share of its stock amount for REGENT stakers. Each chain's share
         moves through its own stages, in its own asset.
       </p>
       <div class="regent-next-lanes">
@@ -272,7 +272,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
           <ol class="regent-next-stages">
             <li>
               <strong>Charged on each trade</strong>
-              <span>{@base_rate} of the stock side waits in the pool as the stock.</span>
+              <span>{@base_rate} of the stock amount, before fees, waits in the pool as the stock.</span>
               <.lane_line :let={lane} lane={@base_lane}>
                 <.stocks label="Waiting now" amounts={lane.waiting} none="Nothing waiting now." />
               </.lane_line>
@@ -300,7 +300,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
           <ol class="regent-next-stages">
             <li>
               <strong>Charged on each trade</strong>
-              <span>{@robinhood_rate} of the stock side waits in the pool as the stock.</span>
+              <span>{@robinhood_rate} of the stock amount, before fees, waits in the pool as the stock.</span>
               <.lane_line :let={lane} lane={@robinhood_lane}>
                 <.stocks label="Waiting now" amounts={lane.waiting} none="Nothing waiting now." />
               </.lane_line>

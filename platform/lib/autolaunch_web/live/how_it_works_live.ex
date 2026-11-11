@@ -237,7 +237,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
         <p>
           The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original
           terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation,
-          and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused;
+          and a 1% trading fee each to Regent and the token's staking contract. New v1 launches are paused;
           existing withdrawals, claims, trading and staking remain supported.
         </p>
       </section>
@@ -245,12 +245,12 @@ defmodule AutolaunchWeb.HowItWorksLive do
       <section class="fact-page__section" aria-labelledby="how-it-works-fees">
         <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
-          V2 Revstake trades pay a 3% hook fee: <strong class="fact-page__hi">2%</strong>
+          V2 Revstake trades pay a 3% trading fee: <strong class="fact-page__hi">2%</strong>
           goes to the token's staking and <strong class="fact-page__hi">1%</strong>
           goes to Regent.
           REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
-          to participate. V2 Memestock trades pay a 4.3% hook fee on the stock amount of every trade, before fees, shared by Memestock stakers
+          to participate. V2 Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees, shared by Memestock stakers
           (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it goes to the token’s staking.
         </p>
         <table class="fact-table">
