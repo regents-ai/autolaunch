@@ -92,7 +92,8 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 
-  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
+  # No-break spaces, so a narrow column breaks between the two days, never inside one.
+  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a\u00a0%-d\u00a0%b")
 
   defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1
