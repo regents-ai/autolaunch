@@ -677,6 +677,7 @@ defmodule AutolaunchWeb.ExposureLive do
 
     %{
       points: prices |> Enum.with_index() |> Enum.map(fn {price, index} -> [index, price] end),
+      times: nil,
       low: Enum.min(prices, fn -> 0.0 end),
       high: Enum.max(prices, fn -> 0.0 end),
       trades: length(prices)

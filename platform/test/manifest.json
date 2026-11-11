@@ -1036,12 +1036,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/token_page_first_screen_test.exs",
       "line": 16,
-      "test_name": "the price, market cap, change and creator come before the chart and the trade widget",
-      "keep_because": "A token page opens on its figures and creator before the trade widget, in page order, so a phone shows them first, and never says the chart is unavailable. It fails if the widget moves ahead of the figures or the old button text returns.",
+      "test_name": "the creator, price and market figures come before the trade widget",
+      "keep_because": "A token page opens on its creator, price and market figures before the trade widget, in page order, so a phone shows them first, and never says the chart is unavailable. It fails if the widget moves ahead of the figures or the old button text returns.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1cad7e8782739be4c7e4e3a7a11da7172dc65de7fe0e6bd2a0815bc13716b825"
+      "source_sha256": "7a5e0ee0e7e358a7f540db04cea9421021e33c6bfd04d10ed8b2188525cfb1c6"
     },
     {
       "id": 121,

@@ -488,7 +488,6 @@ defmodule AutolaunchWeb.AuctionLive do
     <section class="auction-info" aria-labelledby="auction-info-title">
       <h2 id="auction-info-title" class="auction-info__title">About this token</h2>
       <.detail_card
-        kind={:auction}
         record={@page_record}
         trade_path={@graduated_token && Paths.token(@page_record)}
         status={settling_status(@page_record, @ended)}

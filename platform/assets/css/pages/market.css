@@ -34,6 +34,14 @@
 .market-identity__price > span:first-child { color: var(--color-fg-muted); font-size: .75rem; }
 .price-chart__caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--color-fg-muted); font-size: .75rem; }
 .price-chart__change { color: var(--color-fg); font-variant-numeric: tabular-nums; }
+/* Trades or Time: two choices in one bordered strip, the chosen one filled. */
+.price-chart__scale { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid var(--hairline-strong); }
+.price-chart__scale label { position: relative; display: inline-grid; place-items: center; min-height: 28px; padding: 0 10px; color: var(--color-fg-muted); font-size: .8125rem; cursor: pointer; transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease; }
+.price-chart__scale input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.price-chart__scale label:hover { color: var(--color-fg); }
+.price-chart__scale label:has(input:checked) { background: var(--color-fg); color: var(--color-bg); }
+.price-chart__scale label:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+@media (pointer: coarse) { .price-chart__scale label { min-height: 44px; } }
 .price-chart__line { display: block; width: 100%; height: 140px; }
 .price-chart__line[data-unavailable] { display: none; }
 .price-chart__caption-reading { width: 50%; height: 1rem; }
@@ -42,8 +50,6 @@
 .price-chart__facts div { display: flex; gap: 6px; min-width: 0; }
 .price-chart__facts dt { color: var(--color-fg-muted); }
 .price-chart__facts dd { margin: 0; overflow-wrap: anywhere; }
-.market-identity__chart { grid-column: 1 / -1; min-width: 0; }
-.market-identity__chart .price-chart { padding: 0; border: 0; background: none; }
 .market-identity__description { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
 .market-identity__trade { position: relative; justify-self: start; max-width: 100%; overflow: hidden; }
 .market-identity__trade::after {

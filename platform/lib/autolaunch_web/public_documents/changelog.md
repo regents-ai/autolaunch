@@ -1,5 +1,11 @@
 # Changelog
 
+## 11 November 2026: Token page layout
+- A token's page opens with its picture, name, chain, launch type and creator across the top, with Share, its address, Uniswap Pool and View Chart beside them.
+- The price is shown large with its move since the pool opened, then the chart, then the market figures: market cap, price, change, total supply, trades and launch type.
+- The chart shows its line by Trades, one step per trade, or by Time, about 100 points spread evenly from the pool's opening to now.
+- The creator and the contracts are plain lists, each contract with a copy button and a link to the explorer. The trade panel and Claim Rewards stay in view beside them on a wide screen.
+
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
 - On the exposure panel, a confirmed approval now shows its green border too.
