@@ -454,7 +454,7 @@ defmodule Autolaunch.SwapActions do
         "#{lane.label}: #{lane.rate} of the #{trade.sell.symbol} you pay"
 
       %{charged_on: :stock} = lane ->
-        "#{lane.label}: #{lane.rate} of the #{stock.symbol} side"
+        "#{lane.label}: #{lane.rate} of the #{stock.symbol} amount, before fees"
     end)
   end
 

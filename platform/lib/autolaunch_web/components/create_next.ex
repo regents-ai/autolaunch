@@ -301,8 +301,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
         label: "Token stakers",
         rate: "2.00%",
         percent: 2.0,
-        note:
-          "Of every trade, sent to the launch's revenue splitter before its 2% protocol deduction."
+        note: "Of every trade, sent to the token's staking, which sends 2% of it to Regent."
       },
       %{
         label: "Pool fee",

@@ -95,7 +95,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   defp receiver(:regent, :base, _default), do: "REGENT staking after conversion to USDC"
 
   defp receiver(:regent, :robinhood, _default),
-    do: "the protocol inbox as USDG, held until the bridge to Base is configured"
+    do: "a Regent contract on Robinhood Chain as USDG, held until the transfer to Base is set up"
 
   defp receiver(_lane, _chain, default), do: default
 
