@@ -149,6 +149,56 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert_receipt(view, %{expiry: second, amount: 2 * @unit, strike_per_token: 270_000_000})
   end
 
+  test "under the amount, its worth at the reference price, as the quote counts it",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+    [first | _later] = Terms.expiries(CoveredCallsChain.now())
+
+    render_change(element(view, "#covered-calls-sell-form"), %{
+      "amount" => "2",
+      "_target" => ["amount"]
+    })
+
+    settled(view)
+
+    {:ok, %{receipt: receipt}} =
+      CoveredCalls.covered_call_quote("AMZNc", %{expiry: first, amount: 2 * @unit}, actor: nil)
+
+    assert text(view, "#covered-calls-sell-value") == "≈ #{F.usd(receipt.reference_value)}"
+  end
+
+  test "signed in, the Sell ticket shows the wallet's stock and Max fills the amount with it",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{balance: 7 * @unit + div(@unit, 2)})
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+    refute has_element?(view, "#covered-calls-sell-balance")
+
+    {view, _panel} = signed_in_sell(conn)
+    assert text(view, "#covered-calls-sell-balance") =~ "7.5 AMZNc"
+
+    # Max fills the box in the browser at the press, with the balance as the
+    # chain has it, so a press straight after it carries that amount.
+    [fill] =
+      view
+      |> element("#covered-calls-sell-max")
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.attribute("phx-click")
+      |> Enum.flat_map(&JSON.decode!/1)
+
+    assert ["dispatch", %{"event" => "autolaunch:fill", "detail" => %{"value" => value}}] = fill
+    assert F.parse_tokens(value, @unit) == 7 * @unit + div(@unit, 2)
+  end
+
+  test "an empty wallet's Max is disabled", %{conn: conn} do
+    CoveredCallsChain.install(%{balance: 0})
+    {view, _panel} = signed_in_sell(conn)
+    assert has_element?(view, "#covered-calls-sell-max[disabled]")
+  end
+
   test "a stale reference price leaves the suggested strikes out and keeps the ticket",
        %{conn: conn} do
     CoveredCallsChain.install(%{price: 0})
@@ -464,6 +514,24 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     panel = with_target(view, "#covered-call-fill-1")
     render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
     render_async(view, @async_ms)
+    {view, panel}
+  end
+
+  # A new signed-in person on the Sell ticket, their wallet open.
+  defp signed_in_sell(conn) do
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/stock/covered-call")
+
+    settled(view)
+    panel = with_target(view, "#covered-call-list")
+    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
+    settled(view)
     {view, panel}
   end
 

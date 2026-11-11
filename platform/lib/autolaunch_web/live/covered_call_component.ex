@@ -25,6 +25,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
   naming the listing and its seller (both `nil` for a new one) and the wallet
   that sent it.
+
+  The listing panel also tells the page how much of the stock the signed-in
+  account's wallet holds, the Sell ticket's Max, with
+  `{:covered_call_balance, symbol, balance}` (`nil` signed out or unread): the
+  wallet the panel shows figures for, read at the latest block when it
+  changes, when the page comes back into view and when a step lands.
   """
   use AutolaunchWeb, :live_component
 
@@ -56,7 +62,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        listing: nil,
        holding: nil,
        order: nil,
-       variant: "primary"
+       variant: "primary",
+       balance_for: nil,
+       balance_reads: 0
      )}
   end
 
@@ -86,7 +94,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # The page came back into view, the wallet changed or a press went out: the
   # chain is read again, so a button the chain held back comes back once it
   # allows the action.
-  def handle_event("refresh_funds", _params, socket), do: {:noreply, sync(socket)}
+  def handle_event("refresh_funds", _params, socket),
+    do: {:noreply, socket |> update(:balance_reads, &(&1 + 1)) |> sync()}
 
   def handle_event("change", params, socket) do
     socket = assign(socket, inputs: Map.take(params, ["amount"]), typed: true, notice: nil)
@@ -149,6 +158,15 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
+  def handle_async(:balance, {:ok, {key, balance}}, socket) do
+    if key == socket.assigns.balance_for,
+      do: send(self(), {:covered_call_balance, socket.assigns.symbol, balance})
+
+    {:noreply, socket}
+  end
+
+  def handle_async(:balance, {:exit, _reason}, socket), do: {:noreply, socket}
+
   # The form's figures follow the wallet that may act and the form as it
   # stands. A review open for another wallet closes: its steps were built for
   # that wallet only.
@@ -175,6 +193,39 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         assign(socket, quote: nil, refusal: refusal)
     end
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
+    |> read_balance()
+  end
+
+  # The listing panel's wallet stock, for the page's Max: the wallet the panel
+  # shows figures for while signed in, read again for each new wallet and each
+  # ask (`balance_reads`).
+  defp read_balance(%{assigns: %{kind: :list} = assigns} = socket) do
+    wallet =
+      if is_list(assigns.linked),
+        do: OnchainSteps.shown_wallet(assigns.linked, assigns.signed_in, assigns.active)
+
+    key = {wallet, assigns.balance_reads}
+    %{symbol: symbol, current_human_id: id} = assigns
+
+    if key == assigns.balance_for,
+      do: socket,
+      else:
+        socket
+        |> assign(balance_for: key)
+        |> start_async(:balance, fn -> {key, balance(symbol, id, wallet)} end)
+  end
+
+  defp read_balance(socket), do: socket
+
+  defp balance(_symbol, _id, nil), do: nil
+
+  defp balance(symbol, id, wallet) do
+    case CoveredCalls.covered_call_positions(symbol, %{wallet: wallet},
+           actor: %Human{human_account_id: id}
+         ) do
+      {:ok, %{balance: balance}} -> balance
+      {:error, _error} -> nil
+    end
   end
 
   # The form's button: the steps for the form as it stands, read again now.
@@ -236,6 +287,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # closes and the page says what moved.
   defp confirmed(socket, %{review: %{id: id, signer: signer}, name: name}) do
     Book.expire(socket.assigns.symbol)
+    socket = update(socket, :balance_reads, &(&1 + 1))
 
     send(
       self(),

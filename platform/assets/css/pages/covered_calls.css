@@ -51,6 +51,12 @@
 .covered-calls__custom[inert] { visibility: hidden; }
 .covered-calls__suggested { margin-inline-start: auto; padding: 0; border: 0; background: none; color: var(--color-fg); font: inherit; font-size: .8125rem; font-variant-numeric: tabular-nums; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
 .covered-calls__suggested[inert] { visibility: hidden; }
+/* Under the amount: its worth and share count, on a line of its own height so the fields below stay put. */
+.covered-calls__value { min-block-size: 1.25rem; line-height: 1.25rem; }
+/* The wallet's stock at the end of the Amount row, and the Max that fills the box with it. */
+.covered-calls__balance { display: inline-flex; align-items: baseline; gap: var(--space-2); margin-inline-start: auto; color: var(--color-fg-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.covered-calls__max { padding: 0; border: 0; background: none; color: var(--color-fg); font: inherit; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.covered-calls__max:disabled { color: var(--color-fg-muted); text-decoration: none; cursor: default; }
 .covered-calls__status { overflow: hidden; margin-inline-start: auto; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 
 /* A choice of a few, side by side, the chosen one under a block that travels to it (MotionTabs). */
@@ -122,6 +128,8 @@
 @media (hover: none) and (pointer: coarse) {
   .covered-calls__contract dd > a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
   .covered-calls__suggested, .covered-call-panel input { min-block-size: 2.75rem; }
+  /* A finger-sized Max that leaves the Amount row its height. */
+  .covered-calls__max { min-block-size: 2.75rem; min-inline-size: 2.75rem; margin-block: -.5rem; }
   .rg-tip.covered-calls__spot .rg-tip-button.rg-tip-button--figure { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 }
 

@@ -13,5 +13,7 @@ A quote gives the reference price, the next four expiries with their exercise wi
 | Read your person's covered calls (signed, paired) | `autolaunch_my_covered_calls` | `GET {{origin}}/api/agent/v1/covered-calls/{symbol}/positions` |
 | Prepare a step: list, fill, cancel, exercise, claim or collect_strike (signed, paired) | `autolaunch_covered_call_prepare` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
 
+Your person's covered calls also say how much of the stock their wallet holds (`balance`), the most it can list now: stock already listed is held by the contract.
+
 The site only prepares steps. Each answer lists `steps` (`to`, `data` and `value` on the named `chain`) for one of your person's own wallets: `signer` when you send one, otherwise the wallet they signed in with. That wallet's own key signs and sends the steps in order, and money moves only then. `approved` says whether the allowance already covers the action. `blocked` gives a `code` and words when the chain's current state makes the action certain to fail; the steps still come back, so prepare again once the chain has changed. Any other wallet is refused with `wrong_signer`. The regents CLI has no covered-call commands yet.
 

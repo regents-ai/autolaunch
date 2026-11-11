@@ -61,6 +61,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          done: nil,
          due: nil,
          sell: @sell,
+         balance: nil,
          buy: nil
        )
        |> read_book()}
@@ -80,10 +81,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     tab = if params["tab"] == "buy" or selected, do: :buy, else: :sell
 
     # Another listing's ticket starts at all that is left of it.
+    # The wallet's stock is read by the Sell ticket's panel, so it is read anew
+    # each time the ticket opens.
     socket =
       socket
       |> assign(tab: tab, selected: selected)
       |> then(&if(selected == socket.assigns.selected, do: &1, else: assign(&1, buy: nil)))
+      |> then(&if(tab == :sell, do: &1, else: assign(&1, balance: nil)))
       |> read_quote()
 
     # A shared link to one listing reads the market again unless it was read
@@ -151,6 +155,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_info({:covered_call_pressed, _press}, socket), do: {:noreply, read_book(socket)}
+
+  def handle_info({:covered_call_balance, _symbol, balance}, socket),
+    do: {:noreply, assign(socket, balance: balance)}
 
   # A listing's expiry or a scheduled multiplier change came: the shared book
   # is taken anew unless it was taken in the last ten seconds, and the page
@@ -257,9 +264,17 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       typed: typed,
       premium: premium,
       order: order,
+      value: value(amount, quote),
       receipt: receipt(order, quote)
     }
   end
+
+  # The typed amount's worth at the reference price, once the quote answered for it.
+  defp value(amount, %{amount: amount, receipt: %{reference_value: value}})
+       when is_integer(amount),
+       do: value
+
+  defp value(_amount, _quote), do: nil
 
   defp quoted_presets(nil), do: []
   defp quoted_presets(%{presets: presets}), do: presets
@@ -486,6 +501,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           reading={@reading}
           sell={@sell}
           quote={@quote}
+          balance={@balance}
           session_lease={@session_lease}
           human_id={@human_id}
         />
@@ -531,6 +547,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   attr :reading, :map, required: true
   attr :sell, :map, required: true
   attr :quote, Read, required: true
+
+  attr :balance, :integer,
+    default: nil,
+    doc: "the listing wallet's stock; nil signed out or unread"
+
   attr :session_lease, :any, required: true
   attr :human_id, :any, required: true
 
@@ -570,6 +591,24 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 count ({multiplier(@reading.multiplier)} shares per {@symbol} now), so they go to
                 whoever ends up with the {@symbol}.
               </P.tip>
+              <span :if={@balance} id="covered-calls-sell-balance" class="covered-calls__balance">
+                <span class="visually-hidden">Balance</span>
+                {F.tokens(@balance, @unit)} {@symbol}
+                <button
+                  id="covered-calls-sell-max"
+                  type="button"
+                  class="covered-calls__max"
+                  phx-click={
+                    JS.dispatch("autolaunch:fill",
+                      to: "#covered-calls-sell-amount",
+                      detail: %{value: F.tokens(@balance, @unit)}
+                    )
+                  }
+                  disabled={@balance == 0}
+                >
+                  Max
+                </button>
+              </span>
             </div>
             <span class="covered-calls__input">
               <input
@@ -584,8 +623,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               />
               <span aria-hidden="true">{@symbol}</span>
             </span>
-            <small :if={shares?(@reading)} class="covered-calls__hint">
-              {shares(@t.amount || 0, @reading)}
+            <small id="covered-calls-sell-value" class="covered-calls__hint covered-calls__value">
+              {amount_hint(@t, @reading)}
             </small>
           </div>
 
@@ -1005,6 +1044,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   defp shares?(%{multiplier: wad}), do: wad != 1_000_000_000_000_000_000
+
+  # Under the amount: its worth at the reference price, and its share count
+  # when a token is more than one share.
+  defp amount_hint(%{amount: nil}, _reading), do: nil
+
+  defp amount_hint(%{amount: amount, value: value}, reading) do
+    worth = if value, do: "≈ #{F.usd(value)}"
+    Enum.join(Enum.reject([worth, shares(amount, reading)], &is_nil/1), " · ")
+  end
 
   defp shares(raw, %{multiplier: wad, unit: unit} = reading) do
     if shares?(reading), do: "#{F.tokens(Chain.shares(raw, wad), unit)} shares"

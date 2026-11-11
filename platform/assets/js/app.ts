@@ -94,6 +94,15 @@ document.addEventListener("autolaunch:open-dialog", event => {
 document.addEventListener("autolaunch:close-dialog", event => {
   if (event.target instanceof HTMLDialogElement) event.target.close()
 })
+// A Max fills its box here, at the press, so a press straight after it carries
+// the amount however long the server takes; the input event runs the form's
+// change, so the server and its figures follow.
+document.addEventListener("autolaunch:fill", event => {
+  const field = event.target
+  if (!(field instanceof HTMLInputElement)) return
+  field.value = (event as CustomEvent<{value: string}>).detail.value
+  field.dispatchEvent(new Event("input", {bubbles: true}))
+})
 installRegentTokenMenu()
 installShellPanels()
 // LiveView records a new address only once its page is drawn, so what a #fragment

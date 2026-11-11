@@ -565,6 +565,7 @@ components:
           - unit
           - sold
           - holdings
+          - balance
           properties:
             symbol:
               type: string
@@ -599,6 +600,10 @@ components:
                   claimable:
                     type: integer
                     description: Raw stock units the wallet may claim now.
+            balance:
+              type: integer
+              description: Raw stock units in the wallet itself, the most it can list now; stock already
+                listed is held by the contract.
     CoveredCallStepRequest:
       type: object
       additionalProperties: false

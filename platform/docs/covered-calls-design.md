@@ -196,7 +196,8 @@ Ash domain `Autolaunch.CoveredCalls`:
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
   on each, are read eight at a time, so weeks of listings stay quick to read.
-- `Positions` — a wallet's listings and holdings, all read at one latest block, never from the
+- `Positions` — a wallet's listings, holdings and the stock in the wallet (the most it can list
+  now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
 - `/stock/covered-call` reads again when a press lands on any page, when a `?listing=<id>` link opens
   (unless read in the last ten seconds), and just after the next open listing's expiry or a

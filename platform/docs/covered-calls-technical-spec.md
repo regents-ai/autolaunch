@@ -327,7 +327,7 @@ says why under the button and opens nothing: never a silent press.
 | `Deployment` | Whether covered calls are on; the markets file. |
 | `Chain` | Reads listings, holdings, `claimable`, balances, allowances, multiplier, `effectiveAt` and the Chainlink price at one block. |
 | `Book` | Each market's listings, read once and shared by every visitor for five minutes, re-read ten seconds after any landed press. Never disables a button. |
-| `Positions` | One wallet's sold listings and holdings, read fresh. |
+| `Positions` | One wallet's sold listings, holdings and the stock in the wallet (the Sell ticket's Max), read fresh. |
 | `Quote` | A seller's quote, the one calculation the page's ticket and agents share: the Chainlink reference price, the next four expiries with their exercise windows, three suggested strikes (about 2%, 5% and 10% above the reference price, rounded up to the stock's price step: whole dollars from $100 to $999.99), each with a suggested premium (Black-Scholes with a fixed 30% yearly volatility and no interest, counted to the close of the exercise window, to the cent), and what a listing of the chosen strike and premium pays, counted with the contract's own rounding (`Terms`). Refused when the price is older than four days. A guide only; never enforced. |
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
@@ -3866,6 +3866,7 @@ components:
           - unit
           - sold
           - holdings
+          - balance
           properties:
             symbol:
               type: string
@@ -3900,6 +3901,10 @@ components:
                   claimable:
                     type: integer
                     description: Raw stock units the wallet may claim now.
+            balance:
+              type: integer
+              description: Raw stock units in the wallet itself, the most it can list now; stock already
+                listed is held by the contract.
     CoveredCallStepRequest:
       type: object
       additionalProperties: false

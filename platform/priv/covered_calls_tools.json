@@ -97,7 +97,7 @@
     {
       "name": "autolaunch_my_covered_calls",
       "title": "Read my covered calls on a stock",
-      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold and, on every listing, the calls it may exercise (held) and the stock it may claim (claimable), in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold, on every listing the calls it may exercise (held) and the stock it may claim (claimable), and the stock in the wallet itself (balance), the most it can list now, in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {

@@ -470,7 +470,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
   test "the signed-in route needs a sign-in and reads only the signed-in wallet", %{conn: conn} do
     switch(:on)
-    chain(%{held: 3 * @token})
+    chain(%{held: 3 * @token, balance: 7 * @token})
 
     assert conn |> get("/api/v1/me/covered-calls/AMZNc") |> json_response(401) |> code() ==
              "authentication_required"
@@ -480,10 +480,15 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     mine = conn |> get("/api/v1/me/covered-calls/AMZNc") |> json_response(200)
     wallet = String.downcase(account.wallet_address)
 
-    assert %{"wallet" => ^wallet, "holdings" => [%{"listing_id" => 1, "held" => held}]} =
-             mine["data"]
+    assert %{
+             "wallet" => ^wallet,
+             "holdings" => [%{"listing_id" => 1, "held" => held}],
+             "balance" => balance
+           } = mine["data"]
 
     assert held == 3 * @token
+    # The wallet's own stock, the most it can list now.
+    assert balance == 7 * @token
   end
 
   defp code(body), do: body["error"]["code"]
