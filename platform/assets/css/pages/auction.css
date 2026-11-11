@@ -142,6 +142,8 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-box__unit { flex: none; margin-inline-start: 6px; color: var(--color-fg-muted); font-size: .9375rem; }
 .bid-box__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
 .bid-box--receive .bid-box__figure { font-size: 1.25rem; }
+/* A row the chosen currency does not use keeps its room, so a switch never changes the form's height. */
+.bid-box--unused { visibility: hidden; }
 
 /* The currency paid in: a chip, with the switch between two above it. */
 .bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-size: .9375rem; white-space: nowrap; }

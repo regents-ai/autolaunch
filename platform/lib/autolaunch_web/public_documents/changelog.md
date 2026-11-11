@@ -1,5 +1,8 @@
 # Changelog
 
+## 11 November 2026: Bid form
+- Switching what you pay with no longer changes the bid form's height: the slippage box, asked for only when a stock is bought with dollars, sits after Receive and keeps its room while it is not needed.
+
 ## 11 November 2026: Covered calls name
 - The home page and the stock list call the product Covered calls, as its page and the menu do, and the home page's list of calls for sale is named Calls.
 
