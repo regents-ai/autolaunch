@@ -107,12 +107,33 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
 
     on_exit(fn -> :telemetry.detach(handler) end)
 
-    # The ticket, and so its read of the account, comes once the page's book is
-    # read; the page then ends, and its end reaches this case.
-    Process.flag(:trap_exit, true)
-    {:ok, _view, _html} = signed_in(conn, account)
+    # The ticket raising is what ends the page, reported here.
+    test = self()
+    raised = "ticket-raised-#{inspect(self())}"
 
-    assert_receive {:EXIT, _page, {%ReadFailedError{}, _stack}}, @async_ms
+    :telemetry.attach(
+      raised,
+      [:phoenix, :live_component, :update, :exception],
+      fn _event, _measurements, %{kind: :error, reason: reason}, _config ->
+        send(test, {:ticket_raised, reason})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(raised) end)
+
+    # The ticket, and so its read of the account, comes once the page's book is
+    # read in the background, so the page ends while it is still opening or just
+    # after it opened; which one depends on how fast the book is read.
+    Process.flag(:trap_exit, true)
+
+    try do
+      signed_in(conn, account)
+    catch
+      :exit, _page_ended_while_opening -> :ok
+    end
+
+    assert_receive {:ticket_raised, %ReadFailedError{}}, @async_ms
   end
 
   test "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again" do
