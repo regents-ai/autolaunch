@@ -291,9 +291,9 @@ hold this (`CoveredCallsOffTest`, browser walk `switched_off.spec.ts`).
 
 | Address | What it shows |
 | --- | --- |
-| `/stock/covered-call` | Title "Covered calls on AMZNc", then "Available to eligible people outside the US." A strip of the market's figures (price, next window, for sale, fee), three steps for the tab's side, then two tabs, each its own address. **Sell** (`/stock/covered-call`, first and the default): amount, strike, exercise window (the next four Fridays), premium; beside it the guide (the result for the trade typed, suggested premiums with Use, the estimate's basis and the terms, folded). **Buy** (`?tab=buy`, with how many are for sale): calls for sale, with strike, premium, exercise window and amount left; a listing's Buy panel opens under its row at `?listing=<id>`. A Contract section at the foot links the verified code on Basescan. |
+| `/stock/covered-call` | Title "Covered calls", then "Available to eligible people outside the US." Two tabs, each its own address, each a trade ticket beside its receipt. **Sell** (`/stock/covered-call`, first and the default): amount, expiry (the next four Fridays), strike (three suggestions or Custom), premium (the suggestion, or typed), List calls; beside it the receipt (You receive, Fee, If exercised, Opens, Closes) and three outcomes (Below strike, Above strike, Unsold), all from the quote. **Buy** (`?tab=buy`, with how many are for sale): calls for sale, with strike, premium, exercise window and amount left; a listing's ticket opens under the list at `?listing=<id>` (amount, Buy calls, You pay, Strike, Break-even, Opens, Closes, three outcomes). A Contract section at the foot links the verified code on Basescan. |
 | `/stocks/AMZNc` | While on: a "Covered calls on AMZNc" action. |
-| `/portfolio` | A "Covered calls" section: each listing the signed-in wallet sold or holds, with the wallet steps it allows now (Stop selling, Exercise, Collect AMZNc, Collect USDC). |
+| `/portfolio` | A "Covered calls" section: each listing the signed-in wallet sold or holds, in parts (Sold, For sale, Exercised, Held or Lapsed, To collect), each with the wallet step it allows (Stop selling, Collect USDC, Exercise, Collect AMZNc). |
 
 ### 6.2 How a press works (wallet steps)
 

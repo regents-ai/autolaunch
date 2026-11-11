@@ -4,6 +4,10 @@
 - A covered-call quote now gives the next four expiries with their exercise windows, and three suggested strikes about 2%, 5% and 10% above the reference price, each with its suggested premium.
 - Given an amount, it shows what the listing pays: the premium, the 1% fee, what the seller keeps and the strike, counted exactly as the contract counts them.
 - The strike and premium may be left out: the quote then uses the middle suggestion and its premium. Suggested premiums are rounded to the cent.
+- /stock/covered-call is now a trade ticket. Sell takes an amount, one of the next four Fridays, a suggested or custom strike and the premium, with a receipt beside it that follows every change and three ways the listing can end.
+- Choosing a call to buy opens its own ticket: the amount, what it costs, the strike, the break-even and three ways it can end.
+- Times show in your own time zone, with UTC beside them.
+- The portfolio shows each listing in parts: how much sold and is still for sale, how much was exercised, and what is left to collect, each with its own next step.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.

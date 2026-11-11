@@ -204,9 +204,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     socket = Read.settle(socket, name, result)
     %{quote: quote, sell: sell, book: book} = socket.assigns
 
-    if quote.state == :ready and !answers?(quote.value, request(ticket(sell, book.result, quote.value))),
-      do: {:noreply, read_quote(socket)},
-      else: {:noreply, socket}
+    if quote.state == :ready and
+         !answers?(quote.value, request(ticket(sell, book.result, quote.value))),
+       do: {:noreply, read_quote(socket)},
+       else: {:noreply, socket}
   end
 
   defp read_book(socket) do
@@ -248,7 +249,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
     order =
       if amount && strike && premium,
-        do: %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}
+        do: %{
+          amount: amount,
+          strike_per_token: strike,
+          premium_per_token: premium,
+          expiry: expiry
+        }
 
     %{
       expiries: expiries,
@@ -257,6 +263,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       amount: amount,
       strike: strike,
       suggested: suggested,
+      edited?: sell["premium"] != nil,
       typed: typed,
       premium: premium,
       order: order,
@@ -264,15 +271,27 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     }
   end
 
+  # The strike chosen and the premium suggested for it at the chosen expiry,
+  # once the quote has answered for that expiry (and, for a custom strike, for
+  # that strike).
   defp strike(%{"strike" => "custom", "custom" => custom}, _presets, priced) do
     strike = F.parse_usd(custom)
-    {strike, priced && priced.strike_per_token == strike && priced.suggested_premium_per_token}
+
+    {strike,
+     if(priced && priced.strike_per_token == strike, do: priced.suggested_premium_per_token)}
   end
 
   defp strike(%{"strike" => choice}, presets, priced) do
     index = String.to_integer(choice)
-    preset = Enum.at(presets, index)
-    {preset && preset.strike_per_token, priced && preset && Enum.at(priced.presets, index).suggested_premium_per_token}
+
+    case Enum.at(presets, index) do
+      nil ->
+        {nil, nil}
+
+      preset ->
+        {preset.strike_per_token,
+         if(priced, do: Enum.at(priced.presets, index).suggested_premium_per_token)}
+    end
   end
 
   # The quote's arguments for a ticket: what it holds so far. A premium is asked
@@ -373,7 +392,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         The listings couldn't be read just now. Try again in a moment.
       </p>
 
-      <section :if={@tab == :buy} class="covered-calls__section" aria-labelledby="covered-calls-buy-title">
+      <section
+        :if={@tab == :buy}
+        class="covered-calls__section"
+        aria-labelledby="covered-calls-buy-title"
+      >
         <h2 id="covered-calls-buy-title" class="covered-calls__title">Calls for sale</h2>
         <div :if={@open != []} class="market-list__scroll">
           <table class="market-list__table covered-calls__table">
@@ -587,7 +610,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 name="strike"
                 disabled={is_nil(preset)}
               >
-                <span data-count>{F.usd(preset && preset.strike_per_token)}</span>
+                <span>{F.usd(preset && preset.strike_per_token)}</span>
                 <small>{above(preset)}</small>
               </:pill>
               <:pill value="custom" event="sell_strike" name="strike">Custom</:pill>
@@ -623,7 +646,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 phx-click="suggested_premium"
                 inert={!suggest?(@t)}
               >
-                Suggested {F.usd(@t.suggested || nil)}
+                Suggested {F.usd(@t.suggested)}
               </button>
             </div>
             <span class="covered-calls__input">
@@ -668,12 +691,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               time. 1% of each premium goes to REGENT stakers. Strike payments wait in the
               contract until you collect them.
             </P.tip>
+            <span class="covered-calls__status" role="status">{@refused}</span>
           </div>
-          <p :if={@refused} class="covered-calls__note" role="status">{@refused}</p>
           <dl id="covered-calls-sell-receipt" class="covered-calls__lines">
             <div>
               <dt>You receive</dt>
-              <dd id="covered-calls-sell-net" data-count>{F.usd(@t.receipt && @t.receipt.net_premium)}</dd>
+              <dd id="covered-calls-sell-net" data-count>
+                {F.usd(@t.receipt && @t.receipt.net_premium)}
+              </dd>
             </div>
             <div>
               <dt>Fee</dt>
@@ -681,7 +706,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>If exercised</dt>
-              <dd id="covered-calls-sell-strike" data-count>{F.usd(@t.receipt && @t.receipt.strike)}</dd>
+              <dd id="covered-calls-sell-strike" data-count>
+                {F.usd(@t.receipt && @t.receipt.strike)}
+              </dd>
             </div>
             <div>
               <dt>Opens</dt>
@@ -689,7 +716,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>Closes</dt>
-              <dd><.local_time id="covered-calls-sell-closes" at={@t.expiry + Terms.exercise_window()} /></dd>
+              <dd>
+                <.local_time id="covered-calls-sell-closes" at={@t.expiry + Terms.exercise_window()} />
+              </dd>
             </div>
           </dl>
         </section>
@@ -698,14 +727,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <li id="covered-calls-sell-below">
             <strong>Below strike</strong>
             <span data-count>{F.usd(@t.receipt && @t.receipt.net_premium)}</span>
-            <small>Keep the premium and your {held(@t.amount, @unit, @symbol)}</small>
+            <small>Keep the premium and your {yours(@t.amount, @unit, @symbol)}</small>
           </li>
           <li id="covered-calls-sell-above">
             <strong>Above strike</strong>
             <span data-count>
               {F.usd(@t.receipt && @t.receipt.strike + @t.receipt.net_premium)}
             </span>
-            <small>Strike plus premium for your {held(@t.amount, @unit, @symbol)}</small>
+            <small>Strike plus premium for your {yours(@t.amount, @unit, @symbol)}</small>
           </li>
           <li id="covered-calls-sell-unsold">
             <strong>Unsold</strong>
@@ -799,7 +828,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <dl id={"#{@id}-receipt"} class="covered-calls__lines">
             <div>
               <dt>You pay</dt>
-              <dd id={"#{@id}-pay"} data-count>{@pay && F.usd_due(@pay) || F.usd(nil)}</dd>
+              <dd id={"#{@id}-pay"} data-count>{if @pay, do: F.usd_due(@pay), else: F.usd(nil)}</dd>
             </div>
             <div>
               <dt>Strike</dt>
@@ -815,7 +844,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </div>
             <div>
               <dt>Closes</dt>
-              <dd><.local_time id={"#{@id}-closes"} at={@listing.expiry + Terms.exercise_window()} /></dd>
+              <dd>
+                <.local_time id={"#{@id}-closes"} at={@listing.expiry + Terms.exercise_window()} />
+              </dd>
             </div>
           </dl>
         </section>
@@ -911,19 +942,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp presets(_none), do: Enum.map(@presets, &{&1, nil})
 
   defp above(nil), do: "—"
-  defp above(preset), do: "+#{:erlang.float_to_binary(preset.above_reference * 100, decimals: 1)}%"
+
+  defp above(preset),
+    do: "+#{:erlang.float_to_binary(preset.above_reference * 100, decimals: 1)}%"
 
   # The way back to the suggestion, once a different premium is typed.
-  defp suggest?(%{typed: typed, suggested: suggested}),
-    do: is_integer(suggested) and typed != suggested
+  defp suggest?(%{edited?: edited?, typed: typed, suggested: suggested}),
+    do: edited? and is_integer(suggested) and typed != suggested
 
   defp held(nil, _unit, _symbol), do: "—"
   defp held(amount, unit, symbol), do: "#{F.tokens(amount, unit)} #{symbol}"
 
-  defp quote_refusal(:price_unavailable),
-    do: "No reference price right now, so there are no suggestions."
+  defp yours(nil, _unit, symbol), do: symbol
+  defp yours(amount, unit, symbol), do: held(amount, unit, symbol)
 
-  defp quote_refusal(_unavailable), do: "The price couldn't be read just now."
+  defp quote_refusal(:price_unavailable), do: "No reference price right now"
+  defp quote_refusal(_unavailable), do: "The price couldn't be read"
 
   defp spot(reading) do
     case Quote.spot(reading) do

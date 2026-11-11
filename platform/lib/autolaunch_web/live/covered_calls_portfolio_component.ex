@@ -325,21 +325,20 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     after_expiry? = stage in [:exercise, :closed]
 
     [
-      side == :sold and listing.amount > 0 &&
+      (side == :sold and listing.amount > 0) &&
         %{name: :sold, label: "Sold", figure: {listing.filled, listing.amount}, step: nil},
-      side == :sold and stage == :open &&
+      (side == :sold and stage == :open) &&
         %{name: :for_sale, label: "For sale", figure: Terms.available(listing), step: :cancel},
-      side == :sold and after_expiry? and listing.filled > 0 &&
+      (side == :sold and after_expiry? and listing.filled > 0) &&
         %{
           name: :exercised,
           label: "Exercised",
           figure: {listing.exercised, listing.filled},
-          step:
-            (stage == :exercise or Terms.strike_due(listing) > 0) && :collect_strike
+          step: (stage == :exercise or Terms.strike_due(listing) > 0) && :collect_strike
         },
-      held > 0 and stage != :closed &&
+      (held > 0 and stage != :closed) &&
         %{name: :held, label: "Held", figure: held, step: :exercise},
-      held > 0 and stage == :closed &&
+      (held > 0 and stage == :closed) &&
         %{name: :lapsed, label: "Lapsed", figure: held, step: nil},
       claimable + returning > 0 &&
         %{name: :to_collect, label: "To collect", figure: claimable + returning, step: :claim}

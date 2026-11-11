@@ -188,8 +188,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       {nil, _request} ->
         assign(socket, notice: no_signer(socket.assigns))
 
-      {_signer, {:error, reason}} ->
-        assign(socket, notice: refusal_words(reason) || unreadable(socket.assigns.kind))
+      {_signer, {:error, :invalid_amount}} ->
+        assign(socket, notice: unreadable(socket.assigns.kind))
 
       {signer, {:ok, request}} ->
         case prepare(socket.assigns, request, signer) do

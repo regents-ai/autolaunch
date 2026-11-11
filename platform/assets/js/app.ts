@@ -22,6 +22,7 @@ import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
 import {HomeCells} from "./hooks/home_cells"
+import {LocalTime} from "./hooks/local_time"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
@@ -55,6 +56,7 @@ const hooks = {
   OnchainSteps,
   PriceChart,
   HomeCells,
+  LocalTime,
   PublicName,
   XConnections,
   CreatorConnections,
