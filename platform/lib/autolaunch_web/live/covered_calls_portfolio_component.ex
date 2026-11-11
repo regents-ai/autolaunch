@@ -307,29 +307,41 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp side(:held), do: "Buyer"
 
   # Each part of a listing for the wallet's side of it, as far as it has gone,
-  # and the step each part still has: the rest can be stopped while it is for
-  # sale; the strike for the exercised part is collected from the expiry on;
-  # held calls are exercised in the window and lapse after it; and stock comes
-  # back to collect once stopped or exercised, and to a seller once the window
-  # closes on what was not exercised (counted here from the expiry on, its
-  # button saying so until the window closes).
+  # and the step each part still has. The seller can stop selling the unsold
+  # part until its stock is returned, before the expiry or after it (For sale,
+  # then Unsold); the strike for the exercised part is collected from the
+  # expiry on; held calls are exercised in the window and lapse after it. To
+  # collect is the stock no other part shows that comes back: what was stopped
+  # or exercised, and for a seller from the expiry on the calls sold and not
+  # exercised (its button saying so until the window closes, when the chain
+  # also counts the unsold part in what it returns).
   defp parts(side, stage, listing, holding) do
     held = (holding && holding.held) || 0
     claimable = (holding && holding.claimable) || 0
-
-    returning =
-      if side == :sold and stage == :exercise and not listing.stock_returned,
-        do: listing.amount - listing.exercised,
-        else: 0
-
+    seller? = side == :sold
     after_expiry? = stage in [:exercise, :closed]
+    unsold = if seller? and not listing.stock_returned, do: Terms.available(listing), else: 0
+
+    to_collect =
+      cond do
+        seller? and stage == :exercise and not listing.stock_returned ->
+          claimable + listing.filled - listing.exercised
+
+        seller? and stage == :closed ->
+          claimable - unsold
+
+        true ->
+          claimable
+      end
 
     [
-      (side == :sold and listing.amount > 0) &&
+      (seller? and listing.amount > 0) &&
         %{name: :sold, label: "Sold", figure: {listing.filled, listing.amount}, step: nil},
-      (side == :sold and stage == :open) &&
-        %{name: :for_sale, label: "For sale", figure: Terms.available(listing), step: :cancel},
-      (side == :sold and after_expiry? and listing.filled > 0) &&
+      (unsold > 0 and not after_expiry?) &&
+        %{name: :for_sale, label: "For sale", figure: unsold, step: :cancel},
+      (unsold > 0 and after_expiry?) &&
+        %{name: :unsold, label: "Unsold", figure: unsold, step: :cancel},
+      (seller? and after_expiry? and listing.filled > 0) &&
         %{
           name: :exercised,
           label: "Exercised",
@@ -340,8 +352,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         %{name: :held, label: "Held", figure: held, step: :exercise},
       (held > 0 and stage == :closed) &&
         %{name: :lapsed, label: "Lapsed", figure: held, step: nil},
-      claimable + returning > 0 &&
-        %{name: :to_collect, label: "To collect", figure: claimable + returning, step: :claim}
+      to_collect > 0 &&
+        %{name: :to_collect, label: "To collect", figure: to_collect, step: :claim}
     ]
     |> Enum.filter(& &1)
   end

@@ -397,7 +397,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         class="covered-calls__section"
         aria-labelledby="covered-calls-buy-title"
       >
-        <h2 id="covered-calls-buy-title" class="covered-calls__title">Calls for sale</h2>
+        <h2 id="covered-calls-buy-title" class="covered-calls__title">For sale</h2>
         <div :if={@open != []} class="market-list__scroll">
           <table class="market-list__table covered-calls__table">
             <caption class="visually-hidden">Calls for sale on {@market.symbol}</caption>
@@ -453,7 +453,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           human_id={@human_id}
         />
         <div :if={@reading && @open == []} class="market-list__scroll market-list__empty">
-          <h2>No calls for sale</h2>
+          <h2>No listings</h2>
           <.link patch={~p"/stock/covered-call"} class="rg-button rg-button--secondary">
             Sell calls
           </.link>

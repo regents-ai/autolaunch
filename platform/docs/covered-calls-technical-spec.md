@@ -293,7 +293,7 @@ hold this (`CoveredCallsOffTest`, browser walk `switched_off.spec.ts`).
 | --- | --- |
 | `/stock/covered-call` | Title "Covered calls", then "Available to eligible people outside the US." Two tabs, each its own address, each a trade ticket beside its receipt. **Sell** (`/stock/covered-call`, first and the default): amount, expiry (the next four Fridays), strike (three suggestions or Custom), premium (the suggestion, or typed), List calls; beside it the receipt (You receive, Fee, If exercised, Opens, Closes) and three outcomes (Below strike, Above strike, Unsold), all from the quote. **Buy** (`?tab=buy`, with how many are for sale): calls for sale, with strike, premium, exercise window and amount left; a listing's ticket opens under the list at `?listing=<id>` (amount, Buy calls, You pay, Strike, Break-even, Opens, Closes, three outcomes). A Contract section at the foot links the verified code on Basescan. |
 | `/stocks/AMZNc` | While on: a "Covered calls on AMZNc" action. |
-| `/portfolio` | A "Covered calls" section: each listing the signed-in wallet sold or holds, in parts (Sold, For sale, Exercised, Held or Lapsed, To collect), each with the wallet step it allows (Stop selling, Collect USDC, Exercise, Collect AMZNc). |
+| `/portfolio` | A "Covered calls" section: each listing the signed-in wallet sold or holds, in parts (Sold, For sale or Unsold, Exercised, Held or Lapsed, To collect), each with the wallet step it allows (Stop selling, Collect USDC, Exercise, Collect AMZNc). |
 
 ### 6.2 How a press works (wallet steps)
 

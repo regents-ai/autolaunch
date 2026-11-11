@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "with nothing for sale the Buy tab says so", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
-    assert render_async(view, @async_ms) =~ "No calls for sale"
+    assert render_async(view, @async_ms) =~ "No listings"
   end
 
   test "selling opens by default on the next four Fridays; Buy counts the calls for sale",
@@ -326,12 +326,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
        %{conn: conn} do
     account = TestSupport.register_creator!()
 
-    # An hour into the window: 4 of 10 sold, 1 of those exercised and its strike paid.
+    # An hour into the window: all 4 sold, 1 of those exercised and its strike paid.
     CoveredCallsChain.install(%{
       listings: [
         CoveredCallsChain.listing(%{
           seller: account.wallet_address,
           expiry: CoveredCallsChain.now() - 3_600,
+          amount: 4 * @unit,
           exercised: 1 * @unit,
           paid: 260_000_000
         })
@@ -340,8 +341,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     {view, _account} = portfolio(conn, account)
 
-    assert has_element?(view, "#portfolio-covered-calls-sold-1-sold", "4 of 10 AMZNc")
-    refute has_element?(view, "#portfolio-covered-calls-sold-1-for_sale")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-sold", "4 of 4 AMZNc")
     assert has_element?(view, "#portfolio-covered-calls-sold-1-exercised", "1 of 4 AMZNc")
 
     assert has_element?(
@@ -349,7 +349,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
              "#portfolio-covered-calls-sold-1-exercised #portfolio-covered-calls-collect_strike-1"
            )
 
-    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "9 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "3 AMZNc")
 
     assert has_element?(
              view,
@@ -357,6 +357,32 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
            )
 
     refute has_element?(view, "#portfolio-covered-calls-cancel-1")
+  end
+
+  test "in the window a seller can still stop selling the unsold part", %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    # An hour into the window: 4 of 10 sold, so 6 never sold.
+    CoveredCallsChain.install(%{
+      listings: [
+        CoveredCallsChain.listing(%{
+          seller: account.wallet_address,
+          expiry: CoveredCallsChain.now() - 3_600
+        })
+      ]
+    })
+
+    {view, _account} = portfolio(conn, account)
+
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-unsold", "6 AMZNc")
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-sold-1-unsold #portfolio-covered-calls-cancel-1"
+           )
+
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-for_sale")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "4 AMZNc")
   end
 
   test "a success toast offers View Portfolio", %{conn: conn} do
