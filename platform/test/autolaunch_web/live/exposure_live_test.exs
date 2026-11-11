@@ -326,7 +326,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
     assert has_element?(view, "#exposure-done", "Split done")
     assert has_element?(view, "#exposure-done", "You received 0.05 of each.")
-    assert has_element?(view, "#exposure-done a[href='/portfolio']", "View Portfolio")
+    assert has_element?(view, "#exposure-done a[href='/portfolio']", "View portfolio")
 
     view |> element("#exposure-done button[aria-label=Dismiss]") |> render_click()
     refute has_element?(view, "#exposure-done")

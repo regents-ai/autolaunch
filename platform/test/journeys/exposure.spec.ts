@@ -209,7 +209,7 @@ test("after-hours exposure: record the first close, split, redeem pairs, run to 
   expect(bought).toBeGreaterThan(0n)
   expect(await balanceOf(USDC, people.a.wallet)).toBe(usdcBefore - 5_000_000n)
   await expect(page.locator("#exposure-done")).toContainText("Bought")
-  await expect(page.locator("#exposure-done").getByRole("link", {name: "View Portfolio"})).toBeVisible()
+  await expect(page.locator("#exposure-done").getByRole("link", {name: "View portfolio"})).toBeVisible()
 
   await open(page, "/stock/isolated-afters?tab=sell")
   await page.getByRole("button", {name: "Max", exact: true}).click()

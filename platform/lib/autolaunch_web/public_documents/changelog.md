@@ -1,5 +1,10 @@
 # Changelog
 
+## 11 November 2026: Placed bids
+- Once a bid is placed, the note says so and comes into view, wherever the bid form sits on the page.
+- The note links on to the auction and your portfolio, leaving out the page you are already on.
+- View portfolio is written in sentence case everywhere it appears.
+
 ## 11 November 2026: Credits
 - Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
 - Agents no longer read Credits: the balances and Credits history reads are gone, with their browser tools.

@@ -117,6 +117,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:outbid_banner, fn -> false end)
      |> assign_new(:authenticated, fn -> false end)
+     |> assign_new(:page, fn -> nil end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
@@ -251,6 +252,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               share_image={ShareCard.auction_image_url(@launch, DateTime.utc_now())}
               x_connection={@x_connection}
               x_enabled={@x_enabled}
+              page={@page}
             />
           <% end %>
           <Regent.Primitives.button

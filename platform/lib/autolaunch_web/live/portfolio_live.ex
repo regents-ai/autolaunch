@@ -756,6 +756,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       :if={@auction}
       id={"portfolio-bid-#{@auction.id}"}
       auction={@auction}
+      page={:portfolio}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}
@@ -798,6 +799,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       auction={@listing}
       ended={@ended}
       stake_path={@stake_path}
+      page={:portfolio}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

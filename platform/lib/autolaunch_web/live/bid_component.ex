@@ -106,6 +106,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(assigns)
      |> assign_new(:heading, fn -> "Place a bid" end)
      |> assign_new(:authenticated, fn -> false end)
+     |> assign_new(:page, fn -> nil end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:draft_marker, fn -> false end)
@@ -202,6 +203,7 @@ defmodule AutolaunchWeb.BidComponent do
               share_image={ShareCard.auction_image_url(@auction, DateTime.utc_now())}
               x_connection={@x_connection}
               x_enabled={@x_enabled}
+              page={@page}
             />
           <% end %>
           <Regent.Primitives.button

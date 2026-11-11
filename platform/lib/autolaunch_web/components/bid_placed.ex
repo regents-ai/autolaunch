@@ -1,8 +1,10 @@
 defmodule AutolaunchWeb.Components.BidPlaced do
   @moduledoc """
   What a bid panel shows once its bid is placed: the news, the transaction on
-  the chain's explorer, the way back to the auction and the portfolio, and a
-  window to share it on X (`AutolaunchWeb.Components.ShareDialog`).
+  the chain's explorer, the way on to the auction and the portfolio (each left
+  out on its own page), and a window to share it on X
+  (`AutolaunchWeb.Components.ShareDialog`). The news takes focus when it
+  appears, so it is read out and scrolled into view wherever the panel sits.
 
   The host component owns two events that read the bidder's X account:
   `share_opened` when the window opens, and `refresh_x_connections` (sent
@@ -12,6 +14,7 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   use AutolaunchWeb, :verified_routes
 
   alias Autolaunch.Accounts.XOAuth
+  alias Phoenix.LiveView.JS
   alias AutolaunchWeb.Components.ShareDialog
 
   @doc "The bidder's personal X connection, connected or not."
@@ -29,13 +32,18 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   attr :x_connection, :map, default: nil, doc: "the bidder's personal X connection"
   attr :x_enabled, :boolean, default: false
 
+  attr :page, :atom,
+    default: nil,
+    values: [nil, :auction, :portfolio],
+    doc: "the page the panel sits on, whose own link is left out"
+
   def bid_placed(assigns) do
     assigns = assign(assigns, :x_account, connected(assigns.x_connection))
 
     ~H"""
-    <div class="bid-placed" role="status">
+    <div class="bid-placed" role="status" tabindex="-1" phx-mounted={JS.focus()}>
       <p class="bid-placed__news">
-        Your bid on <span class="ticker">{@token_symbol}</span> was placed successfully.
+        Your bid on <span class="ticker">{@token_symbol}</span> is placed.
       </p>
       <p :if={@test_chain} class="bid-form__note">
         This was on a test network. Test assets have no real value.
@@ -50,11 +58,15 @@ defmodule AutolaunchWeb.Components.BidPlaced do
       </a>
 
       <div class="bid-placed__actions">
-        <.link navigate={@auction_path} class="rg-button rg-button--secondary">
-          <span class="rg-button__label">View Auction</span>
+        <.link :if={@page != :auction} navigate={@auction_path} class="rg-button rg-button--secondary">
+          <span class="rg-button__label">View auction</span>
         </.link>
-        <.link navigate={~p"/portfolio"} class="rg-button rg-button--secondary">
-          <span class="rg-button__label">View Portfolio</span>
+        <.link
+          :if={@page != :portfolio}
+          navigate={~p"/portfolio"}
+          class="rg-button rg-button--secondary"
+        >
+          <span class="rg-button__label">View portfolio</span>
         </.link>
         <ShareDialog.share_dialog
           id={"#{@id}-share"}

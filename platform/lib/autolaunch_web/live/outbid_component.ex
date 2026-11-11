@@ -113,6 +113,7 @@ defmodule AutolaunchWeb.OutbidComponent do
         <.live_component
           module={AutolaunchWeb.BidComponent}
           id={"#{@id}-bid"}
+          page={:auction}
           auction={@auction}
           book={@book}
           heading={heading(@open)}

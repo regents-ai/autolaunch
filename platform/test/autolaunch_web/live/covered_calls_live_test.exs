@@ -575,7 +575,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     send(view.pid, {:covered_call_done, %{kind: :fill, lines: ["1 AMZNc of calls for $5.00"]}})
 
-    assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View Portfolio")
+    assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View portfolio")
   end
 
   test "the portfolio's own success toast leaves View Portfolio out", %{conn: conn} do

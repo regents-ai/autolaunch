@@ -391,6 +391,7 @@ defmodule AutolaunchWeb.AuctionLive do
       :if={!Autolaunch.Prelaunch.read_only?() && !@ended}
       module={AutolaunchWeb.BidComponent}
       id={bid_form_id(@page_record.id)}
+      page={:auction}
       draft_marker={@draft_marker}
       auction={@page_record}
       book={@book}

@@ -308,6 +308,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     <.live_component
       module={AutolaunchWeb.RobinhoodStockBidComponent}
       id={bid_form_id(@auction)}
+      page={:auction}
       outbid_banner
       draft_marker={@draft_marker}
       auction={@auction}
