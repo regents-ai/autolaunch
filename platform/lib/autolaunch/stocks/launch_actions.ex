@@ -21,6 +21,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
+  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
@@ -93,17 +94,22 @@ defmodule Autolaunch.Stocks.LaunchActions do
   def auction_duration_blocks, do: @auction_duration_blocks
 
   @doc """
-  The launch's fixed schedule in blocks: bidding opens `opens` after the
-  launch, runs for `length`, and claims and the trading pool open `claim` and
-  `pool` after bidding ends.
+  A Memestock launch's fixed schedule on `chain`, in blocks: bidding opens
+  `opens` after the launch, runs for `length`, claims and the trading pool open
+  `claim` and `pool` after bidding ends, and the creator's tokens are released
+  over `vesting` from the pool opening. Every duration the site states for a
+  Memestock launch is worked out from these with `LaunchChain.time_estimate/2`.
   """
-  def schedule,
+  def schedule(:base),
     do: %{
       opens: @start_lead_blocks,
       length: @auction_duration_blocks,
       claim: @claim_delay_blocks,
-      pool: @migration_delay_blocks
+      pool: @migration_delay_blocks,
+      vesting: @creator_vesting_blocks
     }
+
+  def schedule(:robinhood), do: RobinhoodLaunchActions.schedule()
 
   def floor_price_q96, do: @floor_price_q96
 

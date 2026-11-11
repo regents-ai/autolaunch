@@ -32,7 +32,7 @@ launches.
 | `/agent-business` | Revstake launch form on Base | `autolaunch/launch_draft_test.exs` (both cases); `autolaunch_web/live/create_pages_test.exs` › "Revstake's card, the still-needed line and the treasury type's single-key warning", › "closed for launches, both create addresses answer as unknown" |
 | `/stocks` | Stocks available to pair, each linking to its own page | `autolaunch_web/live/stock_listing_test.exs` (both cases) |
 | `/stocks/<symbol>` | One stock: addresses, company links, dated pool research | As above |
-| `/how-it-works` | Fixed contract rules, explained | **Gap** |
+| `/how-it-works` | Fixed contract rules, explained; each auction's length and a Memestock creator's release worked out from the launch's blocks on its chain | The lengths: `autolaunch/launch_chain_test.exs` › "each launch's schedule gives its auction length and a creator's release on its chain". The page: **gap** |
 | `/portfolio` | The signed-in wallet's bids and tokens | `autolaunch_web/live/robinhood_pages_live_test.exs` › "/portfolio outlives a Robinhood feed's new block" |
 | `/portfolio/bids/<id>` | One bid on its own page | **Gap** (its steps: see Wallet actions) |
 | `/account` | This site's own sections first (Credits and Points activity, connected accounts), then who is signed in, the paired agents, Pair New Agent (`#account-pairing`; each agent keeps its own code until it expires), Credits, Points and the name people see | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT", › "PAIRING_CODE_KEPT_PER_AGENT", › "ACCOUNT_MENU_ON_EVERY_PAGE" (the page's order and the one pairing box); `browser/account_menu.spec.ts` › "the Account page shows this site's sections first, then the shared ones"; the agent's check-in time, and the agent leaving the list once it is unpaired on regents.sh: `scripts/agent-journeys.sh`, `test/journeys/pairing.spec.ts`. Saving the name people see: **gap** |
@@ -111,7 +111,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 | Action | Check |
 | --- | --- |
 | Share picture of an auction or token | `autolaunch_web/launch_image_test.exs` (both cases); `autolaunch_web/share_card_test.exs` (both cases) keeps every word inside the part X's phone view shows. The rest of the picture's content: **gap** |
-| Share picture of the home page (`platform/priv/static/images/og-image.png`, drawn by `node scripts/share-card/render.cjs` from `scripts/share-card/home.html`) | The drawing script refuses a word past X's narrow view or under X's title; `autolaunch_web/share_card_test.exs` › "SHARE_HOME_PICTURE: the home picture leaves X's title band clear" reads the committed picture |
+| Share pictures of the home page and `/how-it-works` (`platform/priv/static/images/og-image.png` and `og-how-it-works.png`, drawn by `node scripts/share-card/render.cjs` from `scripts/share-card/home.html` and `how-it-works.html`; neither states a length of time) | The drawing script refuses a word past X's narrow view or under X's title; `autolaunch_web/share_card_test.exs` › "SHARE_HOME_PICTURE: the home picture leaves X's title band clear" reads the committed picture |
 | Share video, everyone's or a wallet's own | `autolaunch_web/controllers/share_video_test.exs`; `share_video_failures_test.exs` (all ten cases); `autolaunch_web/share_video_queue_test.exs` (all six); `autolaunch_web/share_video_render_test.exs` |
 | Old links (`/auctions/<id>`, `/tokens/<id>`, `/robinhood/...`) move to today's page | `old_link_controller_test.exs` (both cases) |
 
