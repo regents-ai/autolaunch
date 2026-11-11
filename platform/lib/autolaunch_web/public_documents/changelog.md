@@ -27,6 +27,7 @@
 ## 11 November 2026: Addresses
 - Every address and transaction shown on auction pages, launch forms, settlement and payment panels, the bid list and the REGENT Fees page now shows in its short form, with a copy icon and an arrow that opens it on the chain's explorer. On a test network the arrow is left out.
 - The line above a wallet button names the sending wallet the same way, with its copy icon.
+- A launch review shows the treasury, and a stock launch's review its auction currency, in full, so you can check every character before your wallet confirms.
 
 ## 11 November 2026: Auction titles
 - Auction page sections have short names: Bidding, Waiting bids, Bid lookup and Table.

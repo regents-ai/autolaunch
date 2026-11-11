@@ -125,6 +125,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
                 <Regent.Primitives.address
                   id={"#{@id}-stock"}
                   address={@prepared.facts["stock"]}
+                  variant="full"
                   chain={LaunchSteps.address_chain(explorer_chain())}
                 />
               </dd>

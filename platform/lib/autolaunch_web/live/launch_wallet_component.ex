@@ -199,6 +199,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
                 <Regent.Primitives.address
                   id={"#{@id}-review-treasury"}
                   address={@prepared.facts["treasury"]}
+                  variant="full"
                   chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
                 />
               </dd>
