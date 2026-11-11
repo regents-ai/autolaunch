@@ -84,17 +84,10 @@ if the address already holds the promised code, the contract is deployed and not
 
 ## Switching the site on
 
-`site-markets.json` is the markets file the site reads (`Autolaunch.CoveredCalls.Deployment`); a
-test holds it to `deployed.json` (`platform/test/autolaunch/covered_calls/deployment_test.exs`).
-`platform/fly.toml` sets `AUTOLAUNCH_COVERED_CALLS=true` and places it at
-`/app/deployment/covered-calls.json`, so the release copies it beside the other deployment files:
-
-```bash
-cp contracts/covered-calls/deploy/site-markets.json platform/deployment/covered-calls.json
-```
-
-Turning covered calls off again is the same release without those two `[env]` lines and the
-`[[files]]` entry: the pages answer not found and no tool names them.
+`site-markets.json` is the markets file the site read while it ran on this contract
+(`Autolaunch.CoveredCalls.Deployment`). The site now reads CoveredCallsV2 only
+(`contracts/covered-calls-v2`), so this file no longer switches it on: the markets file at
+`platform/deployment/covered-calls.json` must name a CoveredCallsV2 contract for each stock.
 
 ## A week on Base, without sending anything
 

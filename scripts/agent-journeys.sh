@@ -160,11 +160,11 @@ contracts() {
     fi
   done
   mkdir -p "$work"
-  git -C "$root" archive HEAD contracts/stocks-v2 contracts/revstake-v2 contracts/covered-calls contracts/exposure | tar -x -C "$work"
+  git -C "$root" archive HEAD contracts/stocks-v2 contracts/revstake-v2 contracts/covered-calls-v2 contracts/exposure | tar -x -C "$work"
   [ -d "$work/contracts/stocks-v2/lib" ] || (cd "$work/contracts/stocks-v2" && python3 bootstrap-deps.py "$from")
   (cd "$work/contracts/stocks-v2" && forge build) >"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/revstake-v2" && forge build) >>"$out/contracts-build.log" 2>&1
-  (cd "$work/contracts/covered-calls" && forge build) >>"$out/contracts-build.log" 2>&1
+  (cd "$work/contracts/covered-calls-v2" && forge build) >>"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/exposure" && forge build) >>"$out/contracts-build.log" 2>&1
 }
 

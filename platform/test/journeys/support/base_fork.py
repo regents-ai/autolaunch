@@ -16,10 +16,9 @@ each pool's stock balance, read through it.
 On the copy only:
 - Base stock tokens carry a one-byte 0xef runtime a local chain cannot run, so FixtureStockToken is
   installed at each admitted stock and each pool is minted the stock balance it holds on Base.
-- For covered calls, LabStockToken (contracts/covered-calls/test/lab) is installed over AMZNc's
+- For covered calls, LabStockToken (contracts/covered-calls-v2/test/lab) is installed over AMZNc's
   stand-in, keeping its balances, because covered calls read the B20 multiplier and its scheduled
-  change; then the CoveredCallsV1 deployed for AMZNc on Base (against Base's USDC and live REGENT
-  staking) is placed at its own address with its code as Base holds it.
+  change; then CoveredCallsV2 is deployed for AMZNc against Base's USDC and live REGENT staking.
 - For Isolated Exposure to After-hours Stocks, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
   feed's phase) are deployed and one AMZNc series created whose three prices (a close, an open and
   a close) fall in the copy's next few hours, so a journey can record and apply each one.
@@ -204,27 +203,19 @@ class Fork:
             print(f"{self.run / name} written from {package}'s deployed manifest")
 
     def covered_calls(self):
-        """AMZNc's stand-in with the B20 reads covered calls make, the live CoveredCallsV1 for AMZNc
-        at its Base address, and the site's covered-calls settings file."""
-        package = self.contracts / "covered-calls"
+        """AMZNc's stand-in with the B20 reads covered calls make, a CoveredCallsV2 for AMZNc against
+        Base's USDC and live REGENT staking, and the site's covered-calls settings file."""
+        package = self.contracts / "covered-calls-v2"
         lab = json.loads((package / "out/LabStockToken.sol/LabStockToken.json").read_text())
         self.rpc("anvil_setCode", [AMZNC, lab["deployedBytecode"]["object"]])
         if self.call(AMZNC, "effectiveAt()(uint256)") != "0":
             sys.exit("the AMZNc lab stand-in does not answer effectiveAt()")
-        # FORK_BLOCK is before the contract landed, so its code is read from Base as it stands and
-        # placed at the same address. Its arguments are immutables in that code, and it starts with
-        # no listings, as it did on Base.
-        deployed = json.loads((package / "deploy/deployed.json").read_text())
-        contract = deployed["address"].lower()
-        code = self.cast("code", contract, rpc_url="base")
-        keccak = subprocess.run(["cast", "keccak", code], capture_output=True, text=True, check=True).stdout.strip()
-        if keccak != deployed["checks_on_base"]["runtime_code_keccak"]:
-            sys.exit(f"the code at {contract} on Base is not the deployed CoveredCallsV1")
-        self.rpc("anvil_setCode", [contract, code])
         stocks = json.loads((self.run / "base-memestock.json").read_text())["addresses"]
+        usdc, staking = stocks["usdc"].lower(), stocks["live_staking"].lower()
+        contract = self.create(package, "src/CoveredCallsV2.sol:CoveredCallsV2", AMZNC, usdc, staking)
         reads = [self.call(contract, f"{name}()(address)").lower() for name in ("stock", "usdc", "staking")]
-        if reads != [AMZNC, stocks["usdc"].lower(), stocks["live_staking"].lower()]:
-            sys.exit(f"the deployed CoveredCallsV1 names {reads}, not this copy's AMZNc, USDC and staking")
+        if reads != [AMZNC, usdc, staking]:
+            sys.exit(f"the CoveredCallsV2 deployed on the copy names {reads}, not AMZNc, USDC and staking")
         settings = {
             "chain_id": CHAIN_ID,
             "markets": [{"symbol": "AMZNc", "stock": AMZNC, "contract": contract, "feed": AMZN_FEED}],

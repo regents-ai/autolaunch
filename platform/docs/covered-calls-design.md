@@ -166,6 +166,29 @@ function claimable(uint256 listingId, address account) external view returns (ui
   itself, whoever claimed first would be paid. The contract is exempt from seizure unless the
   issuer lists it.
 
+### Buyer bids (`CoveredCallsV2`, `contracts/covered-calls-v2`)
+
+The site reads and acts on `CoveredCallsV2` only: V1's listings, fills, exercise, claims and
+strike collection unchanged, plus standing buyer bids. Not deployed on Base yet; deploying it is
+Sean's decision. Its README holds every call, check, event and view.
+
+```solidity
+function bid(uint256 amount, uint256 strikePerToken, uint256 premiumPerToken, uint64 expiry,
+    uint256 minSale) external returns (uint256 bidId);   // escrows costFor(amount, premium)
+function raiseBid(uint256 bidId, uint256 amount) external;     // bidder: escrows raiseCostFor
+function cancelBid(uint256 bidId) external;               // bidder: selling stops; escrow to refund
+function refundBid(uint256 bidId) external;               // bidder: the refund due (refundable)
+function sellToBid(uint256 bidId, uint256 amount) external returns (uint256 listingId);
+```
+
+- A sale into a bid opens a fully sold listing for the seller, held by the bidder, and pays the
+  seller its premium less the 1% fee at once. All the sales into one bid are together paid the
+  premium for everything sold, rounded up once, and carry the fee of that total, rounded up once
+  (`salePremiumFor`), so another sale landing first moves a sale's premium by at most one
+  micro-USDC.
+- The site sets each bid's minimum sale to one whole token, or the whole bid when it asks for
+  less. A sale is at least the minimum, or exactly what is left.
+
 ## 5. The site (`Autolaunch.CoveredCalls`)
 
 Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default, on in production since the 29 October 2026 switch-on (`platform/fly.toml`). With it
@@ -192,12 +215,12 @@ Ash domain `Autolaunch.CoveredCalls`:
   allowances at the latest block, so every figure matches the chain after a reload, and no
   migration is needed. (A new table needs Sean's go before production; reading the contract
   avoids it.)
-- `Book` — each market's listings, read once and shared by every visitor for five minutes and
+- `Book` — each market's listings and bids, read once and shared by every visitor for five minutes and
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
   on each, are read eight at a time, so weeks of listings stay quick to read.
-- `Positions` — a wallet's listings, holdings and the stock in the wallet (the most it can list
-  now), all read at one latest block, never from the
+- `Positions` — a wallet's listings, holdings, its own bids with what a refund would send it now
+  (`refundable`), and the stock in the wallet (the most it can list now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
 - `/stock/covered-call` reads again when a press lands on any page, when a `?listing=<id>` link opens
   (unless read in the last ten seconds), and just after the next open listing's expiry or a
@@ -207,7 +230,7 @@ Ash domain `Autolaunch.CoveredCalls`:
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,
-  claim, collect strike) on the server for `AutolaunchWeb.OnchainSteps`. A press that is certain to fail
+  claim, collect strike, bid, raise a bid, cancel a bid, refund a bid, sell into a bid) on the server for `AutolaunchWeb.OnchainSteps`. A press that is certain to fail
   from the chain's own state at the latest block (sold out, past expiry, no approval yet) shows
   the button disabled with the reason; nothing else blocks a press.
 - `Quote` — a seller's quote, the one calculation the page and agents share: the reference price
@@ -221,10 +244,10 @@ Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| A stock's listings | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| A stock's listings and open bids | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | Quote a listing | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| My listings, holdings and bids | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| Prepare a step (list, fill, cancel, exercise, claim, collect strike, bid, raise_bid, cancel_bid, refund_bid, sell_to_bid) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 
 Off, every one of these routes answers as an unknown address and the site is byte for byte what it
 was before covered calls: `/openapi.json` is `contracts/api-contract.openapiv3.yaml` exactly,
@@ -315,7 +338,7 @@ owned by the regents-cli lane until it adds them.
    suite needs Foundry 1.8.4 or later, because Base stock tokens are precompiles. Base's own build
    (base-anvil) would also cover the newer `effectiveAt()` read. Installing either on the Mac
    changes the shared toolchain, so that waits for the toolchain owner.
-3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release.
+3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is not deployed; the site moves to it only once it is and `platform/deployment/covered-calls.json` names it.
 4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).

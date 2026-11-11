@@ -4,9 +4,9 @@ import {balanceOf, call, mintStock, rpc, sendAs} from "./support/chain"
 import {expect, fitsAndPresses, freshPerson, holdWallet, people, ready, signIn, test, type Sent} from "./support/person"
 import type {Locator, Page} from "@playwright/test"
 
-// Covered calls on AMZNc, end to end on the copy of Base with the deployed
-// CoveredCallsV1 (base_fork.py covered-calls: the deployed contract's own code at its Base
-// address). Person A lists three AMZNc as calls and stops selling what is left after B buys
+// Covered calls on AMZNc, end to end on the copy of Base with a CoveredCallsV2
+// (base_fork.py covered-calls: deployed on the copy for AMZNc, Base's USDC and live REGENT
+// staking). Person A lists three AMZNc as calls and stops selling what is left after B buys
 // one, then the same one again. B is a wallet the site has never seen, made up for the run
 // and signing in for the first time, unpaired: buying and exercising ask nothing of a wallet
 // beyond what it holds. Each action is reviewed, then sent one wallet step at a time, and the
