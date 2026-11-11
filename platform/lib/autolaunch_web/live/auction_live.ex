@@ -310,7 +310,7 @@ defmodule AutolaunchWeb.AuctionLive do
             aria-labelledby="auction-my-receipts-title"
           >
             <header class="auction-next-card__head">
-              <h2 id="auction-my-receipts-title">Your bids, as the auction holds them</h2>
+              <h2 id="auction-my-receipts-title">Bid details</h2>
             </header>
             <.receipt
               :for={receipt <- @my_receipts.result}
@@ -405,7 +405,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="bid-panel"
       aria-label="Your bids"
     >
-      <h3>Your bids on this auction</h3>
+      <h3>Your bids</h3>
       <ul role="list" class="bid-positions">
         <li :for={position <- @my_positions}>
           <.live_component

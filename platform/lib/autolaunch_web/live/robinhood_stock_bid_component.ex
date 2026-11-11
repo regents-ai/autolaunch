@@ -331,7 +331,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           class="launch-wallet-settled"
           aria-label="Your bids"
         >
-          <h3>Your bids on this auction</h3>
+          <h3>Your bids</h3>
           <ul role="list">
             <li :for={{bid, standing} <- @rows} id={"#{@id}-bid-#{bid["bid_id"]}"}>
               <p>

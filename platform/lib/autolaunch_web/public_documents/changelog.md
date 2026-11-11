@@ -29,6 +29,7 @@
 - Auction page sections have short names: Bidding, Waiting bids, Bid lookup and Table.
 - The bid form is titled New bid, or Higher bid and Extra bid when you raise or add to a bid, and Bidding ended once the auction closes.
 - The price limit and the waiting-bids table no longer print each price with every one of its decimals.
+- Your bids on an auction are headed Your bids, and their full figures Bid details.
 
 ## 11 November 2026: Placed bids
 - Once a bid is placed, the note says so and comes into view, wherever the bid form sits on the page.
