@@ -247,7 +247,7 @@ svg.token-swap__review-arrow { width: 20px; height: 20px; color: var(--color-fg-
 
 .token-swap__toast {
   position: fixed;
-  top: var(--space-3);
+  top: calc(var(--shell-top-end) + var(--space-3));
   right: var(--space-3);
   z-index: var(--rg-layer-tip);
   transform-origin: top right;

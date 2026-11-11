@@ -630,7 +630,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
-      ["Exercise window", F.window(facts.expiry)],
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)],
       ["Total premium", F.usd(premium)],
       ["You receive", "#{F.usd(premium - Terms.fee(premium))} if all sell, after the 1% fee"],
       ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
@@ -642,7 +643,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Premium", F.usd_due(facts.premium)],
       ["Exercise cost", F.usd_due(facts.strike)],
-      ["Exercise window", F.window(facts.expiry)]
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)]
     ]
 
   defp facts(:exercise, facts, %{unit: unit, symbol: symbol}),
@@ -670,7 +672,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),
-    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd_due(facts.premium)}"]
+    do: ["Calls on #{F.tokens(facts.amount, unit)} #{symbol} for #{F.usd_due(facts.premium)}"]
 
   defp done_lines(:exercise, facts, %{unit: unit, symbol: symbol}),
     do: [

@@ -336,14 +336,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp receipt(order, quote), do: if(answers?(quote, order), do: quote.receipt)
 
   # Under You receive: what the seller keeps as a share of the stock's worth,
-  # for the term to expiry.
+  # and the term to expiry it is kept over.
   defp lead(order, quote) do
     case receipt(order, quote) do
       nil ->
         nil
 
       %{net_premium_yield: share} ->
-        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% · #{days(quote.term_days)}"
+        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% return in #{days(quote.term_days)}"
     end
   end
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 11 November 2026: Covered calls
+- Opening a review moves the focus to it, so the whole review comes into view with its wallet button. The same holds for Stake, Claim and the REGENT Fees conversion.
+- The review gives the exercise window as Opens and Closes, as the receipt does.
+- The share under You receive says it is a return, as in "0.05% return in 3 days".
+- The note after a purchase reads "Calls on 1 AMZNc for $0.14". Every such note now appears below the header, so it no longer covers your account button.
+
 ## 11 November 2026: Launch form
 - The line above Review launch that said your wallet confirms the launch is gone; the review itself shows every value.
 - A stock with no trading volume to show leaves the line out instead of saying it is unavailable.
