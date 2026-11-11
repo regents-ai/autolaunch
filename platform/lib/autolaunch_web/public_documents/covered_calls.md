@@ -4,10 +4,12 @@ Covered calls on Base stock tokens are open on this site. A seller locks stock t
 
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 
+A quote gives the reference price, the next four expiries with their exercise windows, and three suggested strikes above the reference price, each with a suggested premium. For the strike and premium you choose (the middle suggestion and its premium when you leave them out) and an `amount`, its `receipt` says what the listing pays if all of it is bought at once and all of it exercised: the premium, the 1% fee, what the seller keeps and the strike, each exactly what the contract counts, so it matches the steps you prepare for the same listing.
+
 | Action | WebMCP tool | HTTP |
 | --- | --- | --- |
 | Read a stock's listings | `autolaunch_covered_call_listings` | `GET {{origin}}/api/v1/covered-calls/{symbol}` |
-| Suggest a premium | `autolaunch_covered_call_quote` | `POST {{origin}}/api/v1/covered-calls/{symbol}/quote` with `strike_per_token` and `expiry` |
+| Quote a listing | `autolaunch_covered_call_quote` | `POST {{origin}}/api/v1/covered-calls/{symbol}/quote` with `expiry`, and optionally `amount`, `strike_per_token` and `premium_per_token` |
 | Read your person's covered calls (signed, paired) | `autolaunch_my_covered_calls` | `GET {{origin}}/api/agent/v1/covered-calls/{symbol}/positions` |
 | Prepare a step: list, fill, cancel, exercise, claim or collect_strike (signed, paired) | `autolaunch_covered_call_prepare` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
 

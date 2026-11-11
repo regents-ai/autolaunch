@@ -1,5 +1,10 @@
 # Changelog
 
+## 11 November 2026: Call quotes
+- A covered-call quote now gives the next four expiries with their exercise windows, and three suggested strikes about 2%, 5% and 10% above the reference price, each with its suggested premium.
+- Given an amount, it shows what the listing pays: the premium, the 1% fee, what the seller keeps and the strike, counted exactly as the contract counts them.
+- The strike and premium may be left out: the quote then uses the middle suggestion and its premium. Suggested premiums are rounded to the cent.
+
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.

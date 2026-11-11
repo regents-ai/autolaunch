@@ -208,16 +208,19 @@ Ash domain `Autolaunch.CoveredCalls`:
   claim, collect strike) on the server for `AutolaunchWeb.OnchainSteps`. A press that is certain to fail
   from the chain's own state at the latest block (sold out, past expiry, no approval yet) shows
   the button disabled with the reason; nothing else blocks a press.
-- `Quote` — the suggested premium: a reference price from the Chainlink feed (hidden when older
-  than its bound) and an assumed 30% yearly volatility, counted to the close of the exercise
-  window, shown as a guide, never enforced.
+- `Quote` — a seller's quote, the one calculation the page and agents share: the reference price
+  from the Chainlink feed (refused when older than its bound), the next four expiries with their
+  exercise windows, three suggested strikes about 2%, 5% and 10% above the reference price, each
+  with a suggested premium (an assumed 30% yearly volatility, counted to the close of the
+  exercise window, to the cent), and for an amount what the listing pays, counted as the
+  contract counts it. A guide, never enforced.
 
 Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
 | A stock's listings | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| Suggested premium | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| Quote a listing | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 

@@ -328,7 +328,7 @@ says why under the button and opens nothing: never a silent press.
 | `Chain` | Reads listings, holdings, `claimable`, balances, allowances, multiplier, `effectiveAt` and the Chainlink price at one block. |
 | `Book` | Each market's listings, read once and shared by every visitor for five minutes, re-read ten seconds after any landed press. Never disables a button. |
 | `Positions` | One wallet's sold listings and holdings, read fresh. |
-| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price, counted to the close of the exercise window; hidden when the price is older than four days. A guide only; never enforced. |
+| `Quote` | A seller's quote, the one calculation the page's ticket and agents share: the Chainlink reference price, the next four expiries with their exercise windows, three suggested strikes (about 2%, 5% and 10% above the reference price, rounded up to the stock's price step: whole dollars from $100 to $999.99), each with a suggested premium (Black-Scholes with a fixed 30% yearly volatility and no interest, counted to the close of the exercise window, to the cent), and what a listing of the chosen strike and premium pays, counted with the contract's own rounding (`Terms`). Refused when the price is older than four days. A guide only; never enforced. |
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
 | `Market` | The four operations every surface calls (`book`, `quote`, `positions`, `prepare`), with Ash policies. |
@@ -340,7 +340,7 @@ There are no database tables: the contract is the record.
 | Method and path | Who | Purpose |
 | --- | --- | --- |
 | `GET /api/v1/covered-calls/{symbol}` | public | The market's listings with stage and amount left. |
-| `POST /api/v1/covered-calls/{symbol}/quote` | public | Body `{strike_per_token, expiry}`; returns the reference price and suggested premium. |
+| `POST /api/v1/covered-calls/{symbol}/quote` | public | Body `{expiry, amount?, strike_per_token?, premium_per_token?}`; returns the reference price, the next four expiries with their exercise windows, three suggested strikes with a premium each, and for the chosen strike (the middle suggestion when left out) and premium (its suggestion when left out) what a listing of `amount` pays: premium, fee, net premium and strike, as the contract counts them. |
 | `GET /api/v1/me/covered-calls/{symbol}` | signed-in person | Their own wallet's listings and holdings. |
 | `GET /api/agent/v1/covered-calls/{symbol}/positions` | paired agent (SIWA-signed) | The paired person's listings and holdings. |
 | `POST /api/agent/v1/covered-calls/{symbol}/steps` | paired agent (SIWA-signed) | Body `{kind, listing_id?, amount?, strike_per_token?, premium_per_token?, expiry?, signer?}`, `kind` one of `list`, `fill`, `cancel`, `exercise`, `claim`, `collect_strike`; returns unsigned transactions for a wallet of the paired person's account, and `blocked` with the reason when certain to fail. The site never signs. |
@@ -385,7 +385,7 @@ unsigned transactions; the agent sends them with its own wallet tooling.
 | Command | CLI | Authority | Route | Flags |
 | --- | --- | --- | --- | --- |
 | `covered-calls book <symbol>` | both | public | `GET /api/v1/covered-calls/{symbol}` | — |
-| `covered-calls quote <symbol>` | both | public | `POST /api/v1/covered-calls/{symbol}/quote` | `--strike` (USDC per token, decimal), `--expiry` (a Friday, `YYYY-MM-DD`, or Unix seconds) |
+| `covered-calls quote <symbol>` | both | public | `POST /api/v1/covered-calls/{symbol}/quote` | `--expiry` (a Friday, `YYYY-MM-DD`, or Unix seconds), `--amount` (tokens, decimal), `--strike` and `--premium` (USDC per token, decimal) |
 | `covered-calls positions <symbol>` | `regents autolaunch` | signed, paired | `GET /api/agent/v1/covered-calls/{symbol}/positions` | — |
 | `covered-calls prepare <symbol>` | `regents autolaunch` | signed, paired | `POST /api/agent/v1/covered-calls/{symbol}/steps` | `--kind` (`list`, `fill`, `cancel`, `exercise`, `claim`, `collect_strike`), `--listing`, `--amount` (tokens, decimal), `--strike`, `--premium`, `--expiry`, `--signer` (one of the person's own wallets) |
 
@@ -3348,10 +3348,15 @@ paths:
     post:
       operationId: quoteCoveredCall
       summary: Suggest a covered-call premium
-      description: A suggested premium per whole token for a call at `strike_per_token` expiring at `expiry`,
-        from the stock's reference price, as a guide for a seller. The contract enforces nothing from
-        it. Refused while the reference price is more than four days old. Needs no account; the page tool
-        autolaunch_covered_call_quote calls it.
+      description: A seller's quote for a call expiring at `expiry`, from the stock's reference price, as a
+        guide before listing. It gives the reference price, the next four weekly expiries with their exercise
+        windows, three suggested strikes above the reference price with a suggested premium for each, and,
+        for the chosen strike (the middle suggestion when `strike_per_token` is left out) and premium (the
+        suggestion when `premium_per_token` is left out), what a listing of `amount` pays if all of it is
+        bought at once and all of it exercised. Every USDC figure is what the contract counts, rounded up.
+        Without `amount` the per-token figures still come back and the totals are null. The contract enforces
+        no suggestion. Refused while the reference price is more than four days old. Needs no account; the
+        page tool autolaunch_covered_call_quote calls it.
       security: []
       parameters:
       - $ref: '#/components/parameters/CoveredCallSymbol'
@@ -3363,7 +3368,7 @@ paths:
               $ref: '#/components/schemas/CoveredCallQuoteRequest'
       responses:
         '200':
-          description: The suggested premium
+          description: The quote
           content:
             application/json:
               schema:
@@ -3375,8 +3380,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
         '422':
-          description: The expiry is not a Friday at 21:00 UTC or has passed, or the body is not the two
-            whole numbers (not_a_weekly_expiry, expiry_passed, invalid_request)
+          description: The expiry is not a Friday at 21:00 UTC or has passed, or the body leaves out the expiry,
+            names another field, or gives a field that is not a whole number in range (not_a_weekly_expiry,
+            expiry_passed, invalid_request)
           content:
             application/json:
               schema:
@@ -3679,16 +3685,97 @@ components:
       type: object
       additionalProperties: false
       required:
-      - strike_per_token
       - expiry
       properties:
+        expiry:
+          type: integer
+          description: A Friday at 21:00 UTC, Unix seconds.
+        amount:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          description: Raw stock units to list. Left out, the totals are null.
         strike_per_token:
           type: integer
           minimum: 1
           maximum: 9007199254740991
+          description: Micro-USDC per whole token. Left out, the middle suggested strike.
+        premium_per_token:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          description: Micro-USDC per whole token the listing asks. Left out, the suggested premium.
+    CoveredCallExpiry:
+      type: object
+      additionalProperties: false
+      required:
+      - expiry
+      - exercise_opens_at
+      - exercise_closes_at
+      properties:
         expiry:
           type: integer
           description: A Friday at 21:00 UTC, Unix seconds.
+        exercise_opens_at:
+          type: integer
+          description: When its calls may first be exercised, Unix seconds (the expiry).
+        exercise_closes_at:
+          type: integer
+          description: When its exercise window closes, Unix seconds (24 hours after the expiry).
+    CoveredCallPreset:
+      type: object
+      additionalProperties: false
+      required:
+      - strike_per_token
+      - above_reference
+      - suggested_premium_per_token
+      - premium
+      properties:
+        strike_per_token:
+          type: integer
+          description: Micro-USDC per whole token, rounded up to the stock's price step.
+        above_reference:
+          type: number
+          description: How far the strike is above the reference price, as a fraction (0.02 is 2%).
+        suggested_premium_per_token:
+          type: integer
+          description: Micro-USDC per whole token, to the cent.
+        premium:
+          type:
+          - integer
+          - 'null'
+          description: The suggested premium for `amount`, in micro-USDC, rounded up as the contract counts
+            it; null without an amount.
+    CoveredCallReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - reference_value
+      - premium
+      - fee
+      - net_premium
+      - strike
+      - net_premium_yield
+      properties:
+        reference_value:
+          type: integer
+          description: The stock's worth at the reference price, in micro-USDC.
+        premium:
+          type: integer
+          description: The premium in micro-USDC if all of it is bought at once.
+        fee:
+          type: integer
+          description: The 1% of that premium that goes to REGENT staking, rounded up, in micro-USDC.
+        net_premium:
+          type: integer
+          description: What the seller keeps of that premium, in micro-USDC.
+        strike:
+          type: integer
+          description: The strike in micro-USDC the seller collects if all of it is exercised.
+        net_premium_yield:
+          type: number
+          description: net_premium as a fraction of reference_value, for the term to expiry (not a yearly
+            rate).
     CoveredCallQuoteEnvelope:
       type: object
       additionalProperties: false
@@ -3700,31 +3787,68 @@ components:
           additionalProperties: false
           required:
           - symbol
+          - unit
           - spot_per_token
-          - strike_per_token
-          - expiry
-          - volatility
-          - suggested_premium_per_token
           - price_updated_at
+          - volatility
+          - expiries
+          - presets
+          - expiry
+          - exercise_closes_at
+          - amount
+          - strike_per_token
+          - suggested_premium_per_token
+          - premium_per_token
+          - receipt
           properties:
             symbol:
               type: string
+            unit:
+              type: integer
+              description: Raw units in one whole token.
             spot_per_token:
               type: integer
               description: The reference price in micro-USDC per whole token.
-            strike_per_token:
+            price_updated_at:
               type: integer
-            expiry:
-              type: integer
+              description: When the reference price was last updated, Unix seconds.
             volatility:
               type: number
               description: The yearly volatility the suggestion assumes.
+            expiries:
+              type: array
+              description: The next four weekly expiries.
+              items:
+                $ref: '#/components/schemas/CoveredCallExpiry'
+            presets:
+              type: array
+              description: Three suggested strikes, ascending, each above the reference price.
+              items:
+                $ref: '#/components/schemas/CoveredCallPreset'
+            expiry:
+              type: integer
+            exercise_closes_at:
+              type: integer
+              description: When the chosen expiry's exercise window closes, Unix seconds.
+            amount:
+              type:
+              - integer
+              - 'null'
+              description: The raw stock units asked about, or null.
+            strike_per_token:
+              type: integer
+              description: The chosen strike, micro-USDC per whole token.
             suggested_premium_per_token:
               type: integer
-              description: Micro-USDC per whole token.
-            price_updated_at:
+              description: The suggested premium at the chosen strike, micro-USDC per whole token, to the cent.
+            premium_per_token:
               type: integer
-              description: Unix seconds.
+              description: The premium the receipt counts, micro-USDC per whole token.
+            receipt:
+              description: What the listing pays, or null without an amount.
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/CoveredCallReceipt'
     CoveredCallPositionsEnvelope:
       type: object
       additionalProperties: false
@@ -3926,7 +4050,8 @@ components:
             facts:
               type: object
               description: 'The action''s figures: listing_id, amount, and the premium, fee, strike or
-                unsold amount it involves.'
+                unsold amount it involves. A purchase also gives the strike its calls would cost to
+                exercise and the expiry their window opens at.'
     CoveredCallError:
       type: object
       additionalProperties: false
@@ -4005,7 +4130,7 @@ components:
     {
       "name": "autolaunch_covered_call_quote",
       "title": "Suggest a covered-call premium",
-      "description": "Suggest a premium per whole token for a covered call on one Base stock token at a strike and weekly expiry, from the stock's reference price. A guide for a seller only: the contract enforces nothing from it, and it is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
+      "description": "Quote a covered call on one Base stock token before listing it, for a weekly expiry: the stock's reference price (spot_per_token, micro-USDC per whole token) and when its feed last updated it; the next four weekly expiries, each with its exercise window (Unix seconds); three suggested strikes above the reference price (presets), each with how far above it is as a fraction and a suggested premium per whole token; and, for the chosen strike (the middle suggestion when none is given) and premium (the suggestion when none is given), what a listing of amount raw token units pays if all of it is bought at once and all of it exercised (receipt): the premium, the 1% fee, what the seller keeps, the strike, the stock's worth at the reference price, and the premium kept as a fraction of that worth for the term. Without an amount the per-token figures still come back and the totals are null. Every USDC figure is what the contract counts, rounded up. A guide for a seller only: the contract enforces no suggestion, and the quote is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4013,22 +4138,33 @@ components:
             "type": "string",
             "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
           },
-          "strike_per_token": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "The strike in micro-USDC (6 decimals) per whole token."
-          },
           "expiry": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
             "description": "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Raw stock units to list; unit raw units make one whole token. Leave it out for the per-token figures only."
+          },
+          "strike_per_token": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "The strike in micro-USDC (6 decimals) per whole token. Leave it out for the middle suggested strike."
+          },
+          "premium_per_token": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "The premium the listing asks, in micro-USDC per whole token. Leave it out for the suggested premium."
           }
         },
         "required": [
           "symbol",
-          "strike_per_token",
           "expiry"
         ],
         "additionalProperties": false
@@ -4046,8 +4182,10 @@ components:
       "request": {
         "path": "/api/v1/covered-calls/{symbol}/quote",
         "body": [
+          "expiry",
+          "amount",
           "strike_per_token",
-          "expiry"
+          "premium_per_token"
         ]
       }
     },

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.CoveredCallsController do
   @moduledoc """
   Covered calls over HTTP for anyone, and for the person signed in on this
-  site: a market's book and a suggested premium need no account; the
+  site: a market's book and a seller's quote need no account; the
   signed-in person's own listings and holdings are read for the wallet they
   signed in with. Each calls the same `Autolaunch.CoveredCalls` operation the
   page and the agent routes call (`AutolaunchWeb.CoveredCallsAnswer`).
@@ -36,16 +36,11 @@ defmodule AutolaunchWeb.CoveredCallsController do
   end
 
   def quote(conn, %{"symbol" => symbol}) do
-    case conn.body_params do
-      %{"strike_per_token" => strike, "expiry" => expiry} = body
-      when map_size(body) == 2 and is_integer(strike) and is_integer(expiry) ->
-        Answer.send(
-          conn,
-          CoveredCalls.covered_call_quote(symbol, strike, expiry, actor: nil),
-          :quote
-        )
+    case Answer.quote_input(conn.body_params) do
+      {:ok, input} ->
+        Answer.send(conn, CoveredCalls.covered_call_quote(symbol, input, actor: nil), :quote)
 
-      _other ->
+      :error ->
         Answer.refuse(conn, :invalid_request)
     end
   end
