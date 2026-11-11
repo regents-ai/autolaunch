@@ -1,5 +1,9 @@
 # Changelog
 
+## 11 November 2026: Fee words
+- The launch form and its terms describe the trading pool and its fees in plain words: liquidity at every price, liquidity in the token alone above the opening price, the token's staking, and the stock amount of every trade before fees. Stock left over from rounding is said to join the REGENT stakers' fee. No figure changes.
+- A covered-call listing's review shows what you receive and the 1% fee on separate lines, as the receipt does.
+
 ## 11 November 2026: Lists
 - In the auction, token and call lists, a name sits over its ticker, so the figures beside it no longer cut the name to a letter or two.
 

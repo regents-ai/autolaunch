@@ -75,7 +75,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         {"Unsold tokens",
          "Rounding leftovers retired to the dead address; total supply stays unchanged"},
         {"Pool liquidity",
-         "Opens at the auction's final price with a full-range position; any stock left over from rounding joins the protocol fee. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
+         "Opens at the auction's final price as liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is locked as liquidity in #{ticker} alone, for prices above the opening token price. The fees the liquidity collects go to the token's staking"},
         {"If the minimum raise is not reached",
          "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
       ]

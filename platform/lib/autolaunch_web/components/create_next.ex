@@ -345,7 +345,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "497.5 million",
           share: 49.75,
           note:
-            "The stock raised funds a full-range position at the final price; any stock left over from rounding joins the protocol fee. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
+            "At the final price, the stock raised funds liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is liquidity in the token alone, for prices above the opening token price. Both are locked forever."
         },
         %{
           key: :creator,

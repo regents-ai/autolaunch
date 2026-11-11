@@ -633,7 +633,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["Opens", F.expiry(facts.expiry)],
       ["Closes", F.window_closes(facts.expiry)],
       ["Total premium", F.usd(premium)],
-      ["You receive", "#{F.usd(premium - Terms.fee(premium))} if all sell, after the 1% fee"],
+      ["You receive", F.usd(premium - Terms.fee(premium))],
+      ["Fee", "1%"],
       ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
     ]
   end
