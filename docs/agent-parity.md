@@ -21,20 +21,20 @@ the switch goes on, so the CLI never offers them while the site does not.
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read a stock's listings and open bids | `covered_call_book` | `/stock/covered-call`, Buy (open bids: Gap: Autolaunch covered-call bids piece 2) | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a stock's listings and open bids | `covered_call_book` | `/stock/covered-call`, Buy (listings) and Sell (Bids) | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Quote a listing | `covered_call_quote` | `/stock/covered-call`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read my listings, holdings and bids | `covered_call_positions` | `/portfolio`, Covered calls (bids: Gap: Autolaunch covered-call bids piece 2) | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read my listings, holdings and bids | `covered_call_positions` | `/portfolio`, Covered calls (bid rows included) | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | List calls (sell) | `prepare_covered_call`, kind `list` | `/stock/covered-call`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/stock/covered-call`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Cancel the unsold remainder | `prepare_covered_call`, kind `cancel` | `/portfolio`, Covered calls: Stop selling, then Confirm stop | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Exercise | `prepare_covered_call`, kind `exercise` | `/portfolio`, Covered calls: Exercise, then Approve, Confirm exercise | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect AMZNc, then Confirm collection | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect USDC, then Confirm collection | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Post a bid for calls | `prepare_covered_call`, kind `bid` | Gap: Autolaunch covered-call bids piece 2 | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Raise a bid | `prepare_covered_call`, kind `raise_bid` | Gap: Autolaunch covered-call bids piece 2 | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Cancel a bid | `prepare_covered_call`, kind `cancel_bid` | Gap: Autolaunch covered-call bids piece 2 | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Refund a bid's escrow | `prepare_covered_call`, kind `refund_bid` | Gap: Autolaunch covered-call bids piece 2 | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Sell calls into a bid | `prepare_covered_call`, kind `sell_to_bid` | Gap: Autolaunch covered-call bids piece 2 | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Post a bid for calls | `prepare_covered_call`, kind `bid` | `/stock/covered-call?tab=bid`: Place bid, then Approve USDC, Confirm bid | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Raise a bid | `prepare_covered_call`, kind `raise_bid` | `/portfolio`, Covered calls: Raise, then Approve USDC, Confirm raise | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Cancel a bid | `prepare_covered_call`, kind `cancel_bid` | `/portfolio`, Covered calls: Stop, then Confirm stop | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Refund a bid's escrow | `prepare_covered_call`, kind `refund_bid` | `/portfolio`, Covered calls: Refund, then Confirm refund | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Sell calls into a bid | `prepare_covered_call`, kind `sell_to_bid` | `/stock/covered-call`, Sell, Bids: Sell, then Sell now, Approve AMZNc, Confirm sale | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
 ## Isolated Exposure to After-hours Stocks
 

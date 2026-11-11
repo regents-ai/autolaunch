@@ -51,10 +51,10 @@ function chosen(form: HTMLFormElement, event: Event): number | null | undefined 
 }
 
 // A covered-call ticket's price line: the stock's last 30 days, with the
-// strike (and on Buy the break-even) drawn flat across it. WebGPU loads only
-// on a page that shows one; a browser without it keeps the caption and the
-// empty box. The server sends the levels; on Sell the strike's level also
-// follows the form, so it moves the moment a strike is chosen or typed, before
+// strike (and on Buy and Bid the break-even) drawn flat across it. WebGPU
+// loads only on a page that shows one; a browser without it keeps the caption
+// and the empty box. The server sends the levels; on Sell and Bid the
+// strike's level also follows the form, so it moves the moment a strike is chosen or typed, before
 // the server answers. While the custom strike is being typed, its own value
 // is newer than any answer still on its way, so the server's is left aside.
 export const PriceLine = {

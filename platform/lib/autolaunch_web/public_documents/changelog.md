@@ -25,6 +25,12 @@
 ## 11 November 2026: Max
 - A press straight after Max, or after a balance, now sends that amount, on every form that has one.
 
+## 11 November 2026: Bids
+- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants.
+- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands.
+- Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or the whole bid when it is smaller.
+- The portfolio shows each of your bids: how much has sold, the premium still held, Raise and Stop while it is open, and Refund for what was not spent. Calls bought through a bid show with your other calls.
+
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.

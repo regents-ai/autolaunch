@@ -137,14 +137,15 @@ defmodule AutolaunchWeb.PortfolioLive do
     {:noreply, socket}
   end
 
-  # A press from this wallet, or on a listing it sold or holds, from any page:
-  # its covered calls read again. Other presses change nothing here.
+  # A press from this wallet, or on a listing it sold or holds or a bid it
+  # placed, from any page: its covered calls read again. Other presses change
+  # nothing here.
   def handle_info({:covered_call_pressed, press}, socket) do
     read_covered_calls(socket, pressed: press)
     {:noreply, socket}
   end
 
-  # One of the wallet's listings reached its expiry or its window closed.
+  # One of the wallet's listings or bids reached its expiry, or a window closed.
   def handle_info(:covered_calls_due, socket) do
     read_covered_calls(socket, [])
     {:noreply, socket}
