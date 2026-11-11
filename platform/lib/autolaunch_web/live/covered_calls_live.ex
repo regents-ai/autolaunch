@@ -81,33 +81,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_params(params, _uri, socket) do
-    selected =
-      case Integer.parse(params["listing"] || "") do
-        {id, ""} when id > 0 -> id
-        _none -> nil
-      end
+    selected = listing(params["listing"])
 
-    # Selling comes first; a listing's own address opens it on the Buy tab.
-    tab = if params["tab"] == "buy" or selected, do: :buy, else: :sell
-
-    # Another listing's ticket starts at all that is left of it.
-    # The wallet's stock is read by the Sell ticket's panel, so it is read anew
-    # each time the ticket opens.
-    socket =
-      socket
-      |> assign(tab: tab, selected: selected)
-      |> then(&if(selected == socket.assigns.selected, do: &1, else: assign(&1, buy: nil)))
-      |> then(&if(tab == :sell, do: &1, else: assign(&1, balance: nil)))
-      |> read_quote()
-
-    # A shared link to one listing reads the market again unless it was read
-    # in the last ten seconds, so it is never turned away on an old reading.
-    if selected && connected?(socket) do
-      Book.refresh(socket.assigns.chain_id)
-      {:noreply, read_book(socket)}
-    else
-      {:noreply, socket}
-    end
+    {:noreply,
+     socket
+     |> assign(tab: tab(params["tab"], selected), selected: selected)
+     |> opened(socket.assigns.selected)
+     |> forget_balance()
+     |> read_quote()
+     |> reread()}
   end
 
   # The Refresh press asks every reader of the chain to read again, so the
@@ -228,6 +210,43 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          !answers?(quote.value, request(ticket(sell, book.result, quote.value))),
        do: {:noreply, read_quote(socket)},
        else: {:noreply, socket}
+  end
+
+  # The listing a ticket's address names, nil for none or one that doesn't read.
+  defp listing(nil), do: nil
+
+  defp listing(text) do
+    case Integer.parse(text) do
+      {id, ""} when id > 0 -> id
+      _none -> nil
+    end
+  end
+
+  # Selling comes first; a listing's own address opens it on the Buy tab.
+  defp tab("buy", _selected), do: :buy
+  defp tab(_tab, nil), do: :sell
+  defp tab(_tab, _selected), do: :buy
+
+  # Another listing's ticket starts at all that is left of it.
+  defp opened(%{assigns: %{selected: selected}} = socket, selected), do: socket
+  defp opened(socket, _before), do: assign(socket, buy: nil)
+
+  # The wallet's stock is read by the Sell ticket's panel, so it is read anew
+  # each time the ticket opens.
+  defp forget_balance(%{assigns: %{tab: :sell}} = socket), do: socket
+  defp forget_balance(socket), do: assign(socket, balance: nil)
+
+  # A shared link to one listing reads the market again unless it was read
+  # in the last ten seconds, so it is never turned away on an old reading.
+  defp reread(%{assigns: %{selected: nil}} = socket), do: socket
+
+  defp reread(socket) do
+    if connected?(socket) do
+      Book.refresh(socket.assigns.chain_id)
+      read_book(socket)
+    else
+      socket
+    end
   end
 
   defp read_book(socket) do
