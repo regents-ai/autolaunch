@@ -1,10 +1,9 @@
 /* Portfolio: one centred column, with bids and tokens in the auctions list's rows; a bid's buttons sit in its Action cell, a token's follow its row. */
 .portfolio { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
 .portfolio__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
-/* Refresh, with when the figures were read under it; the line keeps its place while it is empty. */
+/* When the figures were read, with the icon that reads them again, and under it any read that failed; that line keeps its place while it is empty. */
 .portfolio__refresh { display: grid; justify-items: end; gap: var(--space-1); }
 .portfolio__updated { min-block-size: 1.5em; text-align: right; }
-.portfolio__updated > span + span { margin-left: .25em; }
 .portfolio__intro { display: grid; gap: var(--space-1); min-width: 0; }
 .portfolio__header h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .portfolio__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
@@ -12,8 +11,11 @@
 .portfolio__sign-in > * { margin: 0; }
 .portfolio__section { display: grid; gap: var(--space-2); min-width: 0; }
 .portfolio__title { margin: 0; font-size: 1.125rem; letter-spacing: -.01em; }
-/* The ticker and its paired currency read in the brand's orange (figures.css). */
+/* The ticker and its paired currency read in the brand's orange (figures.css). The name
+   sits over its ticker and both wrap, so a row's buttons never cut the name short. */
 .portfolio .market-list__name small { color: var(--orange-ink); }
+.portfolio .market-list__name { flex-direction: column; align-items: stretch; gap: 0; }
+.portfolio .market-list__name :is(strong, small) { max-width: none; white-space: normal; overflow-wrap: anywhere; }
 /* A bid is its row and its buttons: one block between hairlines. */
 .portfolio__table tbody + tbody > tr:first-child > * { border-top: 1px solid var(--hairline); }
 .portfolio__table tbody:hover { background: color-mix(in srgb, var(--color-fg) 3%, var(--color-surface)); }
@@ -32,7 +34,4 @@
   .portfolio__table:not(.portfolio__table--tokens) :is(thead th, .market-list__row > td):is(:nth-child(3), :nth-child(5)),
   .portfolio__table--tokens :is(thead th, .market-list__row > td):nth-child(4) { display: none; }
   .portfolio__table td:last-child { min-width: 0; }
-  /* The ticker sits under the name, so both keep to the token's cell. */
-  .portfolio .market-list__name { flex-direction: column; align-items: stretch; gap: 0; }
-  .portfolio .market-list__name small { white-space: nowrap; }
 }

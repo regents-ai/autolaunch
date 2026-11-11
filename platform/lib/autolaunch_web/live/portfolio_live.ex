@@ -208,7 +208,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         refreshing?: refreshing?,
         incomplete?: Enum.any?(reads, &assigns[&1].failed),
         updated_at:
-          if(complete? && !refreshing?,
+          if(complete?,
             do: assigns.read_at |> Map.take(reads) |> Map.values() |> Enum.min(DateTime)
           ),
         holdings: assigns.token_holdings.result || [],
@@ -222,26 +222,20 @@ defmodule AutolaunchWeb.PortfolioLive do
       <header class="portfolio__header">
         <div class="portfolio__intro">
           <h1>Portfolio</h1>
-          <p class="portfolio__hint">
-            Bids and tokens from the wallet you signed in with.
-            <span :if={@opens && @account_control.kind != :sign_in}>
-              Bidding and trading open {@opens}.
-            </span>
+          <p :if={@opens && @account_control.kind != :sign_in} class="portfolio__hint">
+            Bidding and trading open {@opens}.
           </p>
         </div>
         <div :if={@account_control.kind != :sign_in} class="portfolio__refresh">
-          <Regent.Primitives.button
-            id="portfolio-refresh"
-            variant="secondary"
+          <Regent.Primitives.last_read
+            id="portfolio-read"
+            at={@updated_at}
             phx-click="refresh"
-            phx-disable-with="Refreshing…"
             disabled={@refreshing?}
-          >
-            {if @refreshing?, do: "Refreshing…", else: "Refresh"}
-          </Regent.Primitives.button>
+            label="Read your portfolio again"
+          />
           <p class="portfolio__hint portfolio__updated" role="status">
-            <span :if={@refreshing?} class="visually-hidden">Refreshing.</span>
-            <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
+            <span :if={@refreshing?} class="visually-hidden">Reading again.</span>
             <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
           </p>
         </div>
