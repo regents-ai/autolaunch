@@ -142,7 +142,8 @@ defmodule Autolaunch.ExposureChain do
   end
 
   @sends ~w(eth_estimateGas eth_maxPriorityFeePerGas eth_getTransactionCount
-            eth_sendRawTransaction eth_getTransactionReceipt eth_getTransactionByHash)
+            eth_sendRawTransaction eth_getTransactionReceipt eth_getTransactionByHash
+            eth_getBalance)
 
   def post(url, options) do
     case options[:json] do
@@ -164,6 +165,24 @@ defmodule Autolaunch.ExposureChain do
              }
            }
          }}
+
+      # `empty_wallet: true` refuses every broadcast, as a node refuses a wallet
+      # that cannot pay for gas.
+      %{method: "eth_sendRawTransaction", params: params} ->
+        if Map.get(Application.fetch_env!(:autolaunch, :exposure_chain), :empty_wallet),
+          do:
+            {:ok,
+             %{
+               status: 200,
+               body: %{
+                 "error" => %{
+                   "code" => -32_000,
+                   "message" => "insufficient funds for gas * price + value"
+                 }
+               }
+             }},
+          else:
+            {:ok, %{status: 200, body: %{"result" => network("eth_sendRawTransaction", params)}}}
 
       %{method: method, params: params} when method in @sends ->
         {:ok, %{status: 200, body: %{"result" => network(method, params)}}}
@@ -198,6 +217,12 @@ defmodule Autolaunch.ExposureChain do
   defp network("eth_sendRawTransaction", [raw]) do
     update_network(&%{&1 | sent: &1.sent ++ [raw]})
     hash(raw)
+  end
+
+  defp network("eth_getBalance", _params) do
+    if Map.get(Application.fetch_env!(:autolaunch, :exposure_chain), :empty_wallet),
+      do: "0x0",
+      else: "0xde0b6b3a7640000"
   end
 
   defp network("eth_getTransactionReceipt", [hash]), do: Map.get(network_state().receipts, hash)

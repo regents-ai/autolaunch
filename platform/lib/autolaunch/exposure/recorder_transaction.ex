@@ -44,6 +44,10 @@ defmodule Autolaunch.Exposure.RecorderTransaction do
       filter expr(recording_id == ^arg(:recording_id) and state == :signed)
     end
 
+    read :unsettled_records do
+      filter expr(state == :signed and step == :record)
+    end
+
     read :highest_nonce do
       get? true
       argument :chain_id, :integer, allow_nil?: false

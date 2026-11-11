@@ -34,6 +34,8 @@ defmodule Autolaunch.Exposure do
         args: [:recording_id],
         not_found_error?: false
 
+      define :unsettled_recorder_records, action: :unsettled_records
+
       define :highest_recorder_nonce,
         action: :highest_nonce,
         args: [:chain_id, :signer],
