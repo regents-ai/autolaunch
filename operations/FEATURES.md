@@ -50,7 +50,7 @@ launches.
 | Action | Check |
 | --- | --- |
 | Sign in and sign out | `autolaunch_web/controllers/privy_session_controller_test.exs` (all three cases); `content_negotiation_test.exs` › "the existing session fetch still returns JSON" |
-| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (both cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all six cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
+| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (all four cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all six cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
 | Connect or remove X | `content_negotiation_test.exs` › "JSON account-link requests retain CSRF protection". The connect itself: **gap** |
 
 ## Wallet actions
