@@ -9,7 +9,8 @@ defmodule Autolaunch.PriceHistory do
   price carried to the block the page read at, thinned to 400 evenly spaced
   points that always keep the first and the last. `times` has 100 `[unix
   seconds, price]` pairs evenly spaced from the first log's time to the read
-  block's time, each the price the last trade at or before it left. Beside the
+  block's time, each the price the last trade at or before it left, or nil
+  while the read block's time is still the first log's. Beside the
   lines come the lowest and highest price and the number of trades, taken from
   every log.
 
@@ -31,7 +32,7 @@ defmodule Autolaunch.PriceHistory do
   @type point :: [number()]
   @type history :: %{
           points: [point()],
-          times: [point()],
+          times: [point()] | nil,
           low: float(),
           high: float(),
           trades: non_neg_integer()
@@ -110,12 +111,13 @@ defmodule Autolaunch.PriceHistory do
     end
   end
 
-  # The price at evenly spaced moments from the first log to `now`.
-  defp times([{_number, opened, _price} | _rest] = moments, now) do
-    span = max(now - opened, 0)
+  # The price at evenly spaced moments from the first log to `now`; none
+  # while no time has passed since it.
+  defp times([{_number, opened, _price} | _rest], now) when now <= opened, do: nil
 
+  defp times([{_number, opened, _price} | _rest] = moments, now) do
     0..(@time_points - 1)
-    |> Enum.map(&(opened + div(span * &1, @time_points - 1)))
+    |> Enum.map(&(opened + div((now - opened) * &1, @time_points - 1)))
     |> sample(moments, nil, [])
   end
 

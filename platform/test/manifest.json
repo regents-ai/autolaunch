@@ -1,5 +1,5 @@
 {
-  "total": 164,
+  "total": 166,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2134,6 +2134,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "1ff461cbc2494a06b21e9ec5692659e6748a09de26de6acb9cc06c63601ff1e9"
+    },
+    {
+      "id": 210,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/components/price_chart_test.exs",
+      "line": 53,
+      "test_name": "a pool read again keeps its line and shows no placeholder",
+      "keep_because": "After every trade the token page reads its pool again; the reading placeholder once showed above the live chart until the read came back, pushing the page down. The case fails if a read again shows the placeholder or drops the line.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d2d8893671e24c48906d8955feeb0857ddf50288e181fed336da8997caca223e"
+    },
+    {
+      "id": 211,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch/price_history_test.exs",
+      "line": 79,
+      "test_name": "read in the same second the pool opened, there is a line by trade and none by time",
+      "keep_because": "A line by time read before any time has passed puts all 100 points at one spot, so the chart drew only a dot; it is left out until time passes and the chart offers no Time choice. The case fails if a read in the opening second gives a line by time.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "96490fc7aa5abaf867806ce6a3bb7d601c362b910ced7bc51d257e7f83351ff2"
     }
   ],
   "legacy_folders_to_remove": [

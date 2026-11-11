@@ -146,20 +146,7 @@ defmodule AutolaunchWeb.TokenLive do
             rate={@usd_rate}
             pool={@pool}
           />
-          <Regent.Structure.panel
-            :if={@pool.loading || own_chart(@pool, "token-price-chart")}
-            class="token-page__chart"
-          >
-            <.price_chart_reading :if={@pool.loading} />
-            <.price_chart
-              :if={@pool.ok?}
-              id="token-price-chart"
-              label="Since the pool opened"
-              history={@pool.result.prices}
-              unit={@pool.result.currency.symbol}
-              color={@presentation.image_color}
-            />
-          </Regent.Structure.panel>
+          <.pool_chart id="token-price-chart" pool={@pool} color={@presentation.image_color} />
           <.market_stats
             id="token-market"
             auction={@page_record.auction}

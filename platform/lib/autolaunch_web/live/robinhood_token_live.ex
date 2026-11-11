@@ -156,20 +156,11 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             rate={@usd_rate}
             pool={@pool}
           />
-          <Regent.Structure.panel
-            :if={@pool.loading || own_chart(@pool, "robinhood-token-price-chart")}
-            class="token-page__chart"
-          >
-            <.price_chart_reading :if={@pool.loading} />
-            <.price_chart
-              :if={@pool.ok?}
-              id="robinhood-token-price-chart"
-              label="Since the pool opened"
-              history={@pool.result.prices}
-              unit={@pool.result.currency.symbol}
-              color={@token.auction.image_color}
-            />
-          </Regent.Structure.panel>
+          <.pool_chart
+            id="robinhood-token-price-chart"
+            pool={@pool}
+            color={@token.auction.image_color}
+          />
           <.market_stats
             id="token-market"
             auction={@token.auction}

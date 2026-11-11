@@ -139,8 +139,43 @@ defmodule AutolaunchWeb.Components.PriceChart do
     """
   end
 
-  @doc "The chart's place while the pool is first read, so the card keeps its height when the line arrives."
-  def price_chart_reading(assigns) do
+  attr :id, :string, required: true
+  attr :pool, Phoenix.LiveView.AsyncResult, required: true, doc: "the page's pool read"
+  attr :color, :string, default: nil, doc: "the image colour, or nil for the plain line"
+
+  @doc """
+  A token page's chart panel: its place while the pool is first read, then the
+  line since the pool opened. A read again after a trade keeps the line as it
+  is until the new one arrives, and a pool with a single price shows no panel.
+  """
+  def pool_chart(
+        %{pool: %{ok?: true, result: %{prices: %{points: [_first, _second | _rest]}}}} = assigns
+      ) do
+    ~H"""
+    <Regent.Structure.panel class="token-page__chart">
+      <.price_chart
+        id={@id}
+        label="Since the pool opened"
+        history={@pool.result.prices}
+        unit={@pool.result.currency.symbol}
+        color={@color}
+      />
+    </Regent.Structure.panel>
+    """
+  end
+
+  def pool_chart(%{pool: %{ok?: false, loading: loading}} = assigns) when loading != nil do
+    ~H"""
+    <Regent.Structure.panel class="token-page__chart">
+      <.price_chart_reading />
+    </Regent.Structure.panel>
+    """
+  end
+
+  def pool_chart(assigns), do: ~H""
+
+  # The chart's place while the pool is first read, so the card keeps its height when the line arrives.
+  defp price_chart_reading(assigns) do
     ~H"""
     <div class="price-chart" role="status">
       <span class="visually-hidden">Reading the price</span>
