@@ -637,8 +637,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
        %{auction: auction, usdg_amount: amount, max_price: max_price, slippage_percent: slippage}}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
-    review =
-      Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps, inputs)
+    {steps, socket} = OnchainSteps.with_approved(socket, approves(key), prepared.steps)
+    review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, steps, inputs)
 
     socket
     |> assign(prepared: prepared, prepared_for: key, notice: nil)
@@ -650,11 +650,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp reviewed(socket, key, _inputs, {:error, error}),
     do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
 
+  # What a bid's approval allows: this wallet's amount of USDG to this
+  # auction, whatever the most per token.
+  defp approves({auction, signer, amount, _max_price, _slippage}), do: {auction, signer, amount}
+
   # The review built again from Robinhood Chain with the form as it is, so its
   # quote and deadline are current: once it is ten minutes old, once an approval
   # lands, and once a step reverts, when `note` says so beside the new button.
-  # While a step sent from it is on its way it stays, and a timer asks again
-  # later.
+  # An approval that landed stays in it, done. While a step sent from it is on
+  # its way it stays, and a timer asks again later.
   defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
     if OnchainSteps.pending?(presses, review),
       do: OnchainSteps.refresh_later(socket),
@@ -739,7 +743,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A bid landed: the panel shows it placed and reads the wallet's bids again.
   # A landed approval builds the review again, so the bid it leads to carries a
-  # fresh deadline.
+  # fresh deadline, and stays in it, done.
   defp confirmed(socket, %{name: "usdg_bid", hash: hash, review: review}) do
     socket
     |> assign(placed: %{hash: hash, chain_id: review.chain.chain_id}, new_bid: false)
@@ -747,8 +751,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     |> read_bids()
   end
 
-  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
-    do: rebuilt(socket, nil)
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
   defp confirmed(socket, _earlier_review), do: socket
 
@@ -772,10 +776,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # Steps
 
-  defp steps(%{review: %{} = review, presses: presses}) do
+  # An approval kept from the review this one replaced is done, whatever a
+  # later press of it does.
+  defp steps(%{review: %{} = review, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name), state: step_state(entry), entry: entry}
+      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
+      %{name: name, label: step_label(name), state: state, entry: entry}
     end)
   end
 

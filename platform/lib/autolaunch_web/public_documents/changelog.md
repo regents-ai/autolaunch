@@ -1,5 +1,8 @@
 # Changelog
 
+## 11 November 2026: Confirmed approvals
+- On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
+
 ## 11 November 2026: Auction page
 - The block a figure was read at and the blocks left until bidding ends sit under Exact, beside the exact price per token.
 - The price chart is titled Price, with one line under it saying what the line, the dashed line and the bars show.
