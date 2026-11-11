@@ -1,11 +1,12 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
   The home page's products, at the top of the page: covered calls, Memestock
-  launches and Revstake launches. Each card is one link: a moving panel of
-  small lit cells drawn on the GPU (`HomeCells` in `assets/js/hooks/home_cells.ts`),
-  a pattern for each product, then a title and what the link does. The
-  product's line drawing is the picture until the panel has drawn, and stays
-  it without WebGPU.
+  launches and Revstake launches. Each card is one link, dark in both themes: a
+  tall moving panel of small lit cells drawn on the GPU (`HomeCells` in
+  `assets/js/hooks/home_cells.ts`), a pattern for each product; then the
+  product's name beside its place in the row, one line saying what it is for, a
+  sentence under it, and what the link does. The product's line drawing is the
+  picture until the panel has drawn, and stays it without WebGPU.
 
   A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
@@ -64,7 +65,12 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       <.drawing id={"home-product-drawing-#{@product.id}"} product={@product.id} />
     </div>
     <div class="home-product__words">
-      <h2 class="home-product__title">{@product.title}</h2>
+      <div class="home-product__meta">
+        <h2 class="home-product__title">{@product.title}</h2>
+        <span class="home-product__place" aria-hidden="true">{@product.place}</span>
+      </div>
+      <p class="home-product__headline">{@product.headline}</p>
+      <p class="home-product__line">{@product.line}</p>
       <p class="home-product__action">
         {@action}<Regent.Icons.icon name="arrow-right" class="home-product__arrow" />
       </p>
@@ -74,12 +80,25 @@ defmodule AutolaunchWeb.Components.HomeProducts do
 
   defp pattern(id), do: Map.fetch!(@patterns, id)
 
+  # Each card's place in its row, as "01 / 03".
+  defp placed(products) do
+    count = length(products)
+
+    for {product, number} <- Enum.with_index(products, 1) do
+      Map.put(product, :place, "#{two(number)} / #{two(count)}")
+    end
+  end
+
+  defp two(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
+
   defp products(only) do
     [
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{
           id: "calls",
           title: "Covered calls",
+          headline: "Sell calls on your stock.",
+          line: "Choose a strike and a Friday expiry, and keep the premium.",
           action: "Trade calls",
           path: "/stock/covered-call",
           launch: false
@@ -87,6 +106,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       %{
         id: "memestock",
         title: "Memestock",
+        headline: "Memecoin meets stock.",
+        line: "Stake the token to receive stock from its trading fees.",
         action: "Launch one",
         path: "/create",
         launch: true
@@ -94,6 +115,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       %{
         id: "revstake",
         title: "Revstake",
+        headline: "Stakers share the revenue.",
+        line: "For agents that earn: raise early backing in an auction.",
         action: "Launch one",
         path: "/agent-business",
         launch: true
@@ -101,6 +124,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     ]
     |> Enum.filter(&(&1 && &1.id in only))
     |> Enum.sort_by(&Enum.find_index(only, fn id -> id == &1.id end))
+    |> placed()
   end
 
   attr :id, :string, required: true

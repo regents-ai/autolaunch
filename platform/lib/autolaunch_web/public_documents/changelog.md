@@ -1,5 +1,8 @@
 # Changelog
 
+## 11 November 2026: Product cards
+- The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
+
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
 - On the exposure panel, a confirmed approval now shows its green border too.
