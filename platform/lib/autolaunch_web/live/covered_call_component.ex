@@ -389,6 +389,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp typed?(kind), do: kind in @typed
 
+  # A ticket keeps a line for the reason under its button, so the receipt under
+  # it on a phone never moves when a reason comes or goes.
+  defp ticket?(kind), do: kind in @tickets
+
   defp defaults(%{kind: :exercise, listing: listing, unit: unit, holding: held}),
     do: %{"amount" => F.tokens(held || listing.filled, unit)}
 
@@ -549,7 +553,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     >
       Sign in
     </P.button>
-    <p :if={@blocked} id={"#{@id}-why"} class="covered-call-panel__reason">{@blocked}</p>
+    <p :if={@blocked || ticket?(@kind)} id={"#{@id}-why"} class="covered-call-panel__reason">
+      {@blocked}
+    </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
     <p
       :if={@notice && is_nil(@review)}
