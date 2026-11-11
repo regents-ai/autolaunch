@@ -215,6 +215,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
+          id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
           reverted={reverted(@steps, @auction)}
@@ -307,8 +308,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         </div>
         <div>
           <dt>Wallet</dt>
-          <dd class="bid-settlement__address" title={@position.owner_address}>
-            {RegentFormat.short_address(@position.owner_address)}
+          <dd>
+            <Regent.Primitives.address
+              id={"#{@id}-owner"}
+              address={@position.owner_address}
+              variant="compact"
+            />
           </dd>
         </div>
       </dl>
@@ -348,6 +353,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         hidden={!(@authenticated && (@action || @review))}
       >
         <.summary
+          id={@id <> "-summary"}
           prepared={@prepared}
           rate={@rate}
           position={@position}
@@ -376,6 +382,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
+          id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
           reverted={reverted(@steps, @auction)}
@@ -399,6 +406,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     """
   end
 
+  attr :id, :string, required: true
   attr :prepared, :map, default: nil
   attr :rate, :any, required: true
   attr :position, :map, required: true
@@ -430,8 +438,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         </div>
         <div>
           <dt>Receiving wallet</dt>
-          <dd class="bid-settlement__address" title={@position.owner_address}>
-            {RegentFormat.short_address(@position.owner_address)}
+          <dd>
+            <Regent.Primitives.address
+              id={"#{@id}-owner"}
+              address={@position.owner_address}
+              variant="compact"
+            />
           </dd>
         </div>
         <div>

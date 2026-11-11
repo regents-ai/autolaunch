@@ -85,7 +85,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
         <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from <code>{RegentFormat.short_address(@signer)}</code>
+          Launching from
+          <Regent.Primitives.address
+            :if={@signer}
+            id={"#{@id}-launcher"}
+            address={@signer}
+            variant="compact"
+          />
         </p>
         <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
         <Regent.Primitives.button
@@ -119,7 +125,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
               <dt>Auction currency</dt>
               <dd>
                 {@prepared.facts["stock_symbol"]}
-                <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
+                <Regent.Primitives.address
+                  id={"#{@id}-stock"}
+                  address={@prepared.facts["stock"]}
+                  chain={LaunchSteps.address_chain(explorer_chain())}
+                />
               </dd>
             </div>
             <div>
@@ -154,7 +164,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             </div>
             <div>
               <dt>Wallet</dt>
-              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+              <dd>
+                <Regent.Primitives.address
+                  id={"#{@id}-signer"}
+                  address={@review.signer}
+                  chain={LaunchSteps.address_chain(explorer_chain())}
+                />
+              </dd>
             </div>
             <div>
               <dt>Network</dt>

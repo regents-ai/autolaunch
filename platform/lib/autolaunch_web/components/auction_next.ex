@@ -1155,7 +1155,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         <div>
           <dt>Owner</dt>
           <dd>
-            <span title={@receipt.owner}>{RegentFormat.short_address(@receipt.owner)}</span>
+            <Regent.Primitives.address id={"#{@id}-owner"} address={@receipt.owner} variant="compact" />
             <small>{owner_note(@receipt.owner, @wallet)}</small>
           </dd>
         </div>

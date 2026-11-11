@@ -403,7 +403,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </div>
         <div>
           <dt>Auction address</dt>
-          <dd class="autolaunch-exact-value">{@launch.auction_address}</dd>
+          <dd>
+            <Regent.Primitives.address
+              id="robinhood-auction-address"
+              address={@launch.auction_address}
+              chain={if Lab.test_chain?(), do: "test", else: "robinhood"}
+            />
+          </dd>
         </div>
       </dl>
     </.details_window>

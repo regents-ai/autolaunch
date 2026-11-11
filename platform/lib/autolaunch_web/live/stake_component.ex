@@ -988,6 +988,7 @@ defmodule AutolaunchWeb.StakeComponent do
       </ol>
 
       <SwapForm.wallet_step
+        id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
         reverted={@reverted}

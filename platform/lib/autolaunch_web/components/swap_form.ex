@@ -379,6 +379,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </ol>
 
       <.wallet_step
+        id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
         reverted={@reverted}
@@ -452,6 +453,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   attr :next_step, :map, default: nil
   attr :steps, :list, required: true
+  attr :id, :string, required: true, doc: "the sending wallet's address takes it"
   attr :reverted, :string, default: nil
   attr :signer, :string, default: nil, doc: "the review's signer; nil before there is a review"
   attr :chain_name, :string, default: nil
@@ -479,7 +481,9 @@ defmodule AutolaunchWeb.Components.SwapForm do
     ~H"""
     <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
     <p class="token-swap__review-from" hidden={!(@shown && @signer)}>
-      Sending from <code>{RegentFormat.short_address(@signer)}</code> on {@chain_name}
+      Sending from
+      <Regent.Primitives.address :if={@signer} id={@id} address={@signer} variant="compact" />
+      on {@chain_name}
     </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
     <Regent.Primitives.button

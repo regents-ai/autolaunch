@@ -109,7 +109,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         aria-label="Treasury verification"
       >
         <h4>Verify immutable treasury</h4>
-        <p class="launch-wallet-mono">{RegentFormat.short_address(@draft.treasury)}</p>
+        <p>
+          <Regent.Primitives.address
+            id={"#{@id}-treasury-address"}
+            address={@draft.treasury}
+            chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+          />
+        </p>
         <p
           :if={freshly_verified?(@treasury_report, @fresh_treasury_report_id)}
           data-treasury-verification-state="verified"
@@ -145,7 +151,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
         <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from <code>{RegentFormat.short_address(@signer)}</code>
+          Launching from
+          <Regent.Primitives.address
+            :if={@signer}
+            id={"#{@id}-launcher"}
+            address={@signer}
+            variant="compact"
+          />
         </p>
         <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
         <Regent.Primitives.button
@@ -186,7 +198,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             </div>
             <div>
               <dt>Treasury</dt>
-              <dd class="launch-wallet-mono">{@prepared.facts["treasury"]}</dd>
+              <dd>
+                <Regent.Primitives.address
+                  id={"#{@id}-review-treasury"}
+                  address={@prepared.facts["treasury"]}
+                  chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+                />
+              </dd>
             </div>
             <div>
               <dt>Treasury custody</dt>
@@ -194,7 +212,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             </div>
             <div>
               <dt>Wallet</dt>
-              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+              <dd>
+                <Regent.Primitives.address
+                  id={"#{@id}-signer"}
+                  address={@review.signer}
+                  chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+                />
+              </dd>
             </div>
             <div>
               <dt>Network</dt>

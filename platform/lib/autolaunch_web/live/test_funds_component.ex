@@ -55,7 +55,8 @@ defmodule AutolaunchWeb.TestFundsComponent do
         receiving wallet shown below.
       </p>
       <p :if={@signed_in} class="autolaunch-draft-hint">
-        Receiving wallet: <span class="launch-wallet-mono">{@signed_in}</span>
+        Receiving wallet:
+        <Regent.Primitives.address id={"#{@id}-wallet"} address={@signed_in} chain="test" />
       </p>
       <div :if={@signed_in} class="launch-wallet-controls">
         <Regent.Primitives.button

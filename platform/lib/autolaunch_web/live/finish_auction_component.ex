@@ -99,6 +99,7 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
       </p>
       <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
       <SwapForm.wallet_step
+        id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
         reverted={reverted(@steps)}

@@ -221,6 +221,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
+          id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
           reverted={reverted(@steps, @token_symbol)}
@@ -275,6 +276,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         hidden={!@open}
       >
         <.summary
+          id={@id <> "-summary"}
           prepared={@prepared}
           token_symbol={@token_symbol}
           rate={@usd_rate}
@@ -304,6 +306,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
+          id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
           reverted={reverted(@steps, @token_symbol)}
@@ -327,6 +330,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     """
   end
 
+  attr :id, :string, required: true
   attr :prepared, :map, default: nil
   attr :token_symbol, :string, required: true
   attr :rate, :any, required: true
@@ -375,8 +379,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         </div>
         <div>
           <dt>Receiving wallet</dt>
-          <dd class="bid-settlement__address" title={@owner}>
-            {RegentFormat.short_address(@owner)}
+          <dd>
+            <Regent.Primitives.address id={"#{@id}-owner"} address={@owner} variant="compact" />
           </dd>
         </div>
         <div>

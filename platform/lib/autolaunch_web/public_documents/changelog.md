@@ -1,5 +1,9 @@
 # Changelog
 
+## 11 November 2026: Addresses
+- Every address and transaction shown on auction pages, launch forms, settlement and payment panels, the bid list and the REGENT Fees page now shows in its short form, with a copy icon and an arrow that opens it on the chain's explorer. On a test network the arrow is left out.
+- The line above a wallet button names the sending wallet the same way, with its copy icon.
+
 ## 11 November 2026: Auction titles
 - Auction page sections have short names: Bidding, Waiting bids, Bid lookup and Table.
 - The bid form is titled New bid, or Higher bid and Extra bid when you raise or add to a bid, and Bidding ended once the auction closes.

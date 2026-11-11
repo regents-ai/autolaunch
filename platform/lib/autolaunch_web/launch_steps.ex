@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Autolaunch.{LaunchedDrafts, LaunchReviews}
-  alias AutolaunchWeb.Components.{AgentSetFields, BidPlaced, MarketCard, SwapForm}
+  alias AutolaunchWeb.Components.{AgentSetFields, MarketCard, SwapForm}
   alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -390,29 +390,13 @@ defmodule AutolaunchWeb.LaunchSteps do
         <span>{step.label}</span>
         <.step_state state={chip(step)} />
         <span class="launch-wallet-hash" hidden={!step.entry}>
-          <%= if step.entry do %>
-            <a
-              :if={@chain}
-              class="launch-wallet-mono"
-              href={BidPlaced.transaction_url(@chain, step.entry.hash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={step.entry.hash}
-            >
-              {step.entry.hash}
-            </a>
-            <span :if={!@chain} class="launch-wallet-mono">
-              {step.entry.hash}
-            </span>
-            <Regent.Primitives.copy_button
-              id={"#{@id}-#{step.name}-hash"}
-              text={step.entry.hash}
-              variant="quiet"
-              aria-label="Copy the transaction hash"
-            >
-              Copy
-            </Regent.Primitives.copy_button>
-          <% end %>
+          <Regent.Primitives.address
+            :if={step.entry}
+            id={"#{@id}-#{step.name}-hash"}
+            address={step.entry.hash}
+            kind="tx"
+            chain={address_chain(@chain)}
+          />
         </span>
       </li>
     </ol>
@@ -426,6 +410,7 @@ defmodule AutolaunchWeb.LaunchSteps do
     </p>
     <p class="launch-wallet-notice" role="status" hidden={!@press_note}>{@press_note}</p>
     <SwapForm.wallet_step
+      id={@id <> "-sender"}
       next_step={@next_step}
       steps={@steps}
       reverted={reverted_copy(@steps)}
@@ -475,25 +460,14 @@ defmodule AutolaunchWeb.LaunchSteps do
       <p :if={!@chain} class="bid-form__note">
         This was on a test network. Test assets have no real value.
       </p>
-      <div class="launch-placed__transaction">
-        <span class="launch-wallet-mono">{@launched.hash}</span>
-        <Regent.Primitives.copy_button
+      <p>
+        <Regent.Primitives.address
           id={"#{@id}-hash"}
-          text={@launched.hash}
-          variant="quiet"
-          aria-label="Copy the transaction hash"
-        >
-          Copy
-        </Regent.Primitives.copy_button>
-        <a
-          :if={@chain}
-          href={BidPlaced.transaction_url(@chain, @launched.hash)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View on {BidPlaced.explorer(@chain)} ↗
-        </a>
-      </div>
+          address={@launched.hash}
+          kind="tx"
+          chain={address_chain(@chain)}
+        />
+      </p>
       <p>{explore_copy(@launched)}</p>
       <div class="bid-placed__actions">
         <.link
@@ -515,6 +489,13 @@ defmodule AutolaunchWeb.LaunchSteps do
     </div>
     """
   end
+
+  @doc """
+  The chain `Regent.Primitives.address` opens a launch card's addresses and
+  hashes on, from the card's explorer chain: a test network (nil) has no explorer.
+  """
+  def address_chain(nil), do: "test"
+  def address_chain(chain) when chain in [:base, :robinhood], do: Atom.to_string(chain)
 
   defp explore_copy(%{path: path}) when is_binary(path), do: "It's on Explore now."
   defp explore_copy(%{finding?: true}), do: "Adding it to Explore…"

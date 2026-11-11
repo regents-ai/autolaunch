@@ -545,7 +545,13 @@ defmodule AutolaunchWeb.AuctionLive do
         </div>
         <div :if={@page_record.quote_token_address}>
           <dt>Currency address</dt>
-          <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
+          <dd>
+            <Regent.Primitives.address
+              id="auction-currency-address"
+              address={@page_record.quote_token_address}
+              chain={if Lab.test_chain?(), do: "test", else: "base"}
+            />
+          </dd>
         </div>
       </dl>
       <dl :if={@reading} class="autolaunch-live-market" aria-label="Latest reading">
