@@ -320,19 +320,6 @@ defmodule AutolaunchWeb.BidComponent do
     end
   end
 
-  def handle_event("fill_bid_amount", _params, socket) do
-    case balance(socket.assigns.balances, socket.assigns.form.pay_with) do
-      nil ->
-        {:noreply, socket}
-
-      amount ->
-        {:noreply,
-         socket
-         |> assign(form: %{socket.assigns.form | amount: amount}, notice: nil)
-         |> prepare_when_ready()}
-    end
-  end
-
   # The price to beat, entered from the auction's price panel as the limit.
   def handle_event("use_price", %{"price" => price}, socket),
     do: {:noreply, at_price(socket, price)}

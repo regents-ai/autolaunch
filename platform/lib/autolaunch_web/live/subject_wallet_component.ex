@@ -159,10 +159,16 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
                 autocomplete="off"
                 placeholder="0.0"
               />
+              <%!-- Max fills the box in the browser at the press, so a press
+                   straight after it carries the amount however long the server takes. --%>
               <Regent.Primitives.button
                 type="button"
-                phx-click="fill_subject_amount"
-                phx-target={@myself}
+                phx-click={
+                  JS.dispatch("autolaunch:fill",
+                    to: "##{@id}-amount",
+                    detail: %{value: maximum(@asset, @state)}
+                  )
+                }
                 variant="secondary"
               >
                 Max
@@ -334,9 +340,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
        notice: nil
      )}
   end
-
-  def handle_event("fill_subject_amount", _params, socket),
-    do: {:noreply, assign(socket, amount: maximum(socket.assigns), notice: nil)}
 
   def handle_event("review_subject_action", params, socket) do
     case action_kind(params["kind"]) do
@@ -650,10 +653,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     }
   end
 
-  defp maximum(%{asset: asset, state: %{balances: balances}}),
-    do: Map.get(balances, asset_key(asset), "")
-
-  defp maximum(_assigns), do: ""
+  defp maximum(asset, %{balances: balances}), do: Map.get(balances, asset_key(asset), "")
+  defp maximum(_asset, _unread), do: ""
 
   defp waiting(receiver, asset), do: Map.get(receiver.balances, asset_key(asset))
 

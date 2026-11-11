@@ -199,7 +199,7 @@ defmodule AutolaunchWeb.SwapComponent do
           reverse_event="reverse"
           options_event="toggle_options"
           close_options_event="close_options"
-          fill_event="fill"
+          portions={portions(@balances, sold(@direction))}
           target={@myself}
         />
 
@@ -262,31 +262,6 @@ defmodule AutolaunchWeb.SwapComponent do
        notice: nil,
        revision: socket.assigns.revision + 1
      )}
-  end
-
-  def handle_event("fill", %{"percent" => percent}, socket)
-      when percent in ["25", "50", "75", "100"] do
-    case socket.assigns.balances do
-      %{} = balances ->
-        amount =
-          SwapActions.portion(
-            Map.fetch!(balances, sold(socket.assigns.direction)),
-            String.to_integer(percent)
-          )
-
-        {:noreply,
-         socket
-         |> assign(
-           amount: amount,
-           error: nil,
-           notice: nil,
-           revision: socket.assigns.revision + 1
-         )
-         |> estimated()}
-
-      _unread ->
-        {:noreply, socket}
-    end
   end
 
   def handle_event("review_swap", params, socket) do
@@ -612,6 +587,16 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp held(%{} = balances, side), do: Map.fetch!(balances, side).shown
   defp held(_unread, _side), do: nil
+
+  # A quarter, half, three quarters and all of the balance sold, none while it is unread.
+  defp portions(%{} = balances, side) do
+    balance = Map.fetch!(balances, side)
+
+    for {label, percent} <- [{"25%", 25}, {"50%", 50}, {"75%", 75}, {"Max", 100}],
+        do: {label, SwapActions.portion(balance, percent)}
+  end
+
+  defp portions(_unread, _side), do: []
 
   defp steps(%{review: nil}), do: []
 

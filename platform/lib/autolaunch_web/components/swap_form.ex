@@ -40,7 +40,11 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :reverse_event, :string, required: true
   attr :options_event, :string, required: true
   attr :close_options_event, :string, required: true
-  attr :fill_event, :string, required: true
+
+  attr :portions, :list,
+    default: [],
+    doc: "`{label, amount}` for each part of the balance sold that a button fills in"
+
   attr :target, :any, default: nil
 
   def swap_form(assigns) do
@@ -125,18 +129,20 @@ defmodule AutolaunchWeb.Components.SwapForm do
       <div class="token-swap__leg">
         <div class="token-swap__leg-head">
           <label for={@id <> "-amount"}>Sell</label>
+          <%!-- Each fills the box in the browser at the press, so a press straight
+               after it carries the amount however long the server takes. --%>
           <div
-            :if={@sell_balance}
+            :if={@portions != []}
             class="token-swap__portions"
             role="group"
             aria-label="Sell part of your balance"
           >
             <button
-              :for={{label, percent} <- [{"25%", 25}, {"50%", 50}, {"75%", 75}, {"Max", 100}]}
+              :for={{label, amount} <- @portions}
               type="button"
-              phx-click={@fill_event}
-              phx-value-percent={percent}
-              phx-target={@target}
+              phx-click={
+                JS.dispatch("autolaunch:fill", to: "##{@id}-amount", detail: %{value: amount})
+              }
             >
               {label}
             </button>

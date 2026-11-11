@@ -139,8 +139,20 @@ defmodule AutolaunchWeb.ConvertComponent do
           <div class="token-swap__leg">
             <div class="token-swap__leg-head">
               <label for={@id <> "-amount"}>Amount to convert</label>
+              <%!-- Max fills the box in the browser at the press, so a press
+                   straight after it carries the amount however long the server takes. --%>
               <div class="token-swap__portions" role="group" aria-label="Part of REGENT's share">
-                <button type="button" phx-click="fill" phx-target={@myself}>Max</button>
+                <button
+                  type="button"
+                  phx-click={
+                    JS.dispatch("autolaunch:fill",
+                      to: "##{@id}-amount",
+                      detail: %{value: @pool.fees.regent.accrued}
+                    )
+                  }
+                >
+                  Max
+                </button>
               </div>
             </div>
             <div class="token-swap__amount-row">
@@ -225,16 +237,6 @@ defmodule AutolaunchWeb.ConvertComponent do
     if revision == Integer.to_string(socket.assigns.revision),
       do: {:noreply, entered(socket, params)},
       else: {:noreply, socket}
-  end
-
-  def handle_event("fill", _params, socket) do
-    {:noreply,
-     assign(socket,
-       amount: socket.assigns.pool.fees.regent.accrued,
-       error: nil,
-       notice: nil,
-       revision: socket.assigns.revision + 1
-     )}
   end
 
   def handle_event("review", params, socket) do

@@ -255,6 +255,8 @@ defmodule AutolaunchWeb.StakeComponent do
           <div class="token-swap__leg">
             <div class="token-swap__leg-head">
               <label for={@id <> "-amount"}>You unstake</label>
+              <%!-- Each fills the box in the browser at the press, so a press
+                   straight after it carries the amount however long the server takes. --%>
               <div
                 :if={is_map(@position)}
                 class="token-swap__portions"
@@ -264,9 +266,12 @@ defmodule AutolaunchWeb.StakeComponent do
                 <button
                   :for={{label, percent} <- [{"25%", 25}, {"50%", 50}, {"75%", 75}, {"Max", 100}]}
                   type="button"
-                  phx-click="fill"
-                  phx-value-percent={percent}
-                  phx-target={@myself}
+                  phx-click={
+                    JS.dispatch("autolaunch:fill",
+                      to: "##{@id}-amount",
+                      detail: %{value: StakeActions.portion(@position.staked, percent)}
+                    )
+                  }
                 >
                   {label}
                 </button>
@@ -492,25 +497,6 @@ defmodule AutolaunchWeb.StakeComponent do
     if revision == Integer.to_string(socket.assigns.revision),
       do: {:noreply, entered(socket, params)},
       else: {:noreply, socket}
-  end
-
-  def handle_event("fill", %{"percent" => percent}, socket)
-      when percent in ["25", "50", "75", "100"] do
-    case socket.assigns.position do
-      %{staked: staked} ->
-        amount = StakeActions.portion(staked, String.to_integer(percent))
-
-        {:noreply,
-         assign(socket,
-           amount: amount,
-           error: nil,
-           notice: nil,
-           revision: socket.assigns.revision + 1
-         )}
-
-      _unread ->
-        {:noreply, socket}
-    end
   end
 
   def handle_event("review", %{"kind" => name} = params, socket) do
