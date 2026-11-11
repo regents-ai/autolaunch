@@ -203,6 +203,10 @@ defmodule Autolaunch.ExposureChain do
     end)
   end
 
+  @doc "Gives one broadcast transaction a reverted receipt."
+  def revert(raw),
+    do: update_network(&%{&1 | receipts: Map.put(&1.receipts, hash(raw), %{"status" => "0x0"})})
+
   # The network the site's own wallet sends to: every broadcast is held until
   # `mine/1`, and the wallet's nonce is how many it has broadcast.
   defp network("eth_estimateGas", _params), do: "0x30d40"

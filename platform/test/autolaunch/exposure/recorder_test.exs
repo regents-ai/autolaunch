@@ -244,6 +244,34 @@ defmodule Autolaunch.Exposure.RecorderTest do
       |> Ash.Changeset.for_create(:add, %{chain_id: 84_532, series: @series}, actor: @actor)
       |> Ash.create()
 
+    # It holds a transaction signed on its own chain, which this chain must never be sent.
+    {:ok, wallet} = Autolaunch.Chain.Wallet.new(@key)
+
+    {raw, hash} =
+      Autolaunch.Chain.Wallet.sign(wallet, %{
+        chain_id: 84_532,
+        nonce: 0,
+        max_priority_fee: 1,
+        max_fee: 10,
+        gas_limit: 100_000,
+        to: @oracle,
+        data: "0x11da60b4"
+      })
+
+    {:ok, _signed} =
+      Autolaunch.Exposure.record_recorder_transaction(
+        %{
+          recording_id: elsewhere.id,
+          step: :record,
+          chain_id: 84_532,
+          signer: wallet.address,
+          nonce: 0,
+          transaction_hash: hash,
+          raw_transaction: raw
+        },
+        actor: @actor
+      )
+
     third_price_due()
     assert %{state: :ended} = run(elsewhere)
     assert ExposureChain.broadcasts() == []
@@ -266,5 +294,41 @@ defmodule Autolaunch.Exposure.RecorderTest do
 
     assert first =~ "holds 0 ETH"
     assert second =~ "holds 0 ETH"
+  end
+
+  test "a funded recorder wallet runs without a warning", %{recording: recording} do
+    third_price_due()
+    refute capture_log(fn -> run(recording) end) =~ "send it ETH"
+  end
+
+  test "two series on one oracle: the second's duplicate record reverts, then it applies the price",
+       %{recording: recording} do
+    twin_series = String.replace(String.upcase(@series), "0X", "0x")
+
+    {:ok, twin} =
+      Recording
+      |> Ash.Changeset.for_create(:add, %{chain_id: recording.chain_id, series: twin_series},
+        actor: @actor
+      )
+      |> Ash.create()
+
+    third_price_due()
+    run(recording)
+    run(twin)
+    assert length(ExposureChain.broadcasts()) == 2
+
+    # The first record lands and the second reverts as already recorded.
+    ExposureChain.mine("0x1")
+    [_first, second] = ExposureChain.broadcasts()
+    ExposureChain.revert(second)
+
+    ExposureChain.put(%{
+      now: Enum.at(@boundaries, 2) + 3_660,
+      recorded: %{Enum.at(@boundaries, 2) => 257 * @wad}
+    })
+
+    run(twin)
+    assert [_, _, settle] = ExposureChain.broadcasts()
+    assert calls?(settle, @series, "settle()")
   end
 end
