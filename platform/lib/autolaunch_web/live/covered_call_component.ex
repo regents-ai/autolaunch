@@ -32,9 +32,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   signed-in account's wallet holds, for the Sell tickets' Max, with
   `{:covered_call_balance, symbol, balance}` (`nil` signed out or unread): the
   wallet the panel shows figures for, read at the latest block when it
-  changes, when the page comes back into view and when a step lands. The sale
-  panel hands the page what a sale pays, as the prepared step counts it at the
-  latest block, with `{:covered_call_sale, facts}`.
+  changes, when the page comes back into view and when a step lands.
   """
   use AutolaunchWeb, :live_component
 
@@ -152,7 +150,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, socket |> quoted({request, signer, prepared}) |> assign(refusal: nil)}
+          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
 
         {:error, reason} ->
           {:noreply, assign(socket, quote: nil, refusal: reason)}
@@ -264,28 +262,18 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
             socket
             |> assign(reviewed: prepared, landed: MapSet.new(), openings: openings)
-            |> assign(notice: nil, press_note: nil)
-            |> quoted({request, signer, prepared})
+            |> assign(notice: nil, press_note: nil, quote: {request, signer, prepared})
             |> OnchainSteps.put_review(review)
 
           {:ok, prepared} ->
             socket
-            |> quoted({request, signer, prepared})
+            |> assign(quote: {request, signer, prepared})
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
             assign(socket, notice: refusal_words(reason) || unreadable(socket.assigns.kind))
         end
     end
-  end
-
-  # The figures for the action as it stands. A sale's go to the page too, for
-  # its receipt.
-  defp quoted(socket, {_request, _signer, prepared} = quote) do
-    if socket.assigns.kind == :sell_to_bid,
-      do: send(self(), {:covered_call_sale, prepared.facts})
-
-    assign(socket, quote: quote)
   end
 
   # A ticket whose figures don't read: what each figure takes.

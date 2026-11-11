@@ -26,8 +26,8 @@
 - A press straight after Max, or after a balance, now sends that amount, on every form that has one.
 
 ## 11 November 2026: Bids
-- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants.
-- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands.
+- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants. Bids on the same terms sit together, the best for a seller first: the soonest expiry, then the lowest strike, then the highest premium.
+- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in.
 - Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or the whole bid when it is smaller.
 - The portfolio shows each of your bids: how much has sold, the premium still held, Raise and Stop while it is open, and Refund for what was not spent. Calls bought through a bid show with your other calls.
 

@@ -80,7 +80,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          balance: nil,
          buy: nil,
          sale: "",
-         sale_facts: nil,
          line: PriceLine.line(market.symbol)
        )
        |> read_book()}
@@ -143,9 +142,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_info({:covered_call_balance, _symbol, balance}, socket),
     do: {:noreply, assign(socket, balance: balance)}
-
-  def handle_info({:covered_call_sale, facts}, socket),
-    do: {:noreply, assign(socket, sale_facts: facts)}
 
   def handle_info({:shared_reading, _price_history}, socket),
     do: {:noreply, assign(socket, line: PriceLine.line(socket.assigns.market.symbol))}
@@ -433,6 +429,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     |> Map.new()
   end
 
+  # Where a bid sits on Sell: equal terms together and the best for a seller
+  # first, by the soonest expiry, then the lowest strike, then the highest
+  # premium, then the oldest bid.
+  defp for_sellers(bid), do: {bid.expiry, bid.strike_per_token, -bid.premium_per_token, bid.id}
+
   # Whether a quote answered for every figure asked.
   defp answers?(nil, _asked), do: false
   defp answers?(quote, asked), do: Enum.all?(asked, fn {name, value} -> quote[name] == value end)
@@ -450,7 +451,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           ),
         bids:
           if(book,
-            do: Enum.filter(book.bids, &(Terms.bid_stage(&1, book.now) == :open)),
+            do:
+              book.bids
+              |> Enum.filter(&(Terms.bid_stage(&1, book.now) == :open))
+              |> Enum.sort_by(&for_sellers/1),
             else: []
           ),
         human_id: current_human_id(assigns.access_context)
@@ -700,7 +704,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           reading={@reading}
           line={@line}
           typed={@sale}
-          facts={@sale_facts}
           balance={@balance}
           session_lease={@session_lease}
           human_id={@human_id}
@@ -976,10 +979,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
   attr :typed, :string, required: true, doc: "the amount typed"
 
-  attr :facts, :map,
-    default: nil,
-    doc: "what a sale into a bid pays, from its panel's prepared step"
-
   attr :balance, :integer,
     default: nil,
     doc: "the selling wallet's stock; nil signed out or unread"
@@ -989,10 +988,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   # A bid's Sell now ticket, under the bids so it is never wider than the
   # screen: the price line with the bid's strike across it and the amount,
-  # beside what the sale pays now, as the wallet's prepared step counts it at
-  # the latest block (a dash until it is read for this amount), and how it can
-  # end.
-  defp sale_ticket(%{bid: bid, reading: reading, typed: typed, facts: facts} = assigns) do
+  # beside what the sale pays now, counted as the contract counts it (the
+  # wallet's prepared step counts the same at the latest block), and how it
+  # can end.
+  defp sale_ticket(%{bid: bid, reading: reading, typed: typed} = assigns) do
     unit = reading.unit
     amount = F.parse_tokens(typed, unit)
 
@@ -1003,7 +1002,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         unit: unit,
         amount: amount,
         order: amount && %{bid_id: bid.id, amount: amount},
-        paid: if(facts && facts.bid_id == bid.id && facts.amount == amount, do: facts.receive),
+        paid: amount && Terms.sale(bid, amount, unit).receive,
         exercise: amount && Terms.usdc_for(amount, bid.strike_per_token, unit),
         max: assigns.balance && min(assigns.balance, Terms.available(bid))
       )

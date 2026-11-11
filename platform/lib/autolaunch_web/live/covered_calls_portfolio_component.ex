@@ -363,17 +363,18 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp side(:sold), do: "Seller"
   defp side(:held), do: "Buyer"
 
-  # A bid's parts: how much was sold into it, raised while it is open; the
-  # premium it still holds for the rest, which Stop frees while it is open; and
-  # what a refund sends now (the freed premium, and after the expiry what was
-  # never spent).
+  # A bid's parts: how much was sold into it, of what it asks while it is open
+  # or expired (a closed bid's amount is only what was sold), raised while it is
+  # open; the premium it still holds for the rest, which Stop frees while it is
+  # open; and what a refund sends now (the freed premium, and after the expiry
+  # what was never spent).
   defp bid_parts(bid, stage, unit) do
     [
       bid.amount > 0 &&
         %{
           name: :sold,
           label: "Sold",
-          figure: {bid.filled, bid.amount},
+          figure: if(stage == :sold, do: bid.filled, else: {bid.filled, bid.amount}),
           step: if(stage == :open, do: :raise_bid)
         },
       stage == :open &&

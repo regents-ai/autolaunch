@@ -637,6 +637,32 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert position(html, "covered-calls-sell") < position(html, "covered-calls-bids-title")
   end
 
+  test "the Sell tab's bids keep equal terms together, the best for a seller first",
+       %{conn: conn} do
+    first = hd(Terms.expiries(CoveredCallsChain.now()))
+
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{}),
+        CoveredCallsChain.bid(%{
+          expiry: first + 7 * 86_400,
+          strike: 250_000_000,
+          premium: 5_000_000
+        }),
+        CoveredCallsChain.bid(%{strike: 270_000_000, premium: 4_000_000}),
+        CoveredCallsChain.bid(%{premium: 4_000_000}),
+        CoveredCallsChain.bid(%{})
+      ]
+    })
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    html = settled(view)
+
+    # The soonest expiry, then the lowest strike, then the highest premium, then the oldest.
+    order = Enum.sort_by(1..5, &position(html, "covered-call-bids-#{&1}"))
+    assert order == [4, 1, 5, 3, 2]
+  end
+
   test "with no open bids the Sell tab has no Bids", %{conn: conn} do
     CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{amount: 0, filled: 0})]})
     {:ok, view, _html} = live(conn, "/stock/covered-call")
@@ -658,9 +684,12 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-sell-1", "Sell now")
     assert plot(view, "covered-call-sell-1-price", "data-levels") == [260.0]
 
-    # Signed out, what a sale pays waits for the wallet's prepared step.
+    # Signed out, the receipt already counts what a sale pays: 2 AMZNc at $3
+    # premium each is $6.00, less the 1% fee.
     view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
-    assert text(view, "#covered-call-sell-1-receive") == "—"
+    assert text(view, "#covered-call-sell-1-receive") == "$5.94"
+    assert text(view, "#covered-call-sell-1-outcomes li:first-child span") == "$5.94"
+    assert text(view, "#covered-call-sell-1-outcomes li:last-child span") == "$525.94"
     assert text(view, "#covered-call-sell-1-exercised") == "$520.00"
     assert has_element?(view, "#covered-call-sale-1 button[data-account-target=sign-in]")
   end
@@ -684,7 +713,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert max_fill(view, "#covered-call-sell-1-max") == 2 * @unit
   end
 
-  test "Sell now's receipt is the prepared sale's, paid now, and its review approves the stock, then sells",
+  test "Sell now's receipt and its prepared step pay the same, and its review approves the stock, then sells",
        %{conn: conn} do
     CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
     {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
@@ -692,10 +721,8 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
     settled(view)
 
-    # 2 AMZNc at $3 premium each is $6.00, less the 1% fee.
     assert text(view, "#covered-call-sell-1-receive") == "$5.94"
     assert has_element?(view, "#covered-call-sell-1-receipt", "Paid now")
-    assert text(view, "#covered-call-sell-1-outcomes li:first-child span") == "$5.94"
 
     view |> element("#covered-call-sale-1-review") |> render_click()
 
@@ -820,6 +847,12 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
         mine.(%{filled: 3 * @unit}),
         mine.(%{amount: 0, filled: 0, refund_due: 30_000_000, refundable: 30_000_000}),
         mine.(%{expiry: first - 7 * 86_400, refundable: 18_000_000}),
+        mine.(%{
+          amount: 2 * @unit,
+          filled: 2 * @unit,
+          refund_due: 24_000_000,
+          refundable: 24_000_000
+        }),
         CoveredCallsChain.bid(%{})
       ]
     })
@@ -869,7 +902,15 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-raise_bid-4")
     refute has_element?(view, "#portfolio-covered-calls-cancel_bid-4")
 
-    refute has_element?(view, "#portfolio-covered-calls-bid-5")
+    # Stopped after a sale: the contract closes the bid at what was sold, so
+    # the row says how much was sold, with nothing left to ask for.
+    assert has_element?(view, "#portfolio-covered-calls-bid-5", "Closed")
+    assert text(view, "#portfolio-covered-calls-bid-5-sold span") == "2 AMZNc"
+    assert has_element?(view, "#portfolio-covered-calls-bid-5-refund", "$24.00")
+    refute has_element?(view, "#portfolio-covered-calls-bid-5-escrow")
+    refute has_element?(view, "#portfolio-covered-calls-raise_bid-5")
+
+    refute has_element?(view, "#portfolio-covered-calls-bid-6")
   end
 
   test "a bid's Raise, Stop and Refund each review their own step", %{conn: conn} do
