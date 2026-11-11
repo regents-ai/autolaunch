@@ -10,6 +10,21 @@ interface IERC20Approve {
     function approve(address spender, uint256 amount) external returns (bool);
 }
 
+interface IERC20Balance {
+    function balanceOf(address account) external view returns (uint256);
+}
+
+interface IAerodromePool {
+    function balanceOf(address account) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
+    function getReserves() external view returns (uint256 reserve0, uint256 reserve1, uint256 blockTimestampLast);
+    function token0() external view returns (address);
+}
+
+interface IAerodromeFactory {
+    function getPool(address tokenA, address tokenB, bool stable) external view returns (address);
+}
+
 interface IAerodromeRouter {
     function addLiquidity(
         address tokenA,
@@ -22,18 +37,31 @@ interface IAerodromeRouter {
         address to,
         uint256 deadline
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
+
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        bool stable,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountA, uint256 amountB);
 }
 
 /// @title AfterHoursDemo
 /// @notice The first series' live demo, run from the account that signs the broadcast:
 ///         `recordAndSettle` records every print that is due from the Chainlink feed and applies it;
 ///         `seed` mints a 0.2 AMZNc pair and opens an Aerodrome pool for each leg against USDC,
-///         priced at the leg's ledger value (about $100 in all at $250 AMZNc).
+///         priced at the leg's ledger value (about $100 in all at $250 AMZNc); `recover` takes the
+///         signer's liquidity back out of both pools and returns its legs for AMZNc.
 /// @dev Every call is public and permissionless except that `seed` spends the signer's own AMZNc
 ///      and USDC. Broadcasting is Sean's to authorize.
 contract AfterHoursDemo is Script {
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address internal constant AERODROME_ROUTER = 0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43;
+    address internal constant AERODROME_FACTORY = 0x420DD381b31aEf6683db6B902084cB0FFECe40Da;
     uint256 internal constant DEMO_PAIR = 0.2e8;
     /// @notice How long after the script is simulated the pool transactions may still land.
     uint256 internal constant SEED_WINDOW = 1 hours;
@@ -94,6 +122,48 @@ contract AfterHoursDemo is Script {
         vm.stopBroadcast();
         console.log("After-hours pool USDC", overnightUsdc);
         console.log("Market-hours pool USDC", sessionUsdc);
+    }
+
+    /// @notice Withdraws all of the signer's liquidity from both leg pools, accepting no less than 99%
+    ///         of each pool's share as read now, then returns every leg the signer holds for AMZNc:
+    ///         whole pairs while the series runs, every leg once it has ended. The USDC stays with
+    ///         the signer.
+    function recover(ExposureSeriesV1 series) external {
+        recoverBy(series, block.timestamp + SEED_WINDOW);
+    }
+
+    function recoverBy(ExposureSeriesV1 series, uint256 deadline) public {
+        address overnight = address(series.overnight());
+        address session = address(series.session());
+        vm.startBroadcast();
+        (, address signer,) = vm.readCallers();
+        _withdraw(overnight, signer, deadline);
+        _withdraw(session, signer, deadline);
+        uint256 nights = IERC20Balance(overnight).balanceOf(signer);
+        uint256 days_ = IERC20Balance(session).balanceOf(signer);
+        if (series.status() == ExposureSeriesV1.Status.Ended) {
+            series.redeem(nights, days_);
+        } else {
+            uint256 pairs = nights < days_ ? nights : days_;
+            series.redeem(pairs, pairs);
+        }
+        vm.stopBroadcast();
+        console.log("AMZNc held", IERC20Balance(series.asset()).balanceOf(signer));
+        console.log("USDC held", IERC20Balance(USDC).balanceOf(signer));
+    }
+
+    function _withdraw(address leg, address signer, uint256 deadline) internal {
+        IAerodromePool pool = IAerodromePool(IAerodromeFactory(AERODROME_FACTORY).getPool(leg, USDC, false));
+        uint256 liquidity = pool.balanceOf(signer);
+        if (liquidity == 0) return;
+        (uint256 reserve0, uint256 reserve1,) = pool.getReserves();
+        (uint256 legReserve, uint256 usdcReserve) = pool.token0() == leg ? (reserve0, reserve1) : (reserve1, reserve0);
+        uint256 supply = pool.totalSupply();
+        uint256 legMin = legReserve * liquidity / supply * 99 / 100;
+        uint256 usdcMin = usdcReserve * liquidity / supply * 99 / 100;
+        IERC20Approve(address(pool)).approve(AERODROME_ROUTER, liquidity);
+        IAerodromeRouter(AERODROME_ROUTER)
+            .removeLiquidity(leg, USDC, false, liquidity, legMin, usdcMin, signer, deadline);
     }
 
     /// @notice The round of the oracle's pinned phase in force at `at`: the last one updated at or
