@@ -21,10 +21,6 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
   @moduletag :capture_log
   @ens "account_ens_identities"
   @ticket "/stock/covered-call?listing=1"
-  # The page's book is read in the background; a loaded machine can take longer
-  # than LiveViewTest's 100 ms.
-  @async_ms 2_000
-
   # The account's wallets are read once the page has mounted (the panel's first
   # update), and that read loses its connection, as when one pooled connection
   # is lost and the page's own read just before it was not.
@@ -88,7 +84,7 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     lose_wallet_reads_after_mount(CoveredCallsLive)
 
     {:ok, view, _html} = signed_in(conn, account)
-    render_async(view, @async_ms)
+    render_async(view)
 
     # The person's own wallet is the one open in their wallet app.
     view
@@ -144,7 +140,7 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     assert has_element?(view, ~s([data-account-target="profile"]))
 
     send(book, :open)
-    assert_receive {:EXIT, _page, {%ReadFailedError{}, _stack}}, @async_ms
+    assert_receive {:EXIT, _page, {%ReadFailedError{}, _stack}}
   end
 
   test "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again" do

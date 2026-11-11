@@ -11,9 +11,6 @@ defmodule AutolaunchWeb.HomeListsTest do
 
   alias Autolaunch.{CoveredCallsChain, ExposureChain, TestSupport}
 
-  # Reads run as async tasks; a loaded machine can take longer than LiveViewTest's 100 ms.
-  @async_ms 2_000
-
   test "with every product on, the three cards each link to their page", %{conn: conn} do
     CoveredCallsChain.install()
     ExposureChain.install()
@@ -68,7 +65,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     })
 
     {:ok, view, _html} = live(conn, "/?view=options")
-    html = render_async(view, @async_ms)
+    html = render_async(view)
 
     assert has_element?(view, "#home-lists a[data-tab=options][aria-current=page]")
     assert has_element?(view, "#home-call-1 a[href='/stock/covered-call?listing=1']", "Buy")
@@ -86,7 +83,7 @@ defmodule AutolaunchWeb.HomeListsTest do
   test "Calls with nothing for sale says so and offers selling", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, _html} = live(conn, "/?view=options")
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert has_element?(view, "#home-calls h2", "No listings")
     assert has_element?(view, "#home-calls a[href='/stock/covered-call']", "Sell calls")
@@ -95,12 +92,12 @@ defmodule AutolaunchWeb.HomeListsTest do
   test "Calls that cannot be read say so and read again on Try again", %{conn: conn} do
     CoveredCallsChain.install(%{unreadable: true})
     {:ok, view, _html} = live(conn, "/?view=options")
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-calls", "Calls can't be shown right now.")
 
     CoveredCallsChain.put(%{unreadable: false})
     view |> element("#home-calls button", "Try again") |> render_click()
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-call-1")
   end
 
@@ -111,7 +108,7 @@ defmodule AutolaunchWeb.HomeListsTest do
 
     view |> element("#home-filters a", "Live") |> render_click()
     assert_patch(view, "/?sort=ending&state=active")
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-market", "Taking Bids")
     refute has_element?(view, "#home-market", "Done Before")
     assert has_element?(view, "#home-filters .home-filter__active")

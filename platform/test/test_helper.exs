@@ -1,4 +1,6 @@
-ExUnit.start(exclude: [external: true])
+# LiveViewTest's render_async/2 and assert_receive wait this long by default. Under
+# load from other work on the same machine, ExUnit's 100 ms is too short.
+ExUnit.start(exclude: [external: true], assert_receive_timeout: 2_000)
 Ecto.Adapters.SQL.Sandbox.mode(Autolaunch.Repo, :manual)
 
 # Autolaunch.MarketTicker is one process for the whole application, and it reads
