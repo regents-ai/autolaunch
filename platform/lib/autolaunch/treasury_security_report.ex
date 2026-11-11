@@ -38,9 +38,7 @@ defmodule Autolaunch.TreasurySecurityReport do
     :verification_reason,
     :usdc_evidence,
     :regent_evidence,
-    :outbound_evidence,
-    :downgrade_state,
-    :prior_verified_fingerprint
+    :outbound_evidence
   ]
 
   postgres do
@@ -174,15 +172,18 @@ defmodule Autolaunch.TreasurySecurityReport do
     attribute :regent_evidence, :map, public?: true
     attribute :outbound_evidence, :map, public?: true
 
+    # No longer written (Sean, 9 Nov, 4 a: a treasury is judged by its current
+    # setup alone). Both fields are dropped by the next release, once no
+    # machine of the release before still reads them.
     attribute :downgrade_state, :atom do
       allow_nil? false
-      public? true
+      select_by_default? false
       default :none
       constraints one_of: @downgrade_states
     end
 
     attribute :prior_verified_fingerprint, :string do
-      public? true
+      select_by_default? false
       constraints min_length: 66, max_length: 66, match: ~r/\A0x[0-9a-f]{64}\z/
     end
 

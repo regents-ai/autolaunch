@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.SignInReadTest do
 
     {account, conn} = signed_in(conn)
     {:ok, panel, _html} = live(conn, "/account/agents")
-    {:ok, revstake, _html} = live(conn, "/create/revstake")
+    {:ok, revstake, _html} = live(conn, "/agent-business")
     {:ok, stocks, _html} = live(conn, "/create")
     lose_reads_of(@ens)
 

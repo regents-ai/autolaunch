@@ -20,8 +20,6 @@ defmodule Autolaunch.LaunchJob do
     create :project_lab do
       accept [
         :job_id,
-        :status,
-        :step,
         :agent_id,
         :agent_name,
         :token_name,
@@ -33,26 +31,20 @@ defmodule Autolaunch.LaunchJob do
         :token_address,
         :hook_address,
         :revenue_share_splitter_address,
-        :treasury_address,
-        :started_at,
-        :finished_at
+        :treasury_address
       ]
 
       upsert? true
       upsert_identity :unique_job_id
 
       upsert_fields [
-        :status,
-        :step,
         :auction_id,
         :agent_safe_address,
         :auction_address,
         :token_address,
         :hook_address,
         :revenue_share_splitter_address,
-        :treasury_address,
-        :started_at,
-        :finished_at
+        :treasury_address
       ]
     end
   end
@@ -76,15 +68,16 @@ defmodule Autolaunch.LaunchJob do
       constraints LaunchIdentity.constraints()
     end
 
+    # Never advanced past what launch discovery first wrote, and read by
+    # nothing; these four columns are dropped by the next release, once no
+    # machine of the release before still reads them.
     attribute :status, :string do
-      allow_nil? false
-      public? true
+      select_by_default? false
       constraints min_length: 1, max_length: 100, trim?: true
     end
 
     attribute :step, :string do
-      allow_nil? false
-      public? true
+      select_by_default? false
       constraints min_length: 1, max_length: 100, trim?: true
     end
 
@@ -148,11 +141,11 @@ defmodule Autolaunch.LaunchJob do
     end
 
     attribute :started_at, :utc_datetime_usec do
-      public? true
+      select_by_default? false
     end
 
     attribute :finished_at, :utc_datetime_usec do
-      public? true
+      select_by_default? false
     end
 
     timestamps()

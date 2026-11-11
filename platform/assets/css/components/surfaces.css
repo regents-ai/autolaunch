@@ -168,10 +168,12 @@
    Launch (or what it still needs, or Sign in) under the create form, ride at
    the foot of the screen, above the market ticker, on a band of the card's
    surface, while their form is on screen. Only the button rides; the notes
-   around it stay where they are, and what it does is unchanged. Their row
-   steps aside (`display: contents`) so the whole form is the button's track. */
+   around it stay where they are, and what it does is unchanged. Their row, and
+   the create page's side column that holds it, step aside (`display: contents`)
+   so the whole form is the button's track. */
 @media (max-width: 47.99rem) {
   .bid-entry > .bid-actions,
+  .create-page__side:has(> .create-page__launch > .create-page__launch-button),
   .create-page__launch:has(> .create-page__launch-button) {
     display: contents;
   }

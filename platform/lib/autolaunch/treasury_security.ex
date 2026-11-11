@@ -108,7 +108,6 @@ defmodule Autolaunch.TreasurySecurity do
       classification: to_string(report.classification),
       verification_state: "awaiting_current_chain_confirmation",
       verification_reason: "projector_refresh_not_integrated",
-      downgrade_state: to_string(report.downgrade_state),
       configuration_fingerprint: report.configuration_fingerprint,
       source_block_number: report.source_block_number,
       source_block_hash: report.source_block_hash,
@@ -188,9 +187,7 @@ defmodule Autolaunch.TreasurySecurity do
          verification_reason(classification, observation, evidence, fingerprint, verified?),
        usdc_evidence: evidence[:usdc],
        regent_evidence: evidence[:regent],
-       outbound_evidence: evidence[:outbound],
-       downgrade_state: :none,
-       prior_verified_fingerprint: nil
+       outbound_evidence: evidence[:outbound]
      }}
   rescue
     _malformed -> {:error, :treasury_observation_incomplete}
@@ -306,9 +303,7 @@ defmodule Autolaunch.TreasurySecurity do
       with :ok <- lock_address(attrs.address),
            {:ok, reports} <-
              Autolaunch.list_treasury_security_reports(attrs.address, actor: nil) do
-        attrs
-        |> apply_downgrade(reports)
-        |> then(&persist_or_return(reports, &1))
+        persist_or_return(reports, attrs)
       end
     end)
     |> case do
@@ -346,62 +341,9 @@ defmodule Autolaunch.TreasurySecurity do
       report.configuration_fingerprint == attrs.configuration_fingerprint and
       report.verification_state == attrs.verification_state and
       report.verification_reason == attrs.verification_reason and
-      report.downgrade_state == attrs.downgrade_state and
       evidence_hash(report.usdc_evidence) == evidence_hash(attrs.usdc_evidence) and
       evidence_hash(report.regent_evidence) == evidence_hash(attrs.regent_evidence) and
       evidence_hash(report.outbound_evidence) == evidence_hash(attrs.outbound_evidence)
-  end
-
-  defp apply_downgrade(attrs, reports) do
-    case downgrade_origin(attrs, reports) do
-      nil ->
-        attrs
-
-      prior_verified_fingerprint ->
-        %{
-          attrs
-          | downgrade_state: :downgraded,
-            prior_verified_fingerprint: prior_verified_fingerprint,
-            verification_state: :unverified,
-            verification_reason: "configuration_changed"
-        }
-    end
-  end
-
-  defp downgrade_origin(attrs, reports) do
-    sticky_origin(reports) || verified_divergence(attrs, reports) ||
-      restored_divergence(attrs, reports)
-  end
-
-  defp sticky_origin(reports) do
-    downgraded = Enum.filter(reports, &(&1.downgrade_state == :downgraded))
-
-    first_fingerprint(downgraded, & &1.prior_verified_fingerprint) ||
-      first_fingerprint(downgraded, & &1.configuration_fingerprint)
-  end
-
-  defp verified_divergence(attrs, reports) do
-    reports
-    |> Enum.filter(
-      &(&1.verification_state == :verified and
-          &1.configuration_fingerprint != attrs.configuration_fingerprint)
-    )
-    |> first_fingerprint(& &1.configuration_fingerprint)
-  end
-
-  defp restored_divergence(%{verification_state: :verified} = attrs, reports) do
-    if Enum.any?(reports, &(&1.configuration_fingerprint != attrs.configuration_fingerprint)),
-      do: attrs.configuration_fingerprint
-  end
-
-  defp restored_divergence(_attrs, _reports), do: nil
-
-  defp first_fingerprint(reports, field) do
-    reports
-    |> Enum.map(field)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.sort()
-    |> List.first()
   end
 
   defp evidence_input(evidence) when is_map(evidence) do
@@ -540,17 +482,15 @@ defmodule Autolaunch.TreasurySecurity do
   defp authorized_actor(%System{}), do: :ok
   defp authorized_actor(_actor), do: {:error, :authentication_required}
 
-  defp bound_allowed(%{verification_state: :verified, downgrade_state: :none}, :verified), do: :ok
-  defp bound_allowed(%{downgrade_state: :none}, :observed), do: :ok
+  defp bound_allowed(%{verification_state: :verified}, :verified), do: :ok
   defp bound_allowed(_report, :verified), do: {:error, :treasury_not_verified}
-  defp bound_allowed(_report, :observed), do: {:error, :treasury_security_changed}
+  defp bound_allowed(_report, :observed), do: :ok
   defp bound_allowed(_report, _requirement), do: {:error, :treasury_requirement_invalid}
 
   defp same_security_state(bound, fresh, requirement) do
     verified? = requirement == :observed or fresh.verification_state == :verified
 
-    if verified? and fresh.downgrade_state == bound.downgrade_state and
-         fresh.classification == bound.classification and
+    if verified? and fresh.classification == bound.classification and
          fresh.configuration_fingerprint == bound.configuration_fingerprint do
       :ok
     else

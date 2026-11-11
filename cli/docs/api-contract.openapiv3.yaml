@@ -1438,7 +1438,7 @@ components:
     TreasurySecurity:
       type: object
       additionalProperties: false
-      required: [id, address, chain_id, classification, verification_state, verification_reason, downgrade_state, configuration_fingerprint, source_block_number, source_block_hash, observed_at, safe, evidence]
+      required: [id, address, chain_id, classification, verification_state, verification_reason, configuration_fingerprint, source_block_number, source_block_hash, observed_at, safe, evidence]
       properties:
         id: {type: string, format: uuid}
         address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
@@ -1446,7 +1446,6 @@ components:
         classification: {type: string, enum: [supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, unsupported]}
         verification_state: {type: string, enum: [awaiting_current_chain_confirmation]}
         verification_reason: {type: string, enum: [projector_refresh_not_integrated]}
-        downgrade_state: {type: string, enum: [none, downgraded]}
         configuration_fingerprint: {type: string, pattern: '^0x[0-9a-f]{64}$'}
         source_block_number: {type: integer, minimum: 0}
         source_block_hash: {type: string, pattern: '^0x[0-9a-f]{64}$'}

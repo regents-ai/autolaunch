@@ -41,10 +41,11 @@ defmodule AutolaunchWeb.DraftMarks do
     other_link_2: "a full https:// link",
     other_link_3: "a full https:// link",
     image: "image",
-    stock_address: "paired stock"
+    stock_address: "paired stock",
+    treasury: "treasury"
   }
 
-  @doc "What a draft still needs, as the Memestock page's Still needed button names it."
+  @doc "What a draft still needs, as the Still needed line on both Create pages names it."
   @spec still_needed([atom()]) :: String.t()
   def still_needed(fields) do
     labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))

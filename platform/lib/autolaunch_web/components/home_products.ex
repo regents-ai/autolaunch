@@ -1,9 +1,11 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
   The home page's products, at the top of the page: covered calls, Memestock
-  launches and Revstake launches. Each card is one link: a
-  line drawing lit by the shared holographic foil (`ProductFoil` in
-  `assets/js/hooks/product_cards.ts`), a title and what the link does.
+  launches and Revstake launches. Each card is one link: a moving panel of
+  small lit cells drawn on the GPU (`HomeCells` in `assets/js/hooks/home_cells.ts`),
+  a pattern for each product, then a title and what the link does. The
+  product's line drawing is the picture until the panel has drawn, and stays
+  it without WebGPU.
 
   A product switched off on this site (covered calls) has no card, so
   no card links to a page that answers not found. Before launches open, the two
@@ -18,17 +20,21 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   attr :launches_open, :boolean, required: true
   attr :only, :list, default: ~w(calls memestock revstake), doc: "product ids, in order"
 
+  # Each product's moving pattern (`assets/js/home_cells.ts`).
+  @patterns %{"calls" => "payoff", "memestock" => "pair", "revstake" => "split"}
+
   def product_cards(assigns) do
     assigns = assign(assigns, :products, products(assigns.only))
 
     ~H"""
     <section id="home-products" class="home-products" aria-label="Products" phx-update="ignore">
-      <ul class="home-products__row">
+      <ul class="home-products__row" data-count={length(@products)}>
         <li
           :for={product <- @products}
           id={"home-product-#{product.id}"}
           class="home-product"
-          phx-hook="ProductFoil"
+          phx-hook="HomeCells"
+          data-cells={pattern(product.id)}
         >
           <.link
             :if={!product.launch or @launches_open}
@@ -51,17 +57,22 @@ defmodule AutolaunchWeb.Components.HomeProducts do
 
   defp face(assigns) do
     ~H"""
-    <div class="home-product__art rg-technical-figure__art" aria-hidden="true">
-      <Regent.HolographicCard.foil
-        id={"home-product-foil-#{@product.id}"}
-        class="rg-holo-foil--ink"
-      />
+    <div class="home-product__art" aria-hidden="true">
+      <div id={"home-product-cells-#{@product.id}"} class="home-product__cells" phx-update="ignore">
+        <canvas data-cells-canvas></canvas>
+      </div>
       <.drawing id={"home-product-drawing-#{@product.id}"} product={@product.id} />
     </div>
-    <h2 class="home-product__title">{@product.title}</h2>
-    <p class="home-product__action">{@action}</p>
+    <div class="home-product__words">
+      <h2 class="home-product__title">{@product.title}</h2>
+      <p class="home-product__action">
+        {@action}<Regent.Icons.icon name="arrow-right" class="home-product__arrow" />
+      </p>
+    </div>
     """
   end
+
+  defp pattern(id), do: Map.fetch!(@patterns, id)
 
   defp products(only) do
     [
@@ -84,7 +95,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         id: "revstake",
         title: "Revstake",
         action: "Launch one",
-        path: "/create/revstake",
+        path: "/agent-business",
         launch: true
       }
     ]
@@ -96,8 +107,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   attr :product, :string, required: true
 
   # Line drawings, one for each product: registration marks and sparse
-  # geometry. A filled shape hides the lines behind it, in the drawing and in
-  # the foil's mask alike.
+  # geometry. A filled shape hides the lines behind it. They are the picture
+  # until the cell panel has drawn.
   defp drawing(assigns) do
     ~H"""
     <svg

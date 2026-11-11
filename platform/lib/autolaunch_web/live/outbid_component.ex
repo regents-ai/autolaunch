@@ -56,7 +56,7 @@ defmodule AutolaunchWeb.OutbidComponent do
 
       <p :if={@standing == :settled} class="bid-position__status">
         <Regent.Primitives.status tone="neutral">
-          {display_status(@position.status)}
+          {settled_label(@position.status)}
         </Regent.Primitives.status>
       </p>
 
@@ -135,11 +135,16 @@ defmodule AutolaunchWeb.OutbidComponent do
     do: {:noreply, assign(socket, :open, :add)}
 
   # A bid that has left the auction, or one whose place cannot be read yet.
-  defp standing(%{status: status}, _auction, _book) when status != "active", do: :settled
+  defp standing(%{status: status}, _auction, _book) when status != :active, do: :settled
   defp standing(_position, _auction, %AsyncResult{ok?: false}), do: :reading
 
   defp standing(position, auction, %AsyncResult{result: book}),
     do: AuctionBook.bid_standing(position, auction, book)
+
+  # A bid that left the auction early with tokens filled waits for the claim,
+  # in the same words as its settlement card.
+  defp settled_label(:awaiting_claim), do: "Claim opens soon"
+  defp settled_label(status), do: display_status(status)
 
   defp heading(:raise), do: "Raise my bid"
   defp heading(:add), do: "Add to this bid"
