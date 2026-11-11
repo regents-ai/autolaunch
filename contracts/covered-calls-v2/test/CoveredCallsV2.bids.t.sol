@@ -375,6 +375,28 @@ contract CoveredCallsV2BidsTest is Test {
         _sell(seller, id, TOKEN);
     }
 
+    /// A sale never touches the bidder's balance, so a bidder Circle has blacklisted can still be
+    /// sold into; only its own refund waits until the blacklist lifts.
+    function test_sellToBid_worksWhileTheBidderIsBlacklisted() public {
+        uint256 id = _bid();
+        usdc.setBlacklisted(bidder, true);
+
+        uint256 listingId = _sell(seller, id, 4 * TOKEN);
+        assertEq(calls.held(listingId, bidder), 4 * TOKEN);
+        assertEq(usdc.balanceOf(seller), BIDDER_USDC + 12 * USD - 120_000);
+        vm.prank(bidder);
+        calls.cancelBid(id);
+        vm.prank(bidder);
+        vm.expectRevert(SafeTransferLib.TransferFailed.selector);
+        calls.refundBid(id);
+
+        usdc.setBlacklisted(bidder, false);
+        vm.prank(bidder);
+        calls.refundBid(id);
+        assertEq(usdc.balanceOf(bidder), BIDDER_USDC - 12 * USD);
+        assertEq(usdc.balanceOf(address(calls)), 0);
+    }
+
     /// Staking must take exactly the fee: a partial pull or a wrong report reverts the sale, so no
     /// allowance on the escrow is ever left behind.
     function test_sellToBid_feeMustReachStakingExactly() public {
