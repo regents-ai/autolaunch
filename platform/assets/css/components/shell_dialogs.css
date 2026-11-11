@@ -1,7 +1,7 @@
 @layer regents-product {
-/* The shell's windows, Buy Credits and Pair New Agent, in one frame. */
+/* The shell's window, Pair New Agent. */
 
-:is(.shell-credits-dialog, .shell-pairing-dialog) {
+.shell-pairing-dialog {
   --shell-dialog-pad-top: 1.5rem;
   --shell-dialog-pad-side: 1.5rem;
   box-sizing: border-box;
@@ -15,7 +15,7 @@
   overflow-y: auto;
 }
 
-:is(.shell-credits-dialog, .shell-pairing-dialog)::backdrop {
+.shell-pairing-dialog::backdrop {
   background: color-mix(in oklch, var(--palette-charcoal) 30%, transparent);
 }
 
@@ -27,7 +27,7 @@
 }
 
 @media (max-width: 47.99rem) {
-  :is(.shell-credits-dialog, .shell-pairing-dialog) {
+  .shell-pairing-dialog {
     width: calc(100% - 1rem);
     --shell-dialog-pad-top: 1rem;
     --shell-dialog-pad-side: 0.75rem;

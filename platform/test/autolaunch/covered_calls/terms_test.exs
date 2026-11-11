@@ -6,7 +6,8 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   alias AutolaunchWeb.CoveredCallsFormat, as: F
 
   @unit 100_000_000
-  @week 7 * 86_400
+  @day 86_400
+  @week 7 * @day
 
   property "a fill or an exercise pays the exact amount rounded up, as the contract does" do
     check all(amount <- integer(1..(1_000 * @unit)), per_token <- integer(1..10_000_000_000)) do
@@ -51,6 +52,30 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
         assert {at.hour, at.minute, at.second} == {21, 0, 0}
       end
     end
+  end
+
+  property "a listing's term is the days to its expiry, to the nearest day and never under one" do
+    check all(now <- integer(1_700_000_000..2_100_000_000), ahead <- integer(1..(40 * @day))) do
+      days = Terms.term_days(now + ahead, now)
+
+      assert days >= 1
+      assert abs(days * @day - ahead) <= div(@day, 2) or (days == 1 and ahead < @day)
+    end
+  end
+
+  test "an exercise window's time left is whole hours from an hour up, minutes below, until it closes" do
+    # The same cases as the browser's countdown (assets/test/countdown.test.ts).
+    for {seconds, said} <- [
+          {86_400, "Closes in 24 h"},
+          {5 * 3_600 + 59 * 60, "Closes in 5 h"},
+          {3_600, "Closes in 1 h"},
+          {3_599, "Closes in 59 min"},
+          {61, "Closes in 1 min"},
+          {30, "Closes in 1 min"},
+          {0, "Closed"},
+          {-5, "Closed"}
+        ],
+        do: assert(F.closes_in(seconds) == said)
   end
 
   test "an hour either side of Friday 21:00 UTC is not an expiry" do

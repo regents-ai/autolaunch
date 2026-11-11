@@ -1,11 +1,25 @@
 defmodule AutolaunchWeb.CoveredCallsLive do
   @moduledoc """
-  `/stock/covered-call`: covered calls on a Base stock, in two tabs with an address
-  each. **Sell**, first and at `/stock/covered-call`, is one form to lock stock and
-  list calls on it, beside the guide. **Buy** (`?tab=buy`, with how many are for
-  sale) lists the calls for sale, and a listing's panel opens below it at
-  `?listing=<id>`. Every figure is read from the contract (`Autolaunch.CoveredCalls`);
-  every press goes to the wallet through `AutolaunchWeb.CoveredCallComponent`.
+  `/stock/covered-call`: covered calls on a Base stock as a trade ticket, in two tabs
+  with an address each.
+
+  **Sell**, first and at `/stock/covered-call`, takes an amount, one of the next four
+  Fridays, a strike (three suggestions or a custom price) and a premium (the
+  suggestion, or typed). Beside it a receipt and the three ways the listing can end
+  follow the ticket as it changes. Every figure comes from the market's quote
+  (`Autolaunch.CoveredCalls.covered_call_quote/3`), read again on each change; a
+  receipt shows only once the quote answers for exactly what the ticket holds.
+
+  **Buy** (`?tab=buy`, with how many are for sale) lists the calls for sale, and a
+  listing's ticket opens below the list at `?listing=<id>`: the amount, what it costs
+  and the three ways it can end, counted by `Autolaunch.CoveredCalls.Terms`.
+
+  Each ticket opens on the stock's last 30 days of reference prices with its
+  strike drawn across them (on Buy, the break-even too), from the line every
+  open page shares (`Autolaunch.CoveredCalls.PriceLine`).
+
+  The page owns each ticket's fields; every press goes to the wallet through
+  `AutolaunchWeb.CoveredCallComponent`, handed the ticket's order as it stands.
 
   With covered calls switched off the address is the site's 404.
   """
@@ -14,20 +28,27 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, Quote, Terms}
+  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, PriceLine, Quote, Terms}
+  alias Autolaunch.SharedReading
+  alias AutolaunchWeb.Components.PriceChart
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
-  alias AutolaunchWeb.NotFoundError
-  alias Phoenix.LiveView.AsyncResult
+  alias AutolaunchWeb.{NotFoundError, Read}
+  alias Phoenix.LiveView.{AsyncResult, JS}
   alias Regent.Primitives, as: P
 
-  # Strikes the Sell tab suggests, above the reference price, in percent.
-  @suggested_strikes [1, 3, 5]
+  # A new Sell ticket: no amount yet, the next Friday, the middle suggested strike
+  # (the quote's own choice when none is asked) and the suggested premium.
+  @sell %{"amount" => "", "expiry" => nil, "strike" => "1", "custom" => "", "premium" => nil}
+  @presets ~w(0 1 2)
 
   def mount(_params, _session, socket) do
     with true <- Deployment.enabled?(),
          {:ok, %{chain_id: chain_id, markets: [market | _]}} <- Deployment.current() do
-      if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(market))
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(market))
+        SharedReading.subscribe(PriceLine.key(market.symbol))
+      end
 
       {:ok,
        socket
@@ -43,11 +64,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          market: market,
          chain_id: chain_id,
          book: AsyncResult.loading(),
+         quote: %Read{},
          tab: :sell,
          selected: nil,
          done: nil,
          due: nil,
-         sell: %{}
+         sell: @sell,
+         balance: nil,
+         buy: nil,
+         line: PriceLine.line(market.symbol)
        )
        |> read_book()}
     else
@@ -56,29 +81,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_params(params, _uri, socket) do
-    selected =
-      case Integer.parse(params["listing"] || "") do
-        {id, ""} when id > 0 -> id
-        _none -> nil
-      end
+    selected = listing(params["listing"])
 
-    # Selling comes first; a listing's own address opens it on the Buy tab.
-    tab = if params["tab"] == "buy" or selected, do: :buy, else: :sell
-
-    # A shared link to one listing reads the market again unless it was read
-    # in the last ten seconds, so it is never turned away on an old reading.
-    # The List form is built anew on the Sell tab, so the guide starts from it again.
-    socket =
-      socket
-      |> assign(tab: tab, selected: selected)
-      |> then(&if(tab == socket.assigns.tab, do: &1, else: assign(&1, sell: %{})))
-
-    if selected && connected?(socket) do
-      Book.refresh(socket.assigns.chain_id)
-      {:noreply, read_book(socket)}
-    else
-      {:noreply, socket}
-    end
+    {:noreply,
+     socket
+     |> assign(tab: tab(params["tab"], selected), selected: selected)
+     |> opened(socket.assigns.selected)
+     |> forget_balance()
+     |> read_quote()
+     |> reread()}
   end
 
   # The Refresh press asks every reader of the chain to read again, so the
@@ -90,15 +101,38 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  # A suggested strike and its premium, put into the List form.
-  def handle_event("use_suggestion", %{"strike" => strike, "premium" => premium}, socket) do
-    send_update(CoveredCallComponent,
-      id: "covered-call-list",
-      fill: %{"strike" => strike, "premium" => premium}
-    )
-
-    {:noreply, socket}
+  # The Sell ticket's typed fields. The premium follows the suggestion until it
+  # is typed in itself.
+  def handle_event("sell", params, socket) do
+    %{sell: sell} = socket.assigns
+    premium = if params["_target"] == ["premium"], do: params["premium"], else: sell["premium"]
+    sell = sell |> Map.merge(Map.take(params, ~w(amount custom))) |> Map.put("premium", premium)
+    {:noreply, socket |> assign(sell: sell) |> read_quote()}
   end
+
+  def handle_event("sell_expiry", %{"expiry" => expiry}, socket),
+    do: {:noreply, socket |> update(:sell, &Map.put(&1, "expiry", expiry)) |> read_quote()}
+
+  # Custom starts from the strike chosen before it, to change from there.
+  def handle_event("sell_strike", %{"strike" => choice}, socket)
+      when choice in ["custom" | @presets] do
+    %{sell: sell, book: book, quote: quote} = socket.assigns
+    ticket = ticket(sell, book.result, quote.value)
+
+    custom =
+      if choice == "custom" and sell["custom"] == "" and ticket.strike,
+        do: F.plain_usd(ticket.strike),
+        else: sell["custom"]
+
+    {:noreply,
+     socket |> assign(sell: %{sell | "strike" => choice, "custom" => custom}) |> read_quote()}
+  end
+
+  def handle_event("suggested_premium", _params, socket),
+    do: {:noreply, socket |> update(:sell, &Map.put(&1, "premium", nil)) |> read_quote()}
+
+  def handle_event("buy", %{"amount" => amount}, socket),
+    do: {:noreply, assign(socket, buy: amount)}
 
   # A press landed here: every open page of this market hears which listing
   # and wallet.
@@ -114,6 +148,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_info({:covered_call_pressed, _press}, socket), do: {:noreply, read_book(socket)}
 
+  def handle_info({:covered_call_balance, _symbol, balance}, socket),
+    do: {:noreply, assign(socket, balance: balance)}
+
+  def handle_info({:shared_reading, _price_history}, socket),
+    do: {:noreply, assign(socket, line: PriceLine.line(socket.assigns.market.symbol))}
+
   # A listing's expiry or a scheduled multiplier change came: the shared book
   # is taken anew unless it was taken in the last ten seconds, and the page
   # and its panels read it, so a button the chain held back comes back.
@@ -122,12 +162,18 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     {:noreply, read_book(socket)}
   end
 
-  # The List form changed: the guide follows the trade being made.
-  def handle_info({:covered_call_form, inputs}, socket),
-    do: {:noreply, assign(socket, sell: inputs)}
+  # A panel's last step landed; the page says what moved, and a listing made
+  # leaves the Sell ticket ready for the next one on the same terms.
+  def handle_info({:covered_call_done, done}, socket) do
+    socket =
+      case done.kind do
+        :list -> socket |> update(:sell, &Map.put(&1, "amount", "")) |> read_quote()
+        :fill -> assign(socket, buy: nil)
+        _other -> socket
+      end
 
-  # A panel's last step landed; the page says what moved.
-  def handle_info({:covered_call_done, done}, socket), do: {:noreply, assign(socket, done: done)}
+    {:noreply, assign(socket, done: done)}
+  end
 
   def handle_async(:book, {:ok, {:ok, book}}, socket) do
     if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
@@ -138,10 +184,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     wait = Terms.next_wait([book.effective_at | open], book.now)
 
     {:noreply,
-     assign(socket,
+     socket
+     |> assign(
        book: AsyncResult.ok(socket.assigns.book, book),
        due: wait && Process.send_after(self(), :covered_calls_due, (wait + 5) * 1_000)
-     )}
+     )
+     |> read_quote()}
   end
 
   def handle_async(:book, {:ok, {:error, error}}, socket),
@@ -152,12 +200,195 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   def handle_async(:book, {:exit, reason}, socket),
     do: {:noreply, assign(socket, book: AsyncResult.failed(socket.assigns.book, reason))}
 
+  # A quote that answered for other strikes than the ticket now names (the
+  # reference price moved, and the suggestions with it) is read again for them.
+  def handle_async({Read, :quote, _generation} = name, result, socket) do
+    socket = Read.settle(socket, name, result)
+    %{quote: quote, sell: sell, book: book} = socket.assigns
+
+    if quote.state == :ready and
+         !answers?(quote.value, request(ticket(sell, book.result, quote.value))),
+       do: {:noreply, read_quote(socket)},
+       else: {:noreply, socket}
+  end
+
+  # The listing a ticket's address names, nil for none or one that doesn't read.
+  defp listing(nil), do: nil
+
+  defp listing(text) do
+    case Integer.parse(text) do
+      {id, ""} when id > 0 -> id
+      _none -> nil
+    end
+  end
+
+  # Selling comes first; a listing's own address opens it on the Buy tab.
+  defp tab("buy", _selected), do: :buy
+  defp tab(_tab, nil), do: :sell
+  defp tab(_tab, _selected), do: :buy
+
+  # Another listing's ticket starts at all that is left of it.
+  defp opened(%{assigns: %{selected: selected}} = socket, selected), do: socket
+  defp opened(socket, _before), do: assign(socket, buy: nil)
+
+  # The wallet's stock is read by the Sell ticket's panel, so it is read anew
+  # each time the ticket opens.
+  defp forget_balance(%{assigns: %{tab: :sell}} = socket), do: socket
+  defp forget_balance(socket), do: assign(socket, balance: nil)
+
+  # A shared link to one listing reads the market again unless it was read
+  # in the last ten seconds, so it is never turned away on an old reading.
+  defp reread(%{assigns: %{selected: nil}} = socket), do: socket
+
+  defp reread(socket) do
+    if connected?(socket) do
+      Book.refresh(socket.assigns.chain_id)
+      read_book(socket)
+    else
+      socket
+    end
+  end
+
   defp read_book(socket) do
     symbol = socket.assigns.market.symbol
     start_async(socket, :book, fn -> CoveredCalls.covered_call_book(symbol) end)
   end
 
+  # The Sell ticket's quote, for the ticket as it stands. The latest read wins.
+  defp read_quote(%{assigns: %{tab: :sell, book: %AsyncResult{ok?: true, result: book}}} = socket) do
+    %{market: %{symbol: symbol}, sell: sell, quote: quote} = socket.assigns
+    asked = request(ticket(sell, book, quote.value))
+
+    Read.start(socket, :quote, symbol, fn ->
+      case CoveredCalls.covered_call_quote(symbol, asked, actor: nil) do
+        {:ok, answer} -> {:ok, answer}
+        {:error, error} -> {:error, CoveredCalls.reason(error)}
+      end
+    end)
+  end
+
+  defp read_quote(socket), do: socket
+
   defp topic(market), do: "covered_calls:" <> market.symbol
+
+  # What the Sell ticket holds, read from its fields and the latest quote: the
+  # expiry chosen (the next Friday until one is), the strike (a suggestion's,
+  # or the custom price typed), the premium (typed, or the suggestion for that
+  # strike and expiry), and the order once all of them and an amount read. The
+  # receipt is the quote's only when the quote answered for exactly that order.
+  defp ticket(sell, book, quote) do
+    expiries = Terms.expiries(book.now)
+    expiry = Enum.find(expiries, hd(expiries), &(Integer.to_string(&1) == sell["expiry"]))
+    presets = quoted_presets(quote)
+    amount = F.parse_tokens(sell["amount"], book.unit)
+    {strike, suggested} = strike(sell, presets, priced(quote, expiry))
+    {typed, premium} = premium(sell["premium"], suggested)
+    order = order(amount, strike, premium, expiry)
+
+    %{
+      expiries: expiries,
+      expiry: expiry,
+      presets: presets,
+      amount: amount,
+      strike: strike,
+      suggested: suggested,
+      edited?: sell["premium"] != nil,
+      typed: typed,
+      premium: premium,
+      order: order,
+      value: value(amount, quote),
+      receipt: receipt(order, quote),
+      lead: lead(order, quote)
+    }
+  end
+
+  # The typed amount's worth at the reference price, once the quote answered for it.
+  defp value(amount, %{amount: amount, receipt: %{reference_value: value}})
+       when is_integer(amount),
+       do: value
+
+  defp value(_amount, _quote), do: nil
+
+  defp quoted_presets(nil), do: []
+  defp quoted_presets(%{presets: presets}), do: presets
+
+  # The quote prices the ticket only when it answered for the chosen expiry.
+  defp priced(%{expiry: expiry} = quote, expiry), do: quote
+  defp priced(_quote, _expiry), do: nil
+
+  # The premium typed in, and the one the ticket uses: the typed one once
+  # there is one, until then the suggestion.
+  defp premium(nil, suggested), do: {nil, suggested}
+
+  defp premium(field, _suggested) do
+    typed = F.parse_usd(field)
+    {typed, typed}
+  end
+
+  defp order(amount, strike, premium, _expiry)
+       when is_nil(amount) or is_nil(strike) or is_nil(premium),
+       do: nil
+
+  defp order(amount, strike, premium, expiry),
+    do: %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}
+
+  defp receipt(nil, _quote), do: nil
+  defp receipt(order, quote), do: if(answers?(quote, order), do: quote.receipt)
+
+  # Under You receive: what the seller keeps as a share of the stock's worth,
+  # for the term to expiry.
+  defp lead(order, quote) do
+    case receipt(order, quote) do
+      nil ->
+        nil
+
+      %{net_premium_yield: share} ->
+        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% · #{days(quote.term_days)}"
+    end
+  end
+
+  defp days(1), do: "1 day"
+  defp days(count), do: "#{count} days"
+
+  # The strike chosen and the premium suggested for it at the chosen expiry,
+  # once the quote has answered for that expiry (and, for a custom strike, for
+  # that strike).
+  defp strike(%{"strike" => "custom", "custom" => custom}, _presets, priced) do
+    strike = F.parse_usd(custom)
+
+    {strike,
+     if(priced && priced.strike_per_token == strike, do: priced.suggested_premium_per_token)}
+  end
+
+  defp strike(%{"strike" => choice}, presets, priced) do
+    index = String.to_integer(choice)
+
+    case Enum.at(presets, index) do
+      nil ->
+        {nil, nil}
+
+      preset ->
+        {preset.strike_per_token,
+         if(priced, do: Enum.at(priced.presets, index).suggested_premium_per_token)}
+    end
+  end
+
+  # The quote's arguments for a ticket: what it holds so far. A premium is asked
+  # for only once typed, so the quote suggests one for the strike.
+  defp request(ticket) do
+    [
+      expiry: ticket.expiry,
+      amount: ticket.amount,
+      strike_per_token: ticket.strike,
+      premium_per_token: ticket.typed
+    ]
+    |> Enum.reject(fn {_name, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  # Whether a quote answered for every figure asked.
+  defp answers?(nil, _asked), do: false
+  defp answers?(quote, asked), do: Enum.all?(asked, fn {name, value} -> quote[name] == value end)
 
   def render(assigns) do
     book = assigns.book.result
@@ -183,7 +414,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       />
       <header class="covered-calls__header">
         <div class="covered-calls__intro">
-          <h1>Covered calls on {@market.symbol}</h1>
+          <h1>Covered calls</h1>
           <p id="covered-calls-eligibility" class="covered-calls__eligibility">
             Available to
             <a href="https://www.coinbase.com/tokenize" target="_blank" rel="noopener">
@@ -208,13 +439,30 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </div>
       </header>
 
-      <.summary reading={@reading} open={@open} symbol={@market.symbol} />
-      <.steps tab={@tab} symbol={@market.symbol} />
-
-      <nav class="covered-calls__tabs" aria-label="Covered calls">
-        <.link patch={~p"/stock/covered-call"} aria-current={@tab == :sell && "page"}>Sell calls</.link>
-        <.link patch={~p"/stock/covered-call?tab=buy"} aria-current={@tab == :buy && "page"}>
-          {"Buy calls" <> if(@reading, do: " (#{length(@open)})", else: "")}
+      <nav
+        id="covered-calls-tabs"
+        class="covered-calls__tabs"
+        aria-label="Covered calls"
+        phx-hook="MotionTabs"
+        data-active={@tab}
+        data-variant={AutolaunchWeb.Motion.standard("tabs")}
+      >
+        <span
+          id="covered-calls-tabs-ink"
+          class="covered-calls__ink"
+          data-ink
+          aria-hidden="true"
+          phx-mounted={JS.ignore_attributes(["style"])}
+        ></span>
+        <.link patch={~p"/stock/covered-call"} data-tab="sell" aria-current={@tab == :sell && "page"}>
+          Sell
+        </.link>
+        <.link
+          patch={~p"/stock/covered-call?tab=buy"}
+          data-tab="buy"
+          aria-current={@tab == :buy && "page"}
+        >
+          Buy <span :if={@reading} class="covered-calls__count">{length(@open)}</span>
         </.link>
         <.link :if={@human_id} navigate={~p"/portfolio"} class="covered-calls__mine">My calls</.link>
       </nav>
@@ -228,7 +476,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         class="covered-calls__section"
         aria-labelledby="covered-calls-buy-title"
       >
-        <h2 id="covered-calls-buy-title" class="covered-calls__title">Calls for sale</h2>
+        <h2 id="covered-calls-buy-title" class="covered-calls__title">For sale</h2>
         <div :if={@open != []} class="market-list__scroll">
           <table class="market-list__table covered-calls__table">
             <caption class="visually-hidden">Calls for sale on {@market.symbol}</caption>
@@ -273,18 +521,19 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           Listing {@selected} isn't for sale now: it has sold out, passed its expiry or stopped
           selling.
         </p>
-        <.buy_panel
+        <.buy_ticket
           :for={listing <- @open}
           :if={@selected == listing.id}
           listing={listing}
           market={@market}
-          unit={@reading.unit}
+          reading={@reading}
+          line={@line}
+          typed={@buy}
           session_lease={@session_lease}
           human_id={@human_id}
         />
         <div :if={@reading && @open == []} class="market-list__scroll market-list__empty">
-          <h2>No calls for sale right now</h2>
-          <p>New listings appear here as soon as a seller lists them.</p>
+          <h2>No listings</h2>
           <.link patch={~p"/stock/covered-call"} class="rg-button rg-button--secondary">
             Sell calls
           </.link>
@@ -294,39 +543,21 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </div>
       </section>
 
-      <section
-        :if={@tab == :sell}
-        class="covered-calls__section covered-calls__sell"
-        aria-labelledby="covered-calls-sell-title"
-      >
-        <div class="covered-calls__form">
-          <h2 id="covered-calls-sell-title" class="covered-calls__title">List calls</h2>
-          <p class="covered-calls__note">
-            Keep the premium either way. You carry any fall in {@market.symbol} and give up any rise above the strike.
-          </p>
-          <.live_component
-            :if={@reading}
-            module={CoveredCallComponent}
-            id="covered-call-list"
-            kind={:list}
-            symbol={@market.symbol}
-            unit={@reading.unit}
-            expiries={Terms.expiries(@reading.now)}
-            session_lease={@session_lease}
-            current_human_id={@human_id}
-          />
-        </div>
-        <div
-          :if={!@reading && !@book.failed}
-          class="market-list__scroll covered-calls__waiting"
-          aria-busy="true"
-        >
+      <section :if={@tab == :sell} class="covered-calls__section" aria-label="Sell">
+        <.sell_ticket
+          :if={@reading}
+          market={@market}
+          reading={@reading}
+          line={@line}
+          sell={@sell}
+          quote={@quote}
+          balance={@balance}
+          session_lease={@session_lease}
+          human_id={@human_id}
+        />
+        <div :if={!@reading && !@book.failed} class="covered-calls__waiting" aria-busy="true">
           <span class="loading-block"></span>
         </div>
-        <aside :if={@reading} class="covered-calls__guide" aria-labelledby="covered-calls-guide-title">
-          <h2 id="covered-calls-guide-title" class="covered-calls__title">Guide</h2>
-          <.guide reading={@reading} symbol={@market.symbol} sell={@sell} />
-        </aside>
       </section>
 
       <section class="covered-calls__section" aria-labelledby="covered-calls-contract-title">
@@ -362,243 +593,516 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     """
   end
 
-  attr :listing, :map, required: true
   attr :market, :map, required: true
-  attr :unit, :integer, required: true
+  attr :reading, :map, required: true
+  attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
+  attr :sell, :map, required: true
+  attr :quote, Read, required: true
+
+  attr :balance, :integer,
+    default: nil,
+    doc: "the listing wallet's stock; nil signed out or unread"
+
   attr :session_lease, :any, required: true
   attr :human_id, :any, required: true
 
-  # The chosen listing's Buy panel, under the list so it is never wider than the screen.
-  defp buy_panel(assigns) do
-    ~H"""
-    <section class="covered-calls__panel" aria-labelledby={"covered-call-buy-#{@listing.id}-title"}>
-      <h3 id={"covered-call-buy-#{@listing.id}-title"}>Buy calls</h3>
-      <dl class="covered-calls__strip covered-calls__strip--panel">
-        <div>
-          <dt>Strike</dt>
-          <dd>{F.usd(@listing.strike_per_token)}</dd>
-        </div>
-        <div>
-          <dt>Premium</dt>
-          <dd>{F.usd(@listing.premium_per_token)} <small>per {@market.symbol}</small></dd>
-        </div>
-        <div>
-          <dt>Exercise window</dt>
-          <dd>{F.window(@listing.expiry)}</dd>
-        </div>
-      </dl>
-      <p class="covered-calls__note">
-        Calls not exercised in the window lapse, and their premium isn't returned.
-      </p>
-      <.live_component
-        module={CoveredCallComponent}
-        id={"covered-call-fill-#{@listing.id}"}
-        kind={:fill}
-        symbol={@market.symbol}
-        unit={@unit}
-        listing={@listing}
-        session_lease={@session_lease}
-        current_human_id={@human_id}
-      />
-    </section>
-    """
-  end
+  # The Sell ticket: the price line with the strike across it, amount, expiry,
+  # strike and premium, then the wallet's button, beside the receipt and the
+  # three ways the listing can end. The strike's line follows the form in the
+  # browser as it is chosen or typed.
+  defp sell_ticket(%{sell: sell, reading: reading, quote: quote} = assigns) do
+    ticket = ticket(sell, reading, quote.value)
+    spot = spot(reading)
 
-  attr :tab, :atom, required: true
-  attr :symbol, :string, required: true
-
-  # What a covered call is, for the side of it the tab is for.
-  defp steps(%{tab: :sell} = assigns) do
-    ~H"""
-    <ol class="covered-calls__steps" aria-label="Steps">
-      <li><strong>List</strong> <span>Lock {@symbol} at your strike and premium.</span></li>
-      <li><strong>Earn</strong> <span>Buyers pay you the premium in USDC.</span></li>
-      <li>
-        <strong>Settle</strong> <span>The buyer may exercise Fri–Sat. Then collect yours.</span>
-      </li>
-    </ol>
-    """
-  end
-
-  defp steps(assigns) do
-    ~H"""
-    <ol class="covered-calls__steps" aria-label="Steps">
-      <li><strong>Buy</strong> <span>Pay the premium in USDC.</span></li>
-      <li><strong>Hold</strong> <span>The right to buy {@symbol} at the strike.</span></li>
-      <li>
-        <strong>Exercise</strong> <span>Pay the strike in the Fri–Sat window, or it lapses.</span>
-      </li>
-    </ol>
-    """
-  end
-
-  attr :reading, :map, default: nil
-  attr :open, :list, required: true
-  attr :symbol, :string, required: true
-
-  # The market's figures, one line each: the price, the next window, what is for sale, the fee.
-  # Drawn from the first render, with dashes until the market is read, so nothing below moves.
-  defp summary(%{reading: reading, open: open} = assigns) do
     assigns =
       assign(assigns,
-        spot: reading && spot(reading),
-        age: reading && reading.price && age(reading.now - reading.price.updated_at),
-        next: hd(Terms.expiries((reading && reading.now) || System.os_time(:second))),
-        calls: reading && length(open),
-        tokens:
-          reading && open |> Enum.map(&Terms.available/1) |> Enum.sum() |> F.tokens(reading.unit)
+        t: ticket,
+        symbol: assigns.market.symbol,
+        unit: reading.unit,
+        spot: spot,
+        custom?: sell["strike"] == "custom",
+        refused: if(quote.state in [:error, :stale], do: quote_refusal(quote.error))
       )
 
     ~H"""
-    <dl class="covered-calls__strip" id="covered-calls-summary">
-      <div>
-        <dt>Price</dt>
-        <dd>
-          {if @spot, do: F.usd(@spot), else: "—"}
-          <small :if={@spot && @age != ""}>{@age}</small>
-          <small :if={@reading && !@spot}>not available</small>
-          <P.tip :if={@spot} id="covered-calls-price-tip" label="Source">
-            Chainlink's feed for the stock on Base. A reference, not a price you can trade at.
+    <Regent.Structure.panel id="covered-calls-sell" class="covered-calls__ticket">
+      <div class="covered-calls__fields">
+        <div class="covered-calls__market">
+          <h2 class="covered-calls__title">{@symbol}</h2>
+          <P.tip id="covered-calls-price-tip" class="covered-calls__spot">
+            <:figure>{F.usd(@spot)}</:figure>
+            {price_words(@reading, @symbol)}
           </P.tip>
-        </dd>
+        </div>
+        <PriceChart.price_line
+          id="covered-calls-sell-price"
+          points={@line}
+          follow="covered-calls-sell-form"
+        >
+          <:level price={dollars(@t.strike)} />
+        </PriceChart.price_line>
+
+        <form id="covered-calls-sell-form" phx-change="sell" phx-submit="sell">
+          <div class="covered-calls__field">
+            <div class="covered-calls__label">
+              <label for="covered-calls-sell-amount">Amount</label>
+              <P.tip id="covered-calls-amount-tip" label="About the amount">
+                Dividends during the week stay with the tokens: they raise each token's share
+                count ({multiplier(@reading.multiplier)} shares per {@symbol} now), so they go to
+                whoever ends up with the {@symbol}.
+              </P.tip>
+              <span :if={@balance} id="covered-calls-sell-balance" class="covered-calls__balance">
+                <span class="visually-hidden">Balance</span>
+                {F.tokens(@balance, @unit)} {@symbol}
+                <button
+                  id="covered-calls-sell-max"
+                  type="button"
+                  class="covered-calls__max"
+                  phx-click={
+                    JS.dispatch("autolaunch:fill",
+                      to: "#covered-calls-sell-amount",
+                      detail: %{value: F.tokens(@balance, @unit)}
+                    )
+                  }
+                  disabled={@balance == 0}
+                >
+                  Max
+                </button>
+              </span>
+            </div>
+            <span class="covered-calls__input">
+              <input
+                id="covered-calls-sell-amount"
+                name="amount"
+                type="text"
+                value={@sell["amount"]}
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="0"
+              />
+              <span aria-hidden="true">{@symbol}</span>
+            </span>
+            <small id="covered-calls-sell-value" class="covered-calls__hint covered-calls__value">
+              {amount_hint(@t, @reading)}
+            </small>
+          </div>
+
+          <fieldset class="covered-calls__field">
+            <legend class="covered-calls__label">
+              <span id="covered-calls-sell-expiry-label">Expiry</span>
+              <P.tip id="covered-calls-expiry-tip" label="About the expiry">
+                Calls expire on a Friday at 21:00 UTC. The buyer can exercise for the 24 hours
+                after.
+              </P.tip>
+            </legend>
+            <.pills id="covered-calls-sell-expiry" active={@t.expiry}>
+              <:pill
+                :for={expiry <- @t.expiries}
+                value={expiry}
+                event="sell_expiry"
+                name="expiry"
+                label={F.window_days(expiry)}
+              >
+                {F.date(expiry)}
+              </:pill>
+            </.pills>
+          </fieldset>
+
+          <fieldset class="covered-calls__field">
+            <legend class="covered-calls__label">
+              <span>Strike</span>
+              <P.tip id="covered-calls-strike-tip" label="About the strike">
+                The price per {@symbol} the buyer pays if they exercise. Any rise above it goes
+                to the buyer.
+              </P.tip>
+            </legend>
+            <.pills id="covered-calls-sell-strike" active={@sell["strike"]}>
+              <:pill
+                :for={{choice, preset} <- presets(@t.presets)}
+                value={choice}
+                event="sell_strike"
+                name="strike"
+                disabled={is_nil(preset)}
+                strike={preset && F.plain_usd(preset.strike_per_token)}
+              >
+                <span>{F.usd(preset && preset.strike_per_token)}</span>
+                <small>{above(preset)}</small>
+              </:pill>
+              <:pill value="custom" event="sell_strike" name="strike" strike="custom">
+                Custom
+              </:pill>
+            </.pills>
+            <span class="covered-calls__input covered-calls__custom" inert={!@custom?}>
+              <input
+                id="covered-calls-sell-custom"
+                name="custom"
+                type="text"
+                value={@sell["custom"]}
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="0.00"
+                aria-label="Custom strike"
+              />
+              <span aria-hidden="true">USDC</span>
+            </span>
+          </fieldset>
+
+          <div class="covered-calls__field">
+            <div class="covered-calls__label">
+              <label for="covered-calls-sell-premium">Premium</label>
+              <P.tip id="covered-calls-premium-tip" label="About the premium">
+                The suggestion is a standard option price with an assumed {round(
+                  Quote.volatility() * 100
+                )}% yearly volatility, counted to the window's close. You choose the premium.
+              </P.tip>
+              <button
+                id="covered-calls-sell-suggested"
+                type="button"
+                class="covered-calls__suggested"
+                phx-click="suggested_premium"
+                inert={!suggest?(@t)}
+              >
+                Suggested {F.usd(@t.suggested)}
+              </button>
+            </div>
+            <span class="covered-calls__input">
+              <input
+                id="covered-calls-sell-premium"
+                name="premium"
+                type="text"
+                value={@sell["premium"] || (@t.suggested && F.plain_usd(@t.suggested))}
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="0.00"
+              />
+              <span aria-hidden="true">per {@symbol}</span>
+            </span>
+          </div>
+        </form>
+
+        <.live_component
+          module={CoveredCallComponent}
+          id="covered-call-list"
+          kind={:list}
+          symbol={@symbol}
+          unit={@unit}
+          order={@t.order}
+          session_lease={@session_lease}
+          current_human_id={@human_id}
+        />
       </div>
-      <div>
-        <dt>Next window</dt>
-        <dd>{F.window_days(@next)}</dd>
+
+      <div
+        id="covered-calls-sell-result"
+        class="covered-calls__result"
+        phx-hook="MotionCount"
+        data-variant={AutolaunchWeb.Motion.standard("count")}
+      >
+        <section class="covered-calls__receipt" aria-labelledby="covered-calls-sell-receipt-title">
+          <div class="covered-calls__label">
+            <h3 id="covered-calls-sell-receipt-title">Receipt</h3>
+            <P.tip id="covered-calls-receipt-tip" label="About the receipt">
+              If all of it sells. Buyers can buy part, and you can stop selling the rest at any
+              time. 1% of each premium goes to REGENT stakers. Strike payments wait in the
+              contract until you collect them.
+            </P.tip>
+            <span class="covered-calls__status" role="status">{@refused}</span>
+          </div>
+          <dl id="covered-calls-sell-receipt" class="covered-calls__lines">
+            <div>
+              <dt>You receive</dt>
+              <dd class="covered-calls__lead">
+                <span id="covered-calls-sell-net" data-count>
+                  {F.usd(@t.receipt && @t.receipt.net_premium)}
+                </span>
+                <small id="covered-calls-sell-yield">{@t.lead}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Fee</dt>
+              <dd id="covered-calls-sell-fee" data-count>{F.usd(@t.receipt && @t.receipt.fee)}</dd>
+            </div>
+            <div>
+              <dt>If exercised</dt>
+              <dd id="covered-calls-sell-exercised" data-count>
+                {F.usd(@t.receipt && @t.receipt.strike)}
+              </dd>
+            </div>
+            <div>
+              <dt>Opens</dt>
+              <dd>
+                <CoveredCallComponent.local_time id="covered-calls-sell-opens" at={@t.expiry} />
+              </dd>
+            </div>
+            <div>
+              <dt>Closes</dt>
+              <dd>
+                <CoveredCallComponent.local_time
+                  id="covered-calls-sell-closes"
+                  at={@t.expiry + Terms.exercise_window()}
+                />
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <ul id="covered-calls-sell-outcomes" class="covered-calls__outcomes" aria-label="Outcomes">
+          <li id="covered-calls-sell-below">
+            <strong>Below strike</strong>
+            <span data-count>{F.usd(@t.receipt && @t.receipt.net_premium)}</span>
+            <small>Keep the premium and your {yours(@t.amount, @unit, @symbol)}</small>
+          </li>
+          <li id="covered-calls-sell-above">
+            <strong>Above strike</strong>
+            <span data-count>
+              {F.usd(@t.receipt && @t.receipt.strike + @t.receipt.net_premium)}
+            </span>
+            <small>Strike plus premium for your {yours(@t.amount, @unit, @symbol)}</small>
+          </li>
+          <li id="covered-calls-sell-unsold">
+            <strong>Unsold</strong>
+            <span data-count>{held(@t.amount, @unit, @symbol)}</span>
+            <small>Take it back at any time</small>
+          </li>
+        </ul>
       </div>
-      <div>
-        <dt>For sale</dt>
-        <dd :if={@calls}>
-          {@tokens} {@symbol}
-          <small>{@calls} {if @calls == 1, do: "listing", else: "listings"}</small>
-        </dd>
-        <dd :if={!@calls}>—</dd>
-      </div>
-      <div>
-        <dt>Fee</dt>
-        <dd>1% <small>of each premium</small></dd>
-      </div>
-    </dl>
+    </Regent.Structure.panel>
     """
   end
 
+  attr :listing, :map, required: true
+  attr :market, :map, required: true
   attr :reading, :map, required: true
-  attr :symbol, :string, required: true
-  attr :sell, :map, required: true
+  attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
+  attr :typed, :string, default: nil, doc: "the amount typed; nil for all that is left"
+  attr :session_lease, :any, required: true
+  attr :human_id, :any, required: true
 
-  # The guide follows the List form: suggested premiums for the window chosen,
-  # the result at expiry of the strike and premium typed (an example from the
-  # middle suggestion until both are), the reference price and its basis, then
-  # the terms.
-  defp guide(%{reading: reading, sell: sell} = assigns) do
-    expiry = chosen_expiry(sell, Terms.expiries(reading.now))
-    spot = spot(reading)
-    rows = suggestions(spot, expiry, reading.now)
-    trade = trade(sell, rows)
+  # The chosen listing's Buy ticket, under the list so it is never wider than
+  # the screen: the price line with its strike and break-even across it, the
+  # amount, what it costs and how it can end, counted as the contract counts
+  # them.
+  defp buy_ticket(%{listing: listing, reading: reading, typed: typed} = assigns) do
+    unit = reading.unit
+    left = Terms.available(listing)
+    amount = if typed, do: F.parse_tokens(typed, unit), else: left
+    break_even = listing.strike_per_token + listing.premium_per_token
 
-    assigns = assign(assigns, expiry: expiry, spot: spot, rows: rows, trade: trade)
+    assigns =
+      assign(assigns,
+        id: "covered-call-buy-#{listing.id}",
+        symbol: assigns.market.symbol,
+        unit: unit,
+        value: typed || F.tokens(left, unit),
+        left: F.tokens(left, unit),
+        amount: amount,
+        order: amount && %{listing_id: listing.id, amount: amount},
+        pay: amount && Terms.usdc_for(amount, listing.premium_per_token, unit),
+        exercise: amount && Terms.usdc_for(amount, listing.strike_per_token, unit),
+        break_even: break_even
+      )
 
     ~H"""
-    <div :if={@trade && @spot} class="covered-calls__suggest" id="covered-calls-outcome">
-      <div class="covered-calls__panel-head">
-        <h3>{@trade.title}</h3>
-        <P.tip id="covered-calls-outcome-tip" label="Result">
-          Per {@symbol} against the reference price, with the premium after the 1% fee, if the
-          buyer exercises whenever the price is above the strike. Exercising, they pay the strike,
-          which you collect, and the {@symbol} is theirs to collect. If they don't, you collect your {@symbol} after the window.
-        </P.tip>
+    <Regent.Structure.panel id={@id} class="covered-calls__ticket" aria-labelledby={"#{@id}-title"}>
+      <div class="covered-calls__fields">
+        <div class="covered-calls__market">
+          <h3 id={"#{@id}-title"} class="covered-calls__title">Buy calls</h3>
+        </div>
+        <PriceChart.price_line id={"#{@id}-price"} points={@line}>
+          <:level price={dollars(@listing.strike_per_token)} name="Strike" />
+          <:level price={dollars(@break_even)} name="Break-even" dotted />
+        </PriceChart.price_line>
+        <form id={"#{@id}-form"} phx-change="buy" phx-submit="buy">
+          <div class="covered-calls__field">
+            <div class="covered-calls__label">
+              <label for={"#{@id}-amount"}>Amount</label>
+              <small class="covered-calls__hint">of {@left}</small>
+            </div>
+            <span class="covered-calls__input">
+              <input
+                id={"#{@id}-amount"}
+                name="amount"
+                type="text"
+                value={@value}
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="0"
+              />
+              <span aria-hidden="true">{@symbol}</span>
+            </span>
+          </div>
+        </form>
+        <.live_component
+          module={CoveredCallComponent}
+          id={"covered-call-fill-#{@listing.id}"}
+          kind={:fill}
+          symbol={@symbol}
+          unit={@unit}
+          listing={@listing}
+          order={@order}
+          session_lease={@session_lease}
+          current_human_id={@human_id}
+        />
       </div>
-      <p class="covered-calls__note">
-        {F.usd(@trade.strike)} strike · {F.usd(@trade.premium)} premium per {@symbol}
-      </p>
-      <table class="covered-calls__mini">
-        <caption class="visually-hidden">Result at expiry per {@symbol}</caption>
-        <tbody>
-          <tr :for={{label, price} <- outcomes(@spot)}>
-            <th scope="row">{label} {F.usd(price)}</th>
-            <td>
-              {signed(
-                Terms.payoff(price, @trade.strike, @trade.premium - Terms.fee(@trade.premium), @spot)
-              )}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
 
-    <div :if={@rows != []} class="covered-calls__suggest" id="covered-calls-suggestions">
-      <h3>Suggested premiums, {F.window_days(@expiry)}</h3>
-      <table class="covered-calls__mini">
-        <thead>
-          <tr>
-            <th scope="col">Strike</th>
-            <th scope="col">Premium</th>
-            <th scope="col"><span class="visually-hidden">Use</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={row <- @rows}>
-            <td>{F.usd(row.strike)} <small>+{row.percent}%</small></td>
-            <td>{F.usd(row.premium)} <small class="covered-calls__each">per {@symbol}</small></td>
-            <td>
-              <button
-                type="button"
-                class="rg-button rg-button--secondary covered-calls__use"
-                phx-click="use_suggestion"
-                phx-value-strike={F.plain_usd(row.strike)}
-                phx-value-premium={F.plain_usd(row.premium)}
-                aria-label={"Use #{F.usd(row.strike)} strike and #{F.usd(row.premium)} premium"}
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p :if={@rows == []} class="covered-calls__note">
-      No suggested premium right now: the reference price couldn't be read or is more than four
-      days old.
-    </p>
+      <div
+        id={"#{@id}-result"}
+        class="covered-calls__result"
+        phx-hook="MotionCount"
+        data-variant={AutolaunchWeb.Motion.standard("count")}
+      >
+        <section class="covered-calls__receipt" aria-labelledby={"#{@id}-receipt-title"}>
+          <div class="covered-calls__label">
+            <h4 id={"#{@id}-receipt-title"}>Receipt</h4>
+          </div>
+          <dl id={"#{@id}-receipt"} class="covered-calls__lines">
+            <div>
+              <dt>You pay</dt>
+              <dd id={"#{@id}-pay"} data-count>{if @pay, do: F.usd_due(@pay), else: F.usd(nil)}</dd>
+            </div>
+            <div>
+              <dt>To exercise</dt>
+              <dd id={"#{@id}-exercise"} data-count>
+                {if @exercise, do: F.usd_due(@exercise), else: F.usd(nil)}
+              </dd>
+            </div>
+            <div>
+              <dt>You get</dt>
+              <dd id={"#{@id}-get"}>
+                <span data-count>{if @amount, do: "#{F.tokens(@amount, @unit)} #{@symbol}", else: "—"}</span>
+                <small :if={@amount && shares?(@reading)}>{shares(@amount, @reading)}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Strike</dt>
+              <dd id={"#{@id}-strike"}>
+                {F.usd(@listing.strike_per_token)} <small>per {@symbol}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Break-even</dt>
+              <dd id={"#{@id}-break-even"}>
+                {F.usd(@break_even)} <small>per {@symbol}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>Opens</dt>
+              <dd><CoveredCallComponent.local_time id={"#{@id}-opens"} at={@listing.expiry} /></dd>
+            </div>
+            <div>
+              <dt>Closes</dt>
+              <dd>
+                <CoveredCallComponent.local_time
+                  id={"#{@id}-closes"}
+                  at={@listing.expiry + Terms.exercise_window()}
+                />
+              </dd>
+            </div>
+          </dl>
+        </section>
 
-    <P.disclosure id="covered-calls-estimate" summary="Estimate" class="covered-calls__more">
-      <p>
-        A model estimate, not a market quote: a standard option price with an assumed {round(
-          Quote.volatility() * 100
-        )}% yearly volatility and no interest, counted to the
-        window's close (Saturday 21:00 UTC). It starts from the reference price (Chainlink's feed for the stock on Base: {reference(
-          @reading
-        )}), which updates less often while the market is closed and is not a
-        price you can trade at. You choose the premium.
-      </p>
-    </P.disclosure>
-
-    <P.disclosure id="covered-calls-terms" summary="Terms" class="covered-calls__more">
-      <ul class="covered-calls__terms">
-        <li>
-          Dividends during the week stay with the tokens: they raise each token's share count
-          ({multiplier(@reading.multiplier)} shares per {@symbol} now), so they go to whoever ends
-          up with the {@symbol}.
-        </li>
-        <li>
-          Buyers can exercise for 24 hours from Friday 21:00 UTC. After that, on your portfolio,
-          collect any {@symbol} the buyer didn't exercise.
-        </li>
-        <li>Strike payments wait in the contract until you collect them.</li>
-        <li>1% of each premium goes to REGENT stakers.</li>
-        <li>You can stop selling what hasn't sold at any time.</li>
-      </ul>
-    </P.disclosure>
+        <ul id={"#{@id}-outcomes"} class="covered-calls__outcomes" aria-label="Outcomes">
+          <li>
+            <strong>Above break-even</strong>
+            <span>Over {F.usd(@break_even)}</span>
+            <small>Exercise for a profit</small>
+          </li>
+          <li>
+            <strong>In between</strong>
+            <span>{F.usd(@listing.strike_per_token)} – {F.usd(@break_even)}</span>
+            <small>Exercise to win back part of the premium</small>
+          </li>
+          <li>
+            <strong>Below strike</strong>
+            <span>Under {F.usd(@listing.strike_per_token)}</span>
+            <small>Let it lapse; the premium is spent</small>
+          </li>
+        </ul>
+      </div>
+    </Regent.Structure.panel>
     """
   end
 
-  # The window the form has chosen, or the next one before it has.
-  defp chosen_expiry(sell, [next | _later] = expiries) do
-    case Integer.parse(sell["expiry"] || "") do
-      {chosen, ""} -> if chosen in expiries, do: chosen, else: next
-      _none -> next
-    end
+  attr :id, :string, required: true
+  attr :active, :any, required: true, doc: "the value chosen"
+
+  slot :pill, required: true do
+    attr :value, :any, required: true
+    attr :event, :string, required: true
+    attr :name, :string, required: true, doc: "the event's value name"
+    attr :label, :string, doc: "the choice's name when its words are short"
+    attr :disabled, :boolean
+
+    attr :strike, :string,
+      doc: "a strike's price in dollars, or \"custom\" for the typed one, for the price line"
   end
+
+  # One choice of a few, side by side, the chosen one marked by a block that
+  # travels to it (`MotionTabs`). Each choice is a button the page hears.
+  defp pills(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class="covered-calls__pills"
+      role="group"
+      phx-hook="MotionTabs"
+      data-active={@active}
+      data-variant={AutolaunchWeb.Motion.standard("tabs")}
+      style={"--pills: #{length(@pill)}"}
+    >
+      <span
+        id={"#{@id}-ink"}
+        class="covered-calls__pill-ink"
+        data-ink
+        aria-hidden="true"
+        phx-mounted={JS.ignore_attributes(["style"])}
+      ></span>
+      <button
+        :for={pill <- @pill}
+        type="button"
+        data-tab={pill.value}
+        aria-pressed={to_string(to_string(pill.value) == to_string(@active))}
+        aria-label={pill[:label]}
+        disabled={pill[:disabled]}
+        data-strike={pill[:strike]}
+        phx-click={pill.event}
+        {%{"phx-value-#{pill.name}" => pill.value}}
+      >
+        {render_slot(pill)}
+      </button>
+    </div>
+    """
+  end
+
+  # The three suggestions by their place, or empty places until the quote is in.
+  defp presets([_, _, _] = presets), do: Enum.zip(@presets, presets)
+  defp presets(_none), do: Enum.map(@presets, &{&1, nil})
+
+  defp above(nil), do: "—"
+
+  defp above(preset),
+    do: "+#{:erlang.float_to_binary(preset.above_reference * 100, decimals: 1)}%"
+
+  # The way back to the suggestion, once a different premium is typed.
+  defp suggest?(%{edited?: edited?, typed: typed, suggested: suggested}),
+    do: edited? and is_integer(suggested) and typed != suggested
+
+  # A USDC price per token in dollars, as the price line draws it.
+  defp dollars(nil), do: nil
+  defp dollars(micro), do: micro / 1_000_000
+
+  defp held(nil, _unit, _symbol), do: "—"
+  defp held(amount, unit, symbol), do: "#{F.tokens(amount, unit)} #{symbol}"
+
+  defp yours(nil, _unit, symbol), do: symbol
+  defp yours(amount, unit, symbol), do: held(amount, unit, symbol)
+
+  defp quote_refusal(:price_unavailable), do: "No reference price right now"
+  defp quote_refusal(_unavailable), do: "The price couldn't be read"
 
   defp spot(reading) do
     case Quote.spot(reading) do
@@ -607,56 +1111,19 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     end
   end
 
-  defp suggestions(nil, _expiry, _now), do: []
-
-  defp suggestions(spot, expiry, now) do
-    for percent <- @suggested_strikes do
-      strike = round_cents(spot * (100 + percent) / 100)
-      # To the cent, as the form takes a premium.
-      premium = max(round_cents(Quote.premium(spot, strike, expiry, now)), 10_000)
-      %{percent: percent, strike: strike, premium: premium}
-    end
+  defp price_words(%{price: %{updated_at: at}, now: now} = reading, symbol) do
+    if spot(reading),
+      do:
+        "Chainlink's price for #{symbol} on Base, #{age(now - at)}. A reference, not a price you can trade at.",
+      else: "Chainlink's price for #{symbol} on Base is more than four days old."
   end
 
-  # The strike and premium typed, or the middle suggestion as an example.
-  defp trade(sell, rows) do
-    case {F.parse_usd(sell["strike"] || ""), F.parse_usd(sell["premium"] || ""), rows} do
-      {strike, premium, _rows} when is_integer(strike) and is_integer(premium) ->
-        %{title: "Your trade", strike: strike, premium: premium}
+  defp price_words(_reading, symbol),
+    do: "Chainlink's price for #{symbol} on Base couldn't be read just now."
 
-      {_strike, _premium, [_low, middle | _high]} ->
-        %{title: "Example", strike: middle.strike, premium: middle.premium}
-
-      _no_price ->
-        nil
-    end
-  end
-
-  defp outcomes(spot),
-    do: [
-      {"Falls 20% to", round_cents(spot * 0.8)},
-      {"Unchanged at", spot},
-      {"Rises 20% to", round_cents(spot * 1.2)}
-    ]
-
-  defp signed(micro) when micro < 0, do: "−" <> F.usd(-micro)
-  defp signed(micro), do: "+" <> F.usd(micro)
-
-  defp reference(%{price: %{answer: answer, updated_at: at}, now: now}) do
-    when_read = at |> DateTime.from_unix!() |> Calendar.strftime("%-d %b, %H:%M UTC")
-
-    case age(now - at) do
-      "" -> "#{F.usd(div(answer, 100))} at #{when_read}"
-      old -> "#{F.usd(div(answer, 100))} at #{when_read}, #{old}"
-    end
-  end
-
-  defp reference(_reading), do: "not available right now"
-
-  # How old the reference price is, once it is old enough to matter.
-  defp age(seconds) when seconds >= 2 * 86_400, do: "#{div(seconds, 86_400)} days ago"
-  defp age(seconds) when seconds >= 2 * 3_600, do: "#{div(seconds, 3_600)} hours ago"
-  defp age(_seconds), do: ""
+  defp age(seconds) when seconds >= 2 * 86_400, do: "updated #{div(seconds, 86_400)} days ago"
+  defp age(seconds) when seconds >= 2 * 3_600, do: "updated #{div(seconds, 3_600)} hours ago"
+  defp age(_seconds), do: "updated in the last two hours"
 
   defp multiplier(wad) do
     wad
@@ -666,11 +1133,18 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     |> Decimal.to_string(:normal)
   end
 
-  defp shares(raw, %{multiplier: wad, unit: unit}) do
-    if wad == 1_000_000_000_000_000_000,
-      do: nil,
-      else: "#{F.tokens(Chain.shares(raw, wad), unit)} shares"
+  defp shares?(%{multiplier: wad}), do: wad != 1_000_000_000_000_000_000
+
+  # Under the amount: its worth at the reference price, and its share count
+  # when a token is more than one share.
+  defp amount_hint(%{amount: nil}, _reading), do: nil
+
+  defp amount_hint(%{amount: amount, value: value}, reading) do
+    worth = if value, do: "≈ #{F.usd(value)}"
+    Enum.join(Enum.reject([worth, shares(amount, reading)], &is_nil/1), " · ")
   end
 
-  defp round_cents(micro), do: round(micro / 10_000) * 10_000
+  defp shares(raw, %{multiplier: wad, unit: unit} = reading) do
+    if shares?(reading), do: "#{F.tokens(Chain.shares(raw, wad), unit)} shares"
+  end
 end

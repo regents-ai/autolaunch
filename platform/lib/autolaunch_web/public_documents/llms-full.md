@@ -21,8 +21,8 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 
 Use Autolaunch when you want to:
 
-- raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through a 48-hour auction on Base;
-- launch a memestock (a memecoin paired with a real onchain stock) through a 24-hour Memestock auction on Base or Robinhood Chain;
+- raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through an auction of {{revstake_auction}} on Base;
+- launch a memestock (a memecoin paired with a real onchain stock) through a Memestock auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain;
 - back an agent early by bidding in its auction, then stake the token for a share of what it earns;
 - look up auctions, launched tokens, bid estimates or a launch treasury's security report.
 
@@ -43,7 +43,7 @@ Every Autolaunch token is sold in a continuous clearing auction (CCA). CCA is th
 - The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.
 - Each block where the clearing price is lower than your max price, you will receive tokens for a portion of your budget. If your max price is exceeded, the remainder of your TWAP is cancelled.
 
-The game theory: bid early with your real max budget and your real max price. Your max price ensures you will not buy a single token above what you are willing to pay, and orders TWAP over the remaining duration, so waiting only gets you a worse average price. With a well parameterized auction there are no timing games, sniping, bundling or sandwiching, everyone buys at the same rates, and advanced users and MEV bots have no advantage. Even if you bid $10b FDV on the first day, you would not have overpaid, and instead executed at a DCA price between floor and clearing. After a successful auction, a large portion of the proceeds and a reserve of tokens seed a Uniswap v4 pool.
+The game theory: bid early with your real max budget and your real max price. Your max price ensures you will not buy a single token above what you are willing to pay, and orders TWAP over the remaining duration, so waiting only gets you a worse average price. With a well parameterized auction there are no timing games, sniping, bundling or sandwiching, everyone buys at the same rates, and advanced users and MEV bots have no advantage. Even if you bid $10b FDV at the start, you would not have overpaid, and instead executed at a DCA price between floor and clearing. After a successful auction, a large portion of the proceeds and a reserve of tokens seed a Uniswap v4 pool.
 
 ## Revstake: a new AiFi primitive
 
@@ -54,7 +54,7 @@ Two main differences from other launchpads:
 1. The point of buying a revstake token is to stake it in the Autolaunch staking contract, which is easy to do through the site.
 2. No early snipers here. If you are in the auction, you are early. Most of the tokens in an auction go at the end of it, and since your bid amount is split up by block, there is never a disadvantage to bidding your true value bid in full, as early as possible. More on CCA mechanics from Hayden Adams, reflecting on Aztec's launch: https://x.com/haydenzadams/status/1997358255442440584
 
-Revstake token auctions have a 48 hour duration and are priced in REGENT, with 20% of tokens for the auction, up to 10% locked in the Uni v4 pool, and 70% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain most of the equity.
+Revstake token auctions last {{revstake_auction}} and are priced in REGENT, with 20% of tokens for the auction, up to 10% locked in the Uni v4 pool, and 70% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain most of the equity.
 
 Revstake supply: 100 billion tokens.
 
@@ -74,7 +74,7 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestock: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Create a memecoin paired to onchain stock. Holders earn the stock from trading fees. Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Create a memecoin paired to onchain stock. Holders earn the stock from trading fees. Memestock launches last {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain. Stakers earn the onchain stock from fees.
 
 Memestock supply: 1 billion tokens.
 
@@ -82,7 +82,7 @@ Memestock supply: 1 billion tokens.
 | --- | --- | --- |
 | Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
 | Liquidity reserve | 497.5 million (49.75%) | A full-range position pairs the stock raised with the tokens it needs at the final clearing price. Remaining reserve is locked in a token-only position above the opening token price, available as that price rises. Both positions are locked forever; any stock left over from rounding joins the protocol fee. |
-| Creator | 5 million (0.5%) | Released to the token's creator block by block over 30 days from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
+| Creator | 5 million (0.5%) | Released to the token's creator block by block over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
 Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
@@ -200,8 +200,7 @@ source, wheel hash and sign-in instructions. Do not create a new key without you
 person's approval. Native browser tools require separate runtime support.
 
 The separate `autolaunch` CLI package remains unpublished. The unified Regents CLI
-{{regents_cli}} includes the signed commands below and reads Credits history by
-`pagination.next_cursor`. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; draft writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
+{{regents_cli}} includes the signed commands below. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; draft writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
 
 ### Bidding, launching and staking
 

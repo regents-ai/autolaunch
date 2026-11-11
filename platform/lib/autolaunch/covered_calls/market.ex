@@ -5,7 +5,9 @@ defmodule Autolaunch.CoveredCalls.Market do
   same refusals:
 
     * `:book` — a market's listings, as its contract holds them (public)
-    * `:quote` — the suggested premium for a strike and expiry (public)
+    * `:quote` — a seller's quote for an expiry: the reference price, the
+      next expiries, three suggested strikes, and what a listing of the
+      chosen strike and premium pays (public)
     * `:positions` — what a wallet of the acting account sold and holds
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
@@ -34,14 +36,12 @@ defmodule Autolaunch.CoveredCalls.Market do
 
     action :quote, :map do
       argument :symbol, :string, allow_nil?: false
-      argument :strike_per_token, :integer, allow_nil?: false, constraints: @amount
       argument :expiry, :integer, allow_nil?: false, constraints: @expiry
+      argument :amount, :integer, constraints: @amount
+      argument :strike_per_token, :integer, constraints: @amount
+      argument :premium_per_token, :integer, constraints: @amount
 
-      run fn input, _context ->
-        input.arguments.symbol
-        |> Quote.suggest(input.arguments.strike_per_token, input.arguments.expiry)
-        |> __MODULE__.refused()
-      end
+      run fn input, _context -> input.arguments |> Quote.read() |> __MODULE__.refused() end
     end
 
     action :positions, :map do

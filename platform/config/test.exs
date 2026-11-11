@@ -128,7 +128,7 @@ config :autolaunch,
 config :autolaunch, :database_startup_enabled, true
 
 # ExUnit reads no chain for the shared libraries; a browser or lab server reads
-# Base and Ethereum for real (Autolaunch.Chain.NodeClient).
+# Base for real (Autolaunch.Chain.NodeClient).
 unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
   config :autolaunch, :chain_nodes, %{}
 end
@@ -192,7 +192,7 @@ if System.get_env("AUTOLAUNCH_WALK") == "true" do
   closed = "http://127.0.0.1:9"
 
   config :autolaunch, Oban, testing: :manual
-  config :autolaunch, :chain_nodes, %{8453 => closed, 1 => closed}
+  config :autolaunch, :chain_nodes, %{8453 => closed}
   config :autolaunch, :autolaunch_market_http_client, Autolaunch.TestStocksMarketHttpClient
   config :req, default_options: [adapter: Autolaunch.WalkOffline]
   config :autolaunch, :walk_outside_file, Path.expand("../tmp/walk-outside.txt", __DIR__)

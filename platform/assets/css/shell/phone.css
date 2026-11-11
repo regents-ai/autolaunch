@@ -109,20 +109,8 @@
   }
 
   /* The $REGENT menu, GitHub and the theme switch are on a wider screen only:
-     the theme switch starts the footer. The balance keeps its full width, without
-     the word Credits; narrower than 22.5rem it moves into the account menu. */
+     the theme switch starts the footer. */
   #home-top .regent-header-links {
-    display: none;
-  }
-
-  #home-top .shell-credits {
-    flex: 0 0 auto;
-    margin-inline-end: 0;
-    padding-inline: 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  #home-top .shell-credits .shell-credits__unit {
     display: none;
   }
 
@@ -306,22 +294,6 @@
     gap: var(--space-2);
   }
 
-}
-
-/* On a touch screen the balance is a full 44px press, however few digits it shows. */
-@media (hover: none), (pointer: coarse) {
-  #home-top .shell-credits {
-    min-inline-size: 2.75rem;
-    min-block-size: 2.75rem;
-  }
-}
-
-/* Narrower than 22.5rem the header has no room for the balance: the account menu
-   shows it instead, as its balance row, which opens the same window. */
-@media (max-width: 22.49rem) {
-  #home-top .shell-credits {
-    display: none;
-  }
 }
 
 /* The narrowest phones: Sign in gives up its arrow so the whole bar keeps one row. */

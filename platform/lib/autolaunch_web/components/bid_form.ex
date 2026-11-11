@@ -18,9 +18,10 @@ defmodule AutolaunchWeb.Components.BidForm do
   carry no dollar value, it stays in the auction's own currency.
 
   The host component owns `bid_form_changed`, sent with the form's fields as
-  they change (`values/3` reads them), and `fill_bid_amount` when a balance is
-  offered, and puts its wallet button after the form: a wallet button is never
-  inside a form.
+  they change (`values/3` reads them), and puts its wallet button after the
+  form: a wallet button is never inside a form. A balance offered fills the
+  budget in the browser at the press, so a press straight after it carries
+  that budget however long the server takes.
   """
   use Phoenix.Component
 
@@ -284,8 +285,9 @@ defmodule AutolaunchWeb.Components.BidForm do
             :if={@balance}
             type="button"
             class="bid-box__balance"
-            phx-click="fill_bid_amount"
-            phx-target={@target}
+            phx-click={
+              JS.dispatch("autolaunch:fill", to: "##{@id}-amount", detail: %{value: @balance})
+            }
           >
             Balance {@balance}
           </button>

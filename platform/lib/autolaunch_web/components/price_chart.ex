@@ -5,6 +5,9 @@ defmodule AutolaunchWeb.Components.PriceChart do
   number of trades beneath it. The figures come from `Autolaunch.PriceHistory`;
   the PriceChart hook draws the line with WebGPU. The caption says in words how
   far the price has moved, so a browser that cannot draw still reads it.
+
+  `price_line/1` is the covered-call tickets' smaller line, with their strike
+  across it.
   """
   use Phoenix.Component
 
@@ -52,6 +55,60 @@ defmodule AutolaunchWeb.Components.PriceChart do
 
   def price_chart(assigns), do: ~H""
 
+  attr :id, :string, required: true
+
+  attr :points, :list,
+    required: true,
+    doc: "`[unix seconds, dollars]` pairs, oldest first, or nil while there is no line"
+
+  attr :follow, :string,
+    default: nil,
+    doc: "the Sell form whose strike the first level follows as it is chosen or typed"
+
+  slot :level, required: true, doc: "a price drawn flat across it, its figure at the end" do
+    attr :price, :float, required: true, doc: "in dollars, nil while it is not set"
+    attr :name, :string, doc: "the word before its figure"
+    attr :dotted, :boolean, doc: "drawn dotted and lighter, to tell it from a dashed one"
+  end
+
+  @doc """
+  A covered-call ticket's small price line: a stock's last 30 days, with prices
+  drawn flat across it and each one's figure at its end (the strike, and on Buy
+  the break-even, each named, the break-even dotted). The PriceLine hook draws
+  it with this module's renderer. Its box keeps its size while there is no
+  line, and a browser that cannot draw keeps the caption.
+  """
+  def price_line(assigns) do
+    ~H"""
+    <figure id={@id} class="price-line">
+      <figcaption class="price-chart__caption">
+        <span>30 days</span>
+        <span :if={@points} class="price-chart__change">{change(@points)}</span>
+      </figcaption>
+      <div
+        :if={@points}
+        id={"#{@id}-plot"}
+        class="price-line__plot"
+        phx-hook="PriceLine"
+        data-points={Jason.encode!(@points)}
+        data-levels={Jason.encode!(Enum.map(@level, & &1.price))}
+        data-follow={@follow}
+      >
+        <canvas id={"#{@id}-line"} phx-update="ignore" aria-hidden="true"></canvas>
+        <div id={"#{@id}-levels"} class="price-line__levels" phx-update="ignore" aria-hidden="true">
+          <span
+            :for={level <- @level}
+            class={["price-line__level", level[:dotted] && "price-line__level--dotted"]}
+            data-level=""
+            hidden
+          ><span><small :if={level[:name]} class="price-line__name">{level.name}</small><span data-figure></span></span></span>
+        </div>
+      </div>
+      <div :if={!@points} id={"#{@id}-empty"} class="price-line__plot"></div>
+    </figure>
+    """
+  end
+
   @doc "The chart's place while the pool is first read, so the card keeps its height when the line arrives."
   def price_chart_reading(assigns) do
     ~H"""
@@ -64,7 +121,7 @@ defmodule AutolaunchWeb.Components.PriceChart do
     """
   end
 
-  @doc "How far a line of `[block, price]` points moved from its first price to its last, in words."
+  @doc "How far a line of `[block or time, price]` points moved from its first price to its last, in words."
   def change([[_block, first] | _rest] = points) do
     [_block, last] = List.last(points)
     percent = Float.round((last / first - 1) * 100, 1)

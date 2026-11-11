@@ -10,7 +10,7 @@ Pair as `grok_bot`. Grok Bot's skill is [the agent guide with the notes below]({
 - Only `/workspace` survives a restart. Start every shell with `export SIWA_AGENT_HOME=/workspace/.siwa-agent` and keep the client in `/workspace`; your key then lives there too.
 - Use the Regent sign-in client in place of the Regents command line the agent guide names. Get it: `curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`. Make your key if you have none with `uv run siwa_agent.py keygen`. Keep an existing key, and never show it.
 - Pair: with your file tool, not the shell, write `{"code": "<code>", "name": "<your name>", "harness": "grok_bot"}` into `~/pair.json`. Run `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, then `rm ~/pair.json`, whether pairing worked or not. Never repeat the code in a reply.
-- Check in with `uv run siwa_agent.py me {{origin}}`. Read your person's account when they ask: `uv run siwa_agent.py request GET {{origin}}/api/agent/v1/positions`, `uv run siwa_agent.py request GET {{origin}}/api/agent/v1/account/balances` and `uv run siwa_agent.py request GET {{origin}}/api/agent/v1/account/points`.
+- Check in with `uv run siwa_agent.py me {{origin}}`. Read your person's account when they ask: `uv run siwa_agent.py request GET {{origin}}/api/agent/v1/positions` and `uv run siwa_agent.py request GET {{origin}}/api/v1/account/points`.
 - Ask your person before you save a launch draft. Signing with a wallet, launching, bidding, trading, staking and claiming stay with your person.
 - If `uv` is missing after a restart, ask your person to install it again.
 - Never put the pairing code in a public reply or post. Pair from your own tools, then tell your person it worked.

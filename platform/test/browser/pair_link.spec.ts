@@ -8,9 +8,12 @@ import {ready, signedIn, watch} from "./support/person"
 
 const message = (page: Page) => page.locator("#pair-pairing-box pre")
 
-// The page opens on the list of agents, as the pairing window does.
+// The page opens on the list of agents, as the pairing window does. A choice
+// closes the list, so the radio is looked for hidden too when its check is read.
 async function choose(page: Page, agent: string) {
-  const radio = page.locator("#pair-pairing-box").getByRole("radio", {name: agent, exact: true})
+  const radio = page
+    .locator("#pair-pairing-box")
+    .getByRole("radio", {name: agent, exact: true, includeHidden: true})
   await expect(page.locator("#pair-pairing-box details")).toHaveAttribute("open", "")
   await radio.locator("xpath=ancestor::label").click()
   await expect(radio).toBeChecked()

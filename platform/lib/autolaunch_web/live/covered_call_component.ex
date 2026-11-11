@@ -2,10 +2,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   @moduledoc """
   The wallet panel for one covered-call action: list calls, buy them, exercise,
   stop selling, collect stock or collect USDC, the way the token page's Stake
-  and Claim and the Buy window work. The form shows what the action comes to
-  as it is typed; its button opens a review over the form with the steps the
-  wallet sends, one button at a time, and the review closes when the chain
-  confirms the last one. The page then shows what moved (`toast/1`), from
+  and Claim and the Buy window work. Its button opens a review over the panel
+  with the steps the wallet sends, one button at a time, and the review closes
+  when the chain confirms the last one. The page then shows what moved (`toast/1`), from
   `{:covered_call_done, done}`: an action can take its own panel off the page
   (the last calls bought, a row's last collection).
 
@@ -13,17 +12,25 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   the same action agents call) for the wallet that may act
   (`AutolaunchWeb.OnchainSteps`), and every press of the wallet button goes
   straight to the wallet. An approval is its own step; one the chain already
-  holds shows as done. The form's button is disabled only when the chain, read
-  at the latest block for the form as it stands, makes the action certain to
-  fail, with the reason beside it.
+  holds shows as done. The button is disabled only when the chain, read at the
+  latest block for the action as it stands, makes it certain to fail, with the
+  reason beside it.
 
   The page passes `kind`, `symbol`, `unit` (raw units per whole token), the
-  `listing` an action is on, `expiries` for a new listing, `holding` for an
-  exercise, the panel's `session_lease` and `current_human_id`, and, for a row
-  of actions such as the portfolio's, `variant="secondary"` for its button. A landed
+  `listing` an action is on, the panel's `session_lease` and `current_human_id`,
+  and, for a row of actions such as the portfolio's, `variant="secondary"` for
+  its button. Listing and buying take the page's ticket as `order`, the
+  action's arguments (`nil` until every figure of it reads); an exercise has
+  its own amount field, starting at `holding`. A landed
   step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
   naming the listing and its seller (both `nil` for a new one) and the wallet
   that sent it.
+
+  The listing panel also tells the page how much of the stock the signed-in
+  account's wallet holds, the Sell ticket's Max, with
+  `{:covered_call_balance, symbol, balance}` (`nil` signed out or unread): the
+  wallet the panel shows figures for, read at the latest block when it
+  changes, when the page comes back into view and when a step lands.
   """
   use AutolaunchWeb, :live_component
 
@@ -54,25 +61,19 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        notice: nil,
        listing: nil,
        holding: nil,
-       expiries: [],
-       variant: "primary"
+       order: nil,
+       variant: "primary",
+       balance_for: nil,
+       balance_reads: 0
      )}
   end
 
-  # A suggestion the page's guide offers, put into the form as if typed.
   @impl true
-  def update(%{fill: fill}, socket),
-    do:
-      {:ok,
-       socket
-       |> assign(inputs: Map.merge(socket.assigns.inputs, fill), typed: true, notice: nil)
-       |> tell_form()
-       |> sync()}
-
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
-    # Until the person types, the form follows the listing as the page reads it.
+    # Until the person types, an exercise follows the holding as the page reads
+    # it. Listing and buying follow the page's ticket (`order`).
     socket =
       if socket.assigns.typed,
         do: socket,
@@ -93,19 +94,21 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # The page came back into view, the wallet changed or a press went out: the
   # chain is read again, so a button the chain held back comes back once it
   # allows the action.
-  def handle_event("refresh_funds", _params, socket), do: {:noreply, sync(socket)}
+  def handle_event("refresh_funds", _params, socket),
+    do: {:noreply, socket |> update(:balance_reads, &(&1 + 1)) |> sync()}
 
   def handle_event("change", params, socket) do
-    socket = assign(socket, inputs: inputs(socket.assigns.kind, params), typed: true, notice: nil)
-    {:noreply, socket |> tell_form() |> sync()}
+    socket = assign(socket, inputs: Map.take(params, ["amount"]), typed: true, notice: nil)
+    {:noreply, sync(socket)}
   end
 
-  # The form sends its fields with the press, so a figure typed a moment ago
-  # is the one reviewed.
+  # The exercise form sends its amount with the press, so a figure typed a
+  # moment ago is the one reviewed. The page's ticket reaches the panel before
+  # a press after it: the page hears its form's change first.
   def handle_event("review", params, socket) do
     socket =
-      if socket.assigns.kind in [:list, :fill, :exercise] and is_map_key(params, "amount"),
-        do: assign(socket, inputs: inputs(socket.assigns.kind, params), typed: true),
+      if socket.assigns.kind == :exercise and is_map_key(params, "amount"),
+        do: assign(socket, inputs: Map.take(params, ["amount"]), typed: true),
         else: socket
 
     {:noreply, reviewed(socket)}
@@ -135,11 +138,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
 
   @impl true
-  def handle_async(:quote, {:ok, {inputs, signer, result}}, socket) do
-    if inputs == socket.assigns.inputs and signer == signer(socket) do
+  def handle_async(:quote, {:ok, {request, signer, result}}, socket) do
+    if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, assign(socket, quote: {inputs, signer, prepared}, refusal: nil)}
+          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
 
         {:error, reason} ->
           {:noreply, assign(socket, quote: nil, refusal: reason)}
@@ -154,6 +157,15 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+
+  def handle_async(:balance, {:ok, {key, balance}}, socket) do
+    if key == socket.assigns.balance_for,
+      do: send(self(), {:covered_call_balance, socket.assigns.symbol, balance})
+
+    {:noreply, socket}
+  end
+
+  def handle_async(:balance, {:exit, _reason}, socket), do: {:noreply, socket}
 
   # The form's figures follow the wallet that may act and the form as it
   # stands. A review open for another wallet closes: its steps were built for
@@ -170,18 +182,50 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     case {signer, request(socket.assigns)} do
       {signer, {:ok, request}} when is_binary(signer) ->
-        %{inputs: inputs} = socket.assigns
         assigns = Map.take(socket.assigns, [:symbol, :kind, :current_human_id])
 
         socket
         |> assign(refusal: nil)
-        |> start_async(:quote, fn -> {inputs, signer, prepare(assigns, request, signer)} end)
+        |> start_async(:quote, fn -> {request, signer, prepare(assigns, request, signer)} end)
 
       {_signer, request} ->
         refusal = if match?({:error, _}, request), do: elem(request, 1)
         assign(socket, quote: nil, refusal: refusal)
     end
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
+    |> read_balance()
+  end
+
+  # The listing panel's wallet stock, for the page's Max: the wallet the panel
+  # shows figures for while signed in, read again for each new wallet and each
+  # ask (`balance_reads`).
+  defp read_balance(%{assigns: %{kind: :list} = assigns} = socket) do
+    wallet =
+      if is_list(assigns.linked),
+        do: OnchainSteps.shown_wallet(assigns.linked, assigns.signed_in, assigns.active)
+
+    key = {wallet, assigns.balance_reads}
+    %{symbol: symbol, current_human_id: id} = assigns
+
+    if key == assigns.balance_for,
+      do: socket,
+      else:
+        socket
+        |> assign(balance_for: key)
+        |> start_async(:balance, fn -> {key, balance(symbol, id, wallet)} end)
+  end
+
+  defp read_balance(socket), do: socket
+
+  defp balance(_symbol, _id, nil), do: nil
+
+  defp balance(symbol, id, wallet) do
+    case CoveredCalls.covered_call_positions(symbol, %{wallet: wallet},
+           actor: %Human{human_account_id: id}
+         ) do
+      {:ok, %{balance: balance}} -> balance
+      {:error, _error} -> nil
+    end
   end
 
   # The form's button: the steps for the form as it stands, read again now.
@@ -192,8 +236,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       {nil, _request} ->
         assign(socket, notice: no_signer(socket.assigns))
 
-      {_signer, {:error, reason}} ->
-        assign(socket, notice: refusal_words(reason) || unreadable(socket.assigns.kind))
+      {_signer, {:error, :invalid_amount}} ->
+        assign(socket, notice: unreadable(socket.assigns.kind))
 
       {signer, {:ok, request}} ->
         case prepare(socket.assigns, request, signer) do
@@ -212,13 +256,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             |> assign(
               notice: nil,
               press_note: nil,
-              quote: {socket.assigns.inputs, signer, prepared}
+              quote: {request, signer, prepared}
             )
             |> OnchainSteps.put_review(review)
 
           {:ok, prepared} ->
             socket
-            |> assign(quote: {socket.assigns.inputs, signer, prepared})
+            |> assign(quote: {request, signer, prepared})
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
@@ -227,19 +271,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     end
   end
 
-  # A form whose figures don't read: what each figure takes.
+  # A ticket whose figures don't read: what each figure takes.
   defp unreadable(:list),
     do: "Enter an amount above zero and prices to the cent, with a dot for decimals (1.50)."
 
   defp unreadable(_kind), do: "Enter an amount above zero, with a dot for decimals (1.5)."
-
-  # The List form tells the page what it holds, so the page's guide follows it.
-  defp tell_form(%{assigns: %{kind: :list, inputs: inputs}} = socket) do
-    send(self(), {:covered_call_form, inputs})
-    socket
-  end
-
-  defp tell_form(socket), do: socket
 
   defp no_signer(%{linked: nil}), do: "Sign in to use your wallet here."
 
@@ -251,6 +287,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # closes and the page says what moved.
   defp confirmed(socket, %{review: %{id: id, signer: signer}, name: name}) do
     Book.expire(socket.assigns.symbol)
+    socket = update(socket, :balance_reads, &(&1 + 1))
 
     send(
       self(),
@@ -286,7 +323,6 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     socket
     |> assign(cleared(kind, socket.assigns))
-    |> tell_form()
     |> closed()
   end
 
@@ -315,62 +351,40 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp take_account(socket, account),
     do: OnchainSteps.take_account(socket, account, &sync/1)
 
-  # The typed form, as the arguments of the action.
-  defp request(%{kind: :list, inputs: inputs, unit: unit}) do
-    with {:ok, amount} <- amount(F.parse_tokens(inputs["amount"], unit)),
-         {:ok, strike} <- amount(F.parse_usd(inputs["strike"])),
-         {:ok, premium} <- amount(F.parse_usd(inputs["premium"])),
-         {expiry, ""} <- Integer.parse(inputs["expiry"] || "") do
-      {:ok,
-       %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}}
-    else
-      {:error, _reason} = error -> error
-      _no_expiry -> {:error, :not_a_weekly_expiry}
-    end
-  end
+  # The action's arguments: the page's ticket, the typed exercise, or the
+  # listing alone.
+  defp request(%{kind: kind, order: nil}) when kind in [:list, :fill],
+    do: {:error, :invalid_amount}
 
-  defp request(%{kind: kind, inputs: inputs, unit: unit, listing: listing})
-       when kind in [:fill, :exercise] do
-    with {:ok, amount} <- amount(F.parse_tokens(inputs["amount"], unit)),
-         do: {:ok, %{listing_id: listing.id, amount: amount}}
+  defp request(%{kind: kind, order: order}) when kind in [:list, :fill], do: {:ok, order}
+
+  defp request(%{kind: :exercise, inputs: inputs, unit: unit, listing: listing}) do
+    case F.parse_tokens(inputs["amount"], unit) do
+      nil -> {:error, :invalid_amount}
+      amount -> {:ok, %{listing_id: listing.id, amount: amount}}
+    end
   end
 
   defp request(%{listing: listing}), do: {:ok, %{listing_id: listing.id}}
 
-  defp amount(nil), do: {:error, :invalid_amount}
-  defp amount(value), do: {:ok, value}
-
-  defp inputs(:list, form), do: Map.take(form, ~w(amount strike premium expiry))
-  defp inputs(kind, form) when kind in [:fill, :exercise], do: Map.take(form, ~w(amount))
-  defp inputs(_kind, _form), do: %{}
-
-  defp defaults(%{kind: :list, expiries: [first | _]}),
-    do: %{"amount" => "", "strike" => "", "premium" => "", "expiry" => Integer.to_string(first)}
-
   defp defaults(%{kind: :exercise, listing: listing, unit: unit, holding: held}),
     do: %{"amount" => F.tokens(held || listing.filled, unit)}
 
-  defp defaults(%{kind: :fill, listing: listing, unit: unit}),
-    do: %{"amount" => F.tokens(listing.amount - listing.filled, unit)}
-
   defp defaults(_assigns), do: %{}
 
-  # A new listing starts empty again on the same expiry; the other forms
-  # follow the listing again as the page reads it next (`update/2`).
-  defp cleared(:list, %{inputs: inputs}),
-    do: [
-      inputs: %{"amount" => "", "strike" => "", "premium" => "", "expiry" => inputs["expiry"]},
-      typed: true
-    ]
-
+  # The page clears its own ticket (`{:covered_call_done, done}`); an exercise
+  # follows the holding again as the page reads it next (`update/2`).
+  defp cleared(kind, _assigns) when kind in [:list, :fill], do: []
   defp cleared(_kind, assigns), do: [inputs: defaults(assigns), typed: false]
 
   defp approval?(name), do: name in ~w(stock_approval usdc_approval)
 
-  # The figures for the form as it stands and the wallet that may act, once the
-  # chain has been read for them.
-  defp current(%{quote: {inputs, signer, prepared}, inputs: inputs} = assigns) do
-    if signer == OnchainSteps.signer(assigns.linked, assigns.active), do: prepared
+  # The figures for the action as it stands and the wallet that may act, once
+  # the chain has been read for them.
+  defp current(%{quote: {request, signer, prepared}} = assigns) do
+    if {:ok, request} == request(assigns) and
+         signer == OnchainSteps.signer(assigns.linked, assigns.active),
+       do: prepared
   end
 
   defp current(_assigns), do: nil
@@ -398,22 +412,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       >
         <div class="covered-call-panel__body" inert={!is_nil(@review)}>
           <form
-            :if={@kind in [:list, :fill, :exercise]}
+            :if={@kind == :exercise}
             id={"#{@id}-form"}
             class="covered-call-panel__form"
             phx-change="change"
             phx-submit="review"
             phx-target={@myself}
           >
-            <.list_fields
-              :if={@kind == :list}
-              id={@id}
-              inputs={@inputs}
-              expiries={@expiries}
-              symbol={@symbol}
-            />
             <.field
-              :if={@kind in [:fill, :exercise]}
               id={"#{@id}-amount"}
               name="amount"
               label="Amount"
@@ -422,11 +428,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             />
             <.action {action_assigns(assigns)} type="submit" />
           </form>
-          <.action
-            :if={@kind not in [:list, :fill, :exercise]}
-            {action_assigns(assigns)}
-            type="button"
-          />
+          <.action :if={@kind != :exercise} {action_assigns(assigns)} type="button" />
         </div>
 
         <StakeComponent.stake_review
@@ -485,12 +487,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   attr :variant, :string, default: "primary"
   attr :myself, :any, required: true
 
-  # What the action comes to, and the button that reviews it: a submit inside
-  # the form, so the press carries every field as typed, or a plain button
-  # where there is nothing to type. Neither sends anything to the wallet.
+  # What the action comes to (the page's receipt says it for listing and
+  # buying), and the button that reviews it: a submit inside the exercise form,
+  # so the press carries the amount as typed, or a plain button. Neither sends
+  # anything to the wallet.
   defp action(assigns) do
     ~H"""
-    <dl :if={@prepared} class="covered-call-panel__facts">
+    <dl :if={@prepared && @kind not in [:list, :fill]} class="covered-call-panel__facts">
       <div :for={[label, value] <- facts(@kind, @prepared.facts, assigns)}>
         <dt>{label}</dt>
         <dd>{value}</dd>
@@ -563,54 +566,6 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   end
 
   attr :id, :string, required: true
-  attr :inputs, :map, required: true
-  attr :expiries, :list, required: true
-  attr :symbol, :string, required: true
-
-  defp list_fields(assigns) do
-    ~H"""
-    <.field
-      id={"#{@id}-amount"}
-      name="amount"
-      label="Amount"
-      value={@inputs["amount"]}
-      unit={@symbol}
-    />
-    <.field
-      id={"#{@id}-strike"}
-      name="strike"
-      label="Strike price"
-      value={@inputs["strike"]}
-      unit={"USDC per #{@symbol}"}
-    />
-    <div class="rg-field">
-      <label for={"#{@id}-expiry"}>Exercise window</label>
-      <span class="covered-call-panel__input">
-        <select id={"#{@id}-expiry"} name="expiry" aria-describedby={"#{@id}-expiry-hint"}>
-          <option
-            :for={expiry <- @expiries}
-            value={expiry}
-            selected={Integer.to_string(expiry) == @inputs["expiry"]}
-          >
-            {F.window_days(expiry)}
-          </option>
-        </select>
-      </span>
-      <small id={"#{@id}-expiry-hint"} class="covered-call-panel__hint">
-        Opens Friday 21:00 UTC, closes Saturday 21:00 UTC.
-      </small>
-    </div>
-    <.field
-      id={"#{@id}-premium"}
-      name="premium"
-      label="Premium"
-      value={@inputs["premium"]}
-      unit={"USDC per #{@symbol}"}
-    />
-    """
-  end
-
-  attr :id, :string, required: true
 
   attr :done, :map,
     required: true,
@@ -646,6 +601,25 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         <Regent.Icons.icon name="x" class="dismiss-icon" />
       </P.button>
     </aside>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :at, :integer, required: true
+
+  @doc """
+  A time in the reader's own time zone once the page is live (`LocalTime`),
+  with the time in UTC, the time the contract keeps, beside it.
+  """
+  def local_time(assigns) do
+    ~H"""
+    <time
+      id={@id}
+      class="covered-calls__local"
+      datetime={@at |> DateTime.from_unix!() |> DateTime.to_iso8601()}
+      phx-hook="LocalTime"
+      phx-mounted={JS.ignore_attributes(["data-local"])}
+    >{F.expiry(@at)}</time><small class="covered-calls__utc">{F.utc_time(@at)}</small>
     """
   end
 

@@ -47,7 +47,8 @@ export async function chooseAgent(page: Page, label: string) {
   if (!(await dropdown.evaluate(details => (details as HTMLDetailsElement).open))) {
     await dropdown.locator("summary").click()
   }
-  const radio = box.getByRole("radio", {name: label, exact: true})
+  // The choice closes the list, so the radio is looked for hidden too when its check is read.
+  const radio = box.getByRole("radio", {name: label, exact: true, includeHidden: true})
   await radio.locator("xpath=ancestor::label").click()
   await expect(radio).toBeChecked()
   await expect.poll(async () => message.textContent()).not.toBe(before)

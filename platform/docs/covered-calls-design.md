@@ -173,13 +173,14 @@ off, the routes answer not found and no tool or command is advertised.
 
 | Place | Purpose |
 | --- | --- |
-| `/stock/covered-call` | Under the title, one line, a strip of the market's figures (price, next window, for sale, fee) and three steps for the tab's side (List, Earn, Settle; Buy, Hold, Exercise). Sell is the first tab and the default; Buy (`?tab=buy`) shows how many are for sale. Every date is shown as the exercise window, Friday 21:00 UTC to Saturday 21:00 UTC. The Sell guide follows the form: suggested premiums for the window chosen (each with Use, which fills the form), the result at expiry of the strike and premium typed (an example until both are), the reference price with its age, and the estimate's basis and the terms folded away. A Contract section at the foot names the contract, the stock and the price feed, links the verified code on Basescan, and says what lies outside the contract (Coinbase can pause or seize the stock; buying stops while REGENT staking is paused). Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, exercise window from the next four Fridays, premium) beside the guide above, its suggestions at +1%, +3% and +5% strikes and its result at three prices. |
+| `/stock/covered-call` | Under the title, one line. Sell is the first tab and the default; Buy (`?tab=buy`) shows how many are for sale. Each tab is a trade ticket beside its receipt, every figure from the market's quote or `Terms`, and every time in the reader's own time zone with UTC beside it; the explanations sit in tips. **Sell**: the amount (with its share equivalent whenever the multiplier is not 1.0), one of the next four Friday expiries, a strike from three suggestions about 2%, 5% and 10% above the reference price or a custom one, and the premium (the suggestion for that strike and expiry, or typed, with a way back to the suggestion), then List calls; the receipt (what the seller receives after the 1% fee, the fee, the strike if exercised, when the window opens and closes) and three outcomes (below strike, above strike, unsold) follow the ticket once the quote has answered for exactly what it holds. **Buy**: the calls for sale with strike, premium, exercise window and amount left; Buy opens that listing's ticket under the list at `?listing=<id>`: the amount (all that is left, to start), then Buy calls, what it costs, the strike, the break-even and three outcomes (above break-even, in between, below strike). A Contract section at the foot names the contract, the stock and the price feed, links the verified code on Basescan, and says what lies outside the contract (Coinbase can pause or seize the stock; buying stops while REGENT staking is paused). Choosing a tab or a choice never changes a panel's height. |
 | `/stocks/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
 | `/stocks` and the menu | While on, the stock list's opening line links to covered calls on each stock with a market (in place of main's "Covered Call Options coming soon."), and the menu has a Covered calls row under Stocks. Both sitemaps list `/stock/covered-call`. |
-| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with every action of its side the chain may still allow (Exercise while calls are held and the window is open or to come; Stop selling while some is unsold; Collect USDC and Collect <symbol> until the window has closed with nothing left), each disabled with the reason while it is certain to fail now. It reads again after a press from this wallet or on one of its listings on any page, on Refresh, and just after one of its listings' expiry or window closes; a read that fails keeps the last figures with a note. |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, and under it its parts as far as they have gone, each with the step it still has: Sold (of the amount listed); For sale, called Unsold from the expiry on, with Stop selling until its stock is returned (the contract lets a seller stop at any time); Exercised (of the amount sold), with Collect USDC from the expiry while the window is open or any strike is due; Held, with Exercise until the window closes, then Lapsed; To collect, with Collect <symbol> (the stock no other part shows: what was stopped or exercised, and for a seller from the expiry on the calls sold and not exercised). Each button is disabled with the reason while it is certain to fail now. It reads again after a press from this wallet or on one of its listings on any page, on Refresh, and just after one of its listings' expiry or window closes; a read that fails keeps the last figures with a note. |
 
 Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
-its button reviews the form as it stands and opens the wallet steps over it, one wallet button at a
+its button reviews the action as it stands (the page's ticket, for listing and buying) and opens
+the wallet steps over it, one wallet button at a
 time with "Confirm in wallet" while the wallet has the press, an approval the chain already holds
 shown as done; when the chain confirms the last step the review closes and the page says what
 moved. The panel's button is disabled only when the chain makes the action certain to fail, with
@@ -195,7 +196,8 @@ Ash domain `Autolaunch.CoveredCalls`:
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
   on each, are read eight at a time, so weeks of listings stay quick to read.
-- `Positions` — a wallet's listings and holdings, all read at one latest block, never from the
+- `Positions` — a wallet's listings, holdings and the stock in the wallet (the most it can list
+  now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
 - `/stock/covered-call` reads again when a press lands on any page, when a `?listing=<id>` link opens
   (unless read in the last ten seconds), and just after the next open listing's expiry or a
@@ -208,16 +210,19 @@ Ash domain `Autolaunch.CoveredCalls`:
   claim, collect strike) on the server for `AutolaunchWeb.OnchainSteps`. A press that is certain to fail
   from the chain's own state at the latest block (sold out, past expiry, no approval yet) shows
   the button disabled with the reason; nothing else blocks a press.
-- `Quote` — the suggested premium: a reference price from the Chainlink feed (hidden when older
-  than its bound) and an assumed 30% yearly volatility, counted to the close of the exercise
-  window, shown as a guide, never enforced.
+- `Quote` — a seller's quote, the one calculation the page and agents share: the reference price
+  from the Chainlink feed (refused when older than its bound), the next four expiries with their
+  exercise windows, three suggested strikes about 2%, 5% and 10% above the reference price, each
+  with a suggested premium (an assumed 30% yearly volatility, counted to the close of the
+  exercise window, to the cent), and for an amount what the listing pays, counted as the
+  contract counts it. A guide, never enforced.
 
 Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
 | A stock's listings | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| Suggested premium | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| Quote a listing | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 

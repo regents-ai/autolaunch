@@ -89,10 +89,12 @@ defmodule AutolaunchWeb.AgentCheckInTest do
       assert hint =~ "Pair New Agent", path
     end
 
-    assert %{"error" => %{"code" => "agent_not_paired", "hint" => hint}} =
-             conn |> get("/api/agent/v1/positions") |> json_response(403)
+    for path <- ["/api/agent/v1/positions", "/api/v1/account/points"] do
+      assert %{"error" => %{"code" => "agent_not_paired", "hint" => hint}} =
+               conn |> get(path) |> json_response(403)
 
-    assert hint =~ "Pair New Agent"
+      assert hint =~ "Pair New Agent", path
+    end
   end
 
   test "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",

@@ -160,12 +160,11 @@ test("the Account page shows this site's sections first, then the shared ones", 
   const problems = watch(page)
   await page.goto("/account")
   await ready(page)
-  const order = await page.locator("#account .rg-account-layout__grid > *").evaluateAll(parts =>
+  const order = await page.locator("#account > *").evaluateAll(parts =>
     parts.map(part => part.id || part.querySelector("[id]")?.id),
   )
   const at = (id: string) => order.findIndex(entry => entry === id)
-  expect(at("account-credits-history")).toBeGreaterThanOrEqual(0)
-  expect(at("account-credits-history")).toBeLessThan(at("account-identity"))
+  expect(at("account-connections")).toBeGreaterThanOrEqual(0)
   expect(at("account-connections")).toBeLessThan(at("account-identity"))
   await problems.expect()
 })
@@ -210,53 +209,16 @@ test("on a short phone screen, the account menu covers the bottom bar and reache
   }
 })
 
-// Narrower than 22.5rem the header has no room for the balance, so the account menu
-// shows it, in the header's words, and the row opens the same Buy Credits window.
-test("on the narrowest phones the balance is in the account menu and opens Buy Credits", async ({page, isMobile}) => {
-  test.skip(!isMobile, "only the narrowest phones move the balance")
+// A 320px phone once scrolled sideways: the header ran 15px past the screen. The
+// header and the open menu fit it.
+test("on the narrowest phones the header and the account menu fit the screen", async ({page, isMobile}) => {
+  test.skip(!isMobile, "only phones are this narrow")
   const problems = watch(page)
   await page.setViewportSize({width: 320, height: 900})
   await page.goto("/auctions")
   await ready(page)
-  await expect(page.locator("#shell-credits-button")).toBeHidden()
-  await openMenu(page)
-
-  const row = page.locator("#account-menu-credits")
-  await expect(row).toBeVisible()
-  await expect(row).toContainText("Credits")
-  expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
-
-  await row.click()
-  await expect(menu(page)).toBeHidden()
-  await expect(page.locator("#shell-credits")).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(page.locator("#shell-credits")).toBeHidden()
-  await expect(page.locator("#account-chip")).toBeFocused()
-  await problems.expect()
-})
-
-test("wider than the narrowest phones the balance stays in the header, not the menu", async ({page, isMobile}) => {
-  const problems = watch(page)
-  const width = isMobile ? 390 : 1280
-  await page.setViewportSize({width, height: 900})
-  await page.goto("/auctions")
-  await ready(page)
-  await expect(page.locator("#shell-credits-button")).toBeVisible()
-  // A phone's balance drops the word Credits; a wider screen keeps it.
-  const unit = page.locator("#shell-credits-button .shell-credits__unit")
-  if (isMobile) await expect(unit).toBeHidden()
-  else await expect(unit).toBeVisible()
-  // On a touch phone the balance is a full press, even when it shows one digit.
-  if (isMobile) {
-    const box = (await page.locator("#shell-credits-button").boundingBox())!
-    expect(box.width).toBeGreaterThanOrEqual(44)
-    expect(box.height).toBeGreaterThanOrEqual(44)
-  }
   await openMenu(page)
-  await expect(page.locator("#account-menu-credits")).toBeHidden()
-  await page.keyboard.press("Escape")
-  await page.locator("#shell-credits-button").click()
-  await expect(page.locator("#shell-credits")).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
   await problems.expect()
 })

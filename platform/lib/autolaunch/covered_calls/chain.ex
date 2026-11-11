@@ -115,10 +115,13 @@ defmodule Autolaunch.CoveredCalls.Chain do
   def unit(market, block, opts),
     do: Rpc.call_uint(market.contract, Call.encode("unit()", []), block, opts)
 
+  @doc "A wallet's balance of `token` at `block`."
+  def balance(token, wallet, block, opts),
+    do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [wallet]), block, opts)
+
   @doc "A wallet's balance of `token` and what it lets `spender` take, at `block`."
   def funds(token, wallet, spender, block, opts) do
-    with {:ok, balance} <-
-           Rpc.call_uint(token, Abi.encode_erc20("balance_of", [wallet]), block, opts),
+    with {:ok, balance} <- balance(token, wallet, block, opts),
          {:ok, allowance} <-
            Rpc.call_uint(token, Abi.encode_erc20("allowance", [wallet, spender]), block, opts) do
       {:ok, %{balance: balance, allowance: allowance}}

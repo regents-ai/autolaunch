@@ -11,7 +11,8 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.AuctionLive => ~w(retry),
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
-    AutolaunchWeb.CoveredCallsLive => ~w(refresh use_suggestion),
+    AutolaunchWeb.CoveredCallsLive =>
+      ~w(refresh sell sell_expiry sell_strike suggested_premium buy dismiss_done),
     AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done)
   }
 
@@ -44,13 +45,10 @@ defmodule AutolaunchWeb.Prelaunch do
   defp visit_report?("POST", ["visit-log"]), do: true
   defp visit_report?(_, _), do: false
 
-  # Pairing is account access; history is a private read despite its JSON body.
+  # Pairing is account access.
   # Metadata and all launch/wallet writes retain the prelaunch refusal, and so
   # does preparing covered-call steps, as preparing any wallet step on a page does.
   defp signed_account_request?("POST", ["api", "agents", "v1", "pair"]), do: true
-
-  defp signed_account_request?("POST", ["api", "agent", "v1", "account", "credits", "history"]),
-    do: true
 
   defp signed_account_request?(_, _), do: false
 

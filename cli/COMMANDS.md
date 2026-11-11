@@ -9,7 +9,7 @@ per-request SIWA proof for audience `autolaunch`. Private account operations als
 require a current pairing and an Autolaunch account resolved from the owner's verified
 Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
 and recovery. No command signs a wallet transaction, places a bid, launches a token,
-changes treasury settings, spends Credits or approves a grant.
+changes treasury settings or spends anything.
 
 Private inputs go through JSON stdin. Use the installed CLI's `--help` for signing,
 preparation and send options; keep codes, metadata and proofs out of arguments and
@@ -181,46 +181,30 @@ Requires local ownership policies, chain configuration and available chain reads
 Missing/revoked authority refuses; incomplete reads return `chain_unavailable` rather
 than a partial success. Cannot bid, trade, settle, stake or claim.
 
-## `account balances`
-
-Read canonical Credits and the current spending budget. Route:
-`GET /api/agent/v1/account/balances`; no body inputs. Returns `credits` and
-`spending_grant`, including `grant_approvals_available`. A `note` explains when
-approving agent spending is off.
-
-Server: admit paired actor → use shared Credits identity → read current grant,
-24-hour usage and balance → return the account projection. Requires shared Credits
-schema and pairing. Missing/revoked authority refuses; unavailable data returns
-`account_unavailable`. Does not create a balance, approve a grant or spend anything.
-
-## `account credits-history`
-
-Read canonical Credits history. Route:
-`POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`
-of at most 2,048 characters. Omit `after` for the first page or when the previous
-`pagination.next_cursor` is null; do not send null as a cursor.
-Returns `entries` and `pagination` (`has_more`, `next_cursor`). Pass
-`pagination.next_cursor` as `after` while `has_more` is true. POST is a read here.
-
-Server: admit paired actor → validate optional cursor → call shared Credits history
-action → return page. Requires shared Credits schema. Non-string, overlong or malformed
-cursors return 422 `invalid_cursor`. Extra fields return 422 `invalid_request`.
-Unrelated or mixed service failures remain 503 `account_unavailable`.
-Missing/revoked authority refuses. Creates no account or ledger entry.
-
 ## `account points`
 
 Read canonical Points without earning rewards. Route:
-`GET /api/agent/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
-`pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal
-strings, truncated to at most two decimal places, as on the Points page. `pending`
-is a count of pending events, not an amount. Each allowance has `scope` and
-`remaining`; each entry has `points`, `source`, `by` and `earned_at`. A `note`
-explains when earning Points is off.
+`GET /api/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
+`earned_yesterday`, `rank`, `activity_being_verified`, `to_do` (`label`, `repeats`,
+`points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`),
+`leaderboard` (`rank`, `name`, `wallet`, `ens_name`, `points`, `you`), `entries`
+(`label`, `points`, `status`, `allowance_reduction`, `by`, `agent`, `earned_at`),
+`period_bonuses` (`period`, `points`, `nft_count`, `bonus_percent`) and `more`, the
+same figures the Points page shows. Points amounts are decimal strings, truncated to
+at most two decimal places, and a whole number has no ".00". `rank` is your person's
+place, or null with no Points. `activity_being_verified` is a count of actions still
+being checked, not an amount. `repeats` is `once` or `daily`; `left` is true while
+the action can still earn; `today` is `{"done", "of"}` for an action that counts more
+than once a day. `leaderboard` is the ten highest totals; `name` is null for a person
+shown by their `wallet`, under its `ens_name` when it has one; `you` marks your
+person's row. `status` is `counted`, `allowance_reached` or `correction`; `by` is
+`agent` or `person`; `agent` is the agent's name, or null. A `note` explains when
+earning Points is off.
 
-Server: admit paired actor → call shared Points summary → return the published
-projection. Requires shared Points schema and pairing. Missing/revoked authority
-refuses; unavailable data returns `account_unavailable`. Creates no account or reward.
+Server: admit paired actor → call shared Points summary and read the shared
+leaderboard → return the published projection. Requires shared Points schema and
+pairing. Missing/revoked authority refuses; unavailable data, or a leaderboard not
+read yet, returns `account_unavailable`. Creates no account or reward.
 
 ## Command history and CLI handoff
 
@@ -252,3 +236,18 @@ No signed command changed.
 `paired_agent`: the agent's person must have paired it. None carries a condition;
 no command here spends Credits or acts on something its person joins. Routes, inputs,
 answers and refusals are unchanged.
+
+11 November 2026: `account points` is read at `GET /api/v1/account/points`, the
+address every Regent site gives it, and answers `earned_yesterday`, `rank`, `to_do`,
+`daily_limits` (`name`, `limit`, `remaining`) and `leaderboard` (`rank`, `name`,
+`wallet`, `ens_name`, `points`, `you`); `pending` is now `activity_being_verified`,
+each entry carries `label`, `status`, `allowance_reduction` and `agent` in place of
+`source`, and `period_bonuses` is added. `daily_allowances` is gone, and whole Points
+drop the trailing ".00". While the leaderboard is not read, the whole answer is 503
+`account_unavailable`. The OpenAPI document moves to 2.0.0.
+
+11 November 2026: Credits are gone. `account balances` (`account_balances`,
+`GET /api/agent/v1/account/balances`) and `account credits-history`
+(`account_credits_history`, `POST /api/agent/v1/account/credits/history`) are
+removed, with their entries in the tool list; both addresses answer 404. They leave
+in the same OpenAPI 2.0.0 as the Points change above.

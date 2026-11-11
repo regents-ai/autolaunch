@@ -21,7 +21,10 @@ import {MenuAgents} from "./hooks/menu_agents"
 import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
+import {PriceLine} from "./hooks/price_line"
 import {HomeCells} from "./hooks/home_cells"
+import {Countdown} from "./hooks/countdown"
+import {LocalTime} from "./hooks/local_time"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
@@ -54,7 +57,10 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PriceChart,
+  PriceLine,
   HomeCells,
+  LocalTime,
+  Countdown,
   PublicName,
   XConnections,
   CreatorConnections,
@@ -91,6 +97,15 @@ document.addEventListener("autolaunch:open-dialog", event => {
 })
 document.addEventListener("autolaunch:close-dialog", event => {
   if (event.target instanceof HTMLDialogElement) event.target.close()
+})
+// A Max fills its box here, at the press, so a press straight after it carries
+// the amount however long the server takes; the input event runs the form's
+// change, so the server and its figures follow.
+document.addEventListener("autolaunch:fill", event => {
+  const field = event.target
+  if (!(field instanceof HTMLInputElement)) return
+  field.value = (event as CustomEvent<{value: string}>).detail.value
+  field.dispatchEvent(new Event("input", {bubbles: true}))
 })
 installRegentTokenMenu()
 installShellPanels()

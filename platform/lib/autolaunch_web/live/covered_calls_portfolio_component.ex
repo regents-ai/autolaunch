@@ -1,14 +1,15 @@
 defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   @moduledoc """
   The portfolio's covered calls: for each market, the calls the signed-in
-  wallet sold (with Stop selling, Collect USDC and Collect stock) and the calls
-  it holds (with Exercise and Collect stock), each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Every action of the
-  wallet's side of a listing is its own wallet panel under the row, so every
-  button there reviews its action, and is disabled, with the reason beside
-  it, only while the chain makes it certain to fail (before Friday's close,
-  Exercise says when it opens). A listing with nothing left to do for this
-  wallet shows no buttons. The page re-reads it with
+  wallet sold and the calls it holds, each read now from the contract
+  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Under each listing its
+  parts, as far as they have gone: how much sold and how much is still for
+  sale, then how much was exercised, the calls held, and the stock to collect.
+  A part with a next step has its own wallet panel beside it (Stop selling the
+  rest, Collect USDC for the exercised part, Exercise, Collect the stock), so
+  every button there reviews its action, and is disabled, with the reason
+  beside it, only while the chain makes it certain to fail (before Friday's
+  close, Exercise says when it opens). The page re-reads it with
   `send_update(id: ..., read: true)` after a press lands, when its Refresh is
   pressed and when a listing's expiry or window closes, and hands it what a
   confirmed action moved with `send_update(id: ..., done: done)`.
@@ -220,6 +221,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       |> Enum.map(fn {side, listing} ->
         row(side, listing, holdings[listing.id], positions.now)
       end)
+      # An open exercise window comes first: it is the one that closes soon.
+      |> Enum.sort_by(&(&1.stage != :exercise))
 
     assigns =
       assign(assigns,
@@ -238,7 +241,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         <caption class="visually-hidden">Your {@symbol} covered calls</caption>
         <thead>
           <tr>
-            <th scope="col">Calls</th>
+            <th scope="col">Side</th>
             <th scope="col">Strike</th>
             <th scope="col">Exercise window</th>
             <th scope="col">Status</th>
@@ -246,30 +249,46 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         </thead>
         <tbody :for={row <- @rows} id={"#{@id}-#{row.side}-#{row.listing.id}"}>
           <tr>
-            <td data-label="Calls">{describe(row.what, @unit, @symbol)}</td>
+            <td data-label="Side">{side(row.side)}</td>
             <td data-label="Strike">{F.usd(row.listing.strike_per_token)}</td>
-            <td data-label="Exercise window">{F.window_days(row.listing.expiry)}</td>
+            <td :if={row.stage != :exercise} data-label="Exercise window">
+              {F.window_days(row.listing.expiry)}
+            </td>
+            <td :if={row.stage == :exercise} data-label="Exercise window">
+              <.closes
+                id={"#{@id}-#{row.side}-#{row.listing.id}-closes"}
+                at={row.listing.expiry + Terms.exercise_window()}
+                now={@now}
+              />
+            </td>
             <td data-label="Status">
               <P.status tone={row.status.tone}>{row.status.label}</P.status>
             </td>
           </tr>
-          <tr :if={row.actions != []} class="portfolio__actions">
+          <tr :if={row.parts != []} class="portfolio__actions">
             <td colspan="4">
-              <div>
-                <.live_component
-                  :for={kind <- row.actions}
-                  module={CoveredCallComponent}
-                  id={"#{@id}-#{kind}-#{row.listing.id}"}
-                  kind={kind}
-                  variant="secondary"
-                  symbol={@symbol}
-                  unit={@unit}
-                  listing={row.listing}
-                  holding={row.holding && row.holding.held}
-                  session_lease={@session_lease}
-                  current_human_id={@current_human_id}
-                />
-              </div>
+              <ul class="covered-calls__parts" aria-label="Parts">
+                <li
+                  :for={part <- row.parts}
+                  id={"#{@id}-#{row.side}-#{row.listing.id}-#{part.name}"}
+                >
+                  <strong>{part.label}</strong>
+                  <span>{figure(part.figure, @unit, @symbol)}</span>
+                  <.live_component
+                    :if={part.step}
+                    module={CoveredCallComponent}
+                    id={"#{@id}-#{part.step}-#{row.listing.id}"}
+                    kind={part.step}
+                    variant="secondary"
+                    symbol={@symbol}
+                    unit={@unit}
+                    listing={row.listing}
+                    holding={row.holding && row.holding.held}
+                    session_lease={@session_lease}
+                    current_human_id={@current_human_id}
+                  />
+                </li>
+              </ul>
             </td>
           </tr>
         </tbody>
@@ -283,29 +302,122 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     """
   end
 
+  attr :id, :string, required: true
+  attr :at, :integer, required: true, doc: "when the window closes, Unix seconds"
+  attr :now, :integer, required: true, doc: "the chain's time at the reading"
+
+  # An open window's time left, counted down in the browser from the chain's
+  # time at the reading (`Countdown`), over when it closes in the reader's time.
+  defp closes(assigns) do
+    ~H"""
+    <span class="covered-calls__closes">
+      <strong id={@id} phx-hook="Countdown" data-closes={@at} data-now={@now}>
+        {F.closes_in(@at - @now)}
+      </strong>
+      <span><CoveredCallComponent.local_time id={"#{@id}-at"} at={@at} /></span>
+    </span>
+    """
+  end
+
   defp row(side, listing, holding, now) do
     stage = Terms.stage(listing, now)
-    claimable = (holding && holding.claimable) || 0
 
     %{
       side: side,
+      stage: stage,
       listing: listing,
       holding: holding,
-      what: what(side, listing, holding),
       status: status(side, stage),
-      actions: actions(side, stage, listing, holding, claimable)
+      parts: parts(side, stage, listing, holding)
     }
   end
 
-  defp what(:sold, listing, _holding), do: {:sold, listing.filled, listing.amount}
-  defp what(:held, _listing, %{held: held}), do: {:held, held}
+  defp side(:sold), do: "Seller"
+  defp side(:held), do: "Buyer"
 
-  defp describe({:sold, 0, 0}, _unit, symbol), do: "Stopped before any #{symbol} sold"
+  # Each part of a listing for the wallet's side of it, as far as it has gone,
+  # and the step each part still has. The seller can stop selling the unsold
+  # part until its stock is returned, before the expiry or after it (For sale,
+  # then Unsold); the strike for the exercised part is collected from the
+  # expiry on; held calls are exercised in the window and lapse after it. To
+  # collect is the stock no other part shows that comes back: what was stopped
+  # or exercised, and for a seller from the expiry on the calls sold and not
+  # exercised (its button saying so until the window closes, when the chain
+  # also counts the unsold part in what it returns).
+  @parts [:sold, :for_sale, :unsold, :exercised, :held, :lapsed, :to_collect]
+  @after_expiry [:exercise, :closed]
+  @no_holding %{held: 0, claimable: 0}
 
-  defp describe({:sold, filled, amount}, unit, symbol),
-    do: "Sold #{F.tokens(filled, unit)} of #{F.tokens(amount, unit)} #{symbol}"
+  defp parts(side, stage, listing, holding) do
+    %{held: held, claimable: claimable} = holding || @no_holding
+    unsold = unsold(side, listing)
 
-  defp describe({:held, held}, unit, symbol), do: "Holding #{F.tokens(held, unit)} #{symbol}"
+    facts = %{
+      side: side,
+      stage: stage,
+      listing: listing,
+      held: held,
+      unsold: unsold,
+      to_collect: to_collect(side, stage, listing, claimable, unsold)
+    }
+
+    @parts |> Enum.map(&part(&1, facts)) |> Enum.reject(&is_nil/1)
+  end
+
+  defp part(:sold, %{side: :sold, listing: %{amount: amount, filled: filled}}) when amount > 0,
+    do: %{name: :sold, label: "Sold", figure: {filled, amount}, step: nil}
+
+  defp part(:for_sale, %{unsold: unsold, stage: stage})
+       when unsold > 0 and stage not in @after_expiry,
+       do: %{name: :for_sale, label: "For sale", figure: unsold, step: :cancel}
+
+  defp part(:unsold, %{unsold: unsold, stage: stage})
+       when unsold > 0 and stage in @after_expiry,
+       do: %{name: :unsold, label: "Unsold", figure: unsold, step: :cancel}
+
+  defp part(:exercised, %{side: :sold, stage: stage, listing: %{filled: filled} = listing})
+       when stage in @after_expiry and filled > 0 do
+    %{
+      name: :exercised,
+      label: "Exercised",
+      figure: {listing.exercised, filled},
+      step: strike_step(stage, listing)
+    }
+  end
+
+  defp part(:held, %{held: held, stage: stage}) when held > 0 and stage != :closed,
+    do: %{name: :held, label: "Held", figure: held, step: :exercise}
+
+  defp part(:lapsed, %{held: held, stage: :closed}) when held > 0,
+    do: %{name: :lapsed, label: "Lapsed", figure: held, step: nil}
+
+  defp part(:to_collect, %{to_collect: to_collect}) when to_collect > 0,
+    do: %{name: :to_collect, label: "To collect", figure: to_collect, step: :claim}
+
+  defp part(_name, _facts), do: nil
+
+  # What the seller has not sold, until its stock is returned.
+  defp unsold(:sold, %{stock_returned: false} = listing), do: Terms.available(listing)
+  defp unsold(_side, _listing), do: 0
+
+  # The stock the chain lets the wallet claim, as the page counts it: for a
+  # seller in the window also the calls sold and not exercised, and once the
+  # window has closed without the unsold part, which shows as its own.
+  defp to_collect(:sold, :exercise, %{stock_returned: false} = listing, claimable, _unsold),
+    do: claimable + listing.filled - listing.exercised
+
+  defp to_collect(:sold, :closed, _listing, claimable, unsold), do: claimable - unsold
+  defp to_collect(_side, _stage, _listing, claimable, _unsold), do: claimable
+
+  # The strike for the exercised part is collected through the window, and
+  # after it while any is still due.
+  defp strike_step(:exercise, _listing), do: :collect_strike
+  defp strike_step(:closed, listing), do: if(Terms.strike_due(listing) > 0, do: :collect_strike)
+
+  defp figure({part, whole}, unit, symbol),
+    do: "#{F.tokens(part, unit)} of #{F.tokens(whole, unit)} #{symbol}"
+
+  defp figure(amount, unit, symbol), do: "#{F.tokens(amount, unit)} #{symbol}"
 
   # Each stage as a short status and its tone: the exercise window is the one that asks for action.
   defp status(_side, :open), do: %{label: "Open", tone: "info"}
@@ -315,26 +427,4 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp status(:held, :exercise), do: %{label: "Exercise", tone: "warning"}
   defp status(:sold, :exercise), do: %{label: "Exercising", tone: "neutral"}
   defp status(_side, :closed), do: %{label: "Closed", tone: "neutral"}
-
-  # Every action of the wallet's side of a listing that the chain may still
-  # allow, each disabled with its reason while it is certain to fail now (a
-  # listing stopped before any sale offers only the claim of its stock):
-  # Exercise while calls are held and the window has not closed, Stop selling
-  # while some is unsold, and each Collect until the window has closed with
-  # nothing left to collect. A listing with nothing left for this wallet
-  # shows none.
-  defp actions(side, stage, listing, holding, claimable) do
-    open? = stage in [:open, :sold, :exercise]
-
-    for {kind, offered?} <- [
-          exercise: open? and holding != nil and holding.held > 0,
-          cancel: side == :sold and unsold?(listing),
-          collect_strike: side == :sold and (open? or Terms.strike_due(listing) > 0),
-          claim: open? or claimable > 0
-        ],
-        offered?,
-        do: kind
-  end
-
-  defp unsold?(listing), do: Terms.available(listing) > 0 and not listing.stock_returned
 end

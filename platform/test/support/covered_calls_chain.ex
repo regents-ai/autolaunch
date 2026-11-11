@@ -3,8 +3,8 @@ defmodule Autolaunch.CoveredCallsChain do
   Covered calls switched on for one test, on a chain double that answers every
   read at the latest block by the contract asked: the covered-call contract's
   listing, holdings and terms, the stock's balance, allowance, multiplier and
-  scheduled change, USDC's balance and allowance, and the reference feed. Every
-  other request goes to `Autolaunch.BaseRpcStub`.
+  scheduled change, USDC's balance and allowance, and the reference feed and its
+  past rounds. Every other request goes to `Autolaunch.BaseRpcStub`.
 
   `install/1` switches covered calls on with a one-market settings file and puts
   the chain; `put/1` changes it mid-test (`unreadable: true` fails every contract
@@ -86,6 +86,9 @@ defmodule Autolaunch.CoveredCallsChain do
           held: 0,
           claimable: 0,
           price: 25_400_000_000,
+          price_at: @now,
+          # The feed's rounds before its latest, oldest first: {updated_at, answer}.
+          history: [],
           listings: [listing(%{})]
         },
         overrides
@@ -143,7 +146,7 @@ defmodule Autolaunch.CoveredCallsChain do
   @reads Map.new(
            ~w|listingCount() listings(uint256) unit() usdc() multiplier() effectiveAt()
               held(uint256,address) claimable(uint256,address) latestRoundData()
-              balanceOf(address) allowance(address,address) decimals()|,
+              getRoundData(uint80) balanceOf(address) allowance(address,address) decimals()|,
            &{Call.selector(&1), &1}
          )
 
@@ -164,8 +167,21 @@ defmodule Autolaunch.CoveredCallsChain do
   defp words("effectiveAt()", _to, state, _data), do: [state.effective_at]
   defp words("held(uint256,address)", _to, state, _data), do: [state.held]
   defp words("claimable(uint256,address)", _to, state, _data), do: [state.claimable]
-  # The feed's first round, so it has no history before it.
-  defp words("latestRoundData()", _to, state, _data), do: [1, state.price, @now, @now, 1]
+  # The feed's latest round comes after its history; rounds count from 1.
+  defp words("latestRoundData()", _to, state, _data) do
+    round = length(state.history) + 1
+    [round, state.price, state.price_at, state.price_at, round]
+  end
+
+  defp words("getRoundData(uint80)", _to, state, data) do
+    round = data |> String.slice(10, 64) |> String.to_integer(16)
+
+    case round >= 1 && Enum.at(state.history, round - 1) do
+      {at, answer} -> [round, answer, at, at, round]
+      _missing -> [0, 0, 0, 0, 0]
+    end
+  end
+
   defp words("decimals()", @feed, _state, _data), do: [8]
   defp words("balanceOf(address)", @usdc, state, _data), do: [state.usdc_balance]
   defp words("balanceOf(address)", _stock, state, _data), do: [state.balance]

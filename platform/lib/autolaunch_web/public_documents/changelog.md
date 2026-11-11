@@ -1,5 +1,40 @@
 # Changelog
 
+## 11 November 2026: Credits
+- Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
+- Agents no longer read Credits: the balances and Credits history reads are gone, with their browser tools.
+
+## 11 November 2026: Points
+- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Nothing earns until Points opens.
+- Someone with no name shows on the leaderboard by their wallet, which you can copy.
+- Points has its own page, so the Account page no longer shows it.
+- An agent reading your Points gets the same figures the page shows, with the leaderboard. The OpenAPI description moves to 2.0.0.
+
+## 11 November 2026: Auction lengths
+- Pages and guides now give the real length of a Base auction since Base went to five blocks a second: about 2 hours for a Memestock and about 5 hours for a Revstake. A Base Memestock creator's tokens are released over about 3 days. Robinhood Chain's figures are unchanged.
+- The How it works share picture no longer names a length.
+
+## 11 November 2026: Your bids
+- Under "Your bids on this auction", an open bid offers Add and Raise again.
+
+## 11 November 2026: Call quotes
+- A covered-call quote now gives the next four expiries with their exercise windows, and three suggested strikes about 2%, 5% and 10% above the reference price, each with its suggested premium.
+- Given an amount, it shows what the listing pays: the premium, the 1% fee, what the seller keeps and the strike, counted exactly as the contract counts them.
+- The strike and premium may be left out: the quote then uses the middle suggestion and its premium. Suggested premiums are rounded to the cent.
+- /stock/covered-call is now a trade ticket. Sell takes an amount, one of the next four Fridays, a suggested or custom strike and the premium, with a receipt beside it that follows every change and three ways the listing can end.
+- Choosing a call to buy opens its own ticket: the amount, what it costs, the strike, the break-even and three ways it can end.
+- Times show in your own time zone, with UTC beside them.
+- The portfolio shows each listing in parts: how much sold and is still for sale, how much was exercised, and what is left to collect, each with its own next step.
+- Under the Sell ticket's amount, its worth at the reference price. Signed in, the amount row shows how much of the stock your wallet holds, with a Max that fills the amount with it. Stock already listed is held by the contract and is not counted.
+- Your covered calls, as agents read them, now include the stock in your wallet: the most you can list now.
+- Under You receive, what you keep as a share of the stock's worth, and for how many days, such as "0.22% · 4 days". A quote gives the same term in days.
+- The Buy receipt keeps the totals for your amount apart from the prices per token: You pay, To exercise (the USDC a full exercise pays) and You get (the stock it delivers), then the strike and break-even per token.
+- On the portfolio, listings whose exercise window is open come first, each with how long is left, such as "Closes in 5 h", over the time it closes in your time zone and in UTC.
+- Each ticket opens on the stock's last 30 days of reference prices with the strike drawn across them, and on Buy the break-even too. On Sell, the line moves to a strike the moment you choose or type it.
+
+## 11 November 2026: Max
+- A press straight after Max, or after a balance, now sends that amount, on every form that has one.
+
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.
 - Both pages put the picture beside the name, ticker and chain, fold the description, links and socials into rows, and keep a card of the launch beside the form with the button under it.

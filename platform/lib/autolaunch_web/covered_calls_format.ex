@@ -67,6 +67,14 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def expiry(unix) when is_integer(unix),
     do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b, %H:%M UTC")
 
+  @doc "A weekly expiry as its date in UTC, for a choice of a few."
+  def date(unix) when is_integer(unix),
+    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%-d %b")
+
+  @doc "A time as its weekday and time in UTC, shown beside the reader's own time."
+  def utc_time(unix) when is_integer(unix),
+    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %H:%M UTC")
+
   @doc "The 24-hour window after an expiry, as the time it closes."
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
@@ -78,13 +86,23 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_days(expiry) when is_integer(expiry),
     do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"
 
+  @doc """
+  How long is left of an exercise window `seconds` before it closes: whole
+  hours from an hour up, whole minutes below, and never under a minute until
+  it has closed. The `Countdown` hook says the same as it counts down.
+  """
+  def closes_in(seconds) when seconds <= 0, do: "Closed"
+  def closes_in(seconds) when seconds >= 3_600, do: "Closes in #{div(seconds, 3_600)} h"
+  def closes_in(seconds), do: "Closes in #{max(div(seconds, 60), 1)} min"
+
   @doc "USDC micro-units as a dollar price a form takes back: digits and a dot, to the cent."
   def plain_usd(micro) when is_integer(micro) do
     cents = div(micro + 5_000, 10_000)
     "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 
-  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
+  # No-break spaces, so a narrow column breaks between the two days, never inside one.
+  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a\u00a0%-d\u00a0%b")
 
   defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1

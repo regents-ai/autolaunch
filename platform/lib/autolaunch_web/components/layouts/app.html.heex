@@ -2,10 +2,7 @@
   <a class="shell-skip" href="#shell-content">Skip to content</a>
   <%!-- As in the template's shell, the header runs the frame's whole width above
        the rail and the page, and the account menu opens under the account's button. --%>
-  <.top_bar
-    account_control={@account_control}
-    credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
-  >
+  <.top_bar account_control={@account_control}>
     <:agents :if={menu_account(assigns)}>
       <.live_component
         :if={assigns[:socket]}
@@ -69,10 +66,6 @@
     aria-label="Close navigation"
     tabindex="-1"
   ></Regent.Primitives.button>
-  <AutolaunchWeb.Components.Credits.dialog
-    credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
-    session_lease={assigns[:session_lease]}
-  />
   <%!-- Every Pair New Agent opens this one window over the page
        (assets/js/shell_panels.ts). A page drawn without LiveView holds its box in
        a LiveView of its own. --%>

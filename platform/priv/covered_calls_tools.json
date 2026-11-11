@@ -35,7 +35,7 @@
     {
       "name": "autolaunch_covered_call_quote",
       "title": "Suggest a covered-call premium",
-      "description": "Suggest a premium per whole token for a covered call on one Base stock token at a strike and weekly expiry, from the stock's reference price. A guide for a seller only: the contract enforces nothing from it, and it is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
+      "description": "Quote a covered call on one Base stock token before listing it, for a weekly expiry: the stock's reference price (spot_per_token, micro-USDC per whole token) and when its feed last updated it; the next four weekly expiries, each with its exercise window (Unix seconds), and the chosen one's term in whole days (term_days); three suggested strikes above the reference price (presets), each with how far above it is as a fraction and a suggested premium per whole token; and, for the chosen strike (the middle suggestion when none is given) and premium (the suggestion when none is given), what a listing of amount raw token units pays if all of it is bought at once and all of it exercised (receipt): the premium, the 1% fee, what the seller keeps, the strike, the stock's worth at the reference price, and the premium kept as a fraction of that worth for the term (net_premium_yield, not a yearly rate). Without an amount the per-token figures still come back and the totals are null. Every USDC figure is what the contract counts, rounded up. A guide for a seller only: the contract enforces no suggestion, and the quote is refused while the reference price is more than four days old. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -43,22 +43,33 @@
             "type": "string",
             "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
           },
-          "strike_per_token": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "The strike in micro-USDC (6 decimals) per whole token."
-          },
           "expiry": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
             "description": "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Raw stock units to list; unit raw units make one whole token. Leave it out for the per-token figures only."
+          },
+          "strike_per_token": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "The strike in micro-USDC (6 decimals) per whole token. Leave it out for the middle suggested strike."
+          },
+          "premium_per_token": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "The premium the listing asks, in micro-USDC per whole token. Leave it out for the suggested premium."
           }
         },
         "required": [
           "symbol",
-          "strike_per_token",
           "expiry"
         ],
         "additionalProperties": false
@@ -76,15 +87,17 @@
       "request": {
         "path": "/api/v1/covered-calls/{symbol}/quote",
         "body": [
+          "expiry",
+          "amount",
           "strike_per_token",
-          "expiry"
+          "premium_per_token"
         ]
       }
     },
     {
       "name": "autolaunch_my_covered_calls",
       "title": "Read my covered calls on a stock",
-      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold and, on every listing, the calls it may exercise (held) and the stock it may claim (claimable), in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold, on every listing the calls it may exercise (held) and the stock it may claim (claimable), and the stock in the wallet itself (balance), the most it can list now, in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {

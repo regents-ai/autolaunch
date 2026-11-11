@@ -4,51 +4,19 @@ defmodule AutolaunchWeb.AccountLive do
   site shares (`Regent.Account.layout`) with this site's own sections first. Signed
   out, it shows the shared signed-out section with the site's own Sign in button, and
   says the sign-in ended when it lapsed while the page was open. Signed in, this
-  site's own sections come first: the Credits and Points activity, then the
-  accounts they connected, through the Create page's connections component, so an
-  account connected here is the same one Create shows. Then the shared sections:
-  who is signed in with which wallet, their Credits and Points, bought from the
-  header's Credits button and managed on regents.sh, and the name people see for
-  them. Autolaunch charges no Credits and Points earning has not opened here. The
-  agents have their own page (`AutolaunchWeb.AccountAgentsLive`).
-
-  Each section is read on its own and shows its own loading and could-not-be-read
-  states. The Credits balance is the one every page reads
-  (`AutolaunchWeb.Live.Credits`); a Credits change reads again.
+  site's own section comes first: the accounts they connected, through the Create
+  page's connections component, so an account connected here is the same one
+  Create shows. Then the shared sections: who is signed in with which wallet, and
+  the name people see for them. The agents have their own page
+  (`AutolaunchWeb.AccountAgentsLive`), and so do Points (`AutolaunchWeb.PointsLive`).
   """
 
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.Credits
-  alias AutolaunchWeb.Read
-  @reads [:history_read, :points_read]
-
-  @regents_account_url "https://regents.sh/account"
-
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/account"))
-     |> assign(regents_account_url: @regents_account_url)
-     |> assign(Map.new(@reads, &{&1, %Read{}}))}
-  end
-
-  def handle_params(_params, _uri, socket), do: {:noreply, read_account(socket)}
-
-  # The session hook re-reads the lease before a result lands here, and a
-  # lapsed one never reaches this page (`AutolaunchWeb.Live.Session`).
-  def handle_async({Read, _, _} = name, result, socket),
-    do: {:noreply, Read.settle(socket, name, result)}
-
-  @doc "The Credits activity follows a change to the balance (`AutolaunchWeb.Live.Credits`)."
-  def credits_changed(socket), do: read_history(socket, "")
-
-  def handle_event("credits_history", %{"after" => cursor}, socket) do
-    {:noreply, read_history(socket, cursor)}
-  end
+  def mount(_params, _session, socket),
+    do: {:ok, assign(socket, AutolaunchWeb.PublicDocuments.page("/account"))}
 
   # The name was saved from the browser. The session hook reads the account again
   # before this event (`AutolaunchWeb.Live.Session`), so the page already shows the
@@ -86,47 +54,6 @@ defmodule AutolaunchWeb.AccountLive do
       </Regent.Account.signed_out>
       <Regent.Account.layout :if={@current_human_id} id="account">
         <:site>
-          <div class="autolaunch-account-balances">
-            <section>
-              <Regent.Account.history
-                id="account-credits-history"
-                title="Credits activity"
-                rows={credits_rows(@history_read)}
-                state={read_state(@history_read)}
-                empty_message="No Credits activity yet."
-              />
-              <Regent.Primitives.button
-                :if={@history_read.value && @history_read.value.more?}
-                variant="secondary"
-                phx-click="credits_history"
-                phx-value-after={@history_read.value.next}
-              >Older activity</Regent.Primitives.button>
-              <Regent.Primitives.button
-                :if={@history_read.owner && elem(@history_read.owner, 1) != ""}
-                variant="secondary"
-                phx-click="credits_history"
-                phx-value-after=""
-              >Latest activity</Regent.Primitives.button>
-            </section>
-            <section>
-              <Regent.Account.history
-                id="account-points-history"
-                title="Points activity"
-                rows={points_rows(@points_read)}
-                state={read_state(@points_read)}
-                empty_message="No confirmed Points activity yet."
-              />
-              <p :if={@points_read.value && @points_read.value.more?}>
-                Showing the latest 50 entries.
-              </p>
-              <p>Earning hasn’t opened on Autolaunch yet.</p>
-              <.link navigate="/account/points" class="standalone-link">
-                Your bonus and what earns points
-              </.link>
-            </section>
-          </div>
-        </:site>
-        <:site>
           <.live_component
             module={AutolaunchWeb.CreatorConnectionsComponent}
             id="account-connections"
@@ -153,32 +80,6 @@ defmodule AutolaunchWeb.AccountLive do
             </:picture>
           </Regent.Account.identity>
         </:identity>
-        <:credits>
-          <Regent.Account.credits_summary
-            id="account-credits"
-            available={
-              @credits_read.value && RegentCredits.Amount.format(@credits_read.value.available)
-            }
-            held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
-            state={read_state(@credits_read)}
-          >
-            <a href="https://regents.sh/account" class="standalone-link">
-              Manage Credits on regents.sh
-            </a>
-          </Regent.Account.credits_summary>
-          <Regent.Account.points_summary
-            id="account-points"
-            confirmed={
-              @points_read.value && RegentPoints.Amount.format(@points_read.value.balance_micro)
-            }
-            today={
-              @points_read.value &&
-                RegentPoints.Amount.format(@points_read.value.earned_today_micro)
-            }
-            pending={@points_read.value && to_string(@points_read.value.pending)}
-            state={read_state(@points_read)}
-          />
-        </:credits>
         <:profile>
           <%!-- The name is saved from the browser with the sign-in's own proof. --%>
           <div id="account-profile" phx-hook="PublicName" phx-update="ignore">
@@ -194,81 +95,4 @@ defmodule AutolaunchWeb.AccountLive do
   end
 
   defp signed_in_account(%{principal: {:human, account}}), do: account
-
-  defp read_account(socket) do
-    socket |> read_history("") |> read_points()
-  end
-
-  defp read_points(socket) do
-    with_person(socket, fn account ->
-      Read.start(socket, :points_read, account.privy_user_id, fn ->
-        points_summary(account.id)
-      end)
-    end)
-  end
-
-  defp read_history(socket, cursor) do
-    with_person(socket, fn account ->
-      actor = Credits.person(account)
-      args = if cursor == "", do: %{}, else: %{after: cursor}
-
-      Read.start(socket, :history_read, {account.privy_user_id, cursor}, fn ->
-        RegentCredits.history(args, actor: actor)
-      end)
-    end)
-  end
-
-  defp with_person(socket, read) do
-    case socket.assigns.access_context.principal do
-      {:human, account} -> read.(account)
-      _signed_out -> clear_reads(socket)
-    end
-  end
-
-  defp points_summary(account_id),
-    do: RegentPoints.summary(actor: %Human{human_account_id: account_id})
-
-  defp clear_reads(socket), do: Enum.reduce(@reads, socket, &Read.clear(&2, &1))
-
-  defp read_state(%Read{state: state}) when state in [:idle, :loading], do: :loading
-  defp read_state(%Read{state: :empty}), do: :ready
-  defp read_state(%Read{state: state}), do: state
-
-  defp credits_rows(%Read{value: nil}), do: []
-
-  defp credits_rows(%Read{value: page}) do
-    Enum.map(page.entries, fn entry ->
-      %{
-        label: RegentCredits.History.Words.line(entry),
-        amount: signed(entry.direction) <> RegentCredits.Amount.format(entry.amount),
-        occurred_at: Calendar.strftime(entry.at, "%d %b %Y %H:%M UTC")
-      }
-    end)
-  end
-
-  defp points_rows(%Read{value: nil}), do: []
-
-  defp points_rows(%Read{value: summary}) do
-    Enum.map(summary.entries, fn entry ->
-      actor =
-        if entry.actor_kind == "human",
-          do: "You",
-          else: Map.get(summary.agent_names, entry.actor_id, "Previously connected agent")
-
-      %{
-        label: "#{RegentPoints.Rules.label(entry.rule_id)} · #{actor}",
-        amount: "#{RegentPoints.Amount.format(entry.points_micro_delta)} points",
-        occurred_at: Calendar.strftime(entry.earned_at, "%d %b %Y %H:%M UTC"),
-        status: points_status(entry)
-      }
-    end)
-  end
-
-  defp signed(:in), do: "+"
-  defp signed(:out), do: "−"
-  defp signed(:none), do: ""
-
-  defp points_status(%{reversal_of_entry_id: id}) when not is_nil(id), do: "Correction"
-  defp points_status(%{points_micro_delta: 0}), do: "Allowance reached"
-  defp points_status(_), do: "Confirmed"
 end

@@ -1,5 +1,5 @@
 {
-  "total": 160,
+  "total": 164,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -365,20 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
-    },
-    {
-      "id": 145,
-      "group": "Account and session isolation",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 44,
-      "test_name": "ACCOUNT_SHOWS_CREDITS_HISTORY",
-      "keep_because": "The Account page names each Credits history entry from the shared Credits library's fields, and a page still reading the library's earlier fields crashed /account every second for everyone who had bought Credits (v180, 26 Oct 2026). A signed-out review or an account with no Credits never sees it. The case fails if /account stops mounting with a bought purchase or stops showing it as Bought Credits, +5.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
+      "source_sha256": "b6101e026b8d3b60f62642018b72f0500f599abaff62dd24e30261e1f3dbdd58"
     },
     {
       "id": 56,
@@ -758,19 +745,6 @@
       "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
     },
     {
-      "id": 85,
-      "group": "Chain reads",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/live/credits_panel_test.exs",
-      "line": 12,
-      "test_name": "CREDITS_PANEL_NO_NODE: a chain with no node reads as unavailable, with no crash",
-      "keep_because": "A chain the site has no node for (ExUnit has none for Base) crashed the Buy Credits panel's USDC reads with a KeyError in Autolaunch.Chain.NodeClient. The read now fails as one that got no answer, counted by class no_node, and the panel shows unavailable. It fails while a missing node raises.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "7432ea3d9a266c165fc1ee76c472461ce9204a235b77353cbc86fbb5b73c158e"
-    },
-    {
       "id": 86,
       "group": "Pages that degrade",
       "framework": "exunit",
@@ -989,7 +963,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "575e432178c48bbfd377216ad905eab723ca2f70ec656fb7b9afdf1312e9dbe6"
+      "source_sha256": "88951cc5d9711c609655a724fa0d7fee8aa33bba28808dedecce6878a71bb0ce"
     },
     {
       "id": 115,
@@ -1427,11 +1401,11 @@
       "file": "test/autolaunch/required_value_test.exs",
       "line": 10,
       "test_name": "a missing required value raises Ash's error, and a present one comes back",
-      "keep_because": "Every site on the shared database calls the one ash_required in public; version 6 there cannot find ash_raise_error, so a missing required value fails with \"function does not exist\" instead of Ash's error, and the Credits library's first migration can put version 6 back on a fresh database. Fails if public.ash_required is not version 7 after every migration has run.",
+      "keep_because": "Every site on the shared database calls the one ash_required in public; version 6 there cannot find ash_raise_error, so a missing required value fails with \"function does not exist\" instead of Ash's error, and a shared library's first migration can put version 6 back on a fresh database. Fails if public.ash_required is not version 7 after every migration has run.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f19f4ae2bfaa9e09efcf4523aa73685714ac0ccabeba8b16a0957c902b4d686d"
+      "source_sha256": "6d65f173f3998fc4d80911754e52af4de83abfebdbf39618d5a80704062733de"
     },
     {
       "id": 152,
@@ -1473,19 +1447,6 @@
       "source_sha256": "b227dbefbd56b6d713ae3bf2d65b34e367c984c300e8b3dbda9989e0c029e6a9"
     },
     {
-      "id": 155,
-      "group": "Wallet actions",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/credits_press_test.exs",
-      "line": 15,
-      "test_name": "a Buy certain to fail is never handed to the wallet",
-      "keep_because": "Property: for any amount, USDC balance and approval read at the latest block, a press that asks the server for its steps gets no Buy when the Buy button would be disabled (too little USDC, or no approval on the chain yet), and gets a Buy that may go through and every approval. It fails on the reply that skipped the check, which on Keyfleet on 27 Oct asked a wallet holding nothing to send.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "fabab02c511cf9b81928a159084ea00897649b247986d8d6aabff3d61ffd343e"
-    },
-    {
       "id": 156,
       "group": "Agents",
       "framework": "exunit",
@@ -1496,7 +1457,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+      "source_sha256": "fc45b1bfd183ec459c97f9f82d2d082779ff85da695fdf75ed7813929865b8a8"
     },
     {
       "id": 157,
@@ -1581,26 +1542,26 @@
       "group": "Browser wallet boundary",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 43,
+      "line": 58,
       "test_name": "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read sends nothing and never asks to sign in",
-      "keep_because": "On the real Account page, a Credits panel whose wallets can't be read because the connection was lost hands the wallet no review for Approve or Buy even with the account's own wallet open, and its press note never asks the person to sign in; the page stays signed in. It fails on main, where the lost read signed the page out.",
+      "keep_because": "On the real covered-call page, a Buy ticket whose wallets can't be read because the connection was lost hands the wallet no review even with the account's own wallet open, its press says to try again, nothing on the page asks the person to sign in, and the page stays signed in. Every wallet panel reads the account through the same step. It fails while a lost read signed the panel out.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+      "source_sha256": "90eb87600799e17e0f91cab7c48b58709cbd7bbc86d3b1c5344f561f1e6ef135"
     },
     {
       "id": 164,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 109,
+      "line": 118,
       "test_name": "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again",
       "keep_because": "Connect ENS with a sign-in that can't be read says That did not go through. Try again in a moment., not that the name doesn't fit. It fails while every failure said Use an ENS name controlled by your signed-in wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+      "source_sha256": "90eb87600799e17e0f91cab7c48b58709cbd7bbc86d3b1c5344f561f1e6ef135"
     },
     {
       "id": 165,
@@ -1613,20 +1574,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+      "source_sha256": "fc45b1bfd183ec459c97f9f82d2d082779ff85da695fdf75ed7813929865b8a8"
     },
     {
       "id": 166,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
-      "line": 98,
+      "line": 100,
       "test_name": "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",
       "keep_because": "A paired person's account that can't be read is 503 account_unavailable from the check-in, whoami and the agent routes. It fails while the check-in and whoami answered 500.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+      "source_sha256": "fc45b1bfd183ec459c97f9f82d2d082779ff85da695fdf75ed7813929865b8a8"
     },
     {
       "id": 167,
@@ -1674,7 +1635,7 @@
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
       "line": 215,
       "test_name": "a write behind a fresh check runs only for a lease that reads as current now",
-      "keep_because": "Session.fresh/2, which the Credits purchase report and check and the launch treasury check use because they call the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
+      "keep_because": "Session.fresh/2, which the launch treasury check uses because it calls the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
@@ -1685,26 +1646,26 @@
       "group": "Browser wallet boundary",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 74,
+      "line": 86,
       "test_name": "a wallet read that fails for any other reason is a real error",
-      "keep_because": "On the real Account page, a wallet panel's own read of the account that fails for a reason other than a lost connection (42P01, injected at that read only) ends the page with the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
+      "keep_because": "On the real covered-call page, the Buy ticket's own read of the account that fails for a reason other than a lost connection (42P01, injected at that read only) ends the page with the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+      "source_sha256": "90eb87600799e17e0f91cab7c48b58709cbd7bbc86d3b1c5344f561f1e6ef135"
     },
     {
       "id": 172,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 119,
+      "line": 128,
       "test_name": "ENS_NAME_TAKEN_IS_NOT_TRY_AGAIN: a name another account holds is refused for good, not retried",
       "keep_because": "Saving an ENS name another account already holds answers name_taken, which Connect ENS words as taken, never as try again. It fails while every failed save was a try-again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+      "source_sha256": "90eb87600799e17e0f91cab7c48b58709cbd7bbc86d3b1c5344f561f1e6ef135"
     },
     {
       "id": 173,
@@ -1737,13 +1698,13 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
-      "line": 114,
+      "line": 130,
       "test_name": "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
       "keep_because": "A paired person's account read that fails for a reason other than a lost connection (42P01) is the plain 500 from the check-in, whoami and the agent routes, not the try-again 503. It fails while every failed read answered 503 account_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+      "source_sha256": "fc45b1bfd183ec459c97f9f82d2d082779ff85da695fdf75ed7813929865b8a8"
     },
     {
       "id": 176,
@@ -1906,13 +1867,13 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 88,
+      "line": 45,
       "test_name": "PAIRING_CODE_KEPT_PER_AGENT",
       "keep_because": "The pairing box made a new code on every agent choice, so choosing one agent, then another, then the first again showed a third code and the message already pasted to the first agent no longer matched the screen (27 Oct 2026). The case fails if coming back to an agent shows a different code while its code is still in time, or if \"Make a new code\" for one agent changes another agent's code.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
+      "source_sha256": "b6101e026b8d3b60f62642018b72f0500f599abaff62dd24e30261e1f3dbdd58"
     },
     {
       "id": 190,
@@ -1984,13 +1945,13 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 126,
+      "line": 83,
       "test_name": "ACCOUNT_MENU_ON_EVERY_PAGE",
       "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent does not open the pairing window (#shell-pairing), if the window on a page served without LiveView cannot make a code, if the Agents page's Pair New Agent does not open the same window or the page holds a second pairing box, or if the Account page puts this site's sections after the shared ones.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f048684791ee6fed2a8d91f4662c567944e3e6a1c2fd5d826ed1eb7689e284f"
+      "source_sha256": "b6101e026b8d3b60f62642018b72f0500f599abaff62dd24e30261e1f3dbdd58"
     },
     {
       "id": 196,
@@ -2012,7 +1973,7 @@
       "file": "test/autolaunch/database_config_test.exs",
       "line": 40,
       "test_name": "the listeners share a connection to the direct address with the serving login",
-      "keep_because": "The shared Credits and agent listeners need one connection with connection keys (never a URL) on the direct address with the serving login; a pooled address drops LISTEN and the account menu and pages stop hearing agent and Credits changes.",
+      "keep_because": "The shared agent listeners need one connection with connection keys (never a URL) on the direct address with the serving login; a pooled address drops LISTEN and the account menu and pages stop hearing agent changes.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
@@ -2082,6 +2043,97 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "12097c0fbf01331ae8d506d058d122ab1b544582f78240661333ebb350e5b8fe"
+    },
+    {
+      "id": 203,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 66,
+      "test_name": "the first render carries the person's figures, open actions and place",
+      "keep_because": "The Points page's first render already shows the person's total, today's points, their place, the actions still open with where to do them, and their own row marked on the leaderboard; nothing waits on a second read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 204,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 95,
+      "test_name": "two people with one name, level on points, each keep their own picture",
+      "keep_because": "Names are not unique and many people share a place: two people with one name at one place each keep their own picture on the leaderboard.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 205,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 140,
+      "test_name": "a person with no name shows by their wallet, with its copy icon",
+      "keep_because": "Another person with no name shows by their public wallet with its copy icon, and nothing else about their account, such as their Privy id, reaches the page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 206,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 161,
+      "test_name": "a paired agent is answered with the page's figures",
+      "keep_because": "A paired agent's Points answer carries the same total, place, open actions and leaderboard the page shows, each leaderboard row with only its place, name or wallet and total.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 207,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 187,
+      "test_name": "a signed-out visitor is asked to sign in and gets nothing from the board",
+      "keep_because": "A signed-out visitor is asked to sign in and gets no name, wallet or total from the leaderboard held for signed-in readers.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 208,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 205,
+      "test_name": "while the board is not read, the agent's whole answer is unavailable",
+      "keep_because": "While the shared leaderboard is not read, a paired agent's Points answer is 503 account_unavailable rather than half an answer.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+    },
+    {
+      "id": 209,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/shared_reading_test.exs",
+      "line": 14,
+      "test_name": "every reading offered reports its size against its kind's limit, refused ones too",
+      "keep_because": "Every reading offered to the shared figures reports its size against its kind's limit, refused ones too, so the leaderboard growing towards its limit shows before it is refused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1ff461cbc2494a06b21e9ec5692659e6748a09de26de6acb9cc06c63601ff1e9"
     }
   ],
   "legacy_folders_to_remove": [
