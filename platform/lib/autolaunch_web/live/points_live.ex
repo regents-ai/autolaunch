@@ -1,38 +1,38 @@
 defmodule AutolaunchWeb.PointsLive do
   @moduledoc """
-  `/account/points`: the signed-in person's Points, the template's page. The
-  balance and recent activity come from the shared Points ledger under their
-  Regent account. The NFT bonus tier is
-  read from Base once per page open, against the same per-account allowance as
-  the wallet reads. What earns points follows; until earning opens it names the
-  ways to earn with no amounts.
+  `/account/points`, the template's page: the total, the actions left, the
+  leaderboard, the NFT bonus added at the end of each 30-day period, and the
+  activity. The pieces are `Regent.Points`; this page supplies their words.
+
+  The person's Points are read during the render (`Read.now`) and again on their
+  Points notice. The board is the one every signed-in reader shares
+  (`Autolaunch.Points.Board`), heard while the page is open. The NFT tier is read
+  from Base once per page open, against the same per-account allowance as the
+  wallet reads, and not at all while nothing earns.
   """
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias AutolaunchWeb.Read
+  alias Autolaunch.Points.Board
+  alias Autolaunch.SharedReading
+  alias AutolaunchWeb.{PointsEntries, Read}
   alias RegentPoints.{Amount, Rules}
 
   def mount(_params, _session, socket) do
-    tracked = Rules.tracked()
-
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/account/points"))
      |> assign(
-       account_id: account_id(socket.assigns.access_context),
        points: %Read{},
+       board: %Read{},
        bonus: %Read{},
-       earning: Rules.active(),
-       daily: daily(tracked),
-       once: once(tracked),
-       apps: apps(tracked)
+       earning: Rules.active()
      )
      |> listen()}
   end
 
   def handle_params(_params, _uri, socket),
-    do: {:noreply, socket |> read_points() |> read_bonus()}
+    do: {:noreply, socket |> read_points() |> read_board() |> read_bonus()}
 
   # The session hook re-reads the lease before a result lands here, and a
   # lapsed one never reaches this page (`AutolaunchWeb.Live.Session`).
@@ -42,237 +42,267 @@ defmodule AutolaunchWeb.PointsLive do
   # A points award or correction landed for this account.
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, read_points(socket)}
 
+  # The board every signed-in reader shares was read again.
+  def handle_info({:shared_reading, {:points_board, _program}}, socket),
+    do: {:noreply, read_board(socket)}
+
   def render(assigns) do
-    assigns = assign(assigns, :signed_in?, signed_in?(assigns.access_context))
+    assigns = assign(assigns, :account, account(assigns.access_context))
+    open? = assigns.earning != []
+    summary = assigns.points.value
+    groups = if summary, do: PointsEntries.todo(summary, open?), else: []
+
+    board =
+      assigns.account && assigns.board.value &&
+        PointsEntries.board(
+          assigns.board.value,
+          assigns.account.id,
+          summary && summary.balance_micro
+        )
+
+    assigns =
+      assign(assigns,
+        open?: open?,
+        summary: summary,
+        groups: Enum.map(groups, &linked/1),
+        left: if(summary && open?, do: PointsEntries.left(groups)),
+        places: board,
+        rows: if(summary, do: Enum.map(summary.entries, &row(&1, summary.agent_names)), else: [])
+      )
 
     ~H"""
     <article id="points-page" class="account-page">
       <header class="autolaunch-heading">
-        <h1>
-          Points
-          <Regent.Primitives.tip id="points-about" label="About Points">
-            What you and your paired agents earn here, counted in one account.
-          </Regent.Primitives.tip>
-        </h1>
+        <h1>Points</h1>
       </header>
-      <section
-        :if={!@signed_in?}
+      <Regent.Account.signed_out
+        :if={is_nil(@account)}
         id="points-signed-out"
-        class="rg-account rg-account--signed-out"
+        reason={@signed_out_reason}
       >
-        <p role={@signed_out_reason == :expired && "status"}>
-          {signed_out_text(@signed_out_reason)}
-        </p>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in
-        </Regent.Primitives.button>
-      </section>
-      <AutolaunchWeb.Components.Loading.placeholder
-        :if={@signed_in? && is_nil(@points.value) && @points.state in [:idle, :loading]}
-        label="Reading your points"
-      />
-      <Regent.Primitives.notice :if={@points.state == :error} tone="error">
-        Points could not be read. Try refreshing this page.
-      </Regent.Primitives.notice>
-      <div :if={@signed_in? && @points.value} class="account-grid">
-        <Regent.Account.points_summary
-          id="account-points-summary"
-          title="Balance"
-          confirmed={Amount.format(@points.value.balance_micro)}
-          today={Amount.format(@points.value.earned_today_micro)}
-          pending={to_string(@points.value.pending)}
-          state={summary_state(@points.state)}
-          allowances={
-            Enum.map(
-              if(@earning == [], do: [], else: @points.value.allowances),
-              &%{label: scope_name(&1.scope), value: "#{Amount.format(&1.remaining)} remaining"}
-            )
-          }
-        />
-        <section class="account-panel account-details">
-          <h2>
-            Your bonus
-            <Regent.Primitives.tip id="points-bonus-about" label="About your points bonus">
-              Animata I, Animata II and Regents Club count across your verified linked wallets.
-              At the end of each 30-day period, the tier your wallets hold that day adds its
-              bonus to the points you earned in that period, one-time awards included.
-            </Regent.Primitives.tip>
-          </h2>
-          <p :if={@bonus.state in [:idle, :loading]} role="status">Checking your NFTs…</p>
-          <p :if={@bonus.state in [:error, :stale]}>
-            Your NFTs could not be checked. Try refreshing this page.
-          </p>
-          <dl :if={@bonus.state == :ready}>
-            <div>
-              <dt>NFTs held</dt>
-              <dd>{@bonus.value.nft_count}</dd>
-            </div>
-            <div>
-              <dt>Bonus this period</dt>
-              <dd>+{@bonus.value.percent}%</dd>
-            </div>
-          </dl>
-          <dl :if={@points.value.period_bonuses != []}>
-            <div :for={period <- @points.value.period_bonuses}>
-              <dt>Period {period.period}</dt>
-              <dd>
-                +{Amount.format(period.bonus_micro)} ({period.nft_count} NFTs, +{period.bonus_percent}%)
-              </dd>
-            </div>
-          </dl>
-        </section>
-        <section class="account-panel">
-          <h2>Recent points activity</h2>
-          <p :if={@points.value.entries == []}>No confirmed points activity yet.</p>
-          <ol>
-            <li :for={entry <- @points.value.entries}>
-              <p>{Rules.label(entry.rule_id)} · {actor_name(entry, @points.value.agent_names)}</p>
-              <p>{Amount.format(entry.points_micro_delta)} points</p>
-              <Regent.Primitives.tip
-                :if={entry.cap_reduction_micro > 0}
-                id={"points-cap-#{entry.id}"}
-                label="About this award’s allowance"
-              >
-                {Amount.format(entry.points_micro_delta + entry.cap_reduction_micro)} before limits; {Amount.format(
-                  entry.points_micro_delta
-                )} awarded. {Amount.format(entry.cap_reduction_micro)} exceeded the daily or per-action allowance.
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
+      <Regent.Points.layout :if={@account}>
+        <:total>
+          <Regent.Points.total
+            id="points-total"
+            total={@summary && Amount.format(@summary.balance_micro)}
+            today={@summary && Amount.format(@summary.earned_today_micro)}
+            yesterday={@summary && Amount.format(@summary.earned_yesterday_micro)}
+            rank={@places && @places.rank && to_string(@places.rank)}
+            pending={if @summary, do: @summary.pending, else: 0}
+            state={state(@points)}
+          >
+            A record of everything you and your agents do across Regents. One total, on every site.
+          </Regent.Points.total>
+        </:total>
+        <:main>
+          <Regent.Points.todo :if={@summary} id="points-todo" left={@left} groups={@groups}>
+            <p :if={!@open?} role="status">Earning hasn’t opened yet.</p>
+          </Regent.Points.todo>
+          <Regent.Points.activity
+            :if={@summary}
+            id="points-activity"
+            rows={@rows}
+            more={@summary.more?}
+          >
+            <:tip :let={row}>
+              <Regent.Primitives.tip id={"points-limit-#{row.id}"} label="About this award’s limit">
+                {row.note}
               </Regent.Primitives.tip>
-              <p>
-                {entry_status(entry)} · {Calendar.strftime(entry.earned_at, "%d %b %Y %H:%M UTC")}
-              </p>
-            </li>
-          </ol>
-          <p :if={@points.value.more?}>Showing the latest 50 entries.</p>
-        </section>
-      </div>
-      <section id="points-earn" class="account-panel points-earn">
-        <h2>What earns points</h2>
-        <p :if={@earning == []} role="status">Earning hasn’t opened yet.</p>
-        <h3 :if={@daily != []}>Every day</h3>
-        <.ways :if={@earning == []} rules={@daily} />
-        <table :if={@earning != [] and @daily != []} class="points-table">
-          <thead>
-            <tr>
-              <th scope="col">Action</th><th scope="col">Points</th><th scope="col">Limit</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={rule <- @daily}>
-              <th scope="row">
-                {Rules.label(rule["id"])}<.not_yet rule={rule} earning={@earning} />
-              </th>
-              <td>{points(rule)}</td>
-              <td>{limit(rule)}</td>
-            </tr>
-          </tbody>
-        </table>
-        <h3 :if={@once != []}>Once</h3>
-        <.ways :if={@earning == []} rules={@once} />
-        <table :if={@earning != [] and @once != []} class="points-table">
-          <thead>
-            <tr>
-              <th scope="col">Action</th><th scope="col">Points</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={rule <- @once}>
-              <th scope="row">
-                {Rules.label(rule["id"])}<.not_yet rule={rule} earning={@earning} />
-              </th>
-              <td>{points(rule)}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="account-details points-earn__notes">
-          <div :if={@earning != [] and @apps != []}>
-            <h3>Daily limits</h3>
-            <dl>
-              <div>
-                <dt>You</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:human"))} a day on {names(@apps)}</dd>
-              </div>
-              <div>
-                <dt>Your agents, together</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:agent"))} a day on {names(@apps)}</dd>
-              </div>
-            </dl>
-          </div>
-          <div>
-            <h3>NFT bonus</h3>
-            <p>
-              Animata I, Animata II and Regents Club in your linked wallets, counted at the end of each 30-day period. That period’s points get the bonus.
-            </p>
-            <table :if={@earning != []} class="points-table">
-              <thead>
-                <tr>
-                  <th scope="col">NFTs</th><th scope="col">Bonus</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={{nfts, percent} <- tiers()}>
-                  <th scope="row">{nfts}</th><td>+{percent}%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+            </:tip>
+          </Regent.Points.activity>
+        </:main>
+        <:side>
+          <Regent.Points.board
+            id="points-board"
+            rows={if @places, do: @places.rows, else: []}
+            you={@places && @places.you}
+            state={state(@board)}
+          >
+            <:face :let={row}>
+              <img
+                :if={row.picture || row.squares}
+                id={"points-board-face-#{row.line}"}
+                src={row.picture || row.squares}
+                referrerpolicy="no-referrer"
+                width="28"
+                height="28"
+                alt=""
+              />
+            </:face>
+          </Regent.Points.board>
+          <Regent.Points.bonus
+            id="points-bonus"
+            state={bonus_state(@open?, @bonus)}
+            nfts={@bonus.value && @bonus.value.nft_count}
+            percent={@bonus.value && @bonus.value.percent}
+            message={"Your NFTs could not be checked. #{retry(@bonus.error)}"}
+            tiers={tiers(@bonus.value)}
+            periods={if @summary, do: periods(@summary), else: []}
+          >
+            <:tip>
+              <Regent.Primitives.tip id="points-bonus-about" label="About your points bonus">
+                Animata I, Animata II and Regents Club count across your verified linked wallets.
+                At the end of each 30-day period, the tier your wallets hold that day adds its
+                bonus to the points you earned in that period, one-time awards included.
+              </Regent.Primitives.tip>
+            </:tip>
+          </Regent.Points.bonus>
+        </:side>
+      </Regent.Points.layout>
     </article>
     """
   end
 
-  attr :rules, :list, required: true
+  # The page where each action is done, for the ones this site has a page for.
+  # Connected accounts are on the Account page here.
+  @links %{
+    "social.x" => "/account",
+    "social.github" => "/account",
+    "social.farcaster" => "/account",
+    "agent.activated" => "/account/agents"
+  }
 
-  # Before earning opens, the ways to earn are named with no amounts.
-  defp ways(assigns) do
-    ~H"""
-    <ul :if={@rules != []} class="points-ways">
-      <li :for={rule <- @rules}>{Rules.label(rule["id"])}</li>
-    </ul>
-    """
+  defp linked(group) do
+    items =
+      Enum.map(group.items, fn item ->
+        item
+        |> Map.put(:points, item.points && "+" <> item.points)
+        |> then(&if href = @links[item.id], do: Map.put(&1, :href, href), else: &1)
+      end)
+
+    %{group | items: items}
   end
 
-  attr :rule, :map, required: true
-  attr :earning, :list, required: true
+  defp row(entry, agent_names) do
+    status = PointsEntries.status(entry)
 
-  defp not_yet(assigns) do
-    ~H"""
-    <span :if={@rule not in @earning} class="points-earn__soon">Not yet</span>
-    """
+    %{
+      id: entry.id,
+      label: Rules.label(entry.rule_id),
+      by: PointsEntries.agent_name(entry, agent_names) || "You",
+      at: Calendar.strftime(entry.earned_at, "%-d %b, %H:%M UTC"),
+      points: signed(entry.points_micro_delta),
+      status: if(status != :counted, do: PointsEntries.status_label(status)),
+      note: if(entry.cap_reduction_micro > 0, do: cut(entry))
+    }
   end
 
-  defp account_id(%{principal: {:human, account}}), do: account.id
-  defp account_id(_signed_out), do: nil
+  defp cut(entry) do
+    "#{Amount.format(entry.points_micro_delta + entry.cap_reduction_micro)} before limits, " <>
+      "#{Amount.format(entry.points_micro_delta)} awarded. The rest was over the daily limit."
+  end
 
-  defp signed_in?(access_context), do: match?({:human, _}, access_context.principal)
+  defp signed(micro) when micro < 0, do: "−" <> Amount.format(-micro)
+  defp signed(micro), do: "+" <> Amount.format(micro)
 
-  defp signed_out_text(:signed_out), do: "Sign in to see your points."
-  defp signed_out_text(:expired), do: "Your session ended. Sign in again to see your points."
+  # The period running now, then the bonuses already added, newest first.
+  defp periods(summary) do
+    current =
+      case summary.current_period do
+        %{number: number, ends_at: ends_at, earned_micro: earned} ->
+          [
+            %{
+              label: "Period #{number}",
+              value:
+                "#{Amount.format(earned)} earned, ends #{Calendar.strftime(ends_at, "%-d %b")}"
+            }
+          ]
 
-  defp listen(%{assigns: %{account_id: id}} = socket) when not is_nil(id) do
-    if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, "points:#{id}")
+        nil ->
+          []
+      end
+
+    current ++
+      Enum.map(summary.period_bonuses, fn period ->
+        %{
+          label: "Period #{period.period}",
+          value:
+            "+#{Amount.format(period.bonus_micro)} (#{period.nft_count} NFTs, +#{period.bonus_percent}%)"
+        }
+      end)
+  end
+
+  # Ascending tiers, each running up to the next one's minimum.
+  defp tiers(held) do
+    ascending = Enum.sort(RegentPoints.Bonus.tiers())
+    next = Enum.map(Enum.drop(ascending, 1), &elem(&1, 0)) ++ [nil]
+    count = held && held.nft_count
+
+    Enum.zip_with(ascending, next, fn
+      {minimum, percent}, nil ->
+        %{range: "#{minimum}+", percent: percent, held: is_integer(count) and count >= minimum}
+
+      {minimum, percent}, upper ->
+        %{
+          range: "#{minimum}–#{upper - 1}",
+          percent: percent,
+          held: is_integer(count) and count in minimum..(upper - 1)
+        }
+    end)
+  end
+
+  defp state(%{state: state}) when state in [:idle, :loading], do: :loading
+  defp state(%{state: state}) when state in [:ready, :empty], do: :ready
+  defp state(%{state: state}), do: state
+
+  defp bonus_state(false, _bonus), do: :closed
+  defp bonus_state(true, bonus), do: state(bonus)
+
+  # Reading again at once while limited would only be refused again.
+  defp retry(:limited), do: "Try again in a minute."
+  defp retry(_reason), do: "Try refreshing this page."
+
+  defp account(%{principal: {:human, account}}), do: account
+  defp account(_signed_out), do: nil
+
+  defp listen(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}} = socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Autolaunch.PubSub, "points:#{id}")
+      SharedReading.subscribe(Board.key())
+    end
+
     socket
   end
 
   defp listen(socket), do: socket
 
-  defp read_points(%{assigns: %{account_id: nil}} = socket) do
-    if signed_in?(socket.assigns.access_context),
-      do: Read.start(socket, :points, nil, fn -> {:error, :account_unavailable} end),
-      else: Read.clear(socket, :points)
-  end
-
-  defp read_points(%{assigns: %{account_id: id}} = socket) do
-    Read.start(socket, :points, id, fn ->
+  defp read_points(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}} = socket) do
+    Read.now(socket, :points, id, fn ->
       RegentPoints.summary(actor: %Human{human_account_id: id})
     end)
   end
 
-  defp read_bonus(%{assigns: %{account_id: nil}} = socket), do: Read.clear(socket, :bonus)
+  defp read_points(socket), do: Read.clear(socket, :points)
+
+  # The reader's own row and place are found from the shared board, and their
+  # own total, as the page renders.
+  defp read_board(%{assigns: %{access_context: %{principal: {:human, _account}}}} = socket),
+    do: assign(socket, :board, board_read(SharedReading.fetch(Board.key())))
+
+  defp read_board(socket), do: Read.clear(socket, :board)
+
+  # Loading until the board is first read, an error when that first read failed,
+  # and behind while the last read failed.
+  defp board_read(:error), do: %Read{state: :loading}
+  defp board_read({:ok, %{reading: nil}}), do: %Read{state: :error, error: :not_read}
+
+  defp board_read({:ok, %{reading: board, at: at, degraded?: true}}),
+    do: %Read{state: :stale, value: board, read_at: at, error: :not_read}
+
+  defp board_read({:ok, %{reading: board, at: at}}),
+    do: %Read{state: :ready, value: board, read_at: at}
+
+  defp read_bonus(%{assigns: %{earning: []}} = socket), do: Read.clear(socket, :bonus)
 
   # Base is read for the person's NFTs, counted against the same per-account
   # allowance as the wallet reads.
-  defp read_bonus(%{assigns: %{account_id: id}} = socket) do
+  defp read_bonus(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}} = socket) do
     Read.start(socket, :bonus, id, fn ->
       case Autolaunch.Limits.spend(:wallet_read, {:human, id}) do
         :ok -> RegentPoints.Bonus.current(id)
@@ -281,56 +311,5 @@ defmodule AutolaunchWeb.PointsLive do
     end)
   end
 
-  defp daily(rules), do: Enum.filter(rules, &(&1["category"] in ["credits", "activity"]))
-  defp once(rules), do: Enum.filter(rules, &(&1["category"] == "milestone"))
-
-  defp points(%{"category" => "credits", "micro_points_per_atomic_usdc" => rate}),
-    do: "#{whole(rate * 1_000_000)} per USDC"
-
-  defp points(%{"points" => points}), do: points
-
-  defp limit(%{"category" => "credits", "daily_caps_micro" => caps}),
-    do: "Up to #{whole(caps["credits"])} a day"
-
-  defp limit(%{"count" => 1}), do: "Once a day"
-  defp limit(%{"count" => 2}), do: "Twice a day"
-  defp limit(%{"count" => count}), do: "#{count} times a day"
-
-  defp whole(micro), do: div(micro, Rules.unit())
-
-  defp apps(rules), do: rules |> Rules.daily_apps() |> Enum.map(&String.capitalize/1)
-
-  defp names([name]), do: name
-
-  defp names(names) do
-    {last, rest} = List.pop_at(names, -1)
-    Enum.join(rest, ", ") <> " and " <> last
-  end
-
-  # Ascending tiers, each running up to the next one's minimum.
-  defp tiers do
-    ascending = Enum.sort(RegentPoints.Bonus.tiers())
-    next = Enum.map(Enum.drop(ascending, 1), &elem(&1, 0)) ++ [nil]
-
-    Enum.zip_with(ascending, next, fn
-      {minimum, percent}, nil -> {"#{minimum}+", percent}
-      {minimum, percent}, upper -> {"#{minimum}–#{upper - 1}", percent}
-    end)
-  end
-
-  defp actor_name(%{actor_kind: "human"}, _names), do: "You"
-  defp actor_name(entry, names), do: Map.get(names, entry.actor_id, "Previously connected agent")
-
-  defp entry_status(%{reversal_of_entry_id: id}) when not is_nil(id), do: "Correction"
-  defp entry_status(%{points_micro_delta: 0}), do: "Allowance reached"
-  defp entry_status(_), do: "Confirmed"
-
-  defp summary_state(state) when state in [:idle, :loading], do: :loading
-  defp summary_state(:empty), do: :ready
-  defp summary_state(state), do: state
-
-  defp scope_name("activity:account"), do: "You and your agents"
-  defp scope_name("credits"), do: "Credits purchases"
-  defp scope_name("activity:human"), do: "Your actions"
-  defp scope_name("activity:agent"), do: "Your agents’ actions"
+  defp read_bonus(socket), do: Read.clear(socket, :bonus)
 end

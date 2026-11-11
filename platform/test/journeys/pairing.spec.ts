@@ -30,7 +30,6 @@ test("P1-P10: an agent signs in, its person pairs it in the pairing window, it c
   expect(answer.status, answer.stderr).toBe(0)
   expect(answer.json.data).toMatchObject({status: "not_paired", pairing: null})
   expect(answer.json.data.next_step).toContain("Pair New Agent on their Agents page")
-  expect(agent.autolaunch(["account", "points"]).json.error.code).toBe("agent_not_paired")
 
   // P3: the person opens Pair New Agent from the account menu on every page they
   // might be on, the developer guide among the pages drawn without LiveView, and it

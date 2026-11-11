@@ -1,5 +1,8 @@
 defmodule Autolaunch.PublicIdentity do
-  @moduledoc "Resolves the public label and picture for a signed human without exposing its private identity."
+  @moduledoc """
+  Resolves the public label and picture for a signed human without exposing its
+  private identity. Every wallet is public, and so is the ENS name that points to it.
+  """
 
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
 
@@ -9,8 +12,10 @@ defmodule Autolaunch.PublicIdentity do
     |> Enum.find_value(&present_label/1)
     |> case do
       nil ->
-        identity |> Map.get(:wallet_address) |> normalize_wallet() |> RegentFormat.short_address() ||
-          "Account"
+        case wallet(identity) do
+          nil -> "Account"
+          wallet -> RegentFormat.short_address(String.downcase(wallet))
+        end
 
       label ->
         label
@@ -19,15 +24,43 @@ defmodule Autolaunch.PublicIdentity do
 
   def label(_identity), do: "Account"
 
+  @doc """
+  The name a list other people read prints for an account: its display name when
+  that is the name it shows, else `nil` when it shows by its wallet, its ENS name
+  or short address, which a page draws with `Regent.Primitives.address`. An account
+  with neither a display name nor a wallet prints its `label/1`.
+  """
+  def listed_name(identity) do
+    case present_label(Map.get(identity, :display_name)) do
+      nil -> if !wallet(identity), do: label(identity)
+      name -> name
+    end
+  end
+
+  @doc "The account's wallet address, when it has one."
+  def wallet(identity) do
+    case Map.get(identity, :wallet_address) do
+      wallet when is_binary(wallet) ->
+        wallet = String.trim(wallet)
+        if Regex.match?(@wallet, wallet), do: wallet
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc "The ENS name's picture, when it has one."
+  def picture(identity), do: present_label(Map.get(identity, :ens_avatar_url))
+
+  @doc "A picture generated from the account's wallet address."
+  def squares(identity), do: identity |> wallet() |> wallet_avatar()
+
   @doc "The account's ENS name, if it has one and it is loaded."
   def ens_name(identity) when is_map(identity), do: present_label(Map.get(identity, :ens_name))
   def ens_name(_identity), do: nil
 
   # The ENS name's picture, else one generated from the wallet address.
-  def avatar_src(identity) when is_map(identity) do
-    present_label(Map.get(identity, :ens_avatar_url)) ||
-      identity |> Map.get(:wallet_address) |> normalize_wallet() |> wallet_avatar()
-  end
+  def avatar_src(identity) when is_map(identity), do: picture(identity) || squares(identity)
 
   def avatar_src(_identity), do: nil
 
@@ -47,17 +80,10 @@ defmodule Autolaunch.PublicIdentity do
 
   defp present_label(_label), do: nil
 
-  defp normalize_wallet(wallet) when is_binary(wallet) do
-    wallet = String.trim(wallet)
-    if Regex.match?(@wallet, wallet), do: String.downcase(wallet)
-  end
-
-  defp normalize_wallet(_wallet), do: nil
-
   defp wallet_avatar(nil), do: nil
 
   defp wallet_avatar(wallet) do
-    digest = :crypto.hash(:sha256, wallet)
+    digest = :crypto.hash(:sha256, String.downcase(wallet))
     bytes = :binary.bin_to_list(digest)
     [red, green, blue, red2, green2, blue2 | cells] = bytes
 

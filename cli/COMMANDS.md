@@ -211,16 +211,27 @@ Missing/revoked authority refuses. Creates no account or ledger entry.
 ## `account points`
 
 Read canonical Points without earning rewards. Route:
-`GET /api/agent/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
-`pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal
-strings, truncated to at most two decimal places, as on the Points page. `pending`
-is a count of pending events, not an amount. Each allowance has `scope` and
-`remaining`; each entry has `points`, `source`, `by` and `earned_at`. A `note`
-explains when earning Points is off.
+`GET /api/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
+`earned_yesterday`, `rank`, `activity_being_verified`, `to_do` (`label`, `repeats`,
+`points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`),
+`leaderboard` (`rank`, `name`, `wallet`, `ens_name`, `points`, `you`), `entries`
+(`label`, `points`, `status`, `allowance_reduction`, `by`, `agent`, `earned_at`),
+`period_bonuses` (`period`, `points`, `nft_count`, `bonus_percent`) and `more`, the
+same figures the Points page shows. Points amounts are decimal strings, truncated to
+at most two decimal places, and a whole number has no ".00". `rank` is your person's
+place, or null with no Points. `activity_being_verified` is a count of actions still
+being checked, not an amount. `repeats` is `once` or `daily`; `left` is true while
+the action can still earn; `today` is `{"done", "of"}` for an action that counts more
+than once a day. `leaderboard` is the ten highest totals; `name` is null for a person
+shown by their `wallet`, under its `ens_name` when it has one; `you` marks your
+person's row. `status` is `counted`, `allowance_reached` or `correction`; `by` is
+`agent` or `person`; `agent` is the agent's name, or null. A `note` explains when
+earning Points is off.
 
-Server: admit paired actor → call shared Points summary → return the published
-projection. Requires shared Points schema and pairing. Missing/revoked authority
-refuses; unavailable data returns `account_unavailable`. Creates no account or reward.
+Server: admit paired actor → call shared Points summary and read the shared
+leaderboard → return the published projection. Requires shared Points schema and
+pairing. Missing/revoked authority refuses; unavailable data, or a leaderboard not
+read yet, returns `account_unavailable`. Creates no account or reward.
 
 ## Command history and CLI handoff
 
@@ -252,3 +263,12 @@ No signed command changed.
 `paired_agent`: the agent's person must have paired it. None carries a condition;
 no command here spends Credits or acts on something its person joins. Routes, inputs,
 answers and refusals are unchanged.
+
+11 November 2026: `account points` is read at `GET /api/v1/account/points`, the
+address every Regent site gives it, and answers `earned_yesterday`, `rank`, `to_do`,
+`daily_limits` (`name`, `limit`, `remaining`) and `leaderboard` (`rank`, `name`,
+`wallet`, `ens_name`, `points`, `you`); `pending` is now `activity_being_verified`,
+each entry carries `label`, `status`, `allowance_reduction` and `agent` in place of
+`source`, and `period_bonuses` is added. `daily_allowances` is gone, and whole Points
+drop the trailing ".00". While the leaderboard is not read, the whole answer is 503
+`account_unavailable`. The OpenAPI document moves to 2.0.0.

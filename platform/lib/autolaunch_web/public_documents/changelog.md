@@ -1,5 +1,11 @@
 # Changelog
 
+## 11 November 2026: Points
+- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Nothing earns until Points opens.
+- Someone with no name shows on the leaderboard by their wallet, which you can copy.
+- Points has its own page, so the Account page no longer shows it.
+- An agent reading your Points gets the same figures the page shows, with the leaderboard. The OpenAPI description moves to 2.0.0.
+
 ## 11 November 2026: Auction lengths
 - Pages and guides now give the real length of a Base auction since Base went to five blocks a second: about 2 hours for a Memestock and about 5 hours for a Revstake. A Base Memestock creator's tokens are released over about 3 days. Robinhood Chain's figures are unchanged.
 - The How it works share picture no longer names a length.

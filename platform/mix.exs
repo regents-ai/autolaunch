@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "4e5279759859f9e35e070789fe6b7fcdb78c47c3"
+  @elixir_utils_ref "d89c69df697f81d2a56a43124eada843d1682303"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "768719f37773b27b4d6a4ec04781b3dc262df0ba"
+  @design_system_ref "871c3fe69f2501e9deb5de5626c7c9e7a5941d5e"
 
   def project do
     [
@@ -212,17 +212,19 @@ defmodule Autolaunch.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Three kinds of compile-connected edge are permitted: a domain naming
+        # Four kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, each resource naming the policy check
-        # modules its policies use, which Ash 3.32 resolves at compile time, and
-        # the endpoint naming the public documents its agent-access plug serves.
-        # Two more stand as they are: the share video request naming its room
-        # action, and the router naming the errors admin page. Nothing else is
-        # permitted. The ceiling is thirty-six domain-to-resource edges (Accounts
-        # six, Autolaunch twenty-nine, Points one), forty-four resource-to-check
-        # edges, the one endpoint edge and those two, and it is re-based per unit
-        # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 85",
+        # modules its policies use, which Ash 3.32 resolves at compile time, a
+        # covered-call or Exposure resource naming the steps module whose kinds
+        # its action accepts, and the endpoint naming the public documents its
+        # agent-access plug serves. Two more stand as they are: the share video
+        # request naming its room action, and the router naming the errors admin
+        # page. Nothing else is permitted. The ceiling is thirty-two
+        # domain-to-resource edges (Accounts six, Autolaunch twenty-four,
+        # CoveredCalls one, Exposure one), thirty-nine resource-to-check edges,
+        # the two steps edges, the one endpoint edge and those two, and it is
+        # re-based per unit when a domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 76",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

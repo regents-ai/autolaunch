@@ -43,7 +43,14 @@ config :autolaunch, Oban,
     default: 1,
     regent_credits: 3
   ],
-  cron: [crontab: [{"* * * * *", Autolaunch.ChainWatch}, {"17 4 * * *", Autolaunch.ErrorPruner}]],
+  cron: [
+    crontab: [
+      {"* * * * *", Autolaunch.ChainWatch},
+      {"17 4 * * *", Autolaunch.ErrorPruner},
+      # One line for each kind of shared reading a producer rereads on notice.
+      {"* * * * *", Autolaunch.SharedReading.Heal, args: %{kind: "points_board"}}
+    ]
+  ],
   pruner: [max_age: {7, :days}],
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
@@ -171,7 +178,6 @@ config :autolaunch,
   ash_domains: [
     Autolaunch.Accounts,
     Autolaunch,
-    Autolaunch.Points,
     Autolaunch.CoveredCalls,
     Autolaunch.Exposure
   ],

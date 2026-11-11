@@ -76,6 +76,7 @@ defmodule Autolaunch.Application do
       stock_admissions_child(),
       chain_reader_children(),
       Autolaunch.LaunchDiscovery.Count.children(),
+      points_board_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -139,6 +140,13 @@ defmodule Autolaunch.Application do
     if !Autolaunch.Prelaunch.read_only?() and
          Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
        do: Autolaunch.ChainHead.children() ++ Autolaunch.CoveredCalls.PriceLine.children()
+  end
+
+  # The Points board is read only where pages are served, so a task or a test
+  # never reads the database before it asks to.
+  defp points_board_child do
+    if Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
+      do: Autolaunch.Points.Board
   end
 
   # Tell Phoenix to update the endpoint configuration

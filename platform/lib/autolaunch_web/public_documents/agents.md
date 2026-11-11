@@ -50,13 +50,13 @@ Your person then opens the create page, sees every field you set marked at the t
 
 Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
-Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/agent/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
+Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
 
 Balances return `credits` and `spending_grant`.
 
 Credits history returns `entries` and `pagination`; pass `pagination.next_cursor` unchanged as `after` while `pagination.has_more` is true. `after` must be a string of at most 2,048 characters. Omit it for the first page or when `next_cursor` is null. A non-string, overlong or malformed cursor returns 422 `invalid_cursor`; extra fields return 422 `invalid_request`, and unrelated or mixed service failures remain 503 `account_unavailable`. Sign the exact POST path and JSON body; do not substitute a GET or rewrite prepared bytes.
 
-Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal strings truncated to at most two decimal places; `pending` counts events. A `note` explains when earning Points or approving agent spending is off.
+Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`, `entries`, `period_bonuses` and `more`: the same figures the Points page shows. Points amounts are decimal strings truncated to at most two decimal places, and a whole number has no ".00"; `activity_being_verified` counts actions still being checked. `leaderboard` is the ten highest totals, each row by name, or by `wallet` under its `ens_name` when the person chose no name, with `you` marking your person's row. A `note` explains when earning Points or approving agent spending is off. Covered-call premiums never count toward Points: anyone can buy their own listing or sell into their own bid for only the 1% fee.
 
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
