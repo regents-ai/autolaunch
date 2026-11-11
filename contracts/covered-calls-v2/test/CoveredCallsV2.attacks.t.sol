@@ -47,7 +47,7 @@ contract CoveredCallsV2AttacksTest is Test {
         c[1] = abi.encodeCall(CoveredCallsV2.cancelBid, (bidId));
         c[2] = abi.encodeCall(CoveredCallsV2.refundBid, (bidId));
         c[3] = abi.encodeCall(CoveredCallsV2.raiseBid, (bidId, 1));
-        c[4] = abi.encodeCall(CoveredCallsV2.bid, (TOKEN, 110 * USD, 3 * USD, expiry));
+        c[4] = abi.encodeCall(CoveredCallsV2.bid, (TOKEN, 110 * USD, 3 * USD, expiry, 1));
         c[5] = abi.encodeCall(CoveredCallsV2.fill, (listingId, 1));
         c[6] = abi.encodeCall(CoveredCallsV2.list, (TOKEN, 110 * USD, 3 * USD, expiry));
         c[7] = abi.encodeCall(CoveredCallsV2.cancel, (listingId));
@@ -68,7 +68,7 @@ contract CoveredCallsV2AttacksTest is Test {
         _fund(calls, address(stock), address(usdc), bidder);
         _fund(calls, address(stock), address(usdc), seller);
         vm.prank(bidder);
-        uint256 id = calls.bid(50 * TOKEN, 110 * USD, 3 * USD, expiry);
+        uint256 id = calls.bid(50 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
         vm.prank(seller);
         uint256 listingId = calls.list(20 * TOKEN, 110 * USD, 3 * USD, expiry);
 
@@ -116,7 +116,7 @@ contract CoveredCallsV2AttacksTest is Test {
         for (uint256 i; i < c.length; ++i) {
             usdc.arm(address(calls), c[i]);
             vm.prank(bidder);
-            calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry);
+            calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
             assertEq(usdc.callbackRevert(), _reentrancy(), "bid");
 
             usdc.arm(address(calls), c[i]);
@@ -177,7 +177,7 @@ contract CoveredCallsV2AttacksTest is Test {
             vm.stopPrank();
         }
         vm.prank(bidder);
-        uint256 id = calls.bid(50 * TOKEN, 110 * USD, 3 * USD, expiry);
+        uint256 id = calls.bid(50 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
         bytes[] memory c = _callbacks(id, 1);
         for (uint256 i; i < c.length; ++i) {
             stock.arm(address(calls), c[i]);
@@ -216,7 +216,7 @@ contract CoveredCallsV2AttacksTest is Test {
         vm.prank(buyer);
         calls.fill(listed, 4 * TOKEN);
         vm.prank(bidder);
-        uint256 id = calls.bid(10 * TOKEN, 120 * USD, 2 * USD, expiry);
+        uint256 id = calls.bid(10 * TOKEN, 120 * USD, 2 * USD, expiry, 1);
         vm.prank(seller);
         uint256 sold = calls.sellToBid(id, 6 * TOKEN);
 
@@ -338,8 +338,8 @@ contract CoveredCallsV2AttacksTest is Test {
         _fund(calls, address(stock), address(usdc), bidder);
         vm.startPrank(bidder);
         vm.expectRevert(FixedPointMathLib.MulDivFailed.selector);
-        calls.bid(type(uint256).max / 2, 110 * USD, 3 * USD, expiry);
-        uint256 id = calls.bid(TOKEN, 110 * USD, 3 * USD, expiry);
+        calls.bid(type(uint256).max / 2, 110 * USD, 3 * USD, expiry, 1);
+        uint256 id = calls.bid(TOKEN, 110 * USD, 3 * USD, expiry, 1);
         vm.expectRevert(FixedPointMathLib.MulDivFailed.selector);
         calls.raiseBid(id, type(uint256).max / 4);
         vm.expectRevert(); // arithmetic overflow adding to the amount

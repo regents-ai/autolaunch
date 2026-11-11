@@ -24,9 +24,10 @@ One contract per stock. It has no owner, admin, oracle, upgrade or pause.
 **A buyer can**
 
 - buy calls from a listing (as in V1);
-- post a bid: the number of tokens wanted, the strike, the premium per token and the Friday
-  expiry. The whole premium is held by the contract from the moment the bid is posted, so a
-  seller selling into it is always paid;
+- post a bid: the number of tokens wanted, the strike, the premium per token, the Friday expiry
+  and the smallest piece one sale may be (the minimum sale; the site sets one whole token, or the
+  whole bid when it is smaller). The whole premium is held by the contract from the moment the
+  bid is posted, so a seller selling into it is always paid;
 - raise a bid to ask for more at the same terms, paying in the extra premium;
 - cancel a bid at any time: selling stops at once and the unspent premium becomes the buyer's
   to take back;
@@ -38,8 +39,9 @@ One contract per stock. It has no owner, admin, oracle, upgrade or pause.
 **A bid's life**
 
 ```
-          bid (premium escrowed)       sellToBid (any seller, any part, until expiry)
+          bid (premium escrowed)       sellToBid (any seller, the minimum or more, until expiry)
   buyer ───────────────────────► OPEN ─────────────────────────────────────────► SOLD OUT
+                                  │  a last piece smaller than the minimum sells whole
                                   │  raiseBid: asks for more, escrows more (reopens a closed bid)
                                   │  cancelBid: selling stops; unspent premium → refund
                                   ▼
@@ -57,6 +59,8 @@ One contract per stock. It has no owner, admin, oracle, upgrade or pause.
   bid's escrow and never more; across all the sales into one bid, sellers are paid exactly the
   premium one fill of everything sold would cost, however the sales are split or whoever makes
   them.
+- Nobody can break a bid into dust. Every sale is at least the bid's minimum sale, or exactly
+  what is left of the bid, so the last piece can always sell.
 - Only the bidder can raise, cancel or refund a bid. Cancelling moves no tokens, so a USDC pause
   or a Circle blacklist on the bidder never stops them stopping their bid; the refund is a
   separate pull with no deadline.
@@ -67,11 +71,10 @@ One contract per stock. It has no owner, admin, oracle, upgrade or pause.
 
 **Known limits**
 
-1. **Dust sales fragment a bidder's calls.** Each sale is its own listing, so a seller who sells
-   1,000 tiny pieces into a bid leaves the bidder 1,000 listings to exercise one by one. No
-   money is at risk and the griefer pays more gas per piece than the bidder does, but exercising
-   everything costs the bidder many transactions in a 24-hour window. Not changed here; see open
-   question 1 below.
+1. **A bidder's calls arrive as one listing per sale.** Each listing is exercised on its own. The
+   minimum sale bounds how many there are: a bid takes at most its amount divided by its minimum
+   sale, rounded up, plus one more sale for each raise. At the site's minimum of one whole token, a
+   bid for ten tokens ends in at most ten listings.
 2. **Another sale can shift a sale's price by one micro-USDC.** Sales into a bid share its
    rounding (see Arithmetic), so whether another seller's sale landed first moves a sale's
    premium by at most 0.000001 USDC either way. The terms per token never change.
@@ -81,8 +84,9 @@ One contract per stock. It has no owner, admin, oracle, upgrade or pause.
 4. **Sale fees are counted per bid, fill fees per fill.** A bid's sales together pay exactly 1%
    (rounded up once) of what was sold, so splitting a sale neither avoids nor adds to the fee,
    and a dust sale may carry no fee. A fill pays 1% rounded up on its own, as in V1.
-5. **A sale may pay nothing.** A seller selling a piece too small to round up to a micro-USDC
-   gets nothing for it. That is the seller's choice; the bidder already paid for it in escrow.
+5. **A sale may pay nothing.** When a bid's minimum sale is tiny, a seller selling a piece too
+   small to round up to a micro-USDC gets nothing for it. That is the seller's choice; the bidder
+   already paid for it in escrow.
 6. **No token taking a fee on transfer.** As in V1, the contract counts the amounts it asked to
    move; AMZNc and USDC take no transfer fee.
 7. V1's limits all carry over: the exercise window is a deadline; fills and sales need staking to
@@ -104,10 +108,10 @@ token call (checks–effects–interactions). Every call except `sellToBid` move
 | `exercise(listingId, amount)` | a holder | as V1 | as V1 | USDC: holder → contract |
 | `claim(listingId)` | anyone owed stock | as V1 | as V1 | stock: contract → caller |
 | `collectStrike(listingId)` | seller only | as V1 | as V1 | USDC: contract → seller |
-| `bid(amount, strikePerToken, premiumPerToken, expiry)` | any buyer | all three > 0; `expiry % 1 weeks == WEEKLY_EXPIRY_OFFSET`; `expiry > now`; no scheduled multiplier change before the window closes | new bid id `++bidCount`; `BidPosted` with the escrow | USDC: bidder → contract, `costFor(amount, premiumPerToken)` |
-| `raiseBid(bidId, amount)` | bidder only | `amount > 0`; `now < expiry`; no scheduled multiplier change before the window closes | the bid's `amount` grows by the raise; `BidRaised` | USDC: bidder → contract, `raiseCostFor(bidId, amount)` |
+| `bid(amount, strikePerToken, premiumPerToken, expiry, minSale)` | any buyer | all three > 0; `0 < minSale ≤ amount`; `expiry % 1 weeks == WEEKLY_EXPIRY_OFFSET`; `expiry > now`; no scheduled multiplier change before the window closes | new bid id `++bidCount`; `BidPosted` with the minimum sale and the escrow | USDC: bidder → contract, `costFor(amount, premiumPerToken)` |
+| `raiseBid(bidId, amount)` | bidder only | `amount > 0`; `now < expiry`; no scheduled multiplier change before the window closes | the bid's `amount` grows by the raise; its minimum sale stays; `BidRaised` | USDC: bidder → contract, `raiseCostFor(bidId, amount)` |
 | `cancelBid(bidId)` | bidder only | something unsold | `refundDue += escrow left`; `amount = filled`; `BidClosed` | none |
-| `sellToBid(bidId, amount)` | any seller | bid exists; `amount > 0`; `now < expiry`; `amount ≤` the bid's `amount − filled`; no scheduled multiplier change before the window closes | `filled += amount`; new listing (seller = caller; its `amount` and `filled` both the sale's amount; the bid's strike, premium and expiry); `held[listing][bidder] += amount`; `SoldToBid` | stock: seller → contract, `amount`; USDC: contract → seller, `premium − fee`; contract approves staking `fee`, staking pulls it via `depositUSDC` (tag `autolaunch-covered-calls`, ref the new listing id) and must report exactly `fee` |
+| `sellToBid(bidId, amount)` | any seller | bid exists; `amount > 0`; `now < expiry`; `amount ≤` the bid's `amount − filled`; `amount ≥ minSale`, or `amount` is exactly the bid's `amount − filled`; no scheduled multiplier change before the window closes | `filled += amount`; new listing (seller = caller; its `amount` and `filled` both the sale's amount; the bid's strike, premium and expiry); `held[listing][bidder] += amount`; `SoldToBid` | stock: seller → contract, `amount`; USDC: contract → seller, `premium − fee`; contract approves staking `fee`, staking pulls it via `depositUSDC` (tag `autolaunch-covered-calls`, ref the new listing id) and must report exactly `fee` |
 | `refundBid(bidId)` | bidder only | something to refund (after expiry, the unspent escrow is booked first, once) | after expiry with something unsold: as `cancelBid`; then `refundDue = 0`; `BidRefunded` | USDC: contract → bidder |
 
 Views: V1's `claimable(listingId, account)`, `premiumFor`, `strikeFor`, `listings(id)`, `held`,
@@ -140,6 +144,7 @@ struct Bid {
     uint256 filled;           // raw stock sold into the bid
     uint256 strikePerToken;   // USDC (6 dp) per whole token
     uint256 premiumPerToken;  // USDC (6 dp) per whole token
+    uint256 minSale;          // smallest raw amount one sale may be, unless it sells the rest
     uint256 refundDue;        // escrow released by closing and not yet refunded
 }
 uint256 public bidCount;                        // ids count from 1
@@ -156,7 +161,7 @@ V1's seven (`Listed`, `Filled`, `Cancelled`, `Exercised`, `StockReturned`, `Clai
 
 | Event | When |
 | --- | --- |
-| `BidPosted(bidId, bidder, amount, strikePerToken, premiumPerToken, expiry, escrow)` | a bid is posted |
+| `BidPosted(bidId, bidder, amount, strikePerToken, premiumPerToken, expiry, minSale, escrow)` | a bid is posted |
 | `BidRaised(bidId, amount, escrow)` | a bid asks for `amount` more and `escrow` more is held |
 | `SoldToBid(bidId, listingId, seller, amount, premium, fee)` | a sale; the seller received `premium − fee` |
 | `BidClosed(bidId, unsold, escrow)` | a bid stopped selling (cancelled, or booked after expiry) |
@@ -164,7 +169,9 @@ V1's seven (`Listed`, `Filled`, `Cancelled`, `Exercised`, `StockReturned`, `Clai
 
 ## Errors
 
-V1's twelve, and `UnknownBid(bidId)` and `NotBidder(caller)`.
+V1's twelve, and `UnknownBid(bidId)`, `NotBidder(caller)` and `BelowMinSale(amount, minSale)`. A
+bid with a zero minimum sale is refused with `ZeroAmount`, and one whose minimum is above its
+amount with `ExceedsAvailable(minSale, amount)`.
 
 ## Arithmetic
 
@@ -208,7 +215,9 @@ The contract's balances always equal what it owes:
    bid's sold premium; no allowance to staking is left behind.
 7. **`claimable` equals what `claim` pays and `refundable` equals what `refundBid` pays,** in every
    state.
-8. After every random run, when all restrictions are lifted, everyone collects everything, the
+8. **No sale below the minimum:** every sale is at least its bid's minimum sale or exactly the
+   bid's whole remainder, and no bid's minimum ever changes.
+9. After every random run, when all restrictions are lifted, everyone collects everything, the
    contract ends holding zero stock and zero USDC, and each bidder has paid exactly
    `costFor(filled)`.
 
@@ -226,7 +235,7 @@ Adversarial review of the bid paths, with what it found and what changed:
 | --- | --- |
 | **Reentrancy through stock, USDC or staking** | Every state-changing call is guarded and writes state and events first. Tested with a stock and a USDC that call back into the contract mid-transfer, trying each state-changing function in turn, and a staking contract that does the same during a sale and a fill: every callback is refused with `Reentrancy()` and the books stay exact (`test/CoveredCallsV2.attacks.t.sol`). |
 | **Rounding theft** | Found while building: if each sale rounded up on its own, a seller splitting a sale into dust would draw more than the bid escrowed and starve later sellers. Fixed by rounding once per bid (Arithmetic). Fuzzed: one seller's split, many sellers' split, and random sales, raises and cancels all end exactly level with one sale (`test/CoveredCallsV2.split.t.sol`). |
-| **Griefing a bidder's escrow** | Only the bidder can raise, cancel or refund. Found while building: if cancelling sent the refund, a blacklisted or paused bidder could not stop sales; cancelling now moves no token and refunding is a separate pull. A seller can fragment a bidder's calls into dust listings (Known limits 1). |
+| **Griefing a bidder's escrow** | Only the bidder can raise, cancel or refund. Found while building: if cancelling sent the refund, a blacklisted or paused bidder could not stop sales; cancelling now moves no token and refunding is a separate pull. Found in review: a seller could sell a bid in 1,000 dust pieces for about a cent of gas on Base, leaving the bidder 1,000 listings to exercise one by one, on a contract nobody can change later. Fixed with the bid's minimum sale (Known limits 1); tested below the minimum, at it, with a smaller last piece, with a minimum of the whole bid, and across raises, and the split fuzz tests use a random minimum. |
 | **Front-running a sale** | A bidder cancelling or another seller filling the rest just before a sale makes it revert whole (`ExceedsAvailable`); nothing moves. A raise in the same block changes nothing for the sale (the terms are per token and cannot change). A seller names the bid by id, so a cancelled bid re-posted on worse terms is a different bid. Another seller's sale landing first moves the price by at most one micro-USDC (fuzzed). A seller selling just before a cancel lands sells at the bidder's own posted terms, as with any standing order. |
 | **Paused or blocklisted tokens** | A sale needs both tokens to move and reverts whole otherwise. `cancelBid` moves nothing; `refundBid` needs only USDC; a bidder blacklisted by Circle can still be sold into, since the sale never touches the bidder's balance. Tested for each. |
 | **Fee-on-transfer tokens** | Not supported, as in V1 (Known limits 6). |
@@ -250,15 +259,17 @@ calls.
 
 **What the site must add.**
 
-- Reads: `bidCount`; `bids(uint256)`, seven words (`bidder`, `expiry`, `amount`, `filled`,
-  `strikePerToken`, `premiumPerToken`, `refundDue`); `refundable(bidId)`; `salePremiumFor(bidId,
+- Reads: `bidCount`; `bids(uint256)`, eight words (`bidder`, `expiry`, `amount`, `filled`,
+  `strikePerToken`, `premiumPerToken`, `minSale`, `refundDue`); `refundable(bidId)`; `salePremiumFor(bidId,
   amount)` for what a seller receives (`premium − fee`); `raiseCostFor(bidId, amount)`; and
   `costFor(amount, premiumPerToken)` for a new bid's escrow. A bid is open while
   `now < expiry` and `amount > filled`.
-- Steps: post a bid (exact USDC approval of `costFor`, then `bid`); raise (exact approval of
+- Steps: post a bid (exact USDC approval of `costFor`, then `bid` with a minimum sale of one
+  whole token, or the bid's amount when that is smaller; no page field); raise (exact approval of
   `raiseCostFor`, then `raiseBid`); cancel a bid (no approval); sell into a bid (exact stock
-  approval of `amount`, then `sellToBid`); refund (no approval). The new refusals are
-  `UnknownBid` and `NotBidder`; the rest are V1's.
+  approval of `amount`, then `sellToBid`; the amount offered is at least the bid's `minSale`, or
+  exactly what is left of it); refund (no approval). The new refusals are
+  `UnknownBid`, `NotBidder` and `BelowMinSale`; the rest are V1's.
 - Each new action needs its row and five surfaces in `docs/agent-parity.md`.
 
 **The cutover.** The market record's `contract`
@@ -290,9 +301,9 @@ The offline gate: `forge fmt --check`, `forge build`, and every suite. It builds
 | `CoveredCallsV2.rules.t.sol` | 9 | V1's rules suite |
 | `CoveredCallsV2.ordering.t.sol` | 9 | V1's ordering suite |
 | `CoveredCallsV2.recovery.t.sol` | 13 | V1's recovery suite |
-| `CoveredCallsV2.bids.t.sol` | 35 | every bid call and refusal, all-or-nothing sales, a blacklisted bidder still sold into, dust, many sellers, one seller into many bids, expiry with no deadline, corporate actions, cancel or raise just before a sale |
-| `CoveredCallsV2.split.t.sol` | 3 fuzz | splitting never pays a seller less or a bidder more than one sale |
+| `CoveredCallsV2.bids.t.sol` | 39 | every bid call and refusal, the minimum sale, all-or-nothing sales, a blacklisted bidder still sold into, dust, many sellers, one seller into many bids, expiry with no deadline, corporate actions, cancel or raise just before a sale |
+| `CoveredCallsV2.split.t.sol` | 3 fuzz | splitting, in pieces of at least a random minimum sale, never pays a seller less or a bidder more than one sale |
 | `CoveredCallsV2.attacks.t.sol` | 5 | reentry through stock, USDC and staking; nobody reaches another's funds; overflow |
-| `CoveredCallsV2.invariant.t.sol` | 8 invariants | the Invariants above |
+| `CoveredCallsV2.invariant.t.sol` | 9 invariants | the Invariants above |
 
 There is no Base fork suite yet: it needs a Base RPC, and it belongs with the deployment work.

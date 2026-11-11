@@ -8,10 +8,10 @@ import {B20Double, StakingDouble, UsdcDouble} from "./doubles/Doubles.sol";
 import {WeeklyExpiry} from "./doubles/WeeklyExpiry.sol";
 
 /// @notice Splitting a sale into a bid never changes what anyone gets. The same bid is sold into once
-///         on one contract and in many random pieces (by one seller, or by many) on an identical
-///         second contract; the sellers, the bidder and staking must end exactly level. And whatever
-///         mix of sales, raises and cancels a bid sees, its bidder pays exactly what one fill of
-///         everything sold into it would cost.
+///         on one contract and in many random pieces (by one seller, or by many), each at least the
+///         bid's random minimum sale, on an identical second contract; the sellers, the bidder and
+///         staking must end exactly level. And whatever mix of sales, raises and cancels a bid sees,
+///         its bidder pays exactly what one fill of everything sold into it would cost.
 contract CoveredCallsV2SplitTest is Test {
     uint256 internal constant TOKEN = 1e8;
     uint256 internal constant USD = 1e6;
@@ -23,6 +23,14 @@ contract CoveredCallsV2SplitTest is Test {
         UsdcDouble usdc;
         StakingDouble staking;
         CoveredCallsV2 calls;
+    }
+
+    struct Terms {
+        uint256 amount;
+        uint256 soldBefore;
+        uint256 premiumPerToken;
+        uint256 minSale;
+        uint256 x;
     }
 
     address internal bidder = makeAddr("bidder");
@@ -61,28 +69,31 @@ contract CoveredCallsV2SplitTest is Test {
 
     /// Posts the same bid on a market and, when `soldBefore` is not zero, has `first` sell that much
     /// into it, so the split starts part way through the bid's rounding.
-    function _open(Market memory m, uint256 amount, uint256 premiumPerToken, uint256 soldBefore)
-        internal
-        returns (uint256 id)
-    {
+    function _open(Market memory m, Terms memory t) internal returns (uint256 id) {
         vm.prank(bidder);
-        id = m.calls.bid(amount, 137 * USD, premiumPerToken, expiry);
-        if (soldBefore != 0) {
+        id = m.calls.bid(t.amount, 137 * USD, t.premiumPerToken, expiry, t.minSale);
+        if (t.soldBefore != 0) {
             vm.prank(first);
-            m.calls.sellToBid(id, soldBefore);
+            m.calls.sellToBid(id, t.soldBefore);
         }
     }
 
-    /// Random piece sizes that add up to `total`, at most `count` of them.
-    function _pieces(uint256 total, uint256 count, uint256 seed) internal pure returns (uint256[] memory parts) {
+    /// Random piece sizes that add up to `total`, at most `count` of them, each at least `minSale`.
+    function _pieces(uint256 total, uint256 count, uint256 minSale, uint256 seed)
+        internal
+        pure
+        returns (uint256[] memory parts)
+    {
         parts = new uint256[](count);
         uint256 left = total;
         uint256 n;
-        for (; n < count - 1 && left > 1; ++n) {
+        for (; n < count - 1 && left >= 2 * minSale; ++n) {
             seed = uint256(keccak256(abi.encode(seed, n)));
-            // Mostly dust, sometimes a large piece.
-            uint256 cap = seed % 3 == 0 ? left - 1 : (left - 1 < 1_000 ? left - 1 : 1_000);
-            parts[n] = 1 + (seed >> 8) % cap;
+            // Mostly the minimum or a little over, sometimes a large piece; always leaving at least
+            // the minimum for the pieces after it.
+            uint256 room = left - 2 * minSale;
+            uint256 cap = seed % 3 == 0 ? room : (room < 1_000 ? room : 1_000);
+            parts[n] = minSale + (seed >> 8) % (cap + 1);
             left -= parts[n];
         }
         parts[n] = left;
@@ -98,15 +109,20 @@ contract CoveredCallsV2SplitTest is Test {
         }
     }
 
-    function _bounds(uint256 amount, uint256 sold, uint256 premiumPerToken)
+    /// A bid of `amount` with a minimum sale of at most half of it (one raw unit half the time, so
+    /// dust is tried), `soldBefore` already sold (zero, or a valid sale leaving at least the
+    /// minimum), and a sale `x` of at least the minimum.
+    function _terms(uint256 amount, uint256 soldBefore, uint256 premiumPerToken, uint256 minSale, uint256 x)
         internal
         pure
-        returns (uint256, uint256, uint256)
+        returns (Terms memory t)
     {
-        amount = bound(amount, 2, 400 * TOKEN);
-        sold = bound(sold, 0, amount - 2);
-        premiumPerToken = bound(premiumPerToken, 1, 50_000 * USD);
-        return (amount, sold, premiumPerToken);
+        t.amount = bound(amount, 2, 400 * TOKEN);
+        t.minSale = minSale % 2 == 0 ? 1 : bound(minSale, 1, t.amount / 2);
+        t.soldBefore = bound(soldBefore, 0, t.amount - t.minSale);
+        if (t.soldBefore < t.minSale) t.soldBefore = 0;
+        t.premiumPerToken = bound(premiumPerToken, 1, 50_000 * USD);
+        t.x = bound(x, t.minSale, t.amount - t.soldBefore);
     }
 
     /// One seller selling `x` into a bid in up to 40 random pieces is paid exactly what one sale of `x`
@@ -116,20 +132,20 @@ contract CoveredCallsV2SplitTest is Test {
         uint256 amount,
         uint256 soldBefore,
         uint256 premiumPerToken,
+        uint256 minSale,
         uint256 x,
         uint256 seed
     ) public {
-        (amount, soldBefore, premiumPerToken) = _bounds(amount, soldBefore, premiumPerToken);
-        x = bound(x, 2, amount - soldBefore);
+        Terms memory t = _terms(amount, soldBefore, premiumPerToken, minSale, x);
         Market memory one = _market();
         Market memory split = _market();
-        uint256 a = _open(one, amount, premiumPerToken, soldBefore);
-        uint256 b = _open(split, amount, premiumPerToken, soldBefore);
+        uint256 a = _open(one, t);
+        uint256 b = _open(split, t);
         address seller = sellers[0];
 
         vm.prank(seller);
-        one.calls.sellToBid(a, x);
-        uint256[] memory parts = _pieces(x, 40, seed);
+        one.calls.sellToBid(a, t.x);
+        uint256[] memory parts = _pieces(t.x, 40, t.minSale, seed);
         for (uint256 i; i < parts.length; ++i) {
             vm.prank(seller);
             split.calls.sellToBid(b, parts[i]);
@@ -151,19 +167,19 @@ contract CoveredCallsV2SplitTest is Test {
         uint256 amount,
         uint256 soldBefore,
         uint256 premiumPerToken,
+        uint256 minSale,
         uint256 x,
         uint256 seed
     ) public {
-        (amount, soldBefore, premiumPerToken) = _bounds(amount, soldBefore, premiumPerToken);
-        x = bound(x, 2, amount - soldBefore);
+        Terms memory t = _terms(amount, soldBefore, premiumPerToken, minSale, x);
         Market memory one = _market();
         Market memory many = _market();
-        uint256 a = _open(one, amount, premiumPerToken, soldBefore);
-        uint256 b = _open(many, amount, premiumPerToken, soldBefore);
+        uint256 a = _open(one, t);
+        uint256 b = _open(many, t);
 
         vm.prank(sellers[0]);
-        one.calls.sellToBid(a, x);
-        uint256[] memory parts = _pieces(x, 30, seed);
+        one.calls.sellToBid(a, t.x);
+        uint256[] memory parts = _pieces(t.x, 30, t.minSale, seed);
         for (uint256 i; i < parts.length; ++i) {
             vm.prank(sellers[uint256(keccak256(abi.encode(seed, "who", i))) % sellers.length]);
             many.calls.sellToBid(b, parts[i]);
@@ -189,16 +205,21 @@ contract CoveredCallsV2SplitTest is Test {
     function testFuzz_bidderPaysExactlyOneFillOfWhatWasSold(uint256 seed, uint256 premiumPerToken) public {
         premiumPerToken = bound(premiumPerToken, 1, 50_000 * USD);
         Market memory m = _market();
+        uint256 amount = 1 + seed % (20 * TOKEN);
+        uint256 minSale = (seed >> 128) % 2 == 0 ? 1 : 1 + (seed >> 64) % amount;
         vm.prank(bidder);
-        uint256 id = m.calls.bid(1 + seed % (20 * TOKEN), 137 * USD, premiumPerToken, expiry);
+        uint256 id = m.calls.bid(amount, 137 * USD, premiumPerToken, expiry, minSale);
 
         for (uint256 i; i < 24; ++i) {
             seed = uint256(keccak256(abi.encode(seed, i)));
             CoveredCallsV2.Bid memory b = m.calls.bids(id);
             uint256 kind = seed % 5;
             if (kind <= 2 && b.amount > b.filled) {
+                // At least the minimum, mostly close to it, or the whole remainder when less is left.
                 uint256 left = b.amount - b.filled;
-                uint256 part = seed % 2 == 0 ? 1 + (seed >> 8) % (left < 500 ? left : 500) : 1 + (seed >> 8) % left;
+                uint256 room = left > minSale ? left - minSale : 0;
+                uint256 part =
+                    left <= minSale ? left : minSale + (seed >> 8) % ((seed % 2 == 0 && room > 500 ? 500 : room) + 1);
                 vm.prank(sellers[(seed >> 16) % sellers.length]);
                 m.calls.sellToBid(id, part);
             } else if (kind == 3) {

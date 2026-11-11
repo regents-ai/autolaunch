@@ -69,6 +69,8 @@ contract CoveredCallsV2 is ReentrancyGuard {
         uint256 filled;
         uint256 strikePerToken;
         uint256 premiumPerToken;
+        /// The smallest raw amount one sale may be, unless it sells the bid's whole remainder.
+        uint256 minSale;
         /// Escrow released by closing the bid and not yet refunded.
         uint256 refundDue;
     }
@@ -108,6 +110,7 @@ contract CoveredCallsV2 is ReentrancyGuard {
         uint256 strikePerToken,
         uint256 premiumPerToken,
         uint64 expiry,
+        uint256 minSale,
         uint256 escrow
     );
     /// @notice A bid now asks for `amount` more, and `escrow` more USDC is held for it.
@@ -138,6 +141,7 @@ contract CoveredCallsV2 is ReentrancyGuard {
     error NotBidder(address caller);
     error FillsClosed(uint64 expiry);
     error ExceedsAvailable(uint256 requested, uint256 available);
+    error BelowMinSale(uint256 amount, uint256 minSale);
     error OutsideExerciseWindow(uint64 expiry);
     error NothingToCollect();
     error DepositMismatch(uint256 expected, uint256 received);
@@ -258,13 +262,17 @@ contract CoveredCallsV2 is ReentrancyGuard {
     // ---- bids ----
 
     /// @notice Posts a standing bid for calls on `amount` raw stock and escrows its whole premium,
-    ///         `costFor(amount, premiumPerToken)`, from the caller.
-    function bid(uint256 amount, uint256 strikePerToken, uint256 premiumPerToken, uint64 expiry)
+    ///         `costFor(amount, premiumPerToken)`, from the caller. Each sale into it must be at
+    ///         least `minSale` raw stock, or exactly the bid's whole remainder, so a bid cannot be
+    ///         broken into dust listings.
+    function bid(uint256 amount, uint256 strikePerToken, uint256 premiumPerToken, uint64 expiry, uint256 minSale)
         external
         nonReentrant
         returns (uint256 bidId)
     {
         _requireNewTerms(amount, strikePerToken, premiumPerToken, expiry);
+        if (minSale == 0) revert ZeroAmount();
+        if (minSale > amount) revert ExceedsAvailable(minSale, amount);
 
         uint256 escrow = costFor(amount, premiumPerToken);
         bidId = ++bidCount;
@@ -275,15 +283,16 @@ contract CoveredCallsV2 is ReentrancyGuard {
             filled: 0,
             strikePerToken: strikePerToken,
             premiumPerToken: premiumPerToken,
+            minSale: minSale,
             refundDue: 0
         });
-        emit BidPosted(bidId, msg.sender, amount, strikePerToken, premiumPerToken, expiry, escrow);
+        emit BidPosted(bidId, msg.sender, amount, strikePerToken, premiumPerToken, expiry, minSale, escrow);
 
         usdc.safeTransferFrom(msg.sender, address(this), escrow);
     }
 
-    /// @notice Asks for `amount` more raw stock on the caller's bid, at the same terms, and escrows
-    ///         the premium that adds (`raiseCostFor`).
+    /// @notice Asks for `amount` more raw stock on the caller's bid, at the same terms and minimum
+    ///         sale, and escrows the premium that adds (`raiseCostFor`).
     function raiseBid(uint256 bidId, uint256 amount) external nonReentrant {
         Bid storage b = _bid(bidId);
         if (msg.sender != b.bidder) revert NotBidder(msg.sender);
@@ -310,12 +319,14 @@ contract CoveredCallsV2 is ReentrancyGuard {
 
     /// @notice Sells calls on `amount` raw stock into a bid: locks the caller's stock as a new, fully
     ///         filled listing held by the bidder, and pays the caller its premium less the fee now.
+    ///         `amount` must be at least the bid's `minSale`, or exactly its whole remainder.
     function sellToBid(uint256 bidId, uint256 amount) external nonReentrant returns (uint256 listingId) {
         Bid storage b = _bid(bidId);
         if (amount == 0) revert ZeroAmount();
         if (block.timestamp >= b.expiry) revert FillsClosed(b.expiry);
         uint256 available = b.amount - b.filled;
         if (amount > available) revert ExceedsAvailable(amount, available);
+        if (amount < b.minSale && amount != available) revert BelowMinSale(amount, b.minSale);
         _requireNoCorporateActionBefore(b.expiry);
 
         (uint256 premium, uint256 fee) = salePremiumFor(bidId, amount);

@@ -38,6 +38,10 @@ contract CoveredCallsV2Handler is Test {
     uint256 public fillFeesExpected;
     /// Claims and refunds that paid something other than `claimable` / `refundable` just before.
     uint256 public mismatches;
+    /// The minimum sale each bid was posted with, and sales that went through below a bid's minimum
+    /// without being its whole remainder.
+    mapping(uint256 bidId => uint256) public minSaleOf;
+    uint256 public undersizedSales;
     mapping(bytes4 selector => uint256) public succeeded;
 
     constructor(CoveredCallsV2 calls_, B20Double stock_, UsdcDouble usdc_, StakingDouble staking_) {
@@ -213,16 +217,22 @@ contract CoveredCallsV2Handler is Test {
 
     // ---- bids ----
 
-    function bid(uint256 who, uint256 amount, uint256 strike, uint256 premium, uint256 weeksAhead) external {
+    /// Posts a bid whose minimum sale is one raw unit half the time, and otherwise anything up to its
+    /// whole amount.
+    function bid(uint256 who, uint256 amount, uint256 strike, uint256 premium, uint256 weeksAhead, uint256 minSale)
+        external
+    {
         address bidder = _actor(who);
         amount = bound(amount, 1, 50e8);
         strike = bound(strike, 1, 1_000e6);
         premium = bound(premium, 1, 100e6);
+        minSale = minSale % 2 == 0 ? 1 : bound(minSale, 1, amount);
         uint64 expiry = WeeklyExpiry.next(block.timestamp, bound(weeksAhead, 0, 2));
         uint256 before = usdc.balanceOf(bidder);
         vm.prank(bidder);
-        try calls.bid(amount, strike, premium, expiry) returns (uint256 id) {
+        try calls.bid(amount, strike, premium, expiry, minSale) returns (uint256 id) {
             paidIn[id] += before - usdc.balanceOf(bidder);
+            minSaleOf[id] = minSale;
             ++succeeded[this.bid.selector];
         } catch {}
     }
@@ -248,13 +258,17 @@ contract CoveredCallsV2Handler is Test {
         } catch {}
     }
 
-    /// Sells part of a bid, half the time in dust so the bid's rounding is exercised.
+    /// Sells part of a bid: a third of the time dust, which the bid's minimum may refuse; a third of
+    /// the time any size the minimum allows; and otherwise the bid's whole remainder.
     function sellToBid(uint256 who, uint256 bidSeed, uint256 amount) external {
         uint256 id = _openBid(bidSeed);
         if (id == 0) return;
         CoveredCallsV2.Bid memory b = calls.bids(id);
         uint256 left = b.amount - b.filled;
-        amount = amount % 2 == 0 ? bound(amount, 1, left < 1_000 ? left : 1_000) : bound(amount, 1, left);
+        uint256 mode = amount % 3;
+        if (mode == 0) amount = bound(amount, 1, left < 1_000 ? left : 1_000);
+        else if (mode == 1) amount = left <= b.minSale ? left : bound(amount, b.minSale, left);
+        else amount = left;
         address seller = _actor(who);
         uint256 sellerBefore = usdc.balanceOf(seller);
         uint256 feesBefore = staking.deposited();
@@ -265,6 +279,7 @@ contract CoveredCallsV2Handler is Test {
             salesFees[id] += fee;
             listedOf[listingId] = amount;
             bidOf[listingId] = id;
+            if (amount < b.minSale && amount != left) ++undersizedSales;
             ++succeeded[this.sellToBid.selector];
         } catch {}
     }
@@ -449,6 +464,15 @@ contract CoveredCallsV2InvariantTest is Test {
         }
         for (uint256 id = 1; id <= calls.bidCount(); ++id) {
             assertEq(soldInto[id], calls.bids(id).filled, "sale listings differ from the bid");
+        }
+    }
+
+    /// No sale went through below its bid's minimum unless it sold the bid's whole remainder, and no
+    /// bid's minimum ever changed.
+    function invariant_noSaleBelowTheMinimum() public view {
+        assertEq(handler.undersizedSales(), 0);
+        for (uint256 id = 1; id <= calls.bidCount(); ++id) {
+            assertEq(calls.bids(id).minSale, handler.minSaleOf(id));
         }
     }
 

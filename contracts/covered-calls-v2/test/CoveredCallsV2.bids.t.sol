@@ -9,9 +9,10 @@ import {B20Double, ShortStaking, StakingDouble, UsdcDouble} from "./doubles/Doub
 import {WeeklyExpiry} from "./doubles/WeeklyExpiry.sol";
 
 /// @notice Every bid function and every way it refuses: posting, raising, cancelling, selling into
-///         and refunding a bid, the calls a sale creates, and the flows around them (partial and dust
-///         sales, many sellers, one seller into many bids, a bid that expires unfilled, a corporate
-///         action between bid and sale, a cancel or raise landing just before a sale).
+///         and refunding a bid, its minimum sale, the calls a sale creates, and the flows around
+///         them (partial and dust sales, many sellers, one seller into many bids, a bid that expires
+///         unfilled, a corporate action between bid and sale, a cancel or raise landing just before a
+///         sale). Bids here take any sale of one raw unit or more unless a test sets a minimum.
 contract CoveredCallsV2BidsTest is Test {
     uint256 internal constant TOKEN = 1e8;
     uint256 internal constant USD = 1e6;
@@ -50,7 +51,7 @@ contract CoveredCallsV2BidsTest is Test {
     /// Ten tokens at a 110 strike and a 3 USDC premium per token: 30 USDC escrowed.
     function _bid() internal returns (uint256 id) {
         vm.prank(bidder);
-        id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry);
+        id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
     }
 
     function _sell(address who, uint256 id, uint256 amount) internal returns (uint256 listingId) {
@@ -62,8 +63,9 @@ contract CoveredCallsV2BidsTest is Test {
 
     function test_bid_escrowsTheWholePremiumAndRecordsTerms() public {
         vm.expectEmit(address(calls));
-        emit CoveredCallsV2.BidPosted(1, bidder, 10 * TOKEN, 110 * USD, 3 * USD, expiry, 30 * USD);
-        uint256 id = _bid();
+        emit CoveredCallsV2.BidPosted(1, bidder, 10 * TOKEN, 110 * USD, 3 * USD, expiry, TOKEN, 30 * USD);
+        vm.prank(bidder);
+        uint256 id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, TOKEN);
         assertEq(id, 1);
         assertEq(calls.bidCount(), 1);
         assertEq(usdc.balanceOf(address(calls)), 30 * USD);
@@ -75,6 +77,7 @@ contract CoveredCallsV2BidsTest is Test {
         assertEq(b.filled, 0);
         assertEq(b.strikePerToken, 110 * USD);
         assertEq(b.premiumPerToken, 3 * USD);
+        assertEq(b.minSale, TOKEN);
         assertEq(b.refundDue, 0);
         assertEq(calls.refundable(id), 0);
         assertEq(calls.listingCount(), 0);
@@ -83,26 +86,32 @@ contract CoveredCallsV2BidsTest is Test {
     /// The escrow rounds up exactly as a fill of the whole amount would charge.
     function test_bid_escrowRoundsUpLikeAFill() public {
         vm.prank(bidder);
-        uint256 id = calls.bid(1, 110 * USD, 3 * USD, expiry);
+        uint256 id = calls.bid(1, 110 * USD, 3 * USD, expiry, 1);
         assertEq(usdc.balanceOf(address(calls)), 1);
         assertEq(calls.costFor(1, 3 * USD), 1);
         assertEq(calls.bids(id).amount, 1);
     }
 
-    function test_bid_refusesZeroTermsAndPastOrOffGridExpiry() public {
+    /// Zero terms, a zero minimum sale, a minimum above the bid's amount, and a past or off-grid
+    /// expiry are all refused.
+    function test_bid_refusesBadTermsAndPastOrOffGridExpiry() public {
         vm.startPrank(bidder);
         vm.expectRevert(CoveredCallsV2.ZeroAmount.selector);
-        calls.bid(0, 110 * USD, 3 * USD, expiry);
+        calls.bid(0, 110 * USD, 3 * USD, expiry, 1);
         vm.expectRevert(CoveredCallsV2.ZeroAmount.selector);
-        calls.bid(TOKEN, 0, 3 * USD, expiry);
+        calls.bid(TOKEN, 0, 3 * USD, expiry, 1);
         vm.expectRevert(CoveredCallsV2.ZeroAmount.selector);
-        calls.bid(TOKEN, 110 * USD, 0, expiry);
+        calls.bid(TOKEN, 110 * USD, 0, expiry, 1);
+        vm.expectRevert(CoveredCallsV2.ZeroAmount.selector);
+        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry, 0);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.ExceedsAvailable.selector, TOKEN + 1, TOKEN));
+        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry, TOKEN + 1);
         uint64 lastWeek = expiry - 1 weeks;
         vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.ExpiryPassed.selector, lastWeek));
-        calls.bid(TOKEN, 110 * USD, 3 * USD, lastWeek);
+        calls.bid(TOKEN, 110 * USD, 3 * USD, lastWeek, 1);
         uint64 thursday = expiry - 1 days;
         vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.NotAWeeklyExpiry.selector, thursday));
-        calls.bid(TOKEN, 110 * USD, 3 * USD, thursday);
+        calls.bid(TOKEN, 110 * USD, 3 * USD, thursday, 1);
         vm.stopPrank();
     }
 
@@ -111,7 +120,7 @@ contract CoveredCallsV2BidsTest is Test {
         stock.schedule(at);
         vm.prank(bidder);
         vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.CorporateActionScheduled.selector, at));
-        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry);
+        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry, 1);
         stock.schedule(uint256(expiry) + 1 days);
         _bid();
     }
@@ -120,7 +129,7 @@ contract CoveredCallsV2BidsTest is Test {
         usdc.setPaused(true);
         vm.prank(bidder);
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry);
+        calls.bid(TOKEN, 110 * USD, 3 * USD, expiry, 1);
     }
 
     /// A bid needs no stock: posting one works while stock transfers are paused.
@@ -146,7 +155,7 @@ contract CoveredCallsV2BidsTest is Test {
     /// Raising one raw unit at a time costs, in all, exactly what bidding the total at once would.
     function test_raiseBid_dustRaisesAddUpToOneBid() public {
         vm.prank(bidder);
-        uint256 id = calls.bid(1, 110 * USD, 3 * USD, expiry); // 1 micro-USDC
+        uint256 id = calls.bid(1, 110 * USD, 3 * USD, expiry, 1); // 1 micro-USDC
         vm.startPrank(bidder);
         for (uint256 i; i < 99; ++i) {
             calls.raiseBid(id, 1);
@@ -257,7 +266,7 @@ contract CoveredCallsV2BidsTest is Test {
 
     function _bidAs(address who) internal returns (uint256 id) {
         vm.prank(who);
-        id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry);
+        id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
     }
 
     // ---- sellToBid ----
@@ -329,6 +338,80 @@ contract CoveredCallsV2BidsTest is Test {
         vm.prank(seller);
         vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.FillsClosed.selector, expiry));
         calls.sellToBid(id, TOKEN);
+    }
+
+    // ---- minimum sale ----
+
+    /// A sale smaller than the bid's minimum is refused, so a bid cannot be broken into dust
+    /// listings; a sale of exactly the minimum, or more, goes through.
+    function test_sellToBid_refusesASaleBelowTheMinimum() public {
+        vm.prank(bidder);
+        uint256 id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, TOKEN);
+        vm.prank(seller);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, TOKEN - 1, TOKEN));
+        calls.sellToBid(id, TOKEN - 1);
+        vm.prank(seller);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, 1, TOKEN));
+        calls.sellToBid(id, 1);
+        assertEq(calls.listingCount(), 0);
+        assertEq(usdc.balanceOf(address(calls)), 30 * USD);
+
+        _sell(seller, id, TOKEN);
+        _sell(seller2, id, 3 * TOKEN + 1);
+        assertEq(calls.bids(id).filled, 4 * TOKEN + 1);
+        assertEq(calls.listingCount(), 2);
+    }
+
+    /// The bid's last piece can always sell: once less than the minimum is left, exactly that
+    /// remainder may be sold, and nothing smaller.
+    function test_sellToBid_aRemainderSmallerThanTheMinimumCanSell() public {
+        vm.prank(bidder);
+        uint256 id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 3 * TOKEN);
+        _sell(seller, id, 8 * TOKEN);
+        vm.prank(seller2);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, TOKEN, 3 * TOKEN));
+        calls.sellToBid(id, TOKEN);
+
+        uint256 listingId = _sell(seller2, id, 2 * TOKEN);
+        assertEq(calls.held(listingId, bidder), 2 * TOKEN);
+        CoveredCallsV2.Bid memory b = calls.bids(id);
+        assertEq(b.filled, b.amount);
+        assertEq(usdc.balanceOf(address(calls)), 0);
+    }
+
+    /// A bid whose minimum is its whole amount sells in one piece or not at all.
+    function test_sellToBid_aMinimumOfTheWholeAmountSellsInOnePiece() public {
+        vm.prank(bidder);
+        uint256 id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 10 * TOKEN);
+        vm.prank(seller);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, 9 * TOKEN, 10 * TOKEN));
+        calls.sellToBid(id, 9 * TOKEN);
+        _sell(seller, id, 10 * TOKEN);
+        assertEq(calls.bids(id).filled, 10 * TOKEN);
+    }
+
+    /// A raise keeps the bid's minimum. A sold-out bid reopened by a raise smaller than the minimum
+    /// sells that raise whole, and nothing smaller.
+    function test_raiseBid_keepsTheMinimum() public {
+        vm.prank(bidder);
+        uint256 id = calls.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 2 * TOKEN);
+        vm.prank(bidder);
+        calls.raiseBid(id, 5 * TOKEN);
+        assertEq(calls.bids(id).minSale, 2 * TOKEN);
+        vm.prank(seller);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, TOKEN, 2 * TOKEN));
+        calls.sellToBid(id, TOKEN);
+        _sell(seller, id, 15 * TOKEN);
+
+        vm.prank(bidder);
+        calls.raiseBid(id, TOKEN);
+        vm.prank(seller2);
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV2.BelowMinSale.selector, TOKEN / 2, 2 * TOKEN));
+        calls.sellToBid(id, TOKEN / 2);
+        _sell(seller2, id, TOKEN);
+        assertEq(calls.bids(id).filled, 16 * TOKEN);
+        assertEq(calls.bids(id).minSale, 2 * TOKEN);
+        assertEq(usdc.balanceOf(address(calls)), 0);
     }
 
     /// If any part of a sale fails, nothing moves: the seller's stock cannot move, USDC cannot move or
@@ -404,7 +487,7 @@ contract CoveredCallsV2BidsTest is Test {
         CoveredCallsV2 c = new CoveredCallsV2(address(stock), address(usdc), address(short));
         vm.startPrank(bidder);
         usdc.approve(address(c), type(uint256).max);
-        uint256 id = c.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry);
+        uint256 id = c.bid(10 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
         vm.stopPrank();
         vm.prank(seller);
         stock.approve(address(c), type(uint256).max);
@@ -424,7 +507,7 @@ contract CoveredCallsV2BidsTest is Test {
     /// sale carries the rounding, so the bid's sellers together are still paid its rounded-up premium.
     function test_sellToBid_dustSalesShareTheRoundingAndNeverOverdrawTheEscrow() public {
         vm.prank(bidder);
-        uint256 id = calls.bid(100, 110 * USD, 3 * USD, expiry); // 100 raw at 3 USDC/token = 3 micro-USDC
+        uint256 id = calls.bid(100, 110 * USD, 3 * USD, expiry, 1); // 100 raw at 3 USDC/token = 3 micro-USDC
         assertEq(usdc.balanceOf(address(calls)), 3);
 
         (uint256 p1, uint256 f1) = calls.salePremiumFor(id, 1);
@@ -651,11 +734,11 @@ contract CoveredCallsV2BidsTest is Test {
     function test_flow_aSellerSellsIntoManyBids() public {
         uint64 later = WeeklyExpiry.next(block.timestamp, 2);
         vm.startPrank(bidder);
-        uint256 a = calls.bid(5 * TOKEN, 110 * USD, 3 * USD, expiry);
-        uint256 b = calls.bid(5 * TOKEN, 120 * USD, 2 * USD, later);
+        uint256 a = calls.bid(5 * TOKEN, 110 * USD, 3 * USD, expiry, 1);
+        uint256 b = calls.bid(5 * TOKEN, 120 * USD, 2 * USD, later, 1);
         vm.stopPrank();
         vm.prank(other);
-        uint256 c = calls.bid(5 * TOKEN, 100 * USD, 5 * USD, expiry);
+        uint256 c = calls.bid(5 * TOKEN, 100 * USD, 5 * USD, expiry, 1);
 
         uint256 before = usdc.balanceOf(seller);
         uint256 la = _sell(seller, a, 2 * TOKEN); // 6 USDC
@@ -731,7 +814,7 @@ contract CoveredCallsV2BidsTest is Test {
         premiumPerToken = bound(premiumPerToken, 1, 10_000 * USD);
         usdc.mint(bidder, 1e18);
         vm.prank(bidder);
-        uint256 id = calls.bid(50 * TOKEN, 110 * USD, premiumPerToken, expiry);
+        uint256 id = calls.bid(50 * TOKEN, 110 * USD, premiumPerToken, expiry, 1);
         amount = bound(amount, 1, 25 * TOKEN);
         first = bound(first, 1, 25 * TOKEN);
         (uint256 quoted,) = calls.salePremiumFor(id, amount);
