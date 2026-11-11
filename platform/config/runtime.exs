@@ -6,11 +6,11 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
-# The Privy accounts that may give Credits, handle refunds and read the saved
-# errors at /admin/errors, comma separated.
+# The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENT_CREDITS_ADMINS") do
-  config :regent_credits,
-    admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  config :autolaunch, :admins, admins
+  config :regent_agents, admins: admins
 end
 
 # This site's own key for reading what paired agents have done from the sign-in
@@ -259,13 +259,13 @@ if ethereum_read_rpc_url = System.get_env("ETHEREUM_READ_RPC_URL") do
   end
 end
 
-# The shared libraries read Base and Ethereum through the site's own nodes when it
-# has them (Autolaunch.Chain.NodeClient), the same ones its launch reads and ENS use.
+# The shared libraries read Base through the site's own node when it has one
+# (Autolaunch.Chain.NodeClient), the same one its launch reads use.
 if config_env() == :prod and not migrating? do
   config :autolaunch, :source_commit, System.fetch_env!("SOURCE_COMMIT")
 
   node_overrides =
-    for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}, {1, "ETHEREUM_READ_RPC_URL"}],
+    for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}],
         node_url = System.get_env(setting),
         into: %{},
         do: {chain_id, node_url}

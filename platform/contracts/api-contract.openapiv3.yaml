@@ -770,64 +770,6 @@ paths:
           "description": "Invalid input"
         "503":
           "description": "Dependency unavailable"
-  /api/agent/v1/account/balances:
-    "get":
-      "operationId": "account_balances"
-      "summary": "Read Credits"
-      "security":
-        -
-          "SiwaProof": []
-      "responses":
-        "200":
-          "description": "Canonical account projection"
-          content:
-            application/json:
-              schema: {$ref: "#/components/schemas/AccountBalances"}
-        "401":
-          "description": "Fresh request proof required"
-        "403":
-          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
-        "422":
-          "description": "Invalid input"
-        "503":
-          "description": "Dependency unavailable"
-  /api/agent/v1/account/credits/history:
-    "post":
-      "operationId": "account_credits_history"
-      "summary": "Read Credits history"
-      "security":
-        -
-          "SiwaProof": []
-      "responses":
-        "200":
-          "description": "Canonical account projection"
-          content:
-            application/json:
-              schema: {$ref: "#/components/schemas/CreditsHistory"}
-        "401":
-          "description": "Fresh request proof required"
-        "403":
-          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
-        "422":
-          "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
-          content:
-            application/json:
-              schema: {$ref: "#/components/schemas/Error"}
-        "503":
-          "description": "Dependency unavailable"
-      "requestBody":
-        "required": true
-        "content":
-          "application/json":
-            "schema":
-              "type": "object"
-              "properties":
-                "after":
-                  "type": "string"
-                  "maxLength": 2048
-                  "description": "Previous pagination.next_cursor, unchanged. Omit after for the first page or when next_cursor is null."
-              "required": []
-              "additionalProperties": false
   /api/v1/account/points:
     "get":
       "operationId": "account_points"
@@ -1161,44 +1103,6 @@ components:
               points: {$ref: "#/components/schemas/PointsAmount"}
               nft_count: {type: integer, minimum: 0}
               bonus_percent: {type: integer, minimum: 0}
-    CreditsHistory:
-      type: object
-      additionalProperties: false
-      required: [entries, pagination]
-      properties:
-        entries:
-          type: array
-          description: Shared Credits history entries, newest first; private request details appear only for this agent's own holds.
-          items: {type: object}
-        pagination: {$ref: "#/components/schemas/Pagination"}
-    AccountBalances:
-      type: object
-      additionalProperties: false
-      required: [credits, spending_grant]
-      properties:
-        note: {type: string}
-        credits:
-          type: object
-          additionalProperties: false
-          required: [available, given, purchased, held]
-          properties:
-            available: {$ref: "#/components/schemas/DecimalString"}
-            given: {$ref: "#/components/schemas/DecimalString"}
-            purchased: {$ref: "#/components/schemas/DecimalString"}
-            held: {$ref: "#/components/schemas/DecimalString"}
-        spending_grant:
-          type: object
-          additionalProperties: false
-          required: [enabled, max_per_spend, daily_limit, sites, site_allowed, used_24h, remaining_24h, grant_approvals_available]
-          properties:
-            enabled: {type: boolean}
-            max_per_spend: {$ref: "#/components/schemas/DecimalString"}
-            daily_limit: {$ref: "#/components/schemas/DecimalString"}
-            sites: {type: array, items: {type: string}}
-            site_allowed: {type: boolean}
-            used_24h: {$ref: "#/components/schemas/DecimalString"}
-            remaining_24h: {$ref: "#/components/schemas/DecimalString"}
-            grant_approvals_available: {type: boolean}
     AuctionBidRequest:
       type: object
       additionalProperties: false

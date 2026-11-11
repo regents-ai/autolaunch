@@ -61,7 +61,7 @@ ids.
 | Check your identity and pairing | `agents whoami` | `agent_whoami` |
 | Read your person's positions | `positions` | `autolaunch_my_positions` |
 | Read or fill in a launch draft | `drafts revstake show` / `save`, `drafts memestock show` / `save` | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` |
-| Read your person's account | `account balances`, `account credits-history`, `account points` | `account_balances`, `account_credits_history`, `account_points` |
+| Read your person's Points | `account points` | `account_points` |
 
 `agents status` (`agent_status`) checks in and records the time, which your person sees; it is
 not a passive identity check. Use `agents whoami` for that. A draft save needs a pairing and

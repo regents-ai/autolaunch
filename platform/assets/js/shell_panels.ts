@@ -1,5 +1,5 @@
-// The app shell's Buy Credits window and pairing window, which the browser alone
-// opens and closes, as the template's shell does. Their state is their own `open`,
+// The app shell's pairing window, which the browser alone opens and closes, as
+// the template's shell does. Its state is its own `open`,
 // which LiveView leaves alone. The account menu and the Regents Products menu are
 // popovers the browser opens and closes itself; only following a link inside one,
 // and opening a window from the account menu, are ours. So is Escape's order: the
@@ -18,23 +18,9 @@ export function arriveAt(target: HTMLElement) {
   if (choice) requestAnimationFrame(() => choice.focus({preventScroll: true}))
 }
 
-/** Wires the Buy Credits and pairing windows and the menus' links inside `scope`. Returns `cleanup`. */
+/** Wires the pairing window and the menus' links inside `scope`. Returns `cleanup`. */
 export function installShellPanels(scope: Document | HTMLElement = document) {
-  const credits = () => scope.querySelector<HTMLDialogElement>("#shell-credits")
   const pairing = () => scope.querySelector<HTMLDialogElement>("#shell-pairing")
-
-  // Opening Buy Credits reads the wallet's funds again, so Buy is held back
-  // only by what the chain says now.
-  const openCredits = () => {
-    const dialog = credits()
-    if (!dialog || dialog.open) return
-    dialog.showModal()
-    dialog
-      .querySelectorAll("[data-refresh-funds]")
-      .forEach(panel => panel.dispatchEvent(new CustomEvent("autolaunch:refresh-funds")))
-  }
-
-  const closeCredits = () => credits()?.close()
 
   // The window opens on the list of agents while none is chosen, with the keyboard
   // on the dropdown.
@@ -54,26 +40,16 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     const target = event.target instanceof Element ? event.target : null
     if (!target) return
 
-    // The top bar's balance, and the account menu's balance row on the narrowest
-    // phones, open the one window. The menu closes first, so focus goes back to
-    // the account button and returns there when the window closes.
-    const creditsOpener = target.closest<HTMLElement>("[data-credits-open]")
-    if (creditsOpener) {
-      creditsOpener.closest<HTMLElement>("[popover]")?.hidePopover()
-      return openCredits()
-    }
-    if (target.closest("[data-credits-close]")) return closeCredits()
-    // A press on a window's own backdrop lands on the dialog itself.
-    if (target === credits()) return closeCredits()
-
     // Pair New Agent, in the account menu and on the Agents page, opens the one
-    // pairing window. The menu closes first, as for Buy Credits.
+    // pairing window. The menu closes first, so focus goes back to the account
+    // button and returns there when the window closes.
     const pairOpener = target.closest<HTMLElement>("[data-pair-open]")
     if (pairOpener) {
       pairOpener.closest<HTMLElement>("[popover]")?.hidePopover()
       return openPairing()
     }
     if (target.closest("[data-pair-close]")) return closePairing()
+    // A press on the window's own backdrop lands on the dialog itself.
     if (target === pairing()) return closePairing()
 
     // A page change keeps an open menu open, so a link followed from one closes

@@ -35,8 +35,8 @@ launches.
 | `/how-it-works` | Fixed contract rules, explained; each auction's length and a Memestock creator's release worked out from the launch's blocks on its chain | The lengths: `autolaunch/launch_chain_test.exs` › "each launch's schedule gives its auction length and a creator's release on its chain". The page: **gap** |
 | `/portfolio` | The signed-in wallet's bids and tokens | `autolaunch_web/live/robinhood_pages_live_test.exs` › "/portfolio outlives a Robinhood feed's new block" |
 | `/portfolio/bids/<id>` | One bid on its own page | **Gap** (its steps: see Wallet actions) |
-| `/account` | This site's own sections first (Credits activity, connected accounts), then who is signed in, the paired agents, Pair New Agent (`#account-pairing`; each agent keeps its own code until it expires), Credits and the name people see | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT", › "PAIRING_CODE_KEPT_PER_AGENT", › "ACCOUNT_MENU_ON_EVERY_PAGE" (the page's order and the one pairing box); `browser/account_menu.spec.ts` › "the Account page shows this site's sections first, then the shared ones"; the agent's check-in time, and the agent leaving the list once it is unpaired on regents.sh: `scripts/agent-journeys.sh`, `test/journeys/pairing.spec.ts`. Saving the name people see: **gap** |
-| Account menu (the account's button at the top right of every page) | Up to three paired agents (most recently active first), Pair New Agent (to `/account#account-pairing`), Manage Account and Sign out; at 320 wide the Credits balance moves into it | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_MENU_ON_EVERY_PAGE" (a LiveView page and one without); `autolaunch_web/menu_agents_test.exs` (which three); `browser/account_menu.spec.ts` (all cases, at 390 touch and 1280, and 320 and 2000 for where it hangs) |
+| `/account` | One column: this site's connected accounts first, then who is signed in, the paired agents, Pair New Agent (`#account-pairing`; each agent keeps its own code until it expires) and the name people see | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT", › "PAIRING_CODE_KEPT_PER_AGENT", › "ACCOUNT_MENU_ON_EVERY_PAGE" (the page's order and the one pairing box); `browser/account_menu.spec.ts` › "the Account page shows this site's sections first, then the shared ones"; the agent's check-in time, and the agent leaving the list once it is unpaired on regents.sh: `scripts/agent-journeys.sh`, `test/journeys/pairing.spec.ts`. Saving the name people see: **gap** |
+| Account menu (the account's button at the top right of every page) | Up to three paired agents (most recently active first), Pair New Agent (to `/account#account-pairing`), Manage Account and Sign out | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_MENU_ON_EVERY_PAGE" (a LiveView page and one without); `autolaunch_web/menu_agents_test.exs` (which three); `browser/account_menu.spec.ts` (all cases, at 390 touch and 1280, and 320 and 2000 for where it hangs) |
 | `/account/points` | The total with today, yesterday and place; the actions still open with where to do them; the leaderboard by name or wallet, the reader's row marked; the NFT bonus; recent entries | `autolaunch_web/points_page_test.exs` (all cases: the first render, two people with one name, a wallet with its copy icon, signed out); the shared leaderboard's size against its limit: `autolaunch/shared_reading_test.exs`. The page in a browser: **gap** |
 | `/regent` | REGENT facts and revenue sources | **Gap** |
 | `/convert` | Memestock fee shares waiting to be sold, for the converter wallet | **Gap** |
@@ -45,14 +45,13 @@ launches.
 | `/blog`, `/blog/<slug>` | Posts | **Gap** |
 | Error pages | Not found (404), Try again only for a lost database connection (503), plain error (500) | `market_page_test.exs` (all four cases); `autolaunch_web/controllers/old_link_controller_test.exs` (both cases) |
 
-## Sign-in, account and Credits
+## Sign-in and account
 
 | Action | Check |
 | --- | --- |
 | Sign in and sign out | `autolaunch_web/controllers/privy_session_controller_test.exs` (all three cases); `content_negotiation_test.exs` › "the existing session fetch still returns JSON" |
-| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (all four cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all six cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
+| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (both cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all six cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
 | Connect or remove X | `content_negotiation_test.exs` › "JSON account-link requests retain CSRF protection". The connect itself: **gap** |
-| Buy Credits (Approve, then Buy) | Reading the wallet: `autolaunch_web/live/credits_panel_test.exs` › "CREDITS_PANEL_NO_NODE: a chain with no node reads as unavailable, with no crash". The wallet press: see Wallet actions. The purchase check: **gap** |
 
 ## Wallet actions
 
@@ -148,8 +147,6 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | (none) | Make a payment (Revstake token page): addresses from the launch's own record, read by the Base reader, canonical receiver only, on the launch's own network | `autolaunch/payment_card_test.exs` (all three cases). The wallet press itself: **gap** |
 | `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft_save` | `PATCH /api/agent/v1/drafts/{kind}` | `autolaunch/agent_drafts_test.exs` (all three cases); the create page names every agent-set field: `autolaunch_web/live/agent_draft_review_test.exs` › "the create page names what the agent set, and forgets a field the person changes", › "the launch review names every agent-set field and shows the community links". The signed request itself: **gap** |
 | `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | Refusals: `agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED", › "AGENT_PERSON_UNREAD_IS_503"; `sign_in_read_test.exs` › "a lost sign-in read is a 503 for the signed-in wallet's positions and share video". A working read for the paired person, and the refusal for an unpaired agent, signed by the regents binary: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts`. `wallet_required` for an account with no wallet: **gap** (no one without a wallet can sign in here) |
-| `account_balances` | `GET /api/agent/v1/account/balances` | Answers when paired, refused when not: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts` |
-| `account_credits_history` | `POST /api/agent/v1/account/credits/history` | **Gap** |
 | `account_points` | `GET /api/v1/account/points` | Refused when the pairing names no account: `autolaunch_web/controllers/agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED"; from the regents binary: **gap** until its `account points` asks this address (regents-cli lane). The paired answer matches the page, and is unavailable while the leaderboard is not read: `autolaunch_web/points_page_test.exs` › "a paired agent is answered with the page's figures", › "while the board is not read, the agent's whole answer is unavailable" |
 | `prepare_agent_request` | In the page, sends nothing | **Gap** |
 | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/{symbol}` | `autolaunch_web/controllers/covered_calls_routes_test.exs` › "the public book shows each listing's stage and what is left, and the quote prices a listing", › "the public routes refuse an unknown market, an expiry that is not a Friday close and unknown fields" |
@@ -176,9 +173,8 @@ release, the live prelaunch line and the short index's links: `autolaunch_web/ag
 
 Home filter results (Network, Type, Creator verified) and the card cell panels; list filter results on `/auctions` and `/tokens`; the auction
 and token page tabs; `/stocks`, `/how-it-works`, `/account/points` in a browser,
-`/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
-Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
+`/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
-draft routes, the paired Credits history answer, and `prepare_agent_request`; an agent's
+draft routes and `prepare_agent_request`; the Points read from the regents binary; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
 agent journeys; covered calls' hosted MCP and CLI surfaces (`docs/agent-parity.md`).

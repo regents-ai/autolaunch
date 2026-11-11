@@ -1,5 +1,9 @@
 # Changelog
 
+## 11 November 2026: Credits
+- Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
+- Agents no longer read Credits: the balances and Credits history reads are gone, with their browser tools.
+
 ## 11 November 2026: Points
 - Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Nothing earns until Points opens.
 - Someone with no name shows on the leaderboard by their wallet, which you can copy.

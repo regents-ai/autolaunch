@@ -579,32 +579,6 @@
       ]
     },
     {
-      "command": "account balances",
-      "description": "Read Credits. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
-      "operation_id": "account_balances",
-      "method": "GET",
-      "path": "/api/agent/v1/account/balances",
-      "authority": "paired_agent",
-      "effect": "read"
-    },
-    {
-      "command": "account credits-history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
-      "operation_id": "account_credits_history",
-      "method": "POST",
-      "path": "/api/agent/v1/account/credits/history",
-      "authority": "paired_agent",
-      "effect": "read",
-      "stdin_fields": [
-        {
-          "field": "after",
-          "type": "string",
-          "required": false,
-          "description": "Previous pagination.next_cursor, unchanged, at most 2048 characters; read from JSON stdin. Omit after for the first page or when next_cursor is null."
-        }
-      ]
-    },
-    {
       "command": "account points",
       "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "operation_id": "account_points",

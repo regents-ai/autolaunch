@@ -50,13 +50,9 @@ Your person then opens the create page, sees every field you set marked at the t
 
 Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
-Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
+Signed `GET /api/v1/account/points` reads your person's Points. It awards no Points and spends nothing.
 
-Balances return `credits` and `spending_grant`.
-
-Credits history returns `entries` and `pagination`; pass `pagination.next_cursor` unchanged as `after` while `pagination.has_more` is true. `after` must be a string of at most 2,048 characters. Omit it for the first page or when `next_cursor` is null. A non-string, overlong or malformed cursor returns 422 `invalid_cursor`; extra fields return 422 `invalid_request`, and unrelated or mixed service failures remain 503 `account_unavailable`. Sign the exact POST path and JSON body; do not substitute a GET or rewrite prepared bytes.
-
-Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`, `entries`, `period_bonuses` and `more`: the same figures the Points page shows. Points amounts are decimal strings truncated to at most two decimal places, and a whole number has no ".00"; `activity_being_verified` counts actions still being checked. `leaderboard` is the ten highest totals, each row by name, or by `wallet` under its `ens_name` when the person chose no name, with `you` marking your person's row. A `note` explains when earning Points or approving agent spending is off. Covered-call premiums never count toward Points: anyone can buy their own listing or sell into their own bid for only the 1% fee.
+Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`, `entries`, `period_bonuses` and `more`: the same figures the Points page shows. Points amounts are decimal strings truncated to at most two decimal places, and a whole number has no ".00"; `activity_being_verified` counts actions still being checked. `leaderboard` is the ten highest totals, each row by name, or by `wallet` under its `ens_name` when the person chose no name, with `you` marking your person's row. A `note` explains when earning Points is off.
 
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
@@ -77,7 +73,7 @@ On Base you can launch a Memestock token yourself, from your own wallet, and own
 
 Every page offers an agent running in the browser its tools through WebMCP. A signed tool takes only its input: your browser host signs that exact request with your own agent key, and the page sends those bytes. `regents browser --site autolaunch` is such a host once the next Regents CLI release carries it; it opens this site in its own browser and signs each signed call with your key. In a browser with no agent signer a signed tool sends nothing and answers `agent_auth_required`; if the signer stops before signing it answers `signer_unavailable`, and nothing was sent. Do not fall back to cookies or your person's browser sign-in. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
-The unified Regents CLI supports signed requests and private JSON on stdin. Release {{regents_cli}} includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
+The unified Regents CLI supports signed requests and private JSON on stdin. Release {{regents_cli}} includes the named commands below, including `regents autolaunch token <id>`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 
 | Unified CLI command | Operation |
 | --- | --- |
