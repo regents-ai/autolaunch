@@ -55,6 +55,32 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     |> live(@ticket)
   end
 
+  # Every read of the book by this case's page waits until the case sends
+  # `:open` to the returned gate; a read that starts after that goes straight on.
+  defp hold_book_reads do
+    case_pid = self()
+    gate = spawn_link(fn -> receive do: (:open -> :ok) end)
+    handler = "hold-book-#{inspect(case_pid)}"
+
+    :telemetry.attach(
+      handler,
+      [:ash, :covered_calls, :action, :start],
+      fn _event, _measurements, %{action: action}, _config ->
+        if action == :book and case_pid in Process.get(:"$callers", []) do
+          ref = Process.monitor(gate)
+
+          receive do
+            {:DOWN, ^ref, :process, _gate, _reason} -> :ok
+          end
+        end
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+    gate
+  end
+
   test "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read sends nothing and never asks to sign in",
        %{conn: conn} do
     CoveredCallsChain.install()
@@ -108,10 +134,16 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     on_exit(fn -> :telemetry.detach(handler) end)
 
     # The ticket, and so its read of the account, comes once the page's book is
-    # read; the page then ends, and its end reaches this case.
+    # read. The book's reads wait until the page has opened, so the page always
+    # ends after it opened, and its end reaches this case.
     Process.flag(:trap_exit, true)
-    {:ok, _view, _html} = signed_in(conn, account)
+    book = hold_book_reads()
+    {:ok, view, _html} = signed_in(conn, account)
 
+    refute has_element?(view, "[data-account-target=sign-in]")
+    assert has_element?(view, ~s([data-account-target="profile"]))
+
+    send(book, :open)
     assert_receive {:EXIT, _page, {%ReadFailedError{}, _stack}}, @async_ms
   end
 
