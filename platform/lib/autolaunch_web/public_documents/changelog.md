@@ -8,7 +8,7 @@
 
 ## 11 November 2026: Portfolio
 - The line under the title is gone. When the figures were read shows as on Covered calls, with an icon that reads them again.
-- A token's name sits over its ticker and wraps, so a bid's buttons no longer cut it short, and on a phone the ticker no longer runs into the amount beside it.
+- A token's name sits over its ticker and wraps, so a bid's buttons no longer cut it short. On a phone the token takes the first line of its row, with the amount and buttons under it.
 - With no covered calls yet, the button reads Trade calls.
 
 ## 11 November 2026: Covered calls
@@ -34,6 +34,7 @@
 - Once a bid is placed, the note says so and comes into view, wherever the bid form sits on the page.
 - The note links on to the auction and your portfolio, leaving out the page you are already on.
 - View portfolio is written in sentence case everywhere it appears.
+- On a phone, a button that does not fit beside the others moves to its own line instead of cutting its label short.
 
 ## 11 November 2026: Credits
 - Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.

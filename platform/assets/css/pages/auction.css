@@ -180,4 +180,6 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-placed p { margin: 0; }
 .bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
 .bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.bid-placed__actions > * { flex: 1 1 8rem; }
+/* Each button starts at its own label's width, so one that does not fit moves to the next
+   line whole rather than cutting its label short. */
+.bid-placed__actions > * { flex: 1 1 auto; }

@@ -34,4 +34,14 @@
   .portfolio__table:not(.portfolio__table--tokens) :is(thead th, .market-list__row > td):is(:nth-child(3), :nth-child(5)),
   .portfolio__table--tokens :is(thead th, .market-list__row > td):nth-child(4) { display: none; }
   .portfolio__table td:last-child { min-width: 0; }
+  /* A token's row gives the token the whole first line, so its name keeps its words; the
+     figures and a bid's buttons share the line under it, as in the auctions list. */
+  .portfolio__table:has(.market-list__row) :is(thead, tbody, .portfolio__actions, .portfolio__actions > td, .market-list__skeleton, .market-list__skeleton > td) { display: block; }
+  .portfolio__table:has(.market-list__row) thead tr { display: flex; justify-content: space-between; border-bottom: 1px solid var(--hairline); }
+  .portfolio__table:has(.market-list__row) thead th { border-bottom: 0; }
+  /* The hairline between bids runs above the whole block, not above each of its lines. */
+  .portfolio__table:has(.market-list__row) tbody + tbody > tr:first-child { border-top: 1px solid var(--hairline); }
+  .portfolio__table:has(.market-list__row) tbody + tbody > tr:first-child > * { border-top: 0; }
+  .portfolio__table .market-list__row { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .portfolio__table .market-list__row > th { grid-column: 1 / -1; width: auto; max-width: none; padding-bottom: 0; }
 }
