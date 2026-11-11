@@ -238,8 +238,12 @@ svg.token-swap__review-arrow { width: 20px; height: 20px; color: var(--color-fg-
 /* The press squishes only this text, so the button keeps its full size. */
 .token-swap__wallet-step-text { display: inline-flex; align-items: center; }
 .token-swap__wallet-step-wait { display: none; align-items: center; gap: var(--space-2); }
-.token-swap__wallet-step[data-awaiting-wallet] .token-swap__wallet-step-label { display: none; }
-.token-swap__wallet-step[data-awaiting-wallet] .token-swap__wallet-step-wait { display: inline-flex; }
+:is(.token-swap__wallet-step, .token-swap__approval)[data-awaiting-wallet] .token-swap__wallet-step-label { display: none; }
+:is(.token-swap__wallet-step, .token-swap__approval)[data-awaiting-wallet] .token-swap__wallet-step-wait { display: inline-flex; }
+/* A confirmed approval: grey with a green border, and it still takes presses.
+   The border is the one the button's paint draws. */
+.token-swap__approval[data-state="done"] { color: var(--color-fg-muted); }
+.token-swap__approval[data-state="done"]::before { border-color: var(--color-success); }
 @keyframes token-swap-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .token-swap__steps li[data-state="sent"] .token-swap__step-mark, .token-swap__spinner { animation: none; }

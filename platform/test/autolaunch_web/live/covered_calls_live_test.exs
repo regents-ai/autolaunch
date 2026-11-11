@@ -379,6 +379,36 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-fill-1 [data-onchain-step=fill]", "Confirm purchase")
   end
 
+  test "a sent approval stays on the page and takes presses, and the purchase's button shows at once",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    {view, panel} = signed_in_panel(conn)
+
+    buy(view, "1")
+    assert_push_event(view, "onchain-steps:review", %{review: %{id: review_id}})
+
+    render_hook(panel, "step_sent", %{
+      "review_id" => review_id,
+      "step" => "usdc_approval",
+      "transaction_hash" => "0x" <> String.duplicate("a", 64)
+    })
+
+    # The wallet button names the purchase while the approval is on its way.
+    assert has_element?(view, "#covered-call-fill-1 [data-step=usdc_approval][data-state=sent]")
+
+    assert has_element?(
+             view,
+             "#covered-call-fill-1 .token-swap__wallet-step[data-onchain-step=fill]"
+           )
+
+    # Approve is still there for the hook to send again: it names its step, and
+    # nothing hides or disables it.
+    assert has_element?(
+             view,
+             "#covered-call-fill-1 .token-swap__approval[data-onchain-step=usdc_approval]:not([disabled]):not([hidden])"
+           )
+  end
+
   test "a purchase the wallet can't pay for is disabled with the reason", %{conn: conn} do
     CoveredCallsChain.install(%{usdc_balance: 1_000_000})
     {view, _panel} = signed_in_panel(conn)
