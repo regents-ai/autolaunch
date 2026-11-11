@@ -531,7 +531,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         unit: reading.unit,
         spot: spot,
         custom?: sell["strike"] == "custom",
-        refused: quote.state in [:error, :stale] && quote_refusal(quote.error)
+        refused: if(quote.state in [:error, :stale], do: quote_refusal(quote.error))
       )
 
     ~H"""
