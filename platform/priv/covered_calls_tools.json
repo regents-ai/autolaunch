@@ -4,7 +4,7 @@
     {
       "name": "autolaunch_covered_call_listings",
       "title": "List covered calls on a stock",
-      "description": "List the covered calls on one Base stock token, as its contract holds them at the latest block: every listing with its seller, strike_per_token and premium_per_token (micro-USDC per whole token), expiry (a Friday at 21:00 UTC, Unix seconds), amount, filled and available (raw token units, unit per whole token) and stage (open, sold, exercise or closed), the stock's multiplier and its reference price. Reads only; needs no sign-in. The reading is shared and may be up to five minutes old; read_at says when it was taken.",
+      "description": "List the covered calls on one Base stock token, as its contract holds them at the latest block: every listing with its seller, strike_per_token and premium_per_token (micro-USDC per whole token), expiry (a Friday at 21:00 UTC, Unix seconds), amount, filled and available (raw token units, unit per whole token) and stage (open, sold, exercise or closed); every open bid, a standing offer to buy calls whose premium is already escrowed, with its bidder, strike_per_token, premium_per_token, expiry, amount, filled, available and min_sale (the fewest raw units one sale into it may be, unless it sells all that is left); the stock's multiplier and its reference price. Reads only; needs no sign-in. The reading is shared and may be up to five minutes old; read_at says when it was taken.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -97,7 +97,7 @@
     {
       "name": "autolaunch_my_covered_calls",
       "title": "Read my covered calls on a stock",
-      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold, on every listing the calls it may exercise (held) and the stock it may claim (claimable), and the stock in the wallet itself (balance), the most it can list now, in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold, on every listing the calls it may exercise (held) and the stock it may claim (claimable), every bid it made with its stage (open, sold, cancelled or expired) and the micro-USDC a refund would send it now (refundable), and the stock in the wallet itself (balance), the most it can list now, in raw token units. A sale into a bid opens a listing like any other: it shows as the seller's sold listing and the bidder's held calls. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -132,7 +132,7 @@
     {
       "name": "autolaunch_covered_call_prepare",
       "title": "Prepare a covered-call step",
-      "description": "Prepare the wallet steps for one covered-call action on a Base stock token: list (amount, strike_per_token, premium_per_token, expiry), fill (listing_id, amount), exercise (listing_id, amount), cancel, claim or collect_strike (listing_id). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Prepare the wallet steps for one covered-call action on a Base stock token: list (amount, strike_per_token, premium_per_token, expiry), fill (listing_id, amount), exercise (listing_id, amount), cancel, claim or collect_strike (listing_id); bid (amount, strike_per_token, premium_per_token, expiry: escrows the whole premium in USDC, and each sale into it must be at least one whole token, or the whole bid when it asks for less, unless it sells all that is left), raise_bid (bid_id, amount: asks for more at the same terms and escrows the premium that adds), sell_to_bid (bid_id, amount: locks the stock as calls held by the bidder and pays the premium less the 1% fee at once), cancel_bid or refund_bid (bid_id). facts gives the action's figures exactly as the contract counts them: for bid and raise_bid the escrow it takes, for sell_to_bid the premium, the fee and what lands in the wallet (receive). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -148,38 +148,49 @@
               "cancel",
               "exercise",
               "claim",
-              "collect_strike"
+              "collect_strike",
+              "bid",
+              "raise_bid",
+              "cancel_bid",
+              "refund_bid",
+              "sell_to_bid"
             ]
           },
           "listing_id": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "The listing's number on this market, for every kind but list."
+            "description": "The listing's number on this market, for fill, cancel, exercise, claim and collect_strike."
+          },
+          "bid_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "The bid's number on this market, for raise_bid, cancel_bid, refund_bid and sell_to_bid."
           },
           "amount": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "Raw stock token units: to list, to buy (fill) or to exercise."
+            "description": "Raw stock token units: to list, to buy (fill), to exercise, to bid for, to add to a bid (raise_bid) or to sell into a bid (sell_to_bid)."
           },
           "strike_per_token": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "For list: the strike in micro-USDC per whole token."
+            "description": "For list and bid: the strike in micro-USDC per whole token."
           },
           "premium_per_token": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "For list: the minimum premium in micro-USDC per whole token."
+            "description": "For list: the minimum premium; for bid: the premium offered; in micro-USDC per whole token."
           },
           "expiry": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "For list: a Friday at 21:00 UTC, as Unix seconds."
+            "description": "For list and bid: a Friday at 21:00 UTC, as Unix seconds."
           },
           "signer": {
             "type": "string",

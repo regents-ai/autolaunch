@@ -93,6 +93,134 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     assert Terms.stage(listing, 1_000 + 86_400) == :closed
   end
 
+  # The bid figures against CoveredCallsV2's own test vectors
+  # (contracts/covered-calls-v2/test/CoveredCallsV2.bids.t.sol): ten tokens at a
+  # $3 premium, with tokens of 10^8 raw units and USDC of 10^6.
+  @usd 1_000_000
+  @ten_token_bid %{amount: 10 * @unit, filled: 0, premium_per_token: 3 * @usd}
+
+  test "a bid escrows its whole premium and a raise adds the premium of the raised amount, as the contract counts them" do
+    # test_bid_escrowsTheWholePremiumAndRecordsTerms, test_bid_escrowRoundsUpLikeAFill
+    assert Terms.usdc_for(10 * @unit, 3 * @usd, @unit) == 30 * @usd
+    assert Terms.usdc_for(1, 3 * @usd, @unit) == 1
+    # test_raiseBid_addsAmountAndEscrowAtTheSameTerms
+    assert Terms.raise_cost(@ten_token_bid, 5 * @unit, @unit) == 15 * @usd
+
+    # test_raiseBid_dustRaisesAddUpToOneBid: 99 raises of one raw unit on a
+    # one-unit bid escrow 3 micro-USDC in all, the premium of 100 units bid at once.
+    {bid, escrowed} =
+      Enum.reduce(1..99, {%{amount: 1, premium_per_token: 3 * @usd}, 1}, fn _raise,
+                                                                            {bid, escrowed} ->
+        {%{bid | amount: bid.amount + 1}, escrowed + Terms.raise_cost(bid, 1, @unit)}
+      end)
+
+    assert bid.amount == 100
+    assert escrowed == Terms.usdc_for(100, 3 * @usd, @unit)
+    assert escrowed == 3
+  end
+
+  test "a sale into a bid pays its slice of the bid's premium less its slice of the fee, as the contract counts them" do
+    # test_sellToBid_locksStockPaysTheSellerAndGivesTheBidderTheCalls
+    assert Terms.sale(@ten_token_bid, 4 * @unit, @unit) ==
+             %{premium: 12 * @usd, fee: 120_000, receive: 12 * @usd - 120_000}
+
+    # test_sellToBid_dustSalesShareTheRoundingAndNeverOverdrawTheEscrow: a
+    # 100-unit bid escrows 3 micro-USDC; the first one-unit sale is paid 1 and
+    # gives it all as the fee, the second is paid nothing, and once all 100 are
+    # sold the sellers have 2 and staking 1.
+    dust = %{amount: 100, filled: 0, premium_per_token: 3 * @usd}
+    assert Terms.sale(dust, 1, @unit) == %{premium: 1, fee: 1, receive: 0}
+    assert Terms.sale(%{dust | filled: 1}, 1, @unit) == %{premium: 0, fee: 0, receive: 0}
+
+    sales =
+      for {filled, amount} <- [{0, 1}, {1, 1}, {2, 98}],
+          do: Terms.sale(%{dust | filled: filled}, amount, @unit)
+
+    assert Enum.sum_by(sales, & &1.premium) == 3
+    assert Enum.sum_by(sales, & &1.fee) == 1
+    assert Enum.sum_by(sales, & &1.receive) == 2
+  end
+
+  test "cancelling a bid frees the escrow behind its unsold part, and a bid's minimum sale is a token or the whole bid" do
+    # test_cancelBid_stopsSalesAndReleasesOnlyTheUnspentEscrow: 3 of 10 sold
+    assert Terms.escrow_left(%{@ten_token_bid | filled: 3 * @unit}, @unit) == 21 * @usd
+    # test_refundBid_aPartlySoldBidRefundsTheUnsoldEscrowAfterExpiry
+    assert Terms.escrow_left(%{@ten_token_bid | filled: 3 * @unit + 7}, @unit) ==
+             Terms.usdc_for(10 * @unit, 3 * @usd, @unit) -
+               Terms.usdc_for(3 * @unit + 7, 3 * @usd, @unit)
+
+    assert Terms.min_sale(10 * @unit, @unit) == @unit
+    assert Terms.min_sale(@unit, @unit) == @unit
+    assert Terms.min_sale(@unit - 1, @unit) == @unit - 1
+  end
+
+  property "however a bid is sold into or raised, the sales add up to one sale and the raises to one raise" do
+    check all(
+            amount <- integer(1..(1_000 * @unit)),
+            premium <- integer(1..(10_000 * @usd)),
+            cuts <- list_of(integer(1..(1_000 * @unit)), max_length: 6)
+          ) do
+      bid = %{amount: amount, filled: 0, premium_per_token: premium}
+      parts = split(amount, cuts)
+
+      {sales, _sold} =
+        Enum.map_reduce(parts, bid, fn part, bid ->
+          {Terms.sale(bid, part, @unit), %{bid | filled: bid.filled + part}}
+        end)
+
+      whole = Terms.sale(bid, amount, @unit)
+      assert Enum.sum_by(sales, & &1.premium) == whole.premium
+      assert Enum.sum_by(sales, & &1.fee) == whole.fee
+      assert whole.premium == Terms.usdc_for(amount, premium, @unit)
+      assert whole.fee == Terms.fee(whole.premium)
+      assert Enum.all?(sales, &(&1.receive >= 0 and &1.fee <= &1.premium))
+
+      {raised, escrowed} =
+        Enum.reduce(parts, {%{amount: 0, premium_per_token: premium}, 0}, fn part,
+                                                                             {bid, escrowed} ->
+          {%{bid | amount: bid.amount + part}, escrowed + Terms.raise_cost(bid, part, @unit)}
+        end)
+
+      assert raised.amount == amount
+      assert escrowed == Terms.usdc_for(amount, premium, @unit)
+    end
+  end
+
+  property "another sale landing first moves a sale's premium by at most one micro-USDC, never below the exact premium" do
+    # testFuzz_flow_anotherSaleFirstMovesThePriceByAtMostOneMicro
+    check all(
+            premium <- integer(1..(10_000 * @usd)),
+            amount <- integer(1..(25 * @unit)),
+            first <- integer(1..(25 * @unit))
+          ) do
+      bid = %{amount: 50 * @unit, filled: 0, premium_per_token: premium}
+      quoted = Terms.sale(bid, amount, @unit).premium
+      paid = Terms.sale(%{bid | filled: first}, amount, @unit).premium
+      exact = div(amount * premium, @unit)
+
+      assert paid <= quoted + 1 and paid + 1 >= quoted
+      assert paid >= exact and paid <= exact + 1
+    end
+  end
+
+  test "a bid is open until its expiry while some is unsold, then sold, cancelled or expired" do
+    bid = %{expiry: 1_000, amount: 10, filled: 4}
+    assert Terms.bid_stage(bid, 999) == :open
+    assert Terms.bid_stage(bid, 1_000) == :expired
+    assert Terms.bid_stage(%{bid | filled: 10}, 999) == :sold
+    assert Terms.bid_stage(%{bid | filled: 10}, 1_000) == :sold
+    # cancelBid lowers the amount to what was sold: nothing sold reads as cancelled.
+    assert Terms.bid_stage(%{bid | amount: 0, filled: 0}, 999) == :cancelled
+    assert Terms.bid_stage(%{bid | amount: 4}, 999) == :sold
+  end
+
+  # `amount` cut into parts at the given points, each part at least one unit.
+  defp split(amount, cuts) do
+    points = cuts |> Enum.map(&rem(&1, amount)) |> Enum.reject(&(&1 == 0)) |> Enum.uniq()
+    edges = Enum.sort([0, amount | points])
+    edges |> Enum.chunk_every(2, 1, :discard) |> Enum.map(fn [a, b] -> b - a end)
+  end
+
   property "typed token and dollar amounts are read exactly, and shown back as typed" do
     check all(
             whole <- integer(0..100_000),

@@ -71,13 +71,26 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       0
     ]
 
-  # The chain at `now` (the latest block's time), holding `listing`.
+  # One bid: ten tokens at a $250 strike and a $3 premium, `filled` sold into it,
+  # selling at least one whole token at a time.
+  defp bid(bidder, filled, refund_due \\ 0),
+    do: [word(bidder), expiry(), 10 * @token, filled, 250_000_000, 3_000_000, @token, refund_due]
+
+  # The chain at `now` (the latest block's time), holding `listing` and, when
+  # `funds` names one, a bid.
   defp chain(funds \\ %{}, listing \\ listing(), now \\ @now) do
-    funds = Map.merge(%{balance: 0, allowance: 0, held: 0, claimable: 0}, funds)
+    funds =
+      Map.merge(
+        %{balance: 0, allowance: 0, held: 0, claimable: 0, bid: nil, refundable: 0},
+        funds
+      )
 
     answers = %{
       LabAbi.selector("listingCount()") => [1],
       LabAbi.selector("listings(uint256)") => listing,
+      LabAbi.selector("bidCount()") => if(funds.bid, do: [1], else: [0]),
+      LabAbi.selector("bids(uint256)") => funds.bid,
+      LabAbi.selector("refundable(uint256)") => [funds.refundable],
       LabAbi.selector("multiplier()") => [10 ** 18],
       LabAbi.selector("effectiveAt()") => [0],
       LabAbi.selector("unit()") => [@token],
@@ -466,6 +479,76 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
     assert Enum.map(collect["steps"], &Map.take(&1, ["to", "data"])) ==
              one_call.("claim(uint256)")
+  end
+
+  test "the public book lists the open bids, and a signed agent reads its own and prepares a sale into one" do
+    switch(:on)
+    open_site()
+    {wallet, signed} = paired_agent()
+    positions = fn -> signed.() |> get("/api/agent/v1/covered-calls/AMZNc/positions") end
+
+    steps = fn body ->
+      send_json(signed.(), "POST", "/api/agent/v1/covered-calls/AMZNc/steps", body)
+    end
+
+    # The agent's own bid: ten tokens at a $3 premium, four sold into it.
+    chain(%{bid: bid(wallet, 4 * @token), balance: 2 * @token, allowance: 2 * @token})
+
+    [open] =
+      build_conn()
+      |> get("/api/v1/covered-calls/AMZNc")
+      |> json_response(200)
+      |> get_in(["data", "bids"])
+
+    assert Enum.sort(Map.keys(open)) == documented_keys("CoveredCallBid")
+
+    assert %{"id" => 1, "bidder" => ^wallet, "stage" => "open", "min_sale" => @token} = open
+    assert open["available"] == 6 * @token
+
+    [own] = positions.() |> json_response(200) |> get_in(["data", "bids"])
+    assert Enum.sort(Map.keys(own)) == documented_keys("CoveredCallOwnBid")
+    assert %{"id" => 1, "stage" => "open", "refundable" => 0} = own
+
+    # Selling two tokens into it is paid $18 less $12 of the bid's premium, less
+    # the fee's slice of it, at once.
+    sale =
+      steps.(%{"kind" => "sell_to_bid", "bid_id" => 1, "amount" => 2 * @token})
+      |> json_response(200)
+
+    assert %{"blocked" => nil, "approved" => true} = sale["data"]
+
+    assert %{"premium" => 6_000_000, "fee" => 60_000, "receive" => 5_940_000} =
+             sale["data"]["facts"]
+
+    assert [%{"to" => @stock}, %{"to" => @contract, "data" => data}] = sale["data"]["steps"]
+
+    assert data ==
+             BuilderCode.append(
+               LabAbi.selector("sellToBid(uint256,uint256)") <>
+                 BaseRpcStub.hex_word(1) <> BaseRpcStub.hex_word(2 * @token)
+             )
+
+    assert steps.(%{"kind" => "cancel_bid", "bid_id" => 9}) |> json_response(404) |> code() ==
+             "unknown_bid"
+
+    assert steps.(%{"kind" => "cancel_bid", "bid_id" => "1"}) |> json_response(422) |> code() ==
+             "invalid_request"
+
+    # Sold out, it leaves the book and stays the bidder's, with its refund.
+    chain(%{bid: bid(wallet, 10 * @token, 1_000_000), refundable: 1_000_000})
+
+    assert build_conn()
+           |> get("/api/v1/covered-calls/AMZNc")
+           |> json_response(200)
+           |> get_in(["data", "bids"]) == []
+
+    assert [%{"stage" => "sold", "refundable" => 1_000_000}] =
+             positions.() |> json_response(200) |> get_in(["data", "bids"])
+
+    refund = steps.(%{"kind" => "refund_bid", "bid_id" => 1}) |> json_response(200)
+
+    assert %{"blocked" => nil, "facts" => %{"amount" => 1_000_000, "bid_id" => 1}} =
+             refund["data"]
   end
 
   test "the signed-in route needs a sign-in and reads only the signed-in wallet", %{conn: conn} do

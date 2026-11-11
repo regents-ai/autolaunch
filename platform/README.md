@@ -156,7 +156,7 @@ bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Detai
 Covered calls (`/stock/covered-call`, the portfolio's Covered calls section and their agent routes and
 tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=/abs/path/covered-calls.json` is required, naming one
-`CoveredCallsV1` contract per stock on the Base description's chain (`chain_id` and `markets` of
+`CoveredCallsV2` contract per stock on the Base description's chain (`chain_id` and `markets` of
 `symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
 (`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 

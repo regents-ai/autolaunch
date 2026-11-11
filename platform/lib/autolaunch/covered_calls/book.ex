@@ -1,7 +1,7 @@
 defmodule Autolaunch.CoveredCalls.Book do
   @moduledoc """
-  Each covered-call market's listings, as its contract holds them at the latest
-  block, shared by every visitor (`Autolaunch.CoveredCalls.Chain.book/3`).
+  Each covered-call market's listings and bids, as its contract holds them at
+  the latest block, shared by every visitor (`Autolaunch.CoveredCalls.Chain.book/3`).
 
   One reading per market is kept for five minutes (`:covered_calls_book_kept_ms`;
   0 keeps nothing, as the tests run); a landed press on the chain

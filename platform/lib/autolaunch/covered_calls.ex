@@ -1,10 +1,11 @@
 defmodule Autolaunch.CoveredCalls do
   @moduledoc """
   Covered calls on Base stock tokens: a seller locks stock and lists calls on
-  it; any person or agent buys them for a premium in USDC; during the 24 hours
-  after the Friday expiry a holder may pay the strike for the stock. The
-  contract (`contracts/covered-calls`) is the record; see
-  `platform/docs/covered-calls-design.md`.
+  it; any person or agent buys them for a premium in USDC, or posts a standing
+  bid with its premium escrowed that a seller sells into and is paid at once;
+  during the 24 hours after the Friday expiry a holder may pay the strike for
+  the stock. The contract (`CoveredCallsV2`, `contracts/covered-calls-v2`) is
+  the record; see `platform/docs/covered-calls-design.md`.
   """
 
   use Ash.Domain, otp_app: :autolaunch

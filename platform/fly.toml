@@ -40,9 +40,9 @@ kill_timeout = "60s"
   guest_path = "/app/deployment/robinhood.json"
   local_path = "deployment/robinhood.json"
 
-# The covered-call markets: contracts/covered-calls/deploy/site-markets.json,
-# copied to deployment/covered-calls.json beside the others. It carries no RPC
-# door; every read goes through the Base deployment's.
+# The covered-call markets: one CoveredCallsV2 contract per stock, copied to
+# deployment/covered-calls.json beside the others. It carries no RPC door;
+# every read goes through the Base deployment's.
 [[files]]
   guest_path = "/app/deployment/covered-calls.json"
   local_path = "deployment/covered-calls.json"

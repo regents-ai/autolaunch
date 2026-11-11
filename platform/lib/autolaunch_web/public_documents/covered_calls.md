@@ -1,6 +1,6 @@
 ## Covered calls
 
-Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/stock/covered-call]({{origin}}/stock/covered-call).
+Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. A buyer may instead post a standing bid for calls with a strike, a premium and a weekly expiry, its whole premium held by the contract; a seller who sells stock into it locks that stock as the bidder's calls and is paid the premium, less the 1% fee, at once. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/stock/covered-call]({{origin}}/stock/covered-call).
 
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 
@@ -8,12 +8,14 @@ A quote gives the reference price, the next four expiries with their exercise wi
 
 | Action | WebMCP tool | HTTP |
 | --- | --- | --- |
-| Read a stock's listings | `autolaunch_covered_call_listings` | `GET {{origin}}/api/v1/covered-calls/{symbol}` |
+| Read a stock's listings and open bids | `autolaunch_covered_call_listings` | `GET {{origin}}/api/v1/covered-calls/{symbol}` |
 | Quote a listing | `autolaunch_covered_call_quote` | `POST {{origin}}/api/v1/covered-calls/{symbol}/quote` with `expiry`, and optionally `amount`, `strike_per_token` and `premium_per_token` |
 | Read your person's covered calls (signed, paired) | `autolaunch_my_covered_calls` | `GET {{origin}}/api/agent/v1/covered-calls/{symbol}/positions` |
-| Prepare a step: list, fill, cancel, exercise, claim or collect_strike (signed, paired) | `autolaunch_covered_call_prepare` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
+| Prepare a step: list, fill, cancel, exercise, claim, collect_strike, bid, raise_bid, cancel_bid, refund_bid or sell_to_bid (signed, paired) | `autolaunch_covered_call_prepare` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
 
-Your person's covered calls also say how much of the stock their wallet holds (`balance`), the most it can list now: stock already listed is held by the contract.
+Your person's covered calls also say how much of the stock their wallet holds (`balance`), the most it can list now: stock already listed is held by the contract. They list every bid their wallet made, with its `stage` (open, sold, cancelled or expired) and what a refund would send it now (`refundable`). A sale into a bid opens a listing like any other, so it shows as the seller's sold listing and the bidder's held calls.
+
+A bid escrows its whole premium when it is posted; the prepared `bid` step's `facts.escrow` is that USDC, and `facts.min_sale` the fewest raw units one sale into it may be (one whole token, or the whole bid when it asks for less), unless a sale takes all that is left. `raise_bid` asks for more at the same terms and escrows only the premium that adds (`facts.escrow`). `sell_to_bid` gives the `premium`, the `fee` and what lands in the seller's wallet (`receive`): all the sales into one bid together pay its premium for all that was sold, rounded up once, and the fee of that total, so each sale takes the next slice of both. `cancel_bid` stops a bid and frees its unspent escrow (`facts.released`); `refund_bid` sends what is due, and after the expiry that includes the escrow of any part never sold.
 
 The site only prepares steps. Each answer lists `steps` (`to`, `data` and `value` on the named `chain`) for one of your person's own wallets: `signer` when you send one, otherwise the wallet they signed in with. That wallet's own key signs and sends the steps in order, and money moves only then. `approved` says whether the allowance already covers the action. `blocked` gives a `code` and words when the chain's current state makes the action certain to fail; the steps still come back, so prepare again once the chain has changed. Any other wallet is refused with `wrong_signer`. The regents CLI has no covered-call commands yet.
 

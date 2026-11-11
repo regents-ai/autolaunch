@@ -4,11 +4,11 @@ defmodule Autolaunch.CoveredCalls.Market do
   routes and the browser tools — so each answers with the same figures and the
   same refusals:
 
-    * `:book` — a market's listings, as its contract holds them (public)
+    * `:book` — a market's listings and bids, as its contract holds them (public)
     * `:quote` — a seller's quote for an expiry: the reference price, the
       next expiries, three suggested strikes, and what a listing of the
       chosen strike and premium pays (public)
-    * `:positions` — what a wallet of the acting account sold and holds
+    * `:positions` — what a wallet of the acting account sold, holds and bid
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
   Nothing is stored: the contract is the record. The acting account comes from
@@ -61,6 +61,7 @@ defmodule Autolaunch.CoveredCalls.Market do
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
       argument :signer, :string
       argument :listing_id, :integer, constraints: @amount
+      argument :bid_id, :integer, constraints: @amount
       argument :amount, :integer, constraints: @amount
       argument :strike_per_token, :integer, constraints: @amount
       argument :premium_per_token, :integer, constraints: @amount

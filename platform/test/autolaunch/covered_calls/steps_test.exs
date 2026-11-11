@@ -1,9 +1,9 @@
 defmodule Autolaunch.CoveredCalls.StepsTest do
   @moduledoc """
-  The wallet steps for covered calls, built from the contract's state at the
-  latest block: exact calldata, an exact approval first, the reason a press is
-  certain to fail named from the chain, and steps only for a wallet of the
-  acting account.
+  The wallet steps for covered calls and bids, built from the contract's state
+  at the latest block: exact calldata, an exact approval first, the reason a
+  press is certain to fail named from the chain, and steps only for a wallet of
+  the acting account.
   """
 
   use AutolaunchWeb.ConnCase, async: false
@@ -35,6 +35,8 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
   end
 
   defp listing(overrides), do: CoveredCallsChain.listing(overrides)
+
+  defp bid(overrides), do: CoveredCallsChain.bid(overrides)
 
   defp prepare(context, kind, request),
     do:
@@ -211,5 +213,180 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
 
     assert {:error, _forbidden} =
              CoveredCalls.prepare_covered_call("AMZNc", :claim, %{listing_id: 1})
+  end
+
+  test "a bid is an exact USDC approval of its escrow then bid, with a minimum sale of one whole token or the whole bid",
+       context do
+    request = %{
+      amount: 10 * @unit,
+      strike_per_token: 260_000_000,
+      premium_per_token: 3_000_000,
+      expiry: @expiry
+    }
+
+    chain(%{})
+    assert {:ok, prepared} = prepare(context, :bid, request)
+    assert [approval, posted] = prepared.steps
+    assert approval.step == "usdc_approval" and approval.to == @usdc
+
+    assert approval.data ==
+             BuilderCode.append(Call.encode("approve(address,uint256)", [@contract, 30_000_000]))
+
+    assert posted.step == "bid" and posted.to == @contract
+
+    assert posted.data ==
+             BuilderCode.append(
+               Call.encode("bid(uint256,uint256,uint256,uint64,uint256)", [
+                 10 * @unit,
+                 260_000_000,
+                 3_000_000,
+                 @expiry,
+                 @unit
+               ])
+             )
+
+    assert prepared.blocked == :approve_first and prepared.approved == false
+    assert %{escrow: 30_000_000, min_sale: @unit, expiry: @expiry} = prepared.facts
+
+    # Less than a whole token: the minimum sale is the whole bid, and the escrow rounds up.
+    half = div(@unit, 2) + 1
+    assert {:ok, small} = prepare(context, :bid, %{request | amount: half})
+    assert small.facts.min_sale == half
+    assert small.facts.escrow == Terms.usdc_for(half, 3_000_000, @unit)
+    assert small.facts.escrow == 1_500_001
+
+    chain(%{usdc_allowance: 30_000_000})
+    assert {:ok, %{blocked: nil, approved: true}} = prepare(context, :bid, request)
+
+    chain(%{usdc_allowance: 30_000_000, usdc_balance: 29_999_999})
+    assert {:ok, %{blocked: :not_enough_usdc}} = prepare(context, :bid, request)
+
+    chain(%{usdc_allowance: 30_000_000, effective_at: @expiry + 3_600})
+    assert {:ok, %{blocked: :corporate_action}} = prepare(context, :bid, request)
+
+    assert {:error, error} = prepare(context, :bid, %{request | expiry: @expiry + 3_600})
+    assert CoveredCalls.reason(error) == :not_a_weekly_expiry
+  end
+
+  test "selling into a bid is an exact stock approval then sellToBid, paying its slice of the premium less the fee",
+       context do
+    # Ten tokens at a 3 USDC premium, four sold: two more are paid 18 - 12 USDC,
+    # less 1% of 18 USDC less 1% of 12 USDC.
+    chain(%{bids: [bid(%{})]})
+    assert {:ok, prepared} = prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
+    assert [approval, sale] = prepared.steps
+    assert approval.step == "stock_approval" and approval.to == @stock
+
+    assert approval.data ==
+             BuilderCode.append(Call.encode("approve(address,uint256)", [@contract, 2 * @unit]))
+
+    assert sale.step == "sell_to_bid" and sale.to == @contract
+
+    assert sale.data ==
+             BuilderCode.append(Call.encode("sellToBid(uint256,uint256)", [1, 2 * @unit]))
+
+    assert prepared.facts == %{
+             bid_id: 1,
+             amount: 2 * @unit,
+             premium: 6_000_000,
+             fee: 60_000,
+             receive: 5_940_000,
+             strike: 520_000_000,
+             expiry: @expiry
+           }
+
+    assert prepared.blocked == :approve_first
+
+    chain(%{bids: [bid(%{})], allowance: 6 * @unit})
+
+    assert {:ok, %{blocked: nil}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
+
+    assert {:ok, %{blocked: :more_than_bid}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 6 * @unit + 1})
+
+    assert {:ok, %{blocked: :below_minimum_sale}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: @unit - 1})
+
+    # What is left may always be sold, however small.
+    chain(%{bids: [bid(%{filled: 10 * @unit - 7})], allowance: 6 * @unit})
+    assert {:ok, %{blocked: nil}} = prepare(context, :sell_to_bid, %{bid_id: 1, amount: 7})
+
+    chain(%{bids: [bid(%{})], allowance: 6 * @unit, balance: @unit})
+
+    assert {:ok, %{blocked: :not_enough_stock}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
+
+    chain(%{bids: [bid(%{})], allowance: 6 * @unit, effective_at: @expiry + 3_600})
+
+    assert {:ok, %{blocked: :corporate_action}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
+
+    chain(%{bids: [bid(%{expiry: @now})], allowance: 6 * @unit})
+
+    assert {:ok, %{blocked: :bid_expired}} =
+             prepare(context, :sell_to_bid, %{bid_id: 1, amount: 2 * @unit})
+  end
+
+  test "only the bidder's wallet may raise, cancel or refund a bid, and a raise escrows only the premium it adds",
+       context do
+    chain(%{bids: [bid(%{})]})
+
+    for {kind, request} <- [
+          raise_bid: %{bid_id: 1, amount: @unit},
+          cancel_bid: %{bid_id: 1},
+          refund_bid: %{bid_id: 1}
+        ],
+        do: assert({:ok, %{blocked: :not_bidder}} = prepare(context, kind, request))
+
+    chain(%{bids: [bid(%{bidder: context.wallet, amount: 10 * @unit + 1, refundable: 0})]})
+
+    # 10 tokens and a unit escrowed 30.000001 USDC; 5 tokens more brings the
+    # premium for 15 tokens and a unit to 45.000001, so 15 USDC is added.
+    assert {:ok, raised} = prepare(context, :raise_bid, %{bid_id: 1, amount: 5 * @unit})
+
+    assert [%{step: "usdc_approval", data: approve}, %{step: "raise_bid", data: data}] =
+             raised.steps
+
+    assert approve ==
+             BuilderCode.append(Call.encode("approve(address,uint256)", [@contract, 15_000_000]))
+
+    assert data == BuilderCode.append(Call.encode("raiseBid(uint256,uint256)", [1, 5 * @unit]))
+    assert %{blocked: :approve_first, facts: %{escrow: 15_000_000, bid_id: 1}} = raised
+
+    assert {:ok, cancelled} = prepare(context, :cancel_bid, %{bid_id: 1})
+    assert cancelled.blocked == nil
+
+    assert [%{step: "cancel_bid", data: data}] = cancelled.steps
+    assert data == BuilderCode.append(Call.encode("cancelBid(uint256)", [1]))
+    # Six tokens and a unit unsold; their escrow is 30.000001 less the 12 USDC paid out.
+    assert cancelled.facts == %{bid_id: 1, unsold: 6 * @unit + 1, released: 18_000_001}
+
+    assert {:ok, %{blocked: :nothing_to_refund}} = prepare(context, :refund_bid, %{bid_id: 1})
+
+    chain(%{bids: [bid(%{bidder: context.wallet, refundable: 18_000_000})]})
+    assert {:ok, refund} = prepare(context, :refund_bid, %{bid_id: 1})
+    assert %{blocked: nil, facts: %{bid_id: 1, amount: 18_000_000}} = refund
+    assert [%{step: "refund_bid", data: data}] = refund.steps
+    assert data == BuilderCode.append(Call.encode("refundBid(uint256)", [1]))
+
+    chain(%{bids: [bid(%{bidder: context.wallet, filled: 10 * @unit})]})
+    assert {:ok, %{blocked: :nothing_to_cancel}} = prepare(context, :cancel_bid, %{bid_id: 1})
+
+    chain(%{bids: [bid(%{bidder: context.wallet, expiry: @now})], usdc_allowance: 30_000_000})
+
+    assert {:ok, %{blocked: :bid_expired}} =
+             prepare(context, :raise_bid, %{bid_id: 1, amount: @unit})
+  end
+
+  test "a bid the contract does not hold is refused as unknown, not as a chain failure",
+       context do
+    chain(%{bids: [bid(%{})]})
+
+    for kind <- [:raise_bid, :cancel_bid, :refund_bid, :sell_to_bid],
+        request <- [%{bid_id: 2, amount: @unit}, %{amount: @unit}] do
+      assert {:error, error} = prepare(context, kind, request)
+      assert CoveredCalls.reason(error) == :unknown_bid
+    end
   end
 end

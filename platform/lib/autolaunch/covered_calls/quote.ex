@@ -11,7 +11,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
       with how far above it is and its suggested premium
     * for the chosen strike (the middle suggestion when none is asked) and
       premium (the suggestion when none is asked), what a listing of the
-      amount asked pays, as `CoveredCallsV1` counts it
+      amount asked pays, as `CoveredCallsV2` counts it
 
   Every USDC figure a listing pays comes from `Autolaunch.CoveredCalls.Terms`,
   the contract's own arithmetic, so the quote, a page's receipt and the

@@ -16,13 +16,13 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
   alias Autolaunch.CoveredCalls.Terms
   alias AutolaunchWeb.ApiError
 
-  @integer_fields ~w(listing_id amount strike_per_token premium_per_token expiry)
+  @integer_fields ~w(listing_id bid_id amount strike_per_token premium_per_token expiry)
   @quote_fields ~w(expiry amount strike_per_token premium_per_token)
 
   @blocked %{
     corporate_action:
-      "A change to the stock's share count is scheduled before this listing's exercise window closes, so the contract takes no new listings or purchases until it has happened.",
-    not_enough_stock: "This wallet holds less of the stock than the amount to list.",
+      "A change to the stock's share count is scheduled before the exercise window closes, so the contract takes no new listings, purchases, bids or sales into bids until it has happened.",
+    not_enough_stock: "This wallet holds less of the stock than this step locks.",
     approve_first:
       "Approve the amount first; the next step can be sent once the approval is on the chain.",
     fills_closed: "This listing has reached its expiry, so it can no longer be bought.",
@@ -34,9 +34,15 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
       "The 24 hours after this listing's expiry have passed; its calls have lapsed.",
     more_than_held: "This wallet holds fewer calls on this listing than the amount asked for.",
     not_seller: "Only the wallet that made this listing can do this.",
-    nothing_to_cancel: "Nothing on this listing is left unsold to cancel.",
+    nothing_to_cancel: "Nothing is left unsold to cancel.",
     nothing_to_claim: "This wallet has no stock to claim on this listing right now.",
-    nothing_to_collect: "No strike payment is waiting to be collected on this listing."
+    nothing_to_collect: "No strike payment is waiting to be collected on this listing.",
+    not_bidder: "Only the wallet that made this bid can do this.",
+    bid_expired: "This bid has reached its expiry, so it can no longer be raised or sold into.",
+    more_than_bid: "This bid asks for less than the amount to sell.",
+    below_minimum_sale:
+      "A sale into this bid must be at least its minimum sale, unless it sells all that is left.",
+    nothing_to_refund: "No refund is waiting on this bid right now."
   }
 
   @chain_unavailable {:service_unavailable,
@@ -45,6 +51,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
   @refusals %{
     unknown_market: {:not_found, "There is no covered-call market for that stock."},
     unknown_listing: {:not_found, "There is no listing with that number on this market."},
+    unknown_bid: {:not_found, "There is no bid with that number on this market."},
     invalid_amount: {:unprocessable_entity, "Send each amount as a whole number above zero."},
     not_a_weekly_expiry:
       {:unprocessable_entity,
@@ -52,7 +59,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     expiry_passed: {:unprocessable_entity, "That expiry has already passed."},
     invalid_request:
       {:unprocessable_entity,
-       "Send only the documented fields: kind as text, a signer address as text, and every amount, listing and expiry as a whole number."},
+       "Send only the documented fields: kind as text, a signer address as text, and every amount, listing, bid and expiry as a whole number."},
     wrong_signer: {:forbidden, "That wallet is not one of this account's own wallets."},
     wallet_required: {:conflict, "This account has no wallet to act with."},
     authentication_required: {:unauthorized, "Nobody is signed in on this site in this browser."},
@@ -126,7 +133,8 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
       multiplier: book.multiplier,
       multiplier_change_at: book.effective_at,
       reference_price: book.price,
-      listings: Enum.map(book.listings, &listing(&1, book.now))
+      listings: Enum.map(book.listings, &listing(&1, book.now)),
+      bids: for(bid <- book.bids, Terms.bid_stage(bid, book.now) == :open, do: bid(bid, book.now))
     }
   end
 
@@ -141,6 +149,11 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
       unit: positions.book.unit,
       sold: Enum.map(positions.sold, &listing(&1, positions.now)),
       holdings: positions.holdings,
+      bids:
+        Enum.map(
+          positions.bids,
+          &(&1 |> bid(positions.now) |> Map.put(:refundable, &1.refundable))
+        ),
       balance: positions.balance
     }
   end
@@ -179,5 +192,20 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
       exercise_closes_at: listing.expiry + Terms.exercise_window(),
       strike_due: Terms.strike_due(listing)
     })
+  end
+
+  defp bid(bid, now) do
+    bid
+    |> Map.take([
+      :id,
+      :bidder,
+      :expiry,
+      :amount,
+      :filled,
+      :strike_per_token,
+      :premium_per_token,
+      :min_sale
+    ])
+    |> Map.merge(%{stage: Terms.bid_stage(bid, now), available: Terms.available(bid)})
   end
 end

@@ -1,9 +1,9 @@
 defmodule Autolaunch.CoveredCalls.Terms do
   @moduledoc """
-  The arithmetic of a covered call, exactly as `CoveredCallsV1` does it: weekly
-  expiries, the premium and strike a fill or an exercise pays, the 1% fee, a
-  listing's state at a moment, and the suggested premium a page offers as a
-  guide.
+  The arithmetic of a covered call, exactly as `CoveredCallsV2` does it: weekly
+  expiries, the premium and strike a fill or an exercise pays, the 1% fee, what
+  a bid escrows and what a sale into one pays, a listing's or a bid's state at a
+  moment, and the suggested premium a page offers as a guide.
 
   Stock amounts are raw token units; prices are USDC (6 decimals) per whole
   token; every USDC amount rounds up, as the contract rounds it.
@@ -86,8 +86,70 @@ defmodule Autolaunch.CoveredCalls.Terms do
     end
   end
 
-  @doc "Raw units still for sale on a listing."
-  def available(listing), do: listing.amount - listing.filled
+  @doc "Raw units still for sale on a listing, or still asked for on a bid."
+  def available(listing_or_bid), do: listing_or_bid.amount - listing_or_bid.filled
+
+  @doc """
+  Where a bid stands at `now`: `:cancelled` once its bidder stopped it before
+  any was sold into it (`cancelBid` leaves its amount at the zero filled),
+  `:open` while stock can be sold into it, `:sold` when nothing is left to sell
+  into it, and `:expired` when its expiry passed with part of it unsold.
+
+  A bid stopped after some was sold into it keeps the sold part as its bidder's
+  calls and reads as sold: the contract keeps no other record of the stop. A
+  refund after the expiry closes a bid the same way, so an expired bid reads as
+  cancelled or sold once its bidder has taken the refund.
+  """
+  def bid_stage(%{expiry: expiry} = bid, now) do
+    cond do
+      bid.amount == 0 -> :cancelled
+      bid.amount == bid.filled -> :sold
+      now < expiry -> :open
+      true -> :expired
+    end
+  end
+
+  @doc """
+  The smallest sale into a bid of `amount` raw units the site asks for: one
+  whole token of `unit` raw units, or the whole bid when it asks for less. The
+  contract still takes a sale of the bid's whole remainder below it.
+  """
+  def min_sale(amount, unit), do: min(amount, unit)
+
+  @doc """
+  The USDC `raiseBid` takes to add `amount` raw units to `bid`, as the
+  contract's `raiseCostFor`: the premium for the raised amount less the
+  premium already escrowed, each rounded up once, so raising in small steps
+  never escrows more than bidding the total at once.
+  """
+  def raise_cost(bid, amount, unit),
+    do:
+      usdc_for(bid.amount + amount, bid.premium_per_token, unit) -
+        usdc_for(bid.amount, bid.premium_per_token, unit)
+
+  @doc """
+  What selling `amount` raw units into `bid` pays now, as the contract's
+  `salePremiumFor`: the sales into one bid are together paid the premium for
+  all that has been sold into it, rounded up once, and carry the 1% fee of that
+  total, rounded up once, so each sale takes the next slice of both. `receive`
+  is what lands in the seller's wallet, the premium less the fee.
+  """
+  def sale(bid, amount, unit) do
+    paid_before = usdc_for(bid.filled, bid.premium_per_token, unit)
+    paid_after = usdc_for(bid.filled + amount, bid.premium_per_token, unit)
+    premium = paid_after - paid_before
+    fee = fee(paid_after) - fee(paid_before)
+    %{premium: premium, fee: fee, receive: premium - fee}
+  end
+
+  @doc """
+  The escrow still standing behind `bid`'s unsold amount: what `cancelBid`
+  releases to its bidder's refund.
+  """
+  def escrow_left(bid, unit),
+    do:
+      usdc_for(bid.amount, bid.premium_per_token, unit) -
+        usdc_for(bid.filled, bid.premium_per_token, unit)
 
   @doc "Strike USDC paid on a listing and not yet collected by its seller."
   def strike_due(listing), do: listing.strike_paid - listing.strike_collected

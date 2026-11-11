@@ -2,7 +2,7 @@ defmodule Autolaunch.CoveredCallsChain do
   @moduledoc """
   Covered calls switched on for one test, on a chain double that answers every
   read at the latest block by the contract asked: the covered-call contract's
-  listing, holdings and terms, the stock's balance, allowance, multiplier and
+  listings, bids, holdings and terms, the stock's balance, allowance, multiplier and
   scheduled change, USDC's balance and allowance, and the reference feed and its
   past rounds. Every other request goes to `Autolaunch.BaseRpcStub`.
 
@@ -89,7 +89,8 @@ defmodule Autolaunch.CoveredCallsChain do
           price_at: @now,
           # The feed's rounds before its latest, oldest first: {updated_at, answer}.
           history: [],
-          listings: [listing(%{})]
+          listings: [listing(%{})],
+          bids: []
         },
         overrides
       )
@@ -111,6 +112,27 @@ defmodule Autolaunch.CoveredCallsChain do
         premium: 3_000_000,
         paid: 0,
         collected: 0
+      },
+      overrides
+    )
+  end
+
+  @doc """
+  One bid as the contract holds it, `overrides` over a 10-token bid with 4 sold
+  into it; `refundable` is what the contract's `refundable` view answers for it.
+  """
+  def bid(overrides) do
+    Map.merge(
+      %{
+        bidder: "0x3333333333333333333333333333333333333333",
+        expiry: hd(Autolaunch.CoveredCalls.Terms.expiries(@now)),
+        amount: 10 * @unit,
+        filled: 4 * @unit,
+        strike: 260_000_000,
+        premium: 3_000_000,
+        min_sale: @unit,
+        refund_due: 0,
+        refundable: 0
       },
       overrides
     )
@@ -144,7 +166,8 @@ defmodule Autolaunch.CoveredCallsChain do
   end
 
   @reads Map.new(
-           ~w|listingCount() listings(uint256) unit() usdc() multiplier() effectiveAt()
+           ~w|listingCount() listings(uint256) bidCount() bids(uint256) refundable(uint256)
+              unit() usdc() multiplier() effectiveAt()
               held(uint256,address) claimable(uint256,address) latestRoundData()
               getRoundData(uint80) balanceOf(address) allowance(address,address) decimals()|,
            &{Call.selector(&1), &1}
@@ -161,6 +184,19 @@ defmodule Autolaunch.CoveredCallsChain do
 
   defp words("listingCount()", _to, state, _data), do: [length(state.listings)]
   defp words("listings(uint256)", _to, state, data), do: listing_words(state, data)
+  defp words("bidCount()", _to, state, _data), do: [length(state.bids)]
+
+  defp words("bids(uint256)", _to, state, data) do
+    with %{} = b <- numbered(state.bids, data) do
+      [word(b.bidder), b.expiry, b.amount, b.filled, b.strike, b.premium, b.min_sale] ++
+        [b.refund_due]
+    end
+  end
+
+  defp words("refundable(uint256)", _to, state, data) do
+    with %{} = b <- numbered(state.bids, data), do: [b.refundable]
+  end
+
   defp words("unit()", _to, _state, _data), do: [@unit]
   defp words("usdc()", _to, _state, _data), do: [word(@usdc)]
   defp words("multiplier()", _to, state, _data), do: [state.multiplier]
@@ -188,17 +224,21 @@ defmodule Autolaunch.CoveredCallsChain do
   defp words("allowance(address,address)", @usdc, state, _data), do: [state.usdc_allowance]
   defp words("allowance(address,address)", _stock, state, _data), do: [state.allowance]
 
-  # Listing ids count from 1; the contract refuses any other (`UnknownListing`).
   defp listing_words(state, data) do
+    with %{} = l <- numbered(state.listings, data) do
+      [word(l.seller), l.expiry, l.returned, l.amount, l.filled, l.exercised] ++
+        [l.strike, l.premium, l.paid, l.collected]
+    end
+  end
+
+  # Listing and bid ids count from 1; the contract refuses any other
+  # (`UnknownListing`, `UnknownBid`).
+  defp numbered(records, data) do
     id = data |> String.slice(10, 64) |> String.to_integer(16)
 
-    case id >= 1 && Enum.at(state.listings, id - 1) do
-      falsy when falsy in [nil, false] ->
-        :reverted
-
-      l ->
-        [word(l.seller), l.expiry, l.returned, l.amount, l.filled, l.exercised] ++
-          [l.strike, l.premium, l.paid, l.collected]
+    case id >= 1 && Enum.at(records, id - 1) do
+      falsy when falsy in [nil, false] -> :reverted
+      record -> record
     end
   end
 

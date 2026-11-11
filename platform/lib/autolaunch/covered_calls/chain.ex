@@ -1,18 +1,23 @@
 defmodule Autolaunch.CoveredCalls.Chain do
   @moduledoc """
-  What a `CoveredCallsV1` contract and its stock say at one block. Covered calls
-  keep no records of their own: every listing, holding and balance a page or an
-  agent sees is read here from the contract, so it matches the chain after any
-  reload.
+  What a `CoveredCallsV2` contract and its stock say at one block. Covered calls
+  keep no records of their own: every listing, bid, holding and balance a page
+  or an agent sees is read here from the contract, so it matches the chain after
+  any reload.
   """
 
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.Lab
   alias RegentChain.Call
 
-  @listing_words 10
-  # Listings and a wallet's positions are read a few at a time, so a market
-  # with many weeks of listings still answers in a few round trips.
+  # Each kind of record the contract numbers from 1: how many there are, one
+  # by its id, and the words it comes back as.
+  @records %{
+    listing: {"listingCount()", "listings(uint256)", 10, :unknown_listing},
+    bid: {"bidCount()", "bids(uint256)", 8, :unknown_bid}
+  }
+  # Listings, bids and a wallet's positions are read a few at a time, so a
+  # market with many weeks of them still answers in a few round trips.
   @read_concurrency 8
   @read_timeout 20_000
   @wad 1_000_000_000_000_000_000
@@ -31,6 +36,18 @@ defmodule Autolaunch.CoveredCalls.Chain do
           strike_collected: non_neg_integer()
         }
 
+  @type bid :: %{
+          id: pos_integer(),
+          bidder: String.t(),
+          expiry: non_neg_integer(),
+          amount: non_neg_integer(),
+          filled: non_neg_integer(),
+          strike_per_token: non_neg_integer(),
+          premium_per_token: non_neg_integer(),
+          min_sale: non_neg_integer(),
+          refund_due: non_neg_integer()
+        }
+
   @doc "The read options and latest block of the Base deployment covered calls run on."
   def latest(lab) do
     opts = Lab.rpc_opts(lab, "autolaunch covered calls")
@@ -38,13 +55,12 @@ defmodule Autolaunch.CoveredCalls.Chain do
   end
 
   @doc """
-  Every listing on `market`'s contract, the stock's multiplier and any scheduled
-  change to it, and the reference price, at `block`.
+  Every listing and bid on `market`'s contract, the stock's multiplier and any
+  scheduled change to it, and the reference price, at `block`.
   """
   def book(market, block, opts) do
-    with {:ok, count} <-
-           Rpc.call_uint(market.contract, Call.encode("listingCount()", []), block, opts),
-         {:ok, listings} <- listings(market.contract, count, block, opts),
+    with {:ok, listings} <- all(market, :listing, block, opts),
+         {:ok, bids} <- all(market, :bid, block, opts),
          {:ok, multiplier} <-
            Rpc.call_uint(market.stock, Call.encode("multiplier()", []), block, opts),
          {:ok, effective_at} <-
@@ -58,7 +74,8 @@ defmodule Autolaunch.CoveredCalls.Chain do
          multiplier: multiplier,
          effective_at: effective_at,
          price: price(market, block, opts),
-         listings: listings
+         listings: listings,
+         bids: bids
        }}
     end
   end
@@ -78,19 +95,26 @@ defmodule Autolaunch.CoveredCalls.Chain do
   One listing at `block`, or `:unknown_listing` when the contract has none by
   that id (ids count from 1 to `listingCount`; the contract refuses any other).
   """
-  def listing(market, id, block, opts) do
-    with {:ok, count} <-
-           Rpc.call_uint(market.contract, Call.encode("listingCount()", []), block, opts),
-         true <- id <= count || {:error, :unknown_listing},
-         {:ok, words} <-
-           Rpc.call_words(
-             market.contract,
-             Call.encode("listings(uint256)", [id]),
-             block,
-             @listing_words,
-             opts
-           ),
-         do: {:ok, listing(id, words)}
+  def listing(market, id, block, opts), do: one(market, :listing, id, block, opts)
+
+  @doc """
+  One bid at `block`, or `:unknown_bid` when the contract has none by that id
+  (ids count from 1 to `bidCount`; the contract refuses any other).
+  """
+  def bid(market, id, block, opts), do: one(market, :bid, id, block, opts)
+
+  @doc "All the USDC `refundBid` would send bid `id`'s bidder at `block` (`refundable`)."
+  def refundable(market, id, block, opts),
+    do: uint(market.contract, "refundable(uint256)", [id], block, opts)
+
+  @doc "`wallet`'s own bids among `bids`, each with what `refundBid` would send it at `block`."
+  def own_bids(market, bids, wallet, block, opts) do
+    bids
+    |> Enum.filter(&(&1.bidder == wallet))
+    |> each(fn bid ->
+      with {:ok, refundable} <- refundable(market, bid.id, block, opts),
+           do: {:ok, Map.put(bid, :refundable, refundable)}
+    end)
   end
 
   @doc "What `wallet` may exercise and claim on listing `id`, at `block`."
@@ -131,20 +155,27 @@ defmodule Autolaunch.CoveredCalls.Chain do
   @doc "A raw stock amount as the shares it is worth at `multiplier` (WAD)."
   def shares(raw, multiplier), do: div(raw * multiplier, @wad)
 
-  defp listings(_contract, 0, _block, _opts), do: {:ok, []}
+  defp all(market, kind, block, opts) do
+    {counter, _record, _words, _unknown} = Map.fetch!(@records, kind)
 
-  defp listings(contract, count, block, opts) do
-    each(1..count, fn id ->
-      with {:ok, words} <-
-             Rpc.call_words(
-               contract,
-               Call.encode("listings(uint256)", [id]),
-               block,
-               @listing_words,
-               opts
-             ),
-           do: {:ok, listing(id, words)}
-    end)
+    with {:ok, count} <- uint(market.contract, counter, [], block, opts),
+         do: each(1..count//1, &record(market, kind, &1, block, opts))
+  end
+
+  defp one(market, kind, id, block, opts) do
+    {counter, _record, _words, unknown} = Map.fetch!(@records, kind)
+
+    with {:ok, count} <- uint(market.contract, counter, [], block, opts),
+         true <- id <= count || {:error, unknown},
+         do: record(market, kind, id, block, opts)
+  end
+
+  defp record(market, kind, id, block, opts) do
+    {_count, record, words, _unknown} = Map.fetch!(@records, kind)
+
+    with {:ok, words} <-
+           Rpc.call_words(market.contract, Call.encode(record, [id]), block, words, opts),
+         do: {:ok, decode(kind, id, words)}
   end
 
   # One read per item, a few at a time, in order. The first that fails fails
@@ -167,7 +198,7 @@ defmodule Autolaunch.CoveredCalls.Chain do
     end
   end
 
-  defp listing(id, [
+  defp decode(:listing, id, [
          seller,
          expiry,
          returned,
@@ -191,6 +222,20 @@ defmodule Autolaunch.CoveredCalls.Chain do
       premium_per_token: premium,
       strike_paid: paid,
       strike_collected: collected
+    }
+  end
+
+  defp decode(:bid, id, [bidder, expiry, amount, filled, strike, premium, min_sale, refund_due]) do
+    %{
+      id: id,
+      bidder: word_address(bidder),
+      expiry: expiry,
+      amount: amount,
+      filled: filled,
+      strike_per_token: strike,
+      premium_per_token: premium,
+      min_sale: min_sale,
+      refund_due: refund_due
     }
   end
 

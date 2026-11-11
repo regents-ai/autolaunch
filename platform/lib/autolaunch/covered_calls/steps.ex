@@ -4,28 +4,45 @@ defmodule Autolaunch.CoveredCalls.Steps do
   chain at the latest block, for a signer the caller has already proved is one
   of the acting account's own wallets (`Autolaunch.CoveredCalls.Market`).
 
-  Six actions, each one review of the steps the wallet sends in turn:
+  Eleven actions, each one review of the steps the wallet sends in turn:
 
     * `:list` — an exact stock approval, then `list`
     * `:fill` — an exact USDC approval, then `fill`
     * `:exercise` — an exact USDC approval, then `exercise`
     * `:cancel`, `:claim`, `:collect_strike` — one call each
+    * `:bid` — an exact USDC approval of the bid's escrow, then `bid`, with
+      the minimum sale the site sets (`Terms.min_sale/2`)
+    * `:raise_bid` — an exact USDC approval of the raise's cost, then `raiseBid`
+    * `:sell_to_bid` — an exact stock approval, then `sellToBid`
+    * `:cancel_bid`, `:refund_bid` — one call each
 
   The approval is always a step of its own, so it stays pressable once done.
-  An action the chain's own state makes certain to fail (nothing left to buy,
-  outside the exercise window, too little stock or USDC, an approval not yet
-  on the chain) comes back with `blocked` set to the reason and `approved`
-  saying whether the allowance already covers it; its steps are still built,
-  so a press the chain has since allowed reaches the wallet.
-  A request that cannot name a real action (an unknown listing, a zero amount,
-  a date that is not a weekly expiry) is refused outright.
+  An action the chain's own state makes certain to fail (nothing left to buy
+  or sell into, outside the exercise window, too little stock or USDC, an
+  approval not yet on the chain) comes back with `blocked` set to the reason
+  and `approved` saying whether the allowance already covers it; its steps are
+  still built, so a press the chain has since allowed reaches the wallet.
+  A request that cannot name a real action (an unknown listing or bid, a zero
+  amount, a date that is not a weekly expiry) is refused outright.
   """
 
   alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.CoveredCalls.{Chain, Deployment, Terms}
   alias RegentChain.{Call, Review}
 
-  @kinds [:list, :fill, :cancel, :exercise, :claim, :collect_strike]
+  @kinds [
+    :list,
+    :fill,
+    :cancel,
+    :exercise,
+    :claim,
+    :collect_strike,
+    :bid,
+    :raise_bid,
+    :cancel_bid,
+    :refund_bid,
+    :sell_to_bid
+  ]
 
   def kinds, do: @kinds
 
@@ -199,7 +216,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
           true -> nil
         end
 
-      one_call(:cancel, "cancel(uint256)", listing, market, blocked, %{
+      one_call(:cancel, "cancel(uint256)", {:listing_id, listing.id}, market, blocked, %{
         unsold: Terms.available(listing)
       })
     end
@@ -209,7 +226,10 @@ defmodule Autolaunch.CoveredCalls.Steps do
     with {:ok, listing} <- listing(market, request, block, opts),
          {:ok, position} <- Chain.position(market, listing.id, signer, block, opts) do
       blocked = if position.claimable == 0, do: :nothing_to_claim
-      one_call(:claim, "claim(uint256)", listing, market, blocked, %{amount: position.claimable})
+
+      one_call(:claim, "claim(uint256)", {:listing_id, listing.id}, market, blocked, %{
+        amount: position.claimable
+      })
     end
   end
 
@@ -224,19 +244,189 @@ defmodule Autolaunch.CoveredCalls.Steps do
           true -> nil
         end
 
-      one_call(:collect_strike, "collectStrike(uint256)", listing, market, blocked, %{amount: due})
+      one_call(
+        :collect_strike,
+        "collectStrike(uint256)",
+        {:listing_id, listing.id},
+        market,
+        blocked,
+        %{amount: due}
+      )
     end
   end
 
-  defp one_call(kind, signature, listing, market, blocked, facts) do
+  defp build(:bid, request, market, signer, block, opts) do
+    with {:ok, amount} <- positive(request[:amount]),
+         {:ok, strike} <- positive(request[:strike_per_token]),
+         {:ok, premium} <- positive(request[:premium_per_token]),
+         {:ok, expiry} <- expiry(request[:expiry], block),
+         {:ok, unit} <- Chain.unit(market, block, opts),
+         {:ok, effective_at} <- Chain.effective_at(market, block, opts),
+         {:ok, usdc} <- usdc(market, signer, block, opts) do
+      escrow = Terms.usdc_for(amount, premium, unit)
+      min_sale = Terms.min_sale(amount, unit)
+
+      blocked =
+        cond do
+          Terms.corporate_action?(effective_at, expiry, block.timestamp) -> :corporate_action
+          usdc.balance < escrow -> :not_enough_usdc
+          usdc.allowance < escrow -> :approve_first
+          true -> nil
+        end
+
+      {:ok,
+       %{
+         steps:
+           approval("usdc_approval", usdc.token, market.contract, escrow) ++
+             [
+               Review.step(
+                 "bid",
+                 market.contract,
+                 Call.encode("bid(uint256,uint256,uint256,uint64,uint256)", [
+                   amount,
+                   strike,
+                   premium,
+                   expiry,
+                   min_sale
+                 ])
+               )
+             ],
+         blocked: blocked,
+         approved: usdc.allowance >= escrow,
+         facts: %{
+           amount: amount,
+           strike_per_token: strike,
+           premium_per_token: premium,
+           expiry: expiry,
+           min_sale: min_sale,
+           escrow: escrow
+         }
+       }}
+    end
+  end
+
+  defp build(:raise_bid, request, market, signer, block, opts) do
+    with {:ok, amount} <- positive(request[:amount]),
+         {:ok, bid} <- bid(market, request, block, opts),
+         {:ok, unit} <- Chain.unit(market, block, opts),
+         {:ok, effective_at} <- Chain.effective_at(market, block, opts),
+         {:ok, usdc} <- usdc(market, signer, block, opts) do
+      escrow = Terms.raise_cost(bid, amount, unit)
+
+      blocked =
+        cond do
+          bid.bidder != signer -> :not_bidder
+          block.timestamp >= bid.expiry -> :bid_expired
+          Terms.corporate_action?(effective_at, bid.expiry, block.timestamp) -> :corporate_action
+          usdc.balance < escrow -> :not_enough_usdc
+          usdc.allowance < escrow -> :approve_first
+          true -> nil
+        end
+
+      {:ok,
+       %{
+         steps:
+           approval("usdc_approval", usdc.token, market.contract, escrow) ++
+             [
+               Review.step(
+                 "raise_bid",
+                 market.contract,
+                 Call.encode("raiseBid(uint256,uint256)", [bid.id, amount])
+               )
+             ],
+         blocked: blocked,
+         approved: usdc.allowance >= escrow,
+         facts: %{bid_id: bid.id, amount: amount, escrow: escrow, expiry: bid.expiry}
+       }}
+    end
+  end
+
+  defp build(:sell_to_bid, request, market, signer, block, opts) do
+    with {:ok, amount} <- positive(request[:amount]),
+         {:ok, bid} <- bid(market, request, block, opts),
+         {:ok, unit} <- Chain.unit(market, block, opts),
+         {:ok, effective_at} <- Chain.effective_at(market, block, opts),
+         {:ok, stock} <- Chain.funds(market.stock, signer, market.contract, block, opts) do
+      sale = Terms.sale(bid, amount, unit)
+      left = Terms.available(bid)
+
+      blocked =
+        cond do
+          block.timestamp >= bid.expiry -> :bid_expired
+          left < amount -> :more_than_bid
+          amount < bid.min_sale and amount != left -> :below_minimum_sale
+          Terms.corporate_action?(effective_at, bid.expiry, block.timestamp) -> :corporate_action
+          stock.balance < amount -> :not_enough_stock
+          stock.allowance < amount -> :approve_first
+          true -> nil
+        end
+
+      {:ok,
+       %{
+         steps:
+           approval("stock_approval", market.stock, market.contract, amount) ++
+             [
+               Review.step(
+                 "sell_to_bid",
+                 market.contract,
+                 Call.encode("sellToBid(uint256,uint256)", [bid.id, amount])
+               )
+             ],
+         blocked: blocked,
+         approved: stock.allowance >= amount,
+         facts: %{
+           bid_id: bid.id,
+           amount: amount,
+           premium: sale.premium,
+           fee: sale.fee,
+           receive: sale.receive,
+           strike: Terms.usdc_for(amount, bid.strike_per_token, unit),
+           expiry: bid.expiry
+         }
+       }}
+    end
+  end
+
+  defp build(:cancel_bid, request, market, signer, block, opts) do
+    with {:ok, bid} <- bid(market, request, block, opts),
+         {:ok, unit} <- Chain.unit(market, block, opts) do
+      blocked =
+        cond do
+          bid.bidder != signer -> :not_bidder
+          Terms.available(bid) == 0 -> :nothing_to_cancel
+          true -> nil
+        end
+
+      one_call(:cancel_bid, "cancelBid(uint256)", {:bid_id, bid.id}, market, blocked, %{
+        unsold: Terms.available(bid),
+        released: Terms.escrow_left(bid, unit)
+      })
+    end
+  end
+
+  defp build(:refund_bid, request, market, signer, block, opts) do
+    with {:ok, bid} <- bid(market, request, block, opts),
+         {:ok, refundable} <- Chain.refundable(market, bid.id, block, opts) do
+      blocked =
+        cond do
+          bid.bidder != signer -> :not_bidder
+          refundable == 0 -> :nothing_to_refund
+          true -> nil
+        end
+
+      one_call(:refund_bid, "refundBid(uint256)", {:bid_id, bid.id}, market, blocked, %{
+        amount: refundable
+      })
+    end
+  end
+
+  defp one_call(kind, signature, {key, id}, market, blocked, facts) do
     {:ok,
      %{
-       steps: [
-         Review.step(Atom.to_string(kind), market.contract, Call.encode(signature, [listing.id]))
-       ],
+       steps: [Review.step(Atom.to_string(kind), market.contract, Call.encode(signature, [id]))],
        blocked: blocked,
        approved: true,
-       facts: Map.put(facts, :listing_id, listing.id)
+       facts: Map.put(facts, key, id)
      }}
   end
 
@@ -248,6 +438,11 @@ defmodule Autolaunch.CoveredCalls.Steps do
     do: Chain.listing(market, id, block, opts)
 
   defp listing(_market, _request, _block, _opts), do: {:error, :unknown_listing}
+
+  defp bid(market, %{bid_id: id}, block, opts) when is_integer(id) and id > 0,
+    do: Chain.bid(market, id, block, opts)
+
+  defp bid(_market, _request, _block, _opts), do: {:error, :unknown_bid}
 
   defp usdc(market, signer, block, opts) do
     with {:ok, token} <- Chain.usdc(market, block, opts),

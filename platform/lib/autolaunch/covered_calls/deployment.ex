@@ -2,7 +2,7 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   @moduledoc """
   Whether covered calls are on, and the description of their contracts:
   `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT` names a JSON file with one
-  `CoveredCallsV1` contract per stock.
+  `CoveredCallsV2` contract per stock.
 
       {"chain_id": 8453,
        "markets": [{"symbol": "AMZNc",
