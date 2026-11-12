@@ -303,8 +303,7 @@ defmodule Autolaunch.BidActions do
            ),
          :ok <- usdc_affordable(usdc, usdc_amount),
          {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote, bps),
-         {:ok, minimum_units} <-
-           Autolaunch.Stocks.Amounts.format_units(min_stock_out, auction.quote_token_decimals),
+         minimum_units = Rpc.format_units(min_stock_out, auction.quote_token_decimals),
          {:ok, config} <- lab(StocksLab) do
       deadline = DateTime.to_unix(DateTime.utc_now()) + @usdc_deadline_seconds
 

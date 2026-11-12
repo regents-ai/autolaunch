@@ -187,12 +187,25 @@ defmodule Autolaunch.Chain.Rpc do
       {:error, :chain_unavailable}
   end
 
-  def format_units(value, decimals) do
-    value
-    |> Decimal.new()
-    |> Decimal.div(Decimal.new(Integer.pow(10, decimals)))
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
+  @doc """
+  A raw integer amount as a plain decimal with `decimals` places, exact at any
+  size: integer arithmetic only, no trailing zeros, "1.5" for 1500000 at 6.
+  """
+  @spec format_units(integer(), non_neg_integer()) :: String.t()
+  def format_units(value, decimals) when is_integer(value) and value < 0,
+    do: "-" <> format_units(-value, decimals)
+
+  def format_units(value, 0) when is_integer(value), do: Integer.to_string(value)
+
+  def format_units(value, decimals)
+      when is_integer(value) and is_integer(decimals) and decimals > 0 do
+    digits = value |> Integer.to_string() |> String.pad_leading(decimals + 1, "0")
+    {whole, fraction} = String.split_at(digits, -decimals)
+
+    case String.trim_trailing(fraction, "0") do
+      "" -> whole
+      fraction -> whole <> "." <> fraction
+    end
   end
 
   @doc """
