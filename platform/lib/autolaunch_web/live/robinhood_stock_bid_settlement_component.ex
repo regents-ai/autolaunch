@@ -4,9 +4,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   unspent stock the bid did not use, and the launch tokens it won.
 
   Once bidding has ended (`ended`), the auction's own answer decides what is
-  on screen: a button that sends the return and then the claim, or the
-  auction's reason nothing can be done yet. The settlement is prepared as soon
-  as the card knows the wallet that may act, so the button sends at once.
+  on screen: a button that sends the return and then the claim, with the
+  auction's reason beside it when nothing can be done yet. The settlement is
+  prepared as soon as the card knows the wallet that may act, so the button
+  sends at once. A reason the row holds was read at an earlier block, and the
+  row does not read the auction again while it waits, so the button stays: a
+  press asks the auction at the latest block, then sends or gives the reason
+  again.
 
   With `early`, the bid is an outbid one, or one sharing at the price, while
   bidding is still open. The auction is asked in the background when the
@@ -77,6 +81,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       "This auction's price history is long, and only part of it could be read just now. Press again to read on.",
     settlement_reverted: "The auction refused this right now."
   }
+
+  @early_history_long "This auction's price history is long, and only part of it could be read just now. Reload the page to read on."
 
   @generic "That did not go through. Try again in a moment."
 
@@ -456,7 +462,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         {:noreply,
          assign(socket,
            status: :refused,
-           notice: copy(OnchainSteps.refusal(prepared)),
+           notice: refusal_copy(socket.assigns, OnchainSteps.refusal(prepared)),
            carried_note: nil
          )}
 
@@ -556,7 +562,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     do:
       assign(socket,
         prepared_for: {:refused, key},
-        notice: copy(OnchainSteps.refusal(error)),
+        notice: refusal_copy(socket.assigns, OnchainSteps.refusal(error)),
         carried_note: nil
       )
 
@@ -887,4 +893,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp tickers(_prepared, token_symbol), do: [token_symbol]
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  # A refusal in words. The early row has no button to press again; it asks
+  # the auction again when the page reads a new block.
+  defp refusal_copy(%{early: true}, :price_history_long), do: @early_history_long
+  defp refusal_copy(_assigns, reason), do: copy(reason)
 end

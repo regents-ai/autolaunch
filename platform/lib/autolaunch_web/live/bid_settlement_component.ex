@@ -64,6 +64,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     settlement_reverted: "The auction refused this right now."
   }
 
+  @early_history_long "This auction's price history is long, and only part of it could be read just now. Reload the page to read on."
+
   @generic "That did not go through. Try again in a moment."
 
   # While bidding is open, the auction is asked again at most this often.
@@ -535,7 +537,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {:noreply,
          assign(socket,
            status: :refused,
-           notice: copy(OnchainSteps.refusal(prepared)),
+           notice: refusal_copy(socket.assigns, OnchainSteps.refusal(prepared)),
            carried_note: nil
          )}
 
@@ -627,7 +629,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     do:
       assign(socket,
         prepared_for: {:refused, key},
-        notice: copy(OnchainSteps.refusal(error)),
+        notice: refusal_copy(socket.assigns, OnchainSteps.refusal(error)),
         carried_note: nil
       )
 
@@ -1038,6 +1040,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  # A refusal in words. The early card has no button to press again; it reads
+  # the auction again when the page does.
+  defp refusal_copy(%{early: true}, :price_history_long), do: @early_history_long
+  defp refusal_copy(_assigns, reason), do: copy(reason)
 
   # The dollar price of the bid's currency, read once per auction and apart
   # from the card, so a slow price never holds a settlement back.
