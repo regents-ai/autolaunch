@@ -197,10 +197,9 @@ defmodule AutolaunchWeb.ShareCardController do
   # A video's address moves on with its figures, like the picture's. Until
   # it is made, the answer says how many videos are ahead of it, and the
   # share window asks again; once the site has made all of the day's videos,
-  # a person with none saved is told so, and the window offers the launch's
-  # own video. Only a database that cannot be reached is the site's try-again
-  # page; every other failure answers with its own plain line, which the share
-  # window shows.
+  # a person with none saved is told so. Only a database that cannot be
+  # reached is the site's try-again page; every other failure answers with its
+  # own plain line, which the share window shows.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_video(conn, reach, {:ok, mp4}) do
     conn

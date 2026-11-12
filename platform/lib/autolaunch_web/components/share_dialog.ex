@@ -27,11 +27,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   attr :video, :string, default: nil, doc: "the address of a share video, or nil for none"
   attr :video_name, :string, default: "autolaunch.mp4", doc: "the name the video is saved under"
 
-  attr :video_everyone, :string,
-    default: nil,
-    doc:
-      "for a person's own video, the launch's video for everyone, offered once the site has made all of the day's videos and they have none saved"
-
   attr :video_mine, :string,
     default: nil,
     doc:
@@ -98,7 +93,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
               type="button"
               class="rg-button rg-button--secondary"
               data-share-video={@video}
-              data-share-video-everyone={@video_everyone}
               data-share-video-mine={@video_mine}
               data-share-video-name={@video_name}
               disabled
@@ -137,25 +131,23 @@ defmodule AutolaunchWeb.Components.ShareDialog do
 
       // Asks for the video until it is made. While it waits in line the answer
       // says how many videos are ahead of it; once the site has made all of the
-      // day's videos, a person with none saved gets the launch's video instead.
-      const want = (address, everyone, name) => {
+      // day's videos, a person with none saved is told so in the site's words.
+      const want = (address, name) => {
         const kept = videos.get(address)
         if (kept && kept.state !== "failed") return kept
 
-        const video = {state: "waiting", words: "", why: "", file: null, limited: false, watchers: new Set()}
+        const video = {state: "waiting", words: "", why: "", file: null, watchers: new Set()}
         videos.set(address, video)
         const tell = () => video.watchers.forEach((watch) => watch(video))
         const until = Date.now() + 5 * 60 * 1000
-        let asking = address
 
         const ask = () =>
-          fetch(asking, {credentials: "same-origin"}).then(async (response) => {
+          fetch(address, {credentials: "same-origin"}).then(async (response) => {
             if (response.status === 200) return response.blob()
 
             if (response.status === 202 && Date.now() < until) {
               const {ahead} = await response.json()
-              if (!video.limited)
-                video.words = ahead > 0 ? `${ahead} ${ahead === 1 ? "video" : "videos"} ahead of yours` : "Making your video now"
+              video.words = ahead > 0 ? `${ahead} ${ahead === 1 ? "video" : "videos"} ahead of yours` : "Making your video now"
               tell()
               await new Promise((resolve) => setTimeout(resolve, 2000))
               return ask()
@@ -168,12 +160,12 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           .then((blob) => {
             video.file = new File([blob], name, {type: "video/mp4"})
             video.state = "ready"
-            if (!video.limited) video.words = ""
+            video.words = ""
           })
           .catch((error) => {
             video.state = "failed"
             video.why = error instanceof Unanswered ? error.message : unmade
-            if (!video.limited) video.words = ""
+            video.words = ""
           })
           .finally(tell)
 
@@ -221,7 +213,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             const el = button()
             if (!el) return
             if (this.video) this.video.watchers.delete(this.show)
-            this.video = want(address(el), el.dataset.shareVideoEveryone, el.dataset.shareVideoName)
+            this.video = want(address(el), el.dataset.shareVideoName)
             this.video.watchers.add(this.show)
             this.show()
           }
