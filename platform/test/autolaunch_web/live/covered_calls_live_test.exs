@@ -167,7 +167,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert text(view, "#covered-calls-sell-value") == "≈ #{F.usd(receipt.reference_value)}"
   end
 
-  test "under You receive, the quote's share of the stock's worth and its term", %{conn: conn} do
+  test "under You receive, the quote's share of the stock's worth", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call")
     settled(view)
@@ -185,13 +185,10 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     {:ok, quote} =
       CoveredCalls.covered_call_quote("AMZNc", %{expiry: first, amount: 2 * @unit}, actor: nil)
 
-    [percent, days] =
-      Regex.run(~r/([\d.]+)%\D+(\d+)/, text(view, "#covered-calls-sell-yield"),
-        capture: :all_but_first
-      )
+    [percent] =
+      Regex.run(~r/([\d.]+)%/, text(view, "#covered-calls-sell-yield"), capture: :all_but_first)
 
     assert_in_delta String.to_float(percent), quote.receipt.net_premium_yield * 100, 0.005
-    assert String.to_integer(days) == quote.term_days
   end
 
   test "signed in, the Sell ticket shows the wallet's stock and Max fills the amount with it",
@@ -351,7 +348,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     buy(view, "2")
 
     refute has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
-    assert has_element?(view, "#covered-call-fill-1-review-panel", "Premium")
+    assert has_element?(view, "#covered-call-fill-1-review-panel", "You pay")
     assert has_element?(view, "#covered-call-fill-1-review-panel", "$6.00")
     assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=usdc_approval]")
     assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=fill]")
@@ -428,7 +425,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     view |> element("#covered-call-fill-1-review") |> render_click()
 
     assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
-    assert has_element?(view, "#covered-call-fill-1-notice", "Base couldn't be read just now.")
+    assert has_element?(view, "#covered-call-fill-1-notice", "We couldn't reach Base just now.")
   end
 
   test "an amount that doesn't read asks for one and opens nothing", %{conn: conn} do
@@ -535,7 +532,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-claim-1")
   end
 
-  test "in the window a seller's exercised part and the stock coming back each have their step",
+  test "in the window a seller's exercised part has its step, and stock buyers can still take is locked, not to collect",
        %{conn: conn} do
     account = TestSupport.register_creator!()
 
@@ -562,12 +559,10 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
              "#portfolio-covered-calls-sold-1-exercised #portfolio-covered-calls-collect_strike-1"
            )
 
-    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "3 AMZNc")
-
-    assert has_element?(
-             view,
-             "#portfolio-covered-calls-sold-1-to_collect #portfolio-covered-calls-claim-1"
-           )
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-locked", "3 AMZNc")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-locked button")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-to_collect")
+    refute has_element?(view, "#portfolio-covered-calls-claim-1")
 
     refute has_element?(view, "#portfolio-covered-calls-cancel-1")
   end
@@ -595,7 +590,195 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
            )
 
     refute has_element?(view, "#portfolio-covered-calls-sold-1-for_sale")
-    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "4 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-locked", "4 AMZNc")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-to_collect")
+  end
+
+  test "once the window has closed a seller collects all the stock not exercised in one step",
+       %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    # Two weeks past the expiry: 4 of 10 sold, 1 of those exercised, so the
+    # contract sends back the 6 never sold and the 3 not exercised together.
+    CoveredCallsChain.install(%{
+      listings: [
+        CoveredCallsChain.listing(%{
+          seller: account.wallet_address,
+          expiry: hd(Terms.expiries(CoveredCallsChain.now())) - 14 * 86_400,
+          exercised: 1 * @unit,
+          paid: 260_000_000,
+          collected: 260_000_000
+        })
+      ],
+      claimable: 9 * @unit
+    })
+
+    {view, _account} = portfolio(conn, account)
+
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "9 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "6 unsold")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-to_collect", "3 not exercised")
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-sold-1-to_collect #portfolio-covered-calls-claim-1"
+           )
+
+    # Stopping first is not needed, and nothing is locked any more.
+    refute has_element?(view, "#portfolio-covered-calls-cancel-1")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-unsold")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-locked")
+  end
+
+  test "before the expiry a seller's sold stock is locked, apart from what is for sale and what the premium paid",
+       %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    CoveredCallsChain.install(%{
+      listings: [CoveredCallsChain.listing(%{seller: account.wallet_address})]
+    })
+
+    {view, _account} = portfolio(conn, account)
+
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-for_sale", "6 AMZNc")
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-locked", "4 AMZNc")
+    # 4 sold at $3.00 each, less the 1% fee.
+    assert has_element?(view, "#portfolio-covered-calls-sold-1-premium", "$11.88")
+    refute has_element?(view, "#portfolio-covered-calls-sold-1-to_collect")
+  end
+
+  test "the portfolio names the stock by its address, and each row's window by when it opens and closes",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    CoveredCallsChain.put(%{held: 2 * @unit})
+    {view, _account} = portfolio(conn)
+    opens = hd(Terms.expiries(CoveredCallsChain.now()))
+
+    assert has_element?(view, "#portfolio-covered-calls-AMZNc-stock", CoveredCallsChain.stock())
+
+    assert has_element?(
+             view,
+             "#portfolio-covered-calls-AMZNc-contract",
+             CoveredCallsChain.contract()
+           )
+
+    assert has_element?(
+             view,
+             ~s|#portfolio-covered-calls-held-1-window-opens[datetime="#{iso(opens)}"]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#portfolio-covered-calls-held-1-window-closes[datetime="#{iso(opens + 86_400)}"]|
+           )
+  end
+
+  test "a signed-in holder whose window opens within three days reads when it closes, beside My calls",
+       %{conn: conn} do
+    opens = CoveredCallsChain.now() + 2 * 86_400
+
+    CoveredCallsChain.install(%{
+      listings: [CoveredCallsChain.listing(%{expiry: opens})],
+      held: 2 * @unit
+    })
+
+    {view, _panel} = signed_in_panel(conn)
+
+    assert has_element?(
+             view,
+             ~s|#covered-calls-deadline-at[datetime="#{iso(opens + 86_400)}"]|
+           )
+  end
+
+  test "a holder whose window is more than three days off, or who holds nothing, reads no deadline",
+       %{conn: conn} do
+    # The next Friday is more than five days off.
+    CoveredCallsChain.install(%{held: 2 * @unit})
+
+    {view, _panel} = signed_in_panel(conn)
+    refute has_element?(view, "#covered-calls-deadline")
+
+    CoveredCallsChain.put(%{held: 0})
+    {view, _panel} = signed_in_panel(build_conn())
+    refute has_element?(view, "#covered-calls-deadline")
+  end
+
+  test "every ticket and every review names the stock by its address", %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    {view, _panel} = signed_in_panel(conn)
+
+    assert has_element?(view, "#covered-call-buy-1-stock", CoveredCallsChain.stock())
+
+    buy(view, "2")
+    assert has_element?(view, "#covered-call-fill-1-review-stock", CoveredCallsChain.stock())
+
+    {:ok, view, _html} = live(build_conn(), "/stock/covered-call?bid=1")
+    settled(view)
+    assert has_element?(view, "#covered-calls-sell-stock", CoveredCallsChain.stock())
+    assert has_element?(view, "#covered-call-sell-1-stock", CoveredCallsChain.stock())
+
+    {:ok, view, _html} = live(build_conn(), "/stock/covered-call?tab=bid")
+    settled(view)
+    assert has_element?(view, "#covered-calls-bid-stock", CoveredCallsChain.stock())
+  end
+
+  test "Sell now's receipt gives the sale's premium and fee, and a bid's minimum when it is not one token",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{min_sale: 2 * @unit})]})
+    {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
+    settled(view)
+
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
+    settled(view)
+
+    assert text(view, "#covered-call-sell-1-premium") == "$6.00"
+    assert text(view, "#covered-call-sell-1-fee") == F.usd(60_000)
+    assert text(view, "#covered-call-sell-1-receive") == "$5.94"
+    assert text(view, "#covered-call-sell-1-minimum") == "2 AMZNc"
+  end
+
+  test "under the premium, the best open bid or the lowest listing on the ticket's own terms, with its size",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{premium: 2_000_000}),
+        CoveredCallsChain.bid(%{premium: 4_000_000, amount: 7 * @unit})
+      ]
+    })
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    settled(view)
+    assert text(view, "#covered-calls-sell-live") == ""
+
+    # The listing's and the bids' own strike, on the Friday they are all on.
+    custom = fn form ->
+      render_click(element(view, "#covered-calls-#{form}-strike button[data-tab=custom]"))
+
+      render_change(element(view, "#covered-calls-#{form}-form"), %{
+        "custom" => "260",
+        "_target" => ["custom"]
+      })
+
+      settled(view)
+    end
+
+    custom.("sell")
+    assert text(view, "#covered-calls-sell-live") =~ "$4.00"
+    assert text(view, "#covered-calls-sell-live") =~ "3 AMZNc"
+
+    {:ok, view, _html} = live(build_conn(), "/stock/covered-call?tab=bid")
+    settled(view)
+
+    render_click(element(view, "#covered-calls-bid-strike button[data-tab=custom]"))
+
+    render_change(element(view, "#covered-calls-bid-form"), %{
+      "custom" => "260",
+      "_target" => ["custom"]
+    })
+
+    settled(view)
+    assert text(view, "#covered-calls-bid-live") =~ "$3.00"
+    assert text(view, "#covered-calls-bid-live") =~ "6 AMZNc"
   end
 
   test "a success toast offers View Portfolio", %{conn: conn} do
@@ -754,7 +937,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     view |> element("#covered-call-sale-1-review") |> render_click()
 
     refute has_element?(view, "#covered-call-sale-1-review-panel[hidden]")
-    assert has_element?(view, "#covered-call-sale-1-review-panel", "$5.94 now")
+    assert has_element?(view, "#covered-call-sale-1-review-panel", "$5.94, paid now")
     assert has_element?(view, "#covered-call-sale-1-review-panel [data-step=stock_approval]")
     assert has_element?(view, "#covered-call-sale-1-review-panel [data-step=sell_to_bid]")
 
@@ -1098,6 +1281,8 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   end
 
   defp text(view, selector), do: view |> element(selector) |> render() |> words()
+
+  defp iso(unix), do: unix |> DateTime.from_unix!() |> DateTime.to_iso8601()
 
   defp position(html, id) do
     {at, _length} = :binary.match(html, ~s(id="#{id}"))

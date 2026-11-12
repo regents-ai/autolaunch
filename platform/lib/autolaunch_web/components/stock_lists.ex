@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.Components.StockLists do
 
   use Phoenix.Component
 
-  alias Autolaunch.CoveredCalls.Terms
+  alias Autolaunch.CoveredCalls.{Deployment, Terms}
   alias AutolaunchWeb.CoveredCallsFormat
 
   attr :book, :map, required: true, doc: "a covered-call market's book, from `Book.read/1`"
@@ -16,10 +16,14 @@ defmodule AutolaunchWeb.Components.StockLists do
     assigns =
       assign(assigns,
         open: Enum.filter(assigns.book.listings, &(Terms.stage(&1, assigns.book.now) == :open)),
-        symbol: assigns.book.market.symbol
+        symbol: assigns.book.market.symbol,
+        stock: Deployment.identity(assigns.book.market)
       )
 
     ~H"""
+    <p id="home-calls-read" class="home-calls__read">
+      Read {Calendar.strftime(@book.read_at, "%-d %b, %H:%M UTC")}
+    </p>
     <div :if={@open != []} class="market-list__scroll">
       <table class="market-list__table home-calls">
         <caption class="visually-hidden">Calls for sale on {@symbol}</caption>
@@ -38,7 +42,7 @@ defmodule AutolaunchWeb.Components.StockLists do
               <.link navigate={"/stock/covered-call?listing=#{listing.id}"} class="market-list__token">
                 <span class="market-list__label">
                   <span class="market-list__name">
-                    <strong>{@symbol} call</strong>
+                    <strong>{@symbol} call · {@stock.issuer} · {@stock.chain}</strong>
                     <small>Strike {CoveredCallsFormat.usd(listing.strike_per_token)}</small>
                   </span>
                 </span>
@@ -47,7 +51,7 @@ defmodule AutolaunchWeb.Components.StockLists do
             <td data-label="Premium">
               {CoveredCallsFormat.usd(listing.premium_per_token)} <small>per {@symbol}</small>
             </td>
-            <td data-label="Exercise">{CoveredCallsFormat.window_days(listing.expiry)}</td>
+            <td data-label="Exercise">{CoveredCallsFormat.window(listing.expiry)}</td>
             <td data-label="Available">
               {CoveredCallsFormat.tokens(Terms.available(listing), @book.unit)} {@symbol}
             </td>
@@ -66,7 +70,7 @@ defmodule AutolaunchWeb.Components.StockLists do
     </div>
     <div :if={@open == []} class="home-empty" role="status">
       <h2>No listings</h2>
-      <p>Calls for sale show here as soon as a seller lists them.</p>
+      <p>Calls for sale show here within a few minutes of being listed.</p>
       <.link navigate="/stock/covered-call" class="rg-button rg-button--secondary">Sell calls</.link>
     </div>
     """

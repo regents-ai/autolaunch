@@ -38,10 +38,21 @@ defmodule AutolaunchWeb.ShareMarketTest do
       :ok
     end
 
-    test "the story closes on the price, the lowest premium and the open strikes" do
+    test "the story closes on the reference price, the lowest premium with its strike and Friday, and the open strikes" do
       assert {:ok, story} = MarketStory.read(:covered_calls, "AMZNc", nil)
 
-      assert story.figures == [{"Price", "$254.00"}, {"Calls from", "$3.00"}]
+      friday =
+        CoveredCallsChain.now()
+        |> Autolaunch.CoveredCalls.Terms.expiries()
+        |> hd()
+        |> DateTime.from_unix!()
+        |> Calendar.strftime("%-d %b")
+
+      assert story.figures == [
+               {"Reference", "$254.00"},
+               {"Lowest ask", "$3.00, $260.00 strike, #{friday}"}
+             ]
+
       assert story.badge == "1 call open"
       assert [%{price: 260.0, label: "$260.00 strike"}] = story.levels
       assert story.now == CoveredCallsChain.now()

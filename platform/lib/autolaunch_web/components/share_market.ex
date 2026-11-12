@@ -58,7 +58,7 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   # The post names the product and links its page, as the page's own details do.
   defp message(:covered_calls, symbol) do
     meta = ShareCard.market_meta(:covered_calls, symbol)
-    "#{meta.title} (Base): $#{symbol}. #{meta.url}"
+    "Covered calls on #{symbol}, Coinbase's tokenized stock on Base. #{meta.url}"
   end
 
   defp message(:exposure, series) do

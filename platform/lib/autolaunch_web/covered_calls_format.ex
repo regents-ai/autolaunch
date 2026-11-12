@@ -79,9 +79,13 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
 
-  @doc "The exercise window that opens at `expiry` as its two days, for a list or a choice."
-  def window_days(expiry) when is_integer(expiry),
-    do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"
+  @doc """
+  The exercise window that opens at `expiry`, for a list or a choice: the day
+  and time it opens and the day and time it closes, in UTC and saying so.
+  """
+  def window(expiry) when is_integer(expiry),
+    do:
+      "#{moment(expiry)} – #{moment(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}\u00a0UTC"
 
   @doc """
   How long is left of an exercise window `seconds` before it closes: whole
@@ -98,8 +102,12 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 
-  # No-break spaces, so a narrow column breaks between the two days, never inside one.
-  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a\u00a0%-d\u00a0%b")
+  # No-break spaces, so a narrow column breaks between the two times, never inside one.
+  defp moment(unix),
+    do:
+      unix
+      |> DateTime.from_unix!()
+      |> Calendar.strftime("%a\u00a0%-d\u00a0%b\u00a0%H:%M")
 
   defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1

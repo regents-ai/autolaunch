@@ -28,17 +28,21 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   listing and its seller, the bid and its bidder (`nil` where the action has
   none) and the wallet that sent it.
 
-  The listing and sale panels also tell the page how much of the stock the
-  signed-in account's wallet holds, for the Sell tickets' Max, with
-  `{:covered_call_balance, symbol, balance}` (`nil` signed out or unread): the
-  wallet the panel shows figures for, read at the latest block when it
-  changes, when the page comes back into view and when a step lands.
+  A ticket's panel also tells the page what the signed-in account's wallet has
+  on the market, with `{:covered_call_wallet, symbol, wallet}` (`nil` signed
+  out or unread): its `balance` of the stock, for the Sell tickets' Max, and
+  `exercise_by`, when the exercise window closes on calls it holds whose
+  window is open or opens within three days (`nil` for none). It is the wallet
+  the panel shows figures for, read at the latest block when it changes, when
+  the page comes back into view and when a step lands.
+
+  `stock/1` names the stock a ticket is on, and every review starts with it.
   """
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Book, Terms}
+  alias Autolaunch.CoveredCalls.{Book, Deployment, Terms}
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, StakeComponent}
@@ -50,6 +54,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # typed in their own panel.
   @tickets [:list, :fill, :bid, :sell_to_bid]
   @typed [:exercise, :raise_bid]
+  # How long before its window opens a holder is told when it closes.
+  @soon 3 * 86_400
 
   @impl true
   def mount(socket) do
@@ -168,7 +174,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   def handle_async(:balance, {:ok, {key, balance}}, socket) do
     if key == socket.assigns.balance_for,
-      do: send(self(), {:covered_call_balance, socket.assigns.symbol, balance})
+      do: send(self(), {:covered_call_wallet, socket.assigns.symbol, balance})
 
     {:noreply, socket}
   end
@@ -204,11 +210,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     |> read_balance()
   end
 
-  # The wallet's stock, for the page's Max: the wallet the panel shows figures
-  # for while signed in, read again for each new wallet and each ask
-  # (`balance_reads`).
-  defp read_balance(%{assigns: %{kind: kind} = assigns} = socket)
-       when kind in [:list, :sell_to_bid] do
+  # What the wallet has on the market, for the page's Max and its notice of a
+  # window about to close: the wallet the panel shows figures for while signed
+  # in, read again for each new wallet and each ask (`balance_reads`).
+  defp read_balance(%{assigns: %{kind: kind} = assigns} = socket) when kind in @tickets do
     wallet =
       if is_list(assigns.linked),
         do: OnchainSteps.shown_wallet(assigns.linked, assigns.signed_in, assigns.active)
@@ -232,9 +237,24 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     case CoveredCalls.read_covered_call_positions(symbol, %{wallet: wallet},
            actor: %Human{human_account_id: id}
          ) do
-      {:ok, %{balance: balance}} -> balance
+      {:ok, positions} -> %{balance: positions.balance, exercise_by: exercise_by(positions)}
       {:error, _error} -> nil
     end
+  end
+
+  # When the window closes on calls the wallet holds, for the soonest window
+  # that is open or opens within three days.
+  defp exercise_by(%{holdings: holdings, book: book, now: now}) do
+    expiries = Map.new(book.listings, &{&1.id, &1.expiry})
+
+    for(
+      %{listing_id: id, held: held} <- holdings,
+      held > 0,
+      closes = expiries[id] + Terms.exercise_window(),
+      now < closes and expiries[id] - now <= @soon,
+      do: closes
+    )
+    |> Enum.min(fn -> nil end)
   end
 
   # The form's button: the steps for the form as it stands, read again now.
@@ -450,7 +470,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
           id={"#{@id}-review-panel"}
           open={!!@review}
           title={@reviewed && title(@kind)}
-          facts={(@reviewed && facts(@kind, @reviewed.facts, assigns)) || []}
+          facts={
+            (@reviewed &&
+               [
+                 ["Stock", review_stock(%{id: "#{@id}-review-stock", stock: @reviewed.market})]
+                 | facts(@kind, @reviewed.facts, assigns)
+               ]) || []
+          }
           steps={@steps}
           next_step={@next_step}
           reverted={reverted(@steps, @kind)}
@@ -643,27 +669,56 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     """
   end
 
+  attr :id, :string, required: true
+  attr :market, :map, required: true, doc: "a market of `Autolaunch.CoveredCalls.Deployment`"
+
+  @doc """
+  The stock a ticket is on, under its title: its symbol, who issues it, its
+  chain and its exact address.
+  """
+  def stock(assigns) do
+    assigns = assign(assigns, stock: Deployment.identity(assigns.market))
+
+    ~H"""
+    <p class="covered-calls__stock">
+      {@stock.symbol} · {@stock.issuer} tokenized stock · {@stock.chain} ·
+      <P.address id={@id} address={@stock.stock} />
+    </p>
+    """
+  end
+
+  # The same in a review's first line, before anything is signed.
+  defp review_stock(assigns) do
+    ~H"""
+    {@stock.symbol}, {@stock.issuer}, {@stock.chain}, <P.address id={@id} address={@stock.stock} />
+    """
+  end
+
   # What the action comes to, as label and value, in the form and its review.
   defp facts(:list, facts, %{unit: unit, symbol: symbol}) do
     premium = F.total(facts.amount, facts.premium_per_token, unit)
+    fee = Terms.fee(premium)
 
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
       ["Opens", F.expiry(facts.expiry)],
       ["Closes", F.window_closes(facts.expiry)],
-      ["Total premium", F.usd(premium)],
-      ["You receive", F.usd(premium - Terms.fee(premium))],
-      ["Fee", "1%"],
-      ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
+      ["Premium", "#{F.usd(premium)} if all sell"],
+      ["Fee", F.usd(fee)],
+      ["You receive", "#{F.usd(premium - fee)} if all sell, paid as each buyer buys"],
+      ["If exercised", F.usd(F.total(facts.amount, facts.strike_per_token, unit))],
+      locked(facts.expiry)
     ]
   end
 
-  defp facts(:fill, facts, %{unit: unit, symbol: symbol}),
+  defp facts(:fill, facts, %{unit: unit, symbol: symbol, listing: listing}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["Premium", F.usd_due(facts.premium)],
-      ["Exercise cost", F.usd_due(facts.strike)],
+      ["You pay", F.usd_due(facts.premium)],
+      ["Fee", "None on top"],
+      ["To exercise", F.usd_due(facts.strike)],
+      break_even(listing.strike_per_token + listing.premium_per_token, symbol),
       ["Opens", F.expiry(facts.expiry)],
       ["Closes", F.window_closes(facts.expiry)]
     ]
@@ -679,18 +734,25 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
+      ["Premium", "#{F.usd(facts.premium_per_token)} per #{symbol}"],
+      ["You pay", "#{F.usd_due(facts.escrow)}, held until a seller sells to you"],
+      ["Fills", "Not guaranteed"],
+      ["To exercise", F.usd_due(F.total(facts.amount, facts.strike_per_token, unit))],
+      break_even(facts.strike_per_token + facts.premium_per_token, symbol),
       ["Opens", F.expiry(facts.expiry)],
-      ["Closes", F.window_closes(facts.expiry)],
-      ["You pay", F.usd_due(facts.escrow)]
+      ["Closes", F.window_closes(facts.expiry)]
     ]
 
   defp facts(:sell_to_bid, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["You receive", "#{F.usd(facts.receive)} now, after the 1% fee"],
+      ["Premium", F.usd(facts.premium)],
+      ["Fee", F.usd(facts.fee)],
+      ["You receive", "#{F.usd(facts.receive)}, paid now"],
       ["If exercised", F.usd(facts.strike)],
       ["Opens", F.expiry(facts.expiry)],
-      ["Closes", F.window_closes(facts.expiry)]
+      ["Closes", F.window_closes(facts.expiry)],
+      locked(facts.expiry)
     ]
 
   defp facts(:raise_bid, facts, %{unit: unit, symbol: symbol}),
@@ -702,7 +764,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:cancel_bid, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Unsold", "#{F.tokens(facts.unsold, unit)} #{symbol}"],
-      ["To refund", F.usd(facts.released)]
+      ["Freed", F.usd(facts.released)]
     ]
 
   defp facts(:refund_bid, facts, _assigns), do: [["You receive", F.usd(facts.amount)]]
@@ -719,9 +781,15 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:cancel, facts, %{unit: unit, symbol: symbol}),
     do: [["Unsold", "#{F.tokens(facts.unsold, unit)} #{symbol}"]]
 
+  # A seller's stock under sold calls cannot be taken back or sold until the
+  # window has closed, whatever its price does.
+  defp locked(expiry), do: ["Locked", "Once sold, until #{F.window_closes(expiry)}"]
+
+  defp break_even(per_token, symbol), do: ["Break-even", "#{F.usd(per_token)} per #{symbol}"]
+
   defp done_lines(:list, facts, %{unit: unit, symbol: symbol}),
     do: [
-      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window_days(facts.expiry)}"
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window(facts.expiry)}"
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),
@@ -742,11 +810,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp done_lines(:bid, facts, %{unit: unit, symbol: symbol}),
     do: [
-      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window_days(facts.expiry)}"
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window(facts.expiry)}"
     ]
 
   defp done_lines(:sell_to_bid, facts, %{unit: unit, symbol: symbol}),
-    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd(facts.receive)}"]
+    do: ["Calls on #{F.tokens(facts.amount, unit)} #{symbol} for #{F.usd(facts.receive)}"]
 
   defp done_lines(:raise_bid, facts, %{unit: unit, symbol: symbol}),
     do: ["#{F.tokens(facts.amount, unit)} #{symbol} more for #{F.usd_due(facts.escrow)}"]
@@ -838,12 +906,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp title(:list), do: "You’re listing"
   defp title(:fill), do: "You’re buying"
   defp title(:exercise), do: "You’re exercising"
-  defp title(:cancel), do: "You’re stopping sales"
   defp title(kind) when kind in [:claim, :collect_strike, :refund_bid], do: "You’re collecting"
   defp title(:bid), do: "You’re bidding"
   defp title(:sell_to_bid), do: "You’re selling"
   defp title(:raise_bid), do: "You’re raising"
-  defp title(:cancel_bid), do: "You’re stopping"
+  defp title(kind) when kind in [:cancel, :cancel_bid], do: "You’re stopping"
 
   defp done_title(:list), do: "Listed"
   defp done_title(:fill), do: "Bought"
@@ -893,8 +960,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp refusal_words(:invalid_amount), do: nil
   defp refusal_words(:expiry_not_offered), do: "Choose one of the Friday expiries."
   defp refusal_words(:expiry_passed), do: "That expiry has passed. Choose a later Friday."
-  defp refusal_words(:unknown_listing), do: "This listing isn't on Base."
-  defp refusal_words(:unknown_bid), do: "This bid isn't on Base."
+  defp refusal_words(:unknown_listing), do: "This listing no longer exists."
+  defp refusal_words(:unknown_bid), do: "This bid no longer exists."
   defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
-  defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
+
+  defp refusal_words(_unavailable),
+    do: "We couldn't reach Base just now. Try again in a moment."
 end

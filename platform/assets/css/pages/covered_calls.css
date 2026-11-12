@@ -25,6 +25,20 @@
 .covered-calls__section { display: grid; gap: var(--space-2); min-width: 0; }
 .covered-calls__title { margin: 0; font-size: 1.125rem; letter-spacing: -.01em; }
 .covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+/* The stock a ticket or a table is on: symbol, issuer, chain and address, under its title. */
+.covered-calls__stock { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+/* A holder's deadline, beside My calls. */
+.covered-calls__tabs .covered-calls__deadline { margin-inline-start: auto; font-size: .8125rem; }
+.covered-calls__tabs .covered-calls__deadline + .covered-calls__mine { margin-inline-start: 0; }
+/* The reference price says it is one, and how old, beside the figure. */
+.covered-calls__reference { display: flex; align-items: baseline; gap: var(--space-1); }
+.covered-calls__reference > small { color: var(--color-fg-muted); font-size: .8125rem; }
+/* The best live price under the premium keeps its line whether there is one or not. */
+.covered-calls__live { min-block-size: 1.25rem; }
+/* What a seller gives up, ruled off under the outcomes. */
+.covered-calls__risks { margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); font-size: .875rem; line-height: 1.5; }
+.covered-calls__risks > strong { display: block; font-weight: var(--font-weight-medium, 500); }
+.covered-calls__receipt > .covered-calls__note { margin-block-start: var(--space-2); }
 /* While the market is read, the Sell tab keeps the ticket's height, so the Contract below stays put. */
 .covered-calls__waiting { min-block-size: 49.75rem; }
 
@@ -123,6 +137,12 @@
 .covered-calls__parts > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: var(--space-1) var(--space-2); min-width: 0; padding-block-start: var(--space-1); border-block-start: 1px solid var(--hairline); }
 .covered-calls__parts strong { color: var(--color-fg-muted); font-size: .875rem; font-weight: var(--font-weight-regular, 400); }
 .covered-calls__parts span { font-variant-numeric: tabular-nums; text-align: right; }
+.covered-calls__parts small { grid-column: 1 / -1; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.4; }
+/* Above a portfolio's table: the stock and its contract. */
+.covered-calls__identity { display: grid; gap: 2px; }
+/* A window still ahead: when it opens and when it closes, one over the other. */
+.covered-calls__window { display: grid; justify-items: end; gap: 2px; }
+.covered-calls__window > span { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 var(--space-1); }
 .covered-calls__parts .covered-call-panel { grid-column: 1 / -1; gap: var(--space-1); }
 .covered-calls__parts :is(.covered-call-panel__body, .covered-call-panel__form) { gap: var(--space-1); }
 .covered-calls__parts .token-swap__submit { min-block-size: 2.75rem; font-size: .9375rem; }
@@ -171,7 +191,8 @@
   .covered-calls__table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
   .covered-calls__table.market-list__table tbody td { min-width: 0; padding: 0; text-align: left; white-space: normal; }
   .covered-calls__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
-  .covered-calls__closes { justify-items: start; }
+  .covered-calls__closes, .covered-calls__window { justify-items: start; }
+  .covered-calls__window > span { justify-content: flex-start; }
   .covered-calls__closes > span { justify-content: flex-start; }
   .covered-calls__table .covered-calls__row-action, .covered-calls__table .portfolio__actions > td { grid-column: 1 / -1; }
   .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }

@@ -155,13 +155,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
         {:error, :price_unavailable} -> "—"
       end
 
-    premium =
-      case Enum.map(open, & &1.premium_per_token) do
-        [] -> "None open"
-        premiums -> UsdValue.dollars(usdc(Enum.min(premiums)))
-      end
-
-    {:ok, [{"Price", price}, {"Calls from", premium}]}
+    {:ok, [{"Reference", price}, {"Lowest ask", lowest_ask(open)}]}
   end
 
   # A seller's premium is worked out from each listing's totals; the contract
@@ -191,6 +185,17 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          {"Calls held", "#{RegentFormat.token_amount(held, digits(book.unit))} #{market.symbol}"}
        ]}
     end
+  end
+
+  # The lowest premium a buyer can pay now, with the strike and the Friday its
+  # calls are on: a price is never shown without its terms.
+  defp lowest_ask([]), do: "None open"
+
+  defp lowest_ask(open) do
+    ask = Enum.min_by(open, & &1.premium_per_token)
+    friday = ask.expiry |> DateTime.from_unix!() |> Calendar.strftime("%-d %b")
+
+    "#{UsdValue.dollars(usdc(ask.premium_per_token))}, #{UsdValue.dollars(usdc(ask.strike_per_token))} strike, #{friday}"
   end
 
   defp usdc(micro), do: Decimal.new(1, micro, -6)
