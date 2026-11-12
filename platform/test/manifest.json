@@ -1,5 +1,5 @@
 {
-  "total": 218,
+  "total": 219,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -53,7 +53,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 8,
@@ -66,7 +66,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 9,
@@ -79,7 +79,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 10,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 11,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 12,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 25,
@@ -235,7 +235,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 46,
@@ -2836,6 +2836,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "a3999519f35b72d94367a860b758699429feb4e5730c501dface5eef7eeb3061"
+    },
+    {
+      "id": 265,
+      "group": "Money and reviewed funding conditions",
+      "framework": "exunit",
+      "file": "test/autolaunch/bid_actions_test.exs",
+      "line": 249,
+      "test_name": "a bid estimate is the amount over the price, exact to the token's last unit",
+      "keep_because": "Review of the money-path fixes (12 Nov 2026): the public bid estimate divided the amount by the price at Decimal's default precision, so a large amount lost its last digits. It is now the exact quotient rounded down to the token's eighteenth decimal. It fails if any digit of a large estimate is rounded or a dust amount is not zero.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     }
   ],
   "legacy_folders_to_remove": [
