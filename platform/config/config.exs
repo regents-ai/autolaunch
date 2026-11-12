@@ -50,6 +50,11 @@ config :autolaunch, Oban,
     ]
   ],
   pruner: [max_age: {7, :days}],
+  # How long a stopping machine lets its running jobs finish. Fly gives a
+  # machine 60 seconds (`kill_timeout` in fly.toml) and open connections drain
+  # first, so this leaves them ten. A job still running after it is stopped and
+  # Lifeline offers it again.
+  shutdown_grace_period: :timer.seconds(50),
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
   # still running is never taken over; a finishing check orphaned by a stopped
