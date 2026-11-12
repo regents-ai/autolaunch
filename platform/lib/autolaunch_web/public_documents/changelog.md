@@ -1,5 +1,9 @@
 # Changelog
 
+## 12 November 2026: Home
+- The home page now ends with Principles: six cards on what Autolaunch holds to. One price for every bidder, liquidity no one can pull, every stock named exactly, your wallet signs everything, agents prepare and you sign, and figures from the chain. Each card opens the page that explains it.
+- Each card has a small moving picture in its own colours that follows your pointer. With reduced motion, or in a browser that can't draw it, the card shows a still picture instead.
+
 ## 12 November 2026: Polish
 - The large price at the top of a token's page stays on one line. A very long price, such as $0.00000000000000180, is set smaller until it fits, on a phone as on a wide screen. Before, it could split in the middle of the number.
 - On Robinhood, Check on an auction's bid lookup and Read again on a token's pool, and Refresh balances on any token's page, each read the chain up to 30 times a minute for one visitor. Past that, the page stays as it is until the minute is up. Bidding, swapping, staking and every other wallet button are not counted.

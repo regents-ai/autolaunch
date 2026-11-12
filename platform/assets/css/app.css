@@ -18,6 +18,7 @@
 @import "./components/site_buttons.css";
 @import "./components/surfaces.css";
 @import "./components/product_cards.css";
+@import "./components/value_cards.css";
 @import "./components/stock_identity.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";

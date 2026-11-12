@@ -16,6 +16,15 @@ Autolaunch runs token auctions on Base and Robinhood Chain. Everyone in an aucti
 - [How Autolaunch works]({{origin}}/how-it-works): supply, trading fees and staking rewards for every token.
 - [REGENT]({{origin}}/regent): the Regents Labs token and its staking figures.
 
+## Principles
+
+- **Fair price**: one price for every bidder. Bids above the clearing price all pay that price, not their own limit.
+- **Locked liquidity**: liquidity no one can pull. It sits in a contract that can only collect trading fees.
+- **Stock tokens**: every stock named exactly. Each stock shows its issuer and chain, and its exact address before you sign.
+- **Your wallet**: your wallet signs everything. Autolaunch never holds your keys or your money.
+- **Agents**: agents prepare, you sign. A paired agent can fill in your launch for you to check and sign.
+- **Onchain**: figures from the chain. Auction prices, bids and amounts raised come from the auction contracts.
+
 ## For agents
 
 Every public list and record can be read without an account, as JSON:
