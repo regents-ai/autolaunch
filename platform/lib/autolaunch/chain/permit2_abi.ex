@@ -44,12 +44,14 @@ defmodule Autolaunch.Chain.Permit2Abi do
   def encode_approve(token, spender, amount, expiration)
       when amount in 1..@uint160_max and expiration in 1..@uint48_max do
     @approve_selector <>
-      address_word(token) <> address_word(spender) <> word(amount) <> word(expiration)
+      Abi.address_word(token) <> Abi.address_word(spender) <> word(amount) <> word(expiration)
   end
 
   @spec encode_allowance(String.t(), String.t(), String.t()) :: String.t()
   def encode_allowance(owner, token, spender),
-    do: @allowance_selector <> address_word(owner) <> address_word(token) <> address_word(spender)
+    do:
+      @allowance_selector <>
+        Abi.address_word(owner) <> Abi.address_word(token) <> Abi.address_word(spender)
 
   @doc """
   The allowed amount and its expiry from a three-word `allowance` answer.
@@ -64,13 +66,6 @@ defmodule Autolaunch.Chain.Permit2Abi do
       do: {:ok, %{amount: amount, expiration: expiration}}
 
   def decode_allowance(_words), do: :error
-
-  defp address_word(address),
-    do:
-      address
-      |> Abi.normalize_address!()
-      |> String.trim_leading("0x")
-      |> String.pad_leading(64, "0")
 
   defp word(value),
     do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")

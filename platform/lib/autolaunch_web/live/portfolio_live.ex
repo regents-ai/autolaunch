@@ -572,7 +572,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     assigns =
       assign(assigns,
         listing: listing,
-        path: robinhood_path(position),
+        path: Paths.robinhood_bid_page(position),
         rate: listing && figure_rate(assigns.rates, listing),
         action: listing && robinhood_action(position)
       )
@@ -828,12 +828,6 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp opens do
     if Autolaunch.Prelaunch.read_only?(), do: "soon"
   end
-
-  # The page of an auction the bid is in: its token's once it has graduated.
-  defp robinhood_path(%{listing: %{hidden: true}}), do: nil
-  defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
-  defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
-  defp robinhood_path(_position), do: nil
 
   # What a Robinhood bid's auction admits now: its unspent money back once
   # the auction has settled, its tokens once they can be claimed, or, while

@@ -1,7 +1,6 @@
 defmodule AutolaunchWeb.TokenController do
   use AutolaunchWeb, :controller
 
-  alias Autolaunch
   alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
@@ -132,7 +131,6 @@ defmodule AutolaunchWeb.TokenController do
 
   defp loaded_report(%{treasury_security_report: %Ash.NotLoaded{}}), do: nil
   defp loaded_report(%{treasury_security_report: report}), do: report
-  defp loaded_report(_token), do: nil
 
   defp invalid_request(conn),
     do: ApiError.send(conn, :bad_request, "invalid_request", "The query parameters are invalid.")

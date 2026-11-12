@@ -35,7 +35,8 @@ defmodule Autolaunch.TokenTrades do
     :logs_unavailable,
     :header_unavailable,
     :headers_unavailable,
-    :history_unavailable
+    :history_unavailable,
+    :head_moved
   ]
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
@@ -254,8 +255,11 @@ defmodule Autolaunch.TokenTrades do
 
   defp cursor_valid(%{trades_next_block: nil}, _, _), do: :ok
 
+  # A head below the cursor is a node answering behind the one that answered
+  # last time, not a reorg: the pass waits. Only a different hash at the last
+  # block read (below) shows the chain changed.
   defp cursor_valid(%{trades_next_block: next}, %{number: head}, _) when next > head + 1,
-    do: {:error, :cursor_changed}
+    do: {:error, :head_moved}
 
   defp cursor_valid(token, _, opts) do
     case header(token.trades_next_block - 1, opts) do

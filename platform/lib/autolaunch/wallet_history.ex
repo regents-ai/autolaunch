@@ -3,18 +3,20 @@ defmodule Autolaunch.WalletHistory do
   One wallet's own moves in a launched token, read from the chain's logs:
   the transactions that moved the token into or out of the wallet (the
   token's `Transfer` events with the wallet as the indexed receiver or
-  sender), and the wallet's stakes in the launch's splitter (`Staked` events
-  with the wallet as the indexed staker), the same way `Autolaunch.RewardHistory`
-  reads its claims.
+  sender), the wallet's stakes in the launch's splitter (`Staked` events
+  with the wallet as the indexed staker) and what it has claimed from the
+  splitter (`Claimed` events). Revstake and Memestock splitters, first and
+  second launchpad and Robinhood alike, emit the same events.
 
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
 
-  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
 
   @transfer "Transfer(address,address,uint256)"
   @staked "Staked(address,uint256)"
+  @claimed "Claimed(address,address,uint256)"
 
   @doc """
   The transactions from `from_block` to `block` in which `token` moved into
@@ -44,6 +46,26 @@ defmodule Autolaunch.WalletHistory do
 
     with {:ok, logs} <- logs(splitter, from_block, block, topics, opts),
          do: decoded(logs)
+  end
+
+  @doc """
+  What `account` has claimed from `splitter` from `from_block` to `block`, in
+  atomic units per asset, keyed by the asset's lowercase address.
+  """
+  @spec claimed(String.t(), String.t(), non_neg_integer(), Rpc.block(), keyword()) ::
+          {:ok, %{String.t() => non_neg_integer()}} | {:error, atom()}
+  def claimed(splitter, account, from_block, block, opts) do
+    topics = [LabAbi.topic(@claimed), address_topic(account)]
+
+    with {:ok, logs} <- Rpc.logs(splitter, topics, from_block, block.number, opts) do
+      {:ok,
+       Enum.reduce(logs, %{}, fn %{"topics" => topics, "data" => "0x" <> data}, sums ->
+         [amount] = for <<word::binary-size(64) <- data>>, do: String.to_integer(word, 16)
+         "0x" <> asset_word = Enum.at(topics, 2)
+         {:ok, asset} = asset_word |> String.to_integer(16) |> Abi.word_address()
+         Map.update(sums, String.downcase(asset), amount, &(&1 + amount))
+       end)}
+    end
   end
 
   defp decoded(logs) do

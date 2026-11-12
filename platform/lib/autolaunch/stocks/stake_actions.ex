@@ -26,10 +26,10 @@ defmodule Autolaunch.Stocks.StakeActions do
   one the account links, never a guess.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{Abi, Client, Rpc}
-  alias Autolaunch.{Lab, LabAbi, Pool, RewardHistory}
+  alias Autolaunch.{Lab, LabAbi, Pool, WalletHistory}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -76,8 +76,6 @@ defmodule Autolaunch.Stocks.StakeActions do
   @uint128_max Integer.pow(2, 128) - 1
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
-  def kinds, do: @kinds
-
   @doc """
   What one wallet has in a launch's splitter, read at the block the pool facts
   were read at: its token balance, its stake, its allowance to the splitter,
@@ -104,7 +102,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
          {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc),
          {:ok, claimed} <-
-           chain(RewardHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
+           chain(WalletHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
       claimed_of = &Map.get(claimed, String.downcase(&1), 0)
 
       {:ok,
@@ -139,8 +137,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, pool} <- pool(launch),
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
@@ -445,12 +442,12 @@ defmodule Autolaunch.Stocks.StakeActions do
     splitter = pool.fees.splitter.address
 
     approval(pool.token.address, splitter, amount, wallet.allowance) ++
-      [step("stake", splitter, splitter_data(venue, config, "stake(uint256)", [amount]))]
+      [Review.step("stake", splitter, splitter_data(venue, config, "stake(uint256)", [amount]))]
   end
 
   defp reviewed_steps(:unstake, pool, {venue, config, _contracts}, _wallet, amount),
     do: [
-      step(
+      Review.step(
         "unstake",
         pool.fees.splitter.address,
         splitter_data(venue, config, "unstake(uint256)", [amount])
@@ -463,7 +460,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     do:
       reviewed_steps(:settle, pool, {venue, config, contracts}, wallet, amount) ++
         [
-          step(
+          Review.step(
             "claim",
             pool.fees.splitter.address,
             splitter_data(venue, config, "claimAll()", [])
@@ -476,7 +473,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     lane =
       if settle_lane?(pool),
         do: [
-          step(
+          Review.step(
             "settle",
             contracts.hook,
             LabAbi.encode(contracts.abis["hook"], "settleStakerLane(bytes32)", [pool.pool_id])
@@ -486,7 +483,7 @@ defmodule Autolaunch.Stocks.StakeActions do
 
     lane ++
       Enum.map(pool.positions, fn position ->
-        step(
+        Review.step(
           "collect_" <> Atom.to_string(position.key),
           contracts.locker,
           LabAbi.encode(contracts.abis["locker"], "collect(uint256)", [position.token_id])
@@ -500,7 +497,7 @@ defmodule Autolaunch.Stocks.StakeActions do
         pool.launch_id
       ])
 
-    [step("release", contracts.launchpad, data)]
+    [Review.step("release", contracts.launchpad, data)]
   end
 
   defp reviewed_steps(:convert, pool, {venue, _config, contracts}, _wallet, %{
@@ -509,15 +506,13 @@ defmodule Autolaunch.Stocks.StakeActions do
        }) do
     data = LabAbi.encode(contracts.abis["hook"], venue.convert, [pool.pool_id, stock, least])
 
-    [step("convert", contracts.hook, data)]
+    [Review.step("convert", contracts.hook, data)]
   end
 
   defp approval(_token, _spender, amount, allowance) when allowance >= amount, do: []
 
   defp approval(token, spender, amount, _allowance),
-    do: [step("token_approval", token, Abi.encode_erc20("approve", [spender, amount]))]
-
-  defp step(name, to, data), do: Review.step(name, to, data)
+    do: [Review.step("token_approval", token, Abi.encode_erc20("approve", [spender, amount]))]
 
   defp splitter_data(venue, config, signature, arguments),
     do: LabAbi.encode(venue.lab.abi!(config, :splitter), signature, arguments)
@@ -675,63 +670,10 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp units(amount, decimals), do: Rpc.format_units(amount, decimals)
 
-  defp chain(:ok), do: :ok
-  defp chain({:ok, value}), do: {:ok, value}
-  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
-  defp chain({:error, reason}), do: unavailable(reason)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The page's active wallet has to be one the leased account links, read now:
-  # never a guess.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: linked_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp linked_wallet(%{wallet_addresses: wallets}, candidate) when is_list(wallets) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
-  end
-
   defp address(value) do
     case Address.normalize(value) do
       {:ok, address} -> {:ok, address}
       :error -> unavailable(:invalid_address)
     end
   end
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

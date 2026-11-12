@@ -65,21 +65,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     """
   end
 
-  attr :surface, :string, required: true
-
-  # A local-fork site has no treasury evidence to show: the fixture the lab
-  # runs on is not a chain observation, so the page says so instead.
-  def lab_treasury_unavailable(assigns) do
-    ~H"""
-    <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
-      <h3>Treasury security</h3>
-      <p class="treasury-security--warning">
-        Treasury verification is not available on this Base fork. Custody is unverified here.
-      </p>
-    </aside>
-    """
-  end
-
   attr :id, :string, required: true
   attr :summary, :string, required: true
   attr :amount, :string, default: nil
@@ -95,8 +80,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   end
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
-
-  def record_label(:auction, record), do: record.title
 
   @doc "Whether a token's ticker only repeats its name, as SANDY's does, so the name is shown once."
   def same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
@@ -124,11 +107,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     |> String.capitalize()
   end
 
-  def display_text(nil), do: "Not available"
-  def display_text(value) when is_atom(value), do: Atom.to_string(value)
-  def display_text(value) when is_integer(value), do: Integer.to_string(value)
+  defp display_text(nil), do: "Not available"
+  defp display_text(value) when is_atom(value), do: Atom.to_string(value)
+  defp display_text(value) when is_integer(value), do: Integer.to_string(value)
 
-  def display_text(value) when is_binary(value) do
+  defp display_text(value) when is_binary(value) do
     case String.trim(value) do
       "" -> "Not available"
       text -> text

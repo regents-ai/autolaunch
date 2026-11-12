@@ -258,6 +258,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     {tip_x, tip_y} = {x(story, tip), y(film, price)}
     tag = text!(dollars(price), 26, @field)
     tag_box = tag_box(tip_x, tip_y, tag)
+    tip_color = color_at(story, tip)
 
     svg = """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{@width}" height="#{@chart_h}" viewBox="0 #{@chart_y} #{@width} #{@chart_h}">
@@ -270,8 +271,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
       #{levels_svg(film, index)}
       #{line_svg(film, tip)}
       #{dots_svg(film, tip, index)}
-      #{tip_svg(tip_x, tip_y, tip_color(story, tip), @field, index)}
-      #{pill_svg(tag_box, tip_color(story, tip))}
+      #{tip_svg(tip_x, tip_y, tip_color, @field, index)}
+      #{pill_svg(tag_box, tip_color)}
       #{Enum.map_join(level_boxes(film, index), "\n", fn {box, _tag, opacity} -> pill_svg(box, @blue, opacity) end)}
     </svg>
     """
@@ -369,8 +370,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   end
 
   defp color_at(_story, _at), do: @tangerine
-
-  defp tip_color(story, tip), do: color_at(story, tip)
 
   # --- strikes and prints --------------------------------------------------------
 

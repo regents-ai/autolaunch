@@ -24,10 +24,7 @@ defmodule Autolaunch.Accounts.XOAuth do
   @spec origin() :: String.t()
   def origin, do: AutolaunchWeb.Endpoint.url()
 
-  @spec callback_url() :: String.t()
-  def callback_url, do: origin() <> "/auth/x/callback"
-
-  @spec begin(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
+  @spec begin(SessionAuthority.claim() | nil, String.t(), map()) ::
           {:ok, %{url: String.t(), role: role(), generation: String.t()}} | {:error, term()}
   def begin(claim, role, intent_params) do
     with {:ok, role} <- role(role),
@@ -87,7 +84,7 @@ defmodule Autolaunch.Accounts.XOAuth do
 
   def callback(_claim, _params), do: {:error, :invalid_callback}
 
-  @spec disconnect(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
+  @spec disconnect(SessionAuthority.claim() | nil, String.t(), map()) ::
           {:ok, %{role: role(), generation: String.t()}} | {:error, term()}
   def disconnect(claim, role, intent_params) do
     with {:ok, role} <- role(role),
@@ -96,7 +93,7 @@ defmodule Autolaunch.Accounts.XOAuth do
     end
   end
 
-  @spec cancel(SessionAuthority.claim() | nil, String.t() | atom(), map()) ::
+  @spec cancel(SessionAuthority.claim() | nil, String.t(), map()) ::
           {:ok, %{role: role(), generation: String.t()}} | {:error, term()}
   def cancel(claim, role, intent_params) do
     with {:ok, role} <- role(role),
@@ -340,6 +337,8 @@ defmodule Autolaunch.Accounts.XOAuth do
     end)
   end
 
+  # Assent is handed the provider's query as it arrived; an answer it cannot
+  # read is a failed connection, never a crashed callback page.
   defp provider_callback(config, params) do
     strategy().callback(config, params)
   rescue
@@ -357,7 +356,7 @@ defmodule Autolaunch.Accounts.XOAuth do
          authorize_url: "https://x.com/i/oauth2/authorize",
          token_url: "https://api.x.com/2/oauth2/token",
          user_url: "https://api.x.com/2/users/me?user.fields=profile_image_url,name,username",
-         redirect_uri: callback_url(),
+         redirect_uri: origin() <> "/auth/x/callback",
          authorization_params: [scope: @scope],
          code_verifier: true
        ]}
@@ -421,7 +420,6 @@ defmodule Autolaunch.Accounts.XOAuth do
 
   defp optional_https_url(_value), do: {:error, :invalid_x_identity}
 
-  defp role(role) when role in @roles, do: {:ok, role}
   defp role("profile"), do: {:ok, :profile}
   defp role("company"), do: {:ok, :company}
   defp role(_role), do: {:error, :invalid_role}
@@ -434,13 +432,12 @@ defmodule Autolaunch.Accounts.XOAuth do
   end
 
   defp intent(params) when is_map(params) do
-    params = stringify_atom_keys(params)
     sequence = params["intent_sequence"]
     generation = params["intent_generation"]
     cancel_generation = params["cancel_generation"]
     cancel_sequence = params["cancel_sequence"]
 
-    with true <- is_integer(sequence) and sequence > 0 and sequence <= @max_intent_sequence,
+    with true <- valid_intent_sequence?(sequence),
          {:ok, generation} <- Ecto.UUID.cast(generation),
          {:ok, cancel_generation} <- optional_uuid(cancel_generation),
          true <- is_nil(cancel_sequence) or valid_intent_sequence?(cancel_sequence) do
@@ -457,13 +454,6 @@ defmodule Autolaunch.Accounts.XOAuth do
   end
 
   defp intent(_params), do: {:error, :invalid_intent}
-
-  defp stringify_atom_keys(params) do
-    Map.new(params, fn
-      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
-      pair -> pair
-    end)
-  end
 
   defp optional_uuid(nil), do: {:ok, nil}
   defp optional_uuid(value), do: Ecto.UUID.cast(value)

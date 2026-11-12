@@ -15,6 +15,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponentTest do
       id: "bid",
       auction: "0x" <> String.duplicate("22", 20),
       token_symbol: "TSLA",
+      ended: nil,
+      stake_path: nil,
       launch: %{
         quote_token_symbol: "TSLA",
         quote_token_decimals: 18,

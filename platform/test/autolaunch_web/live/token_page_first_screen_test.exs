@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.TokenPageFirstScreenTest do
   @moduledoc """
-  A token's page opens on what a buyer asks first: its price, market cap and
-  how far it has moved, with who made it, before its chart and its trade
+  A token's page opens on what a buyer asks first: who made it, then its
+  price and how far it has moved, then its market figures, before its trade
   widget, in that order in the page, so a phone shows them in that order too.
   The chart button never says the chart is unavailable.
   """
@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.TokenPageFirstScreenTest do
   alias Autolaunch.TestSupport
   alias AutolaunchWeb.Paths
 
-  test "the price, market cap, change and creator come before the chart and the trade widget",
+  test "the creator, price and market figures come before the trade widget",
        %{conn: conn} do
     stored =
       TestSupport.project_auction(
@@ -43,15 +43,14 @@ defmodule AutolaunchWeb.TokenPageFirstScreenTest do
 
     order =
       Enum.map(
-        ["creator-label", ~s(id="token-figures"), ~s(id="trade")],
+        ["creator-label", ~s(id="token-figures"), ~s(id="token-market"), ~s(id="trade")],
         &(:binary.match(html, &1) |> elem(0))
       )
 
     assert order == Enum.sort(order)
 
-    figures = view |> element("#token-figures") |> render()
-    assert figures =~ "0.002"
-    assert figures =~ "2,000.00 REGENT"
+    assert view |> element("#token-figures") |> render() =~ "0.002"
+    assert view |> element("#token-market") |> render() =~ "2,000.00 REGENT"
     refute html =~ "Chart unavailable"
   end
 end

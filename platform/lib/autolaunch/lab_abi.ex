@@ -128,20 +128,6 @@ defmodule Autolaunch.LabAbi do
   @uint256_max Integer.pow(2, 256) - 1
   @zero_address "0x" <> String.duplicate("0", 40)
 
-  @doc false
-  def required_signatures do
-    Map.new(@required, fn {contract, requirements} ->
-      {contract,
-       Enum.map(requirements, fn
-         {:f, {signature, _mutability, _outputs}} -> signature
-         {:e, {signature, _indexed}} -> signature
-       end)}
-    end)
-  end
-
-  @doc false
-  def requirements, do: @required
-
   @doc "How many words `distribution(address)` answers with."
   def distribution_words, do: length(@distribution_fields)
 
@@ -188,7 +174,7 @@ defmodule Autolaunch.LabAbi do
     end)
   end
 
-  def function!(abi, signature) do
+  defp function!(abi, signature) do
     Enum.find(abi, fn entry ->
       entry["type"] == "function" and canonical_signature(entry) == signature and
         entry["stateMutability"] in ["pure", "view", "nonpayable", "payable"] and
@@ -196,7 +182,7 @@ defmodule Autolaunch.LabAbi do
     end) || raise ArgumentError, "lab ABI is missing #{signature}"
   end
 
-  def event!(abi, signature) do
+  defp event!(abi, signature) do
     Enum.find(abi, fn entry ->
       entry["type"] == "event" and canonical_signature(entry) == signature and
         Enum.all?(entry["inputs"] || [], &is_boolean(&1["indexed"]))
@@ -223,15 +209,10 @@ defmodule Autolaunch.LabAbi do
   def topic(signature), do: Abi.topic0(signature)
 
   def decode_words("0x" <> hex) when rem(byte_size(hex), 64) == 0 do
-    {:ok,
-     for <<word::binary-size(64) <- hex>> do
-       case Base.decode16(word, case: :mixed) do
-         {:ok, bytes} -> :binary.decode_unsigned(bytes)
-         :error -> throw(:invalid_word)
-       end
-     end}
-  catch
-    :invalid_word -> {:error, :invalid_chain_response}
+    case Base.decode16(hex, case: :mixed) do
+      {:ok, bytes} -> {:ok, for(<<word::unsigned-256 <- bytes>>, do: word)}
+      :error -> {:error, :invalid_chain_response}
+    end
   end
 
   def decode_words(_value), do: {:error, :invalid_chain_response}
@@ -244,12 +225,12 @@ defmodule Autolaunch.LabAbi do
     Abi.one_event(logs, topic(signature), emitter, indexed, data_words)
   end
 
-  def canonical_signature(%{"type" => type, "name" => name, "inputs" => inputs})
-      when type in ["function", "event"] and is_binary(name) and is_list(inputs) do
+  defp canonical_signature(%{"type" => type, "name" => name, "inputs" => inputs})
+       when type in ["function", "event"] and is_binary(name) and is_list(inputs) do
     "#{name}(#{Enum.map_join(inputs, ",", &canonical_type/1)})"
   end
 
-  def canonical_signature(_entry), do: nil
+  defp canonical_signature(_entry), do: nil
 
   defp canonical_type(%{"type" => "tuple", "components" => components}) when is_list(components),
     do: "(" <> Enum.map_join(components, ",", &canonical_type/1) <> ")"

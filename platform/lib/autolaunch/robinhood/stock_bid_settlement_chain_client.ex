@@ -16,14 +16,11 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
 
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.Lab
-  alias RegentChain.Address
 
   @doc "Everything the review states about one bid, read and simulated at one block."
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  def snapshot(%{auction: auction, bid_id: bid_id, signer: signer})
-      when is_integer(bid_id) and bid_id >= 0 do
-    with {:ok, auction} <- Address.normalize(auction),
-         {:ok, config} <- Lab.current(),
+  def snapshot(%{auction: auction, bid_id: bid_id, signer: signer}) do
+    with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
          :ok <- LabRpc.ensure_contract(auction, block, opts),

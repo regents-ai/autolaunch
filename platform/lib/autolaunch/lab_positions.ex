@@ -13,6 +13,7 @@ defmodule Autolaunch.LabPositions do
   """
 
   require Ash.Query
+  require Logger
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Bid
@@ -34,22 +35,49 @@ defmodule Autolaunch.LabPositions do
       else: {:ok, []}
   end
 
+  # A node that stops answering ends the pass's bid reads there: the bids
+  # already read are still written, and the rest are read on the next pass. A
+  # bid whose answer is bad is skipped and read again on the next pass, so it
+  # never holds back the bids after it. Neither holds back the auction's own
+  # figures.
   defp readings(abi, positions, auction_address, market, block, opts) do
     Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
       case chain_bid(abi, auction_address, position, block, opts) do
-        {:ok, bid} -> {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
-        {:error, reason} -> {:halt, {:error, reason}}
+        {:ok, bid} ->
+          {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
+
+        {:error, :chain_unavailable} ->
+          Logger.warning(
+            "Bid #{position.bid_id} not read (chain_unavailable); " <>
+              "#{length(positions) - length(readings)} bids wait for the next pass"
+          )
+
+          {:halt, {:ok, readings}}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Bid #{position.bid_id} not read (#{inspect(reason)}); skipped until the next pass"
+          )
+
+          {:cont, {:ok, readings}}
       end
     end)
   end
 
-  @doc "Every site position of one auction that names an on-chain bid id."
+  @doc """
+  Every site position of one auction that names an on-chain bid id and is not
+  finished. A returned or claimed bid never changes on chain again, so it is
+  not read again.
+  """
   @spec positions(String.t()) :: {:ok, [Bid.t()]} | {:error, term()}
   def positions(auction_id) do
     Bid
     # System projection of the fork's own record; no actor.
     |> Ash.Query.for_read(:mine, %{}, domain: @domain, authorize?: false)
-    |> Ash.Query.filter(auction_id == ^auction_id and not is_nil(onchain_bid_id))
+    |> Ash.Query.filter(
+      auction_id == ^auction_id and not is_nil(onchain_bid_id) and
+        status not in [:returned, :claimed]
+    )
     |> Ash.read(domain: @domain, authorize?: false)
   end
 

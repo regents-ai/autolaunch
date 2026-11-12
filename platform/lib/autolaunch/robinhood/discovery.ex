@@ -111,10 +111,10 @@ defmodule Autolaunch.Robinhood.Discovery do
   defp origin(chain_id, launch) do
     case Autolaunch.matching_robinhood_launch_review(
            chain_id,
-           String.downcase(launch.launcher),
+           launch.launcher,
            launch.name,
            launch.symbol,
-           String.downcase(launch.stock.address),
+           launch.stock.address,
            actor: @actor
          ) do
       {:ok, %{human_account_id: account_id} = review} ->
@@ -152,7 +152,7 @@ defmodule Autolaunch.Robinhood.Discovery do
         chain_id: head.chain_id,
         auction_address: launch.auction,
         creator_human_account_id: creator_id,
-        creator_address: String.downcase(launch.launcher),
+        creator_address: launch.launcher,
         title: launch.name,
         summary: launch.description,
         token_symbol: String.slice(launch.symbol, 0, 16),

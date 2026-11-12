@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.UsdValue do
 
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Stocks.{MarketData, PriceFeeds}
+  alias Autolaunch.Stocks.{Assets, MarketData}
   alias Phoenix.LiveView.AsyncResult
 
   # Digits with an optional fraction, or a fraction alone, and an optional
@@ -71,7 +71,7 @@ defmodule AutolaunchWeb.UsdValue do
   def stock_rate(:test_network, _symbol), do: :test_network
 
   def stock_rate(prices, symbol) when is_map(prices) and is_binary(symbol),
-    do: prices[PriceFeeds.ticker(symbol)]
+    do: prices[Assets.ticker(symbol)]
 
   def stock_rate(_prices, _symbol), do: nil
 

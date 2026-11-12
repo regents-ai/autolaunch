@@ -58,16 +58,16 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
   def onchain_website(%{website: website}), do: website
 
-  @doc "Whether this draft carries the only image shape its provenance permits."
-  def image_complete?(%{
-        id: draft_id,
-        human_account_id: human_account_id,
-        stock_launch_draft_image_id: image_id,
-        stock_launch_draft_image: %LaunchDraftImage{} = owned_image,
-        image: image
-      })
-      when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
-             is_binary(image) do
+  # Whether this draft carries the only image shape its provenance permits.
+  defp image_complete?(%{
+         id: draft_id,
+         human_account_id: human_account_id,
+         stock_launch_draft_image_id: image_id,
+         stock_launch_draft_image: %LaunchDraftImage{} = owned_image,
+         image: image
+       })
+       when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
+              is_binary(image) do
     owned_image.id == image_id and
       owned_image.human_account_id == human_account_id and
       owned_image.stock_launch_draft_id == draft_id and
@@ -76,31 +76,19 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       byte_size(image) <= 256
   end
 
-  def image_complete?(_draft), do: false
+  defp image_complete?(_draft), do: false
 
-  @doc """
-  Whether the paired stock is chosen. There is no schedule, price or minimum
-  to enter: bidding opens a fixed number of blocks after the launch is
-  created, at the lowest price the auction accepts.
-  """
-  def terms_complete?(draft), do: missing_terms(draft) == []
-
+  # The paired stock, until one the chain lists is chosen. There is no
+  # schedule, price or minimum to enter: bidding opens a fixed number of
+  # blocks after the launch is created, at the lowest price the auction accepts.
   defp missing_terms(draft) do
-    [
-      stock_address:
-        match?(
-          {:ok, _stock},
-          Assets.fetch(Map.get(draft, :stock_chain_id), Map.get(draft, :stock_address) || "")
-        )
-    ]
-    |> Enum.reject(fn {_field, complete?} -> complete? end)
-    |> Enum.map(fn {field, _complete?} -> field end)
+    case Assets.fetch(Map.get(draft, :stock_chain_id), Map.get(draft, :stock_address) || "") do
+      {:ok, _stock} -> []
+      _missing -> [:stock_address]
+    end
   end
 
-  def launch_ready?(draft), do: token_details_complete?(draft) and terms_complete?(draft)
-
-  def token_fields, do: @token_fields
-  def terms_fields, do: @terms_fields
+  def launch_ready?(draft), do: token_details_complete?(draft) and missing_terms(draft) == []
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
