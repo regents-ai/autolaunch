@@ -1,10 +1,14 @@
 defmodule Autolaunch.LaunchDiscovery.Discover do
   @moduledoc """
-  Records every Base launch created since the last run, Revstake and Memestock,
-  with the transaction that created it, read at the latest block.
+  Records every Base launch the site has not recorded yet, Revstake and
+  Memestock, with the transaction that created it, read at the latest block.
 
   Each launchpad numbers its launches (`nextLaunchId`), so a run reads the
-  highest id and records each id above the highest one recorded, in order. A
+  highest id and records each id up to it that has no record, in order. A
+  launch that cannot be read or recorded is one warning line and is left out:
+  the launches after it, and the other launchpad, are still recorded. A
+  launchpad whose head or count cannot be read is left out the same way. The
+  run then fails naming each one, and the next run reads them again. A
   launch's auction opens a fixed number of blocks after the block it was
   created in, so its creation log, and with it the transaction, is read from
   that one block by its launch id:
@@ -18,8 +22,8 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
 
   It runs every five minutes, and at once when a press on a chain with a Base
   launchpad lands (`Autolaunch.ChainRefresh`), so a creator's own launch is
-  listed straight away. A run that recorded every launch up to the head sends
-  the chain readers' `[:autolaunch, :indexer, :lag]` event for each launchpad,
+  listed straight away. A run that recorded every launch of a launchpad up to
+  the head sends the chain readers' `[:autolaunch, :indexer, :lag]` event for it,
   so launches the counter shows and the site has not recorded show as passes
   that stop. A run that recorded a new launch has the count the pages read
   taken again (`Autolaunch.LaunchDiscovery.Count`), so their catching-up
@@ -27,6 +31,8 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
   """
 
   @behaviour Autolaunch.ChainRefresh
+
+  require Logger
 
   alias Autolaunch.Actors.System
   alias Autolaunch.AuctionFinish.Launchpads
@@ -49,47 +55,67 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
   end
 
   def run(_input, _context) do
-    Enum.reduce_while(launchpads(), :ok, fn pad, :ok ->
-      case discover(pad) do
-        :ok -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    case Enum.flat_map(launchpads(), &discover/1) do
+      [] -> :ok
+      unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
+    end
   end
 
   @doc "The Base launchpads this site discovers launches on."
   def launchpads, do: Enum.filter(Launchpads.configured(), &(&1.launchpad in @launchpads))
 
   @doc """
-  The latest block, the highest launch id `pad` has made at it, and the highest
-  one the site has recorded.
+  The latest block, the highest launch id `pad` has made at it, how many of
+  those launches the site has recorded, and the ids of the ones it has not
+  (`missing`), lowest first.
   """
   @spec standing(map()) ::
-          {:ok, %{block: map(), made: non_neg_integer(), recorded: non_neg_integer()}}
+          {:ok,
+           %{
+             block: map(),
+             made: non_neg_integer(),
+             recorded: non_neg_integer(),
+             missing: [pos_integer()]
+           }}
           | {:error, term()}
   def standing(pad) do
     with {:ok, block} <- Rpc.latest_block(pad.opts),
          {:ok, made} <- Launchpads.last_launch_id(pad, block),
-         {:ok, recorded} <- known(pad),
-         do: {:ok, %{block: block, made: made, recorded: recorded}}
-  end
-
-  defp discover(pad) do
-    with {:ok, %{block: block, made: made, recorded: recorded}} <- standing(pad),
-         :ok <- record_new(pad, (recorded + 1)..made//1, block) do
-      if made > recorded, do: Count.read_again()
-      followed(pad)
+         {:ok, recorded} <- recorded(pad) do
+      missing = Enum.reject(1..made//1, &MapSet.member?(recorded, &1))
+      {:ok, %{block: block, made: made, recorded: made - length(missing), missing: missing}}
     end
   end
 
-  defp record_new(pad, launch_ids, block) do
-    Enum.reduce_while(launch_ids, :ok, fn launch_id, :ok ->
-      case record(pad, launch_id, block) do
-        {:ok, _discovery} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+  # What `pad` has that could not be recorded this run: launch ids, or the
+  # launchpad itself.
+  defp discover(pad) do
+    case standing(pad) do
+      {:ok, %{block: block, missing: missing}} ->
+        unrecorded =
+          for launch_id <- missing,
+              {:error, reason} <- [record(pad, launch_id, block)],
+              do: unrecorded(pad, launch_id, reason)
+
+        if length(unrecorded) < length(missing), do: Count.read_again()
+        if unrecorded == [], do: followed(pad)
+        unrecorded
+
+      {:error, reason} ->
+        [unrecorded(pad, :launchpad, reason)]
+    end
   end
+
+  defp unrecorded(pad, which, reason) do
+    Logger.warning(
+      "Launch discovery: #{pad.launchpad} #{name(which)} on chain #{pad.chain_id} not recorded: #{inspect(reason)}"
+    )
+
+    {pad.launchpad, pad.chain_id, which}
+  end
+
+  defp name(:launchpad), do: "launchpad"
+  defp name(launch_id), do: "launch #{launch_id}"
 
   # Every launch up to the head it read is recorded, so it trails the chain by
   # nothing, as the site's other chain readers say once a pass is done.
@@ -101,12 +127,10 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
     )
   end
 
-  defp known(pad) do
-    case Autolaunch.latest_launch_discovery(pad.chain_id, pad.contract, actor: %System{}) do
-      {:ok, nil} -> {:ok, 0}
-      {:ok, discovery} -> {:ok, discovery.launch_id}
-      {:error, reason} -> {:error, reason}
-    end
+  defp recorded(pad) do
+    with {:ok, discoveries} <-
+           Autolaunch.recorded_launch_discoveries(pad.chain_id, pad.contract, actor: %System{}),
+         do: {:ok, MapSet.new(discoveries, & &1.launch_id)}
   end
 
   defp record(pad, launch_id, block) do

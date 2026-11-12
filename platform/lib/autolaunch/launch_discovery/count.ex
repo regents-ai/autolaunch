@@ -1,7 +1,7 @@
 defmodule Autolaunch.LaunchDiscovery.Count do
   @moduledoc """
   How many launches each Base launchpad has made at the latest block, against
-  the highest launch id the site has recorded (`Autolaunch.LaunchDiscovery`),
+  how many of them the site has recorded (`Autolaunch.LaunchDiscovery`),
   read once for every open page and held in `Autolaunch.SharedReading` under
   `keys/0`. The pages that list launches say they are catching up while a
   launchpad has made a launch the site has not recorded, or while its count

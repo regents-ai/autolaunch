@@ -441,19 +441,13 @@ defmodule Autolaunch do
     resource Autolaunch.LaunchDiscovery do
       define :record_launch_discovery, action: :record
 
-      define :latest_launch_discovery,
-        action: :latest,
-        args: [:chain_id, :contract],
-        not_found_error?: false
+      define :recorded_launch_discoveries, action: :recorded, args: [:chain_id, :contract]
     end
 
     resource Autolaunch.AuctionFinish do
       define :record_auction_finish, action: :record
 
-      define :latest_auction_finish,
-        action: :latest,
-        args: [:chain_id, :contract],
-        not_found_error?: false
+      define :recorded_auction_finishes, action: :recorded, args: [:chain_id, :contract]
     end
 
     resource Autolaunch.AuctionFinish.Transaction do
