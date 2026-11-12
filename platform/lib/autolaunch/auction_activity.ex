@@ -223,9 +223,13 @@ defmodule Autolaunch.AuctionActivity do
     with {:ok, contracts} <- module.contracts(config, version), do: {:ok, contracts.bid_adapter}
   end
 
-  # When the contract clock reaches the block. A Base block already made carries
-  # its own time; any other is estimated from the head's time.
-  defp at(block, clock, _head, %{chain: :base, opts: opts}) when block <= clock do
+  # When the contract clock reaches the block. A block already made carries its
+  # own time, read from the chain under the clock's own number: Base's clock is
+  # its block number, and Robinhood's is the rollup's, which the chain numbers
+  # its blocks by. A block the clock has not reached, or one the node has not
+  # made under that number (the lab's clock runs ahead of its blocks), is
+  # estimated from the head's time.
+  defp at(block, clock, %{number: made}, %{opts: opts}) when block <= clock and block <= made do
     with {:ok, %{timestamp: seconds}} <- header(block, opts),
          do: {:ok, DateTime.from_unix!(seconds)}
   end
