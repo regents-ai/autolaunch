@@ -199,7 +199,7 @@ defmodule AutolaunchWeb.SwapComponent do
           reverse_event="reverse"
           options_event="toggle_options"
           close_options_event="close_options"
-          fill_event="fill"
+          portions={portions(@balances, sold(@direction))}
           target={@myself}
         />
 
@@ -262,31 +262,6 @@ defmodule AutolaunchWeb.SwapComponent do
        notice: nil,
        revision: socket.assigns.revision + 1
      )}
-  end
-
-  def handle_event("fill", %{"percent" => percent}, socket)
-      when percent in ["25", "50", "75", "100"] do
-    case socket.assigns.balances do
-      %{} = balances ->
-        amount =
-          SwapActions.portion(
-            Map.fetch!(balances, sold(socket.assigns.direction)),
-            String.to_integer(percent)
-          )
-
-        {:noreply,
-         socket
-         |> assign(
-           amount: amount,
-           error: nil,
-           notice: nil,
-           revision: socket.assigns.revision + 1
-         )
-         |> estimated()}
-
-      _unread ->
-        {:noreply, socket}
-    end
   end
 
   def handle_event("review_swap", params, socket) do
@@ -388,8 +363,10 @@ defmodule AutolaunchWeb.SwapComponent do
   defp built(socket, request, note) do
     case prepare(socket, request) do
       {:ok, prepared} ->
-        review =
-          Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
+        {steps, socket} =
+          OnchainSteps.with_approved(socket, approves(socket, request), prepared.steps)
+
+        review = Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, steps)
 
         socket =
           socket
@@ -407,12 +384,18 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
+  # What a swap's approvals allow: this wallet's amount of the side it sells,
+  # whatever the slippage.
+  defp approves(socket, %{launch: launch, direction: direction, amount: amount}),
+    do: {socket.assigns.signer, launch.chain, launch_key(launch), direction, amount}
+
   # The open swap built again for the amount and slippage it was reviewed
   # with, so its price limit, deadline and allowance window are current: once
   # it is ten minutes old, once an approval lands, and once a step reverts,
-  # when `note` says so beside the new button. While a step sent from it is on
-  # its way it stays, and a timer asks again later. One that can't be built
-  # again stays on the page with the reason beside it.
+  # when `note` says so beside the new button. An approval that landed stays
+  # in it, done. While a step sent from it is on its way it stays, and a timer
+  # asks again later. One that can't be built again stays on the page with the
+  # reason beside it.
   defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
     if OnchainSteps.pending?(presses, review) do
       OnchainSteps.refresh_later(socket)
@@ -507,12 +490,13 @@ defmodule AutolaunchWeb.SwapComponent do
   defp balanced(socket), do: assign(socket, balances: nil)
 
   # The swap landed: what it paid is read from its receipt. A landed approval
-  # builds the review again, so the swap it leads to carries a fresh deadline.
+  # builds the review again, so the swap it leads to carries a fresh deadline,
+  # and stays in it, done.
   defp confirmed(socket, %{name: "swap", hash: hash, review: review}),
     do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
 
-  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
-    do: rebuilt(socket, nil)
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
   defp confirmed(socket, _earlier_review), do: socket
 
@@ -613,12 +597,25 @@ defmodule AutolaunchWeb.SwapComponent do
   defp held(%{} = balances, side), do: Map.fetch!(balances, side).shown
   defp held(_unread, _side), do: nil
 
+  # A quarter, half, three quarters and all of the balance sold, none while it is unread.
+  defp portions(%{} = balances, side) do
+    balance = Map.fetch!(balances, side)
+
+    for {label, percent} <- [{"25%", 25}, {"50%", 50}, {"75%", 75}, {"Max", 100}],
+        do: {label, SwapActions.portion(balance, percent)}
+  end
+
+  defp portions(_unread, _side), do: []
+
   defp steps(%{review: nil}), do: []
 
-  defp steps(%{review: review, prepared: prepared, presses: presses}) do
+  # An approval kept from the review this one replaced is done, whatever a
+  # later press of it does.
+  defp steps(%{review: review, prepared: prepared, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
+      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
+      %{name: name, label: step_label(name, prepared), state: state, entry: entry}
     end)
   end
 

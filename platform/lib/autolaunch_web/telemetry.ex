@@ -36,11 +36,12 @@ defmodule AutolaunchWeb.Telemetry do
       job run's outcome and time.
     * `[:autolaunch, :wallet, :failure]` — `count` 1 for each wallet send the
       browser reported as not made or not confirmed, by `flow` and `reason`.
-    * `[:autolaunch, :shared_reading, ...]` — the figures every visitor sees
-      alike (`Autolaunch.SharedReading`): for each `kind`, how many keys are
+    * `[:autolaunch, :shared_reading, ...]` — the figures every reader they
+      admit sees alike (`Autolaunch.SharedReading`): for each `kind`, how many keys are
       held, how many have never been read, how many were last read later than
       their producer allows and how long ago the oldest was read, every ten
-      seconds; each reading that could not be taken; each one
+      seconds; the size of each reading offered as a percent of its kind's
+      limit; each reading that could not be taken; each one
       refused; each wake-up sent to open pages; the table's size.
     * `[:autolaunch, :auction_page, :ladder_stopped]` — `count` 1 each time an
       auction's reading job leaves its price ladder unfinished: the
@@ -242,6 +243,14 @@ defmodule AutolaunchWeb.Telemetry do
         measurement: :late,
         tags: [:kind],
         description: "Keys of the kind last read longer ago than the kind's producer should allow"
+      ),
+      last_value("health.shared_reading.size.percent",
+        event_name: [:autolaunch, :shared_reading, :size],
+        measurement: &div(&1.bytes * 100, &1.limit),
+        tags: [:kind],
+        description:
+          "Size of the last reading each kind was offered, as a percent of the kind's limit; " <>
+            "past 100 it is refused and the last one held stays"
       ),
       last_value("health.shared_reading.never_read.keys",
         event_name: [:autolaunch, :shared_reading, :kind],

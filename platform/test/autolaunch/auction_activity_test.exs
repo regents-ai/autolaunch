@@ -1,11 +1,14 @@
 defmodule Autolaunch.AuctionActivityTest do
-  # Sean agreed this one test on 5 Nov 2026. The reader raised before saving on
+  # Sean agreed the first test on 5 Nov 2026. The reader raised before saving on
   # every pass over an auction already open, from 31 Oct to 4 Nov, because a start
-  # block in the past counts as negative seconds. Nothing else runs a pass.
+  # block in the past counts as negative seconds. The others prove the 10 Nov
+  # audit fix: a lagging node waits instead of wiping history, a real reorg still
+  # rebuilds, and the totals are written only by a pass that reached the head.
   use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
 
   import Ecto.Query, only: [from: 2]
+  import ExUnit.CaptureLog, only: [with_log: 1]
 
   alias Autolaunch.{
     Auction,
@@ -18,6 +21,7 @@ defmodule Autolaunch.AuctionActivityTest do
   }
 
   alias Autolaunch.Actors.System
+  alias Autolaunch.Stocks.MarketData
 
   @auction "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
   @bidder "0x1414141414141414141414141414141414141414"
@@ -48,6 +52,33 @@ defmodule Autolaunch.AuctionActivityTest do
           BaseRpcStub.post(url, options)
       end
     end
+  end
+
+  # REGENT at fifty cents, from the pool DexScreener lists for it.
+  defmodule PricedMarket do
+    @moduledoc false
+    alias Autolaunch.Chain.Abi
+
+    def get(url, _options) do
+      if String.contains?(url, "/latest/dex/pairs/base/") do
+        pair = %{"baseToken" => %{"address" => Abi.regent_address()}, "priceUsd" => "0.5"}
+        {:ok, %{status: 200, body: %{"pairs" => [pair]}}}
+      else
+        {:ok, %{status: 503, body: %{}}}
+      end
+    end
+  end
+
+  setup do
+    previous = Application.get_env(:autolaunch, :autolaunch_market_http_client)
+    MarketData.reset()
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :autolaunch_market_http_client, previous)
+      MarketData.reset()
+    end)
+
+    %{market: previous}
   end
 
   test "a pass over an open auction with a past start block saves what the chain said" do
@@ -83,6 +114,113 @@ defmodule Autolaunch.AuctionActivityTest do
     assert [%{onchain_bid_id: "7", owner_address: @bidder}] =
              Repo.all(from b in Bid, where: b.auction_id == ^auction.id)
   end
+
+  test "a node answering behind the saved cursor waits and keeps the saved history" do
+    auction = first_pass()
+
+    lagging = block(@head - 100, "0x" <> String.duplicate("3c", 32))
+    put_blocks(%{"latest" => lagging, hex(@head - 100) => lagging})
+
+    assert {{:snooze, 60}, _log} = with_log(fn -> pass(auction) end)
+
+    saved = Ash.get!(Auction, auction.id, actor: %System{})
+    assert saved.activity_next_block == @head + 1
+    assert saved.activity_last_hash == @head_hash
+    assert Decimal.equal?(saved.bid_volume, 2)
+    assert [%{bid_id: "7"}] = Autolaunch.auction_bids!(auction.id)
+    assert [%{block_number: @bid_block}] = Autolaunch.auction_price_points!(auction.id)
+  end
+
+  test "a different block at the saved cursor still clears the history to rebuild it" do
+    auction = first_pass()
+
+    reorged = block(@head, "0x" <> String.duplicate("3d", 32))
+    put_blocks(%{"latest" => reorged, hex(@head) => reorged})
+
+    assert {:snooze, 1} = pass(auction)
+
+    saved = Ash.get!(Auction, auction.id, actor: %System{})
+    assert saved.activity_next_block == nil
+    assert saved.bid_volume == nil
+    assert Autolaunch.auction_bids!(auction.id) == []
+    assert Autolaunch.auction_price_points!(auction.id) == []
+  end
+
+  test "a pass that has not reached the head leaves the totals as stored" do
+    priced_market()
+    auction = first_pass()
+    assert Decimal.equal?(Ash.get!(Auction, auction.id, actor: %System{}).bid_volume_usd, 1)
+
+    far = block(@head + 5_000, "0x" <> String.duplicate("3e", 32))
+    put_blocks(%{"latest" => far, hex(@head + 5_000) => far})
+    BaseRpcStub.put(%{logs: []})
+
+    assert {:snooze, 1} = pass(auction)
+
+    saved = Ash.get!(Auction, auction.id, actor: %System{})
+    assert saved.activity_next_block == @head + 2_001
+    assert Decimal.equal?(saved.bid_volume, 2)
+    assert Decimal.equal?(saved.bid_volume_usd, 1)
+  end
+
+  test "a pass that reached the head with no dollar rate blanks the dollar total", %{
+    market: market
+  } do
+    priced_market()
+    auction = first_pass()
+    assert Decimal.equal?(Ash.get!(Auction, auction.id, actor: %System{}).bid_volume_usd, 1)
+
+    # REGENT's price stops answering; a new bid lands at the head.
+    Application.put_env(:autolaunch, :autolaunch_market_http_client, market)
+    MarketData.reset()
+
+    BaseRpcStub.put(%{
+      logs: [
+        log(
+          0,
+          [
+            topic("BidSubmitted(uint256,address,uint256,uint128)"),
+            BaseRpcStub.uint(8),
+            BaseRpcStub.address_topic(@bidder)
+          ],
+          [@q96, @atomic],
+          @head
+        )
+      ]
+    })
+
+    assert {:snooze, 300} = pass(auction)
+
+    saved = Ash.get!(Auction, auction.id, actor: %System{})
+    assert Decimal.equal?(saved.bid_volume, 4)
+    assert saved.bid_volume_usd == nil
+  end
+
+  defp first_pass do
+    chain_id = Lab.current!().chain_id
+    install(chain_id)
+
+    auction =
+      Autolaunch.TestSupport.project_auction(
+        chain_id: chain_id,
+        address: @auction,
+        state: :active
+      )
+
+    assert {:snooze, 300} = pass(auction)
+    auction
+  end
+
+  defp pass(auction), do: perform_job(AuctionActivity, %{auction_id: auction.id})
+
+  defp priced_market,
+    do: Application.put_env(:autolaunch, :autolaunch_market_http_client, PricedMarket)
+
+  defp put_blocks(blocks),
+    do: BaseRpcStub.put(%{blocks: Map.merge(BaseRpcStub.state().blocks, blocks)})
+
+  defp block(number, hash),
+    do: %{"number" => hex(number), "hash" => hash, "timestamp" => hex(@now + number - @head)}
 
   defp install(chain_id) do
     BaseRpcStub.install(:autolaunch_lab_http_client, &call/2)
@@ -130,11 +268,11 @@ defmodule Autolaunch.AuctionActivityTest do
     end
   end
 
-  defp log(index, topics, words) do
+  defp log(index, topics, words, number \\ @bid_block) do
     %{
       "address" => @auction,
-      "blockNumber" => hex(@bid_block),
-      "blockHash" => @bid_hash,
+      "blockNumber" => hex(number),
+      "blockHash" => if(number == @head, do: @head_hash, else: @bid_hash),
       "transactionHash" => @transaction,
       "logIndex" => hex(index),
       "removed" => false,

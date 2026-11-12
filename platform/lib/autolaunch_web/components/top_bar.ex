@@ -8,7 +8,6 @@ defmodule AutolaunchWeb.Components.TopBar do
   alias Phoenix.LiveView.JS
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
-  attr :credits, :map, required: true, doc: "As for `AutolaunchWeb.Components.Credits.button/1`."
 
   slot :agents,
     doc:
@@ -59,13 +58,11 @@ defmodule AutolaunchWeb.Components.TopBar do
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
         <.apps_menu />
-        <AutolaunchWeb.Components.Credits.button id="shell-credits-button" credits={@credits} />
         <.account_control account_control={@account_control} />
       </div>
       <%!-- Signed in, the account's picture and name open this menu: the person's
            name and wallet, their three most recently active agents, Pair New Agent
-           (which opens the pairing window), Manage Account and Sign out. Narrower
-           than 22.5rem it holds the Credits balance the bar has no room for. The
+           (which opens the pairing window), Manage Account and Sign out. The
            browser opens and closes it. --%>
       <Regent.Account.menu
         :if={@account_control.kind == :signed_in}
@@ -86,9 +83,6 @@ defmodule AutolaunchWeb.Components.TopBar do
             alt=""
           />
         </:picture>
-        <:balance :if={@credits}>
-          <AutolaunchWeb.Components.Credits.menu_balance credits={@credits} />
-        </:balance>
         <:agents>{render_slot(@agents)}</:agents>
       </Regent.Account.menu>
     </header>

@@ -1,27 +1,29 @@
 defmodule AutolaunchWeb.SignInUnreadPanelsTest do
   @moduledoc """
-  A panel follows the same rule as a page (`AutolaunchWeb.ReadFailure`): when
-  the signed-in account can't be read because the connection was lost, it says
-  to try again and never to sign in, and sends nothing; any other failure is a
-  real error. Connect ENS tells a name another account holds apart from a
-  try-again.
+  A wallet panel follows the same rule as a page (`AutolaunchWeb.ReadFailure`):
+  when the signed-in account can't be read because the connection was lost, it
+  says to try again and never to sign in, and sends nothing; any other failure
+  is a real error. Every wallet panel reads the account the same way
+  (`AutolaunchWeb.OnchainSteps.adopt/1`); the covered-call Buy ticket stands for
+  them here. Connect ENS says to try again the same way, and tells a name
+  another account holds apart from a try-again.
   """
   use AutolaunchWeb.ConnCase, async: false
 
   import Autolaunch.DatabaseFaults
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{Accounts, Repo, TestSupport}
+  alias Autolaunch.{Accounts, CoveredCallsChain, Repo, TestSupport}
   alias Autolaunch.Accounts.ConnectEns
   alias Autolaunch.Actors.System
-  alias AutolaunchWeb.{OnchainSteps, ReadFailedError}
+  alias AutolaunchWeb.{CoveredCallsLive, OnchainSteps, ReadFailedError}
 
   @moduletag :capture_log
   @ens "account_ens_identities"
-
-  # The account's wallets are read once the page has mounted (the panels'
-  # first update), and that read loses its connection, as when one pooled
-  # connection is lost and the page's own read just before it was not.
+  @ticket "/stock/covered-call?listing=1"
+  # The account's wallets are read once the page has mounted (the panel's first
+  # update), and that read loses its connection, as when one pooled connection
+  # is lost and the page's own read just before it was not.
   defp lose_wallet_reads_after_mount(view_module) do
     handler = "lose-after-mount-#{inspect(self())}"
 
@@ -40,40 +42,46 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     on_exit(fn -> :telemetry.detach(handler) end)
   end
 
+  defp signed_in(conn, account) do
+    session = signed_in_session(account.id)
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(session)
+    |> connects_with(session)
+    |> live(@ticket)
+  end
+
   test "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read sends nothing and never asks to sign in",
        %{conn: conn} do
+    CoveredCallsChain.install()
     account = TestSupport.register_creator!()
-    session = signed_in_session(account.id)
-    lose_wallet_reads_after_mount(AutolaunchWeb.AccountLive)
+    lose_wallet_reads_after_mount(CoveredCallsLive)
 
-    {:ok, view, _html} =
-      conn
-      |> Phoenix.ConnTest.init_test_session(session)
-      |> connects_with(session)
-      |> live("/account")
+    {:ok, view, _html} = signed_in(conn, account)
+    render_async(view)
 
-    panel = with_target(view, "#credits-panel")
     # The person's own wallet is the one open in their wallet app.
-    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
+    view
+    |> with_target("#covered-call-fill-1")
+    |> render_hook("onchain_active_wallet", %{"address" => account.wallet_address})
 
-    for step <- ["approve", "buy"],
-        do:
-          render_hook(panel, "prepare_and_send", %{"form" => %{"amount" => "5"}, "step" => step})
+    view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "1"})
+    view |> element("#covered-call-fill-1-review") |> render_click()
 
     # No review, so no step, ever reaches the wallet.
     refute_push_event(view, "onchain-steps:review", %{review: %{}})
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
 
-    render_hook(panel, "step_failed", %{"reason" => "wallet_unavailable"})
-    note = view |> element("#credits-panel p[role=status]:not([hidden])") |> render()
-    refute note =~ "Sign in"
-
-    # The page still shows the person signed in.
+    # The press says to try again, nothing on the page asks the person to sign
+    # in, and the page still shows them signed in.
+    assert has_element?(view, "#covered-call-fill-1-notice", OnchainSteps.unsent_note())
+    refute has_element?(view, "[data-account-target=sign-in]")
     assert has_element?(view, ~s([data-account-target="profile"]))
   end
 
   test "a wallet read that fails for any other reason is a real error", %{conn: conn} do
+    CoveredCallsChain.install()
     account = TestSupport.register_creator!()
-    session = signed_in_session(account.id)
     handler = "fail-wallet-read-#{inspect(self())}"
 
     # Only the wallet panel's own read of the account fails, and not as a lost
@@ -95,15 +103,33 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
 
     on_exit(fn -> :telemetry.detach(handler) end)
 
-    {{exception, _stack}, _call} =
-      catch_exit(
-        conn
-        |> Phoenix.ConnTest.init_test_session(session)
-        |> connects_with(session)
-        |> live("/account")
-      )
+    # The ticket raising is what ends the page, reported here.
+    test = self()
+    raised = "ticket-raised-#{inspect(self())}"
 
-    assert %ReadFailedError{} = exception
+    :telemetry.attach(
+      raised,
+      [:phoenix, :live_component, :update, :exception],
+      fn _event, _measurements, %{kind: :error, reason: reason}, _config ->
+        send(test, {:ticket_raised, reason})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(raised) end)
+
+    # The ticket, and so its read of the account, comes once the page's book is
+    # read in the background, so the page ends while it is still opening or just
+    # after it opened; which one depends on how fast the book is read.
+    Process.flag(:trap_exit, true)
+
+    try do
+      signed_in(conn, account)
+    catch
+      :exit, _page_ended_while_opening -> :ok
+    end
+
+    assert_receive {:ticket_raised, %ReadFailedError{}}
   end
 
   test "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again" do

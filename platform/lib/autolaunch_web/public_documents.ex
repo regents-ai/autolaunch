@@ -8,6 +8,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   every other address reaches it with its own sessions and policies.
   """
 
+  alias Autolaunch.LaunchActions, as: RevstakeLaunchActions
+  alias Autolaunch.LaunchChain
+  alias Autolaunch.Stocks.LaunchActions
   alias AutolaunchWeb.{AgentGuides, Paths, ToolManifest}
   alias AutolaunchWeb.Components.AutolaunchHelpers
 
@@ -123,7 +126,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
-    "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
+    "/account/points" => {"Points", "Your points and activity."},
     "/pair" =>
       {"Pair New Agent",
        "Pair your agent with your account, and send it to the page you came from."},
@@ -146,7 +149,8 @@ defmodule AutolaunchWeb.PublicDocuments do
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
     "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
-    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
+    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."},
+    "/unavailable" => {"Not available in your region", "This page isn’t offered where you are."}
   }
 
   # The fixed pages both sitemaps list.
@@ -547,6 +551,29 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
     |> String.replace("{{read_only}}", read_only_now())
     |> String.replace("{{memestock_launchpad}}", memestock_launchpad())
+    |> durations()
+  end
+
+  # How long each launch's auction runs and a Memestock creator's release takes,
+  # in words, from the launches' fixed schedules in blocks, as the pages say it.
+  defp durations(markdown) do
+    revstake = RevstakeLaunchActions.schedule()
+    base = LaunchActions.schedule(:base)
+    robinhood = LaunchActions.schedule(:robinhood)
+
+    Enum.reduce(
+      [
+        {"{{revstake_auction}}", :base, revstake.length},
+        {"{{memestock_auction_base}}", :base, base.length},
+        {"{{memestock_auction_robinhood}}", :robinhood, robinhood.length},
+        {"{{memestock_release_base}}", :base, base.vesting},
+        {"{{memestock_release_robinhood}}", :robinhood, robinhood.vesting}
+      ],
+      markdown,
+      fn {mark, chain, blocks}, text ->
+        String.replace(text, mark, LaunchChain.time_estimate(chain, blocks))
+      end
+    )
   end
 
   # Every tool the pages register now (`AutolaunchWeb.ToolManifest`).

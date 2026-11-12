@@ -20,8 +20,6 @@ defmodule AutolaunchWeb.ConvertComponent do
   """
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, StakeComponent, TokenDisplay}
@@ -112,6 +110,8 @@ defmodule AutolaunchWeb.ConvertComponent do
   # the card; the form appears only when the signed-in wallet is the converter.
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :steps, steps(assigns))
+
     ~H"""
     <section
       id={@id}
@@ -139,8 +139,20 @@ defmodule AutolaunchWeb.ConvertComponent do
           <div class="token-swap__leg">
             <div class="token-swap__leg-head">
               <label for={@id <> "-amount"}>Amount to convert</label>
+              <%!-- Max fills the box in the browser at the press, so a press
+                   straight after it carries the amount however long the server takes. --%>
               <div class="token-swap__portions" role="group" aria-label="Part of REGENT's share">
-                <button type="button" phx-click="fill" phx-target={@myself}>Max</button>
+                <button
+                  type="button"
+                  phx-click={
+                    JS.dispatch("autolaunch:fill",
+                      to: "##{@id}-amount",
+                      detail: %{value: @pool.fees.regent.accrued}
+                    )
+                  }
+                >
+                  Max
+                </button>
               </div>
             </div>
             <div class="token-swap__amount-row">
@@ -195,9 +207,9 @@ defmodule AutolaunchWeb.ConvertComponent do
           open={!!@review}
           title="Converting REGENT's share"
           facts={(@review && @prepared.facts) || []}
-          steps={steps(assigns)}
-          next_step={next_step(assigns)}
-          reverted={reverted(assigns)}
+          steps={@steps}
+          next_step={next_step(@steps)}
+          reverted={reverted(@steps)}
           notice={@press_note}
           target={@myself}
           signer={@review && @review.signer}
@@ -210,31 +222,13 @@ defmodule AutolaunchWeb.ConvertComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, followed(socket)}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed()}
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
       do: {:noreply, entered(socket, params)},
       else: {:noreply, socket}
-  end
-
-  def handle_event("fill", _params, socket) do
-    {:noreply,
-     assign(socket,
-       amount: socket.assigns.pool.fees.regent.accrued,
-       error: nil,
-       notice: nil,
-       revision: socket.assigns.revision + 1
-     )}
   end
 
   def handle_event("review", params, socket) do
@@ -261,23 +255,15 @@ defmodule AutolaunchWeb.ConvertComponent do
         {:noreply, assign(socket, notice: no_signer(socket.assigns))}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+        {:noreply, assign(socket, notice: copy(OnchainSteps.refusal(error)))}
     end
   end
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:convert, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :convert, "this network")}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
@@ -294,22 +280,16 @@ defmodule AutolaunchWeb.ConvertComponent do
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
   def handle_async({:result, hash}, result, socket) do
-    case {result, socket.assigns.review} do
-      {{:ok, {:ok, %{"logs" => logs}}}, %{id: id}} when is_list(logs) ->
-        {:noreply, finished(socket, id, hash, logs)}
-
-      {_unread, %{id: id}} ->
-        {:noreply, finished(socket, id, hash, nil)}
-
-      {_answer, nil} ->
-        {:noreply, socket}
+    case socket.assigns.review do
+      %{id: id} -> {:noreply, finished(socket, id, hash, OnchainSteps.receipt_logs(result))}
+      nil -> {:noreply, socket}
     end
   end
 
   defp prepare(%{assigns: %{signer: nil}}, _request), do: {:error, :no_signer}
 
   defp prepare(socket, request),
-    do: StakeActions.prepare(request, socket.assigns.signer, opts(socket))
+    do: StakeActions.prepare(request, socket.assigns.signer, OnchainSteps.opts(socket))
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -329,9 +309,9 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   # The conversion landed: the pool is read again, and what it sold is read
   # from its receipt.
-  defp confirmed(socket, %{hash: hash, review: review}) do
+  defp confirmed(socket, entry) do
     send(self(), :reload_pool)
-    start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+    OnchainSteps.read_receipt(socket, entry)
   end
 
   # The open review closes once its conversion landed; a receipt that could not
@@ -357,20 +337,9 @@ defmodule AutolaunchWeb.ConvertComponent do
   end
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: "this network"
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
+  defp no_signer(assigns),
+    do: OnchainSteps.failure_note(assigns, "wallet_unavailable", "this network")
 
   # The form is offered only to the signed-in wallet the hook names as its
   # executor, read from the chain with the pool.
@@ -388,47 +357,22 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   defp steps(%{review: review, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: "Confirm conversion", state: step_state(entry), entry: entry}
+      OnchainSteps.step(presses, review, name, "Confirm conversion")
     end)
   end
 
   # The step the wallet has not sent from this review yet, or one that did not
   # go through. A sent step moves the button on at once; nothing waits for the
   # network before the next press can reach the wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+  defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
-  defp next_step(_assigns), do: nil
-
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
-
-  defp reverted(%{review: %{}} = assigns) do
-    if Enum.any?(steps(assigns), &(&1.state == :reverted)), do: reverted_copy()
+  defp reverted(steps) do
+    if Enum.any?(steps, &(&1.state == :reverted)),
+      do:
+        "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
   end
 
-  defp reverted(_assigns), do: nil
-
-  defp reverted_copy,
-    do:
-      "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
-
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 
   attr :id, :string, required: true
   attr :done, :map, required: true

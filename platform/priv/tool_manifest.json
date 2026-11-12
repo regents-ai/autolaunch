@@ -628,70 +628,9 @@
       "effect": "read"
     },
     {
-      "name": "account_balances",
-      "title": "Read Credits",
-      "description": "Read Credits. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
-      "input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": false,
-      "payment": "none",
-      "route": "GET /api/agent/v1/account/balances",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "account_balances",
-        "http": "GET /api/agent/v1/account/balances"
-      },
-      "effect": "read"
-    },
-    {
-      "name": "account_credits_history",
-      "title": "Read Credits history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "after": {
-            "type": "string",
-            "maxLength": 2048
-          }
-        },
-        "required": [],
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": false,
-      "payment": "none",
-      "route": "POST /api/agent/v1/account/credits/history",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "account_credits_history",
-        "http": "POST /api/agent/v1/account/credits/history"
-      },
-      "effect": "read"
-    },
-    {
       "name": "account_points",
       "title": "Read Points",
-      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
+      "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -705,14 +644,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/account/points",
+      "route": "GET /api/v1/account/points",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "account_points",
-        "http": "GET /api/agent/v1/account/points"
+        "http": "GET /api/v1/account/points"
       },
       "effect": "read"
     }

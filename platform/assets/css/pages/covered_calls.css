@@ -6,74 +6,129 @@
 .covered-calls__intro { display: grid; gap: var(--space-1); max-width: 40rem; }
 .covered-calls__intro > * { margin: 0; }
 .covered-calls__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
-.covered-calls__intro p { color: var(--color-fg); line-height: 1.5; }
-.covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
+.covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .covered-calls__header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
-/* The market's figures and a panel's terms: micro-labels over tabular figures, hairlines between. */
-/* Each figure draws its own hairline and overlaps its neighbour's by one pixel, so any wrap leaves no empty block. */
-.covered-calls__strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 1px 0 0 1px; }
-.covered-calls__strip > div { display: grid; align-content: start; gap: .25rem; min-width: 0; margin: -1px 0 0 -1px; padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); background: var(--color-surface); }
-.covered-calls__strip dt { display: flex; align-items: center; gap: .25rem; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
-.covered-calls__strip dd { margin: 0; font-size: 1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.covered-calls__strip dd small { color: var(--color-fg-muted); font-size: .8125rem; }
-.covered-calls__strip--panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.covered-calls__strip--panel > div { background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-/* What a covered call is, for the tab's side: three numbered lines, ruled, no cards. */
-.covered-calls__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: step; }
-.covered-calls__steps li { display: grid; align-content: start; gap: .25rem; padding-block-start: var(--space-2); border-block-start: 2px solid var(--color-fg); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; counter-increment: step; }
-.covered-calls__steps strong { color: var(--color-fg); font-size: 1rem; }
-/* Three side by side keep two lines for every step's words, so switching tab never moves the tabs. */
-@media (min-width: 48rem) { .covered-calls__steps span { min-block-size: calc(2 * 1.45em); } }
-.covered-calls__steps strong::before { content: "0" counter(step) "  "; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); font-variant-numeric: tabular-nums; }
-.covered-calls__panel-head { display: flex; align-items: center; gap: var(--space-1); }
-.covered-calls__panel-head > :is(h2, h3) { margin: 0; }
-.covered-calls__tabs { display: flex; gap: var(--space-1); }
-.covered-calls__tabs a { white-space: nowrap; display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); text-decoration: none; background: transparent; }
-.covered-calls__tabs { border-bottom: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); }
-.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 9%, var(--color-surface)); box-shadow: inset 0 -3px 0 var(--color-fg); }
-.covered-calls__tabs .covered-calls__mine { margin-inline-start: auto; text-decoration: underline; text-underline-offset: .2em; }
-.covered-calls__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
+
+/* Sell and Buy: tabs of one width, so the bar under the chosen one (MotionTabs) fits either. */
+.covered-calls__tabs { position: relative; display: flex; align-items: stretch; border-bottom: 1px solid var(--hairline); }
+.covered-calls__tabs a { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; min-block-size: 2.75rem; color: var(--color-fg-muted); text-decoration: none; white-space: nowrap; transition: color var(--duration-fast) var(--ease-out); }
+.covered-calls__tabs [data-tab] { inline-size: 6.5rem; }
+.covered-calls__tabs [aria-current="page"] { color: var(--color-fg); }
+.covered-calls__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: -2px; }
+.covered-calls__ink { position: absolute; bottom: -1px; left: 0; width: 100px; height: 3px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
+/* Until the script places the bar, the chosen tab draws its own. */
+.covered-calls__ink:not([style]) { visibility: hidden; }
+.covered-calls__tabs:has(.covered-calls__ink:not([style])) [aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-fg); }
+.covered-calls__count { min-inline-size: 1.5rem; padding-inline: .3rem; border: 1px solid var(--hairline-strong); font-size: .75rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; text-align: center; }
+.covered-calls__tabs .covered-calls__mine { margin-inline-start: auto; padding-inline: var(--space-2); text-decoration: underline; text-underline-offset: .2em; }
+
 .covered-calls__section { display: grid; gap: var(--space-2); min-width: 0; }
 .covered-calls__title { margin: 0; font-size: 1.125rem; letter-spacing: -.01em; }
 .covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+/* While the market is read, the Sell tab keeps the ticket's height, so the Contract below stays put. */
+.covered-calls__waiting { min-block-size: 49.75rem; }
+
+/* A ticket: its choices and button beside the receipt and outcomes, ruled apart; on a phone
+   the receipt comes under. Every row keeps its height whatever is chosen. */
+.covered-calls__ticket { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); padding: var(--space-4); }
+/* One column the width of the panel, so a field never grows past it to fit its input or pills. */
+.covered-calls__fields, .covered-calls__result, .covered-calls__fields > form { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-3); min-width: 0; }
+.covered-calls__result { align-self: stretch; padding-inline-start: var(--space-5, 2rem); border-inline-start: 1px solid var(--hairline); }
+.covered-calls__market { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-block-size: 2rem; }
+.covered-calls__spot { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+/* The price line under the stock: its last 30 days, with the strike (on Buy the break-even too)
+   drawn flat across them and each figure in a margin at the line's end that the line never enters.
+   Its box keeps its height while there is no line, and the figures show once the line is drawn. */
+.price-line { --price-line: var(--color-fg); --price-line-margin: 4.5rem; display: grid; gap: var(--space-1); min-width: 0; margin: 0; }
+.price-line__plot { position: relative; block-size: 5rem; }
+.price-line__plot canvas { position: absolute; inset-block-start: 0; inset-inline-start: 0; display: block; inline-size: calc(100% - var(--price-line-margin)); block-size: 100%; }
+.price-line__levels { position: absolute; inset: 0; pointer-events: none; }
+.price-line__level { position: absolute; inset-inline: 0; inset-block-start: 0; block-size: 0; }
+.price-line__level[hidden] { display: none; }
+.price-line__level::before { content: ""; position: absolute; inset-inline: 0 var(--price-line-margin); inset-block-start: -.5px; border-block-start: 1px dashed var(--color-fg-muted); }
+.price-line__level > span { position: absolute; inset-inline-start: calc(100% - var(--price-line-margin)); inset-block-start: 0; display: flex; align-items: baseline; justify-content: space-between; gap: .25rem; inline-size: var(--price-line-margin); padding-inline-start: .375rem; color: var(--color-fg); font-size: .75rem; line-height: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateY(calc(-50% + var(--nudge, 0px))); }
+/* Named levels (Buy's strike and break-even): the margin holds each name before its figure, and the break-even is dotted and lighter. */
+.price-line:has(.price-line__name) { --price-line-margin: 7.5rem; }
+.price-line__name { color: var(--color-fg-muted); font-size: .6875rem; }
+.price-line__level--dotted::before { border-block-start-style: dotted; border-color: color-mix(in srgb, var(--color-fg-muted) 60%, transparent); }
+.covered-calls__field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); min-width: 0; margin: 0; padding: 0; border: 0; }
+.covered-calls__label { display: flex; align-items: center; gap: .25rem; min-block-size: 1.75rem; padding: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.covered-calls__label > :is(label, h3, h4) { margin: 0; color: inherit; font-size: inherit; font-weight: var(--font-weight-regular, 400); }
+.covered-calls__hint { color: var(--color-fg-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.covered-calls__label > .covered-calls__hint { margin-inline-start: auto; }
+.covered-calls__input { display: flex; align-items: center; gap: var(--space-2); min-block-size: 2.75rem; padding-inline: var(--space-2); border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.covered-calls__input:focus-within { outline: 2px solid var(--color-focus, currentColor); outline-offset: -1px; }
+.covered-calls__input > input { flex: 1 1 auto; min-width: 0; min-block-size: 2.5rem; padding: 0; border: 0; background: none; box-shadow: none; color: var(--color-fg); font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+/* The box draws the ring, so the input inside draws none. */
+.covered-calls__input > input:focus { outline: none; }
+.covered-calls__input > span { color: var(--color-fg-muted); font-size: .875rem; white-space: nowrap; }
+/* The custom strike keeps its place while a suggestion is chosen. */
+.covered-calls__custom[inert] { visibility: hidden; }
+.covered-calls__suggested { margin-inline-start: auto; padding: 0; border: 0; background: none; color: var(--color-fg); font: inherit; font-size: .8125rem; font-variant-numeric: tabular-nums; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.covered-calls__suggested[inert] { visibility: hidden; }
+/* Under the amount: its worth and share count, on a line of its own height so the fields below stay put. */
+.covered-calls__value { min-block-size: 1.25rem; line-height: 1.25rem; }
+/* The wallet's stock at the end of the Amount row, and the Max that fills the box with it. */
+.covered-calls__balance { display: inline-flex; align-items: baseline; gap: var(--space-2); margin-inline-start: auto; color: var(--color-fg-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.covered-calls__max { padding: 0; border: 0; background: none; color: var(--color-fg); font: inherit; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.covered-calls__max:disabled { color: var(--color-fg-muted); text-decoration: none; cursor: default; }
+.covered-calls__status { overflow: hidden; margin-inline-start: auto; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A choice of a few, side by side, the chosen one under a block that travels to it (MotionTabs). */
+.covered-calls__pills { position: relative; display: grid; grid-template-columns: repeat(var(--pills), minmax(0, 1fr)); padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.covered-calls__pills > button { position: relative; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 2px; min-width: 0; min-block-size: 3rem; padding: 0 var(--space-1); border: 0; background: none; color: var(--color-fg-muted); font: .9375rem/1.15 var(--font-family-ui); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.covered-calls__pills > button small { font-size: .75rem; }
+.covered-calls__pills > button[aria-pressed="true"] { color: var(--color-bg); }
+.covered-calls__pills > button:disabled { cursor: default; }
+.covered-calls__pills > button:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: -2px; }
+.covered-calls__pill-ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
+.covered-calls__pill-ink:not([style]) { visibility: hidden; }
+.covered-calls__pills:has(.covered-calls__pill-ink:not([style])) > [aria-pressed="true"] { background: var(--color-fg); }
+
+/* The receipt and the outcomes: rows ruled apart, the first figure the largest. */
+.covered-calls__receipt { display: grid; gap: var(--space-1); min-width: 0; }
+.covered-calls__lines, .covered-calls__outcomes { display: grid; margin: 0; padding: 0; list-style: none; }
+.covered-calls__lines > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-block-size: 2.5rem; padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); }
+.covered-calls__lines dt { color: var(--color-fg-muted); white-space: nowrap; }
+.covered-calls__lines dd { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 0 var(--space-1); margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+.covered-calls__lines > div:first-child dd { font-size: 1.5rem; letter-spacing: -.02em; }
+/* Under You receive, what it is as a share of the stock's worth for the term, on a line kept for it. */
+.covered-calls__lines .covered-calls__lead { display: grid; justify-items: end; }
+.covered-calls__lead > small { min-block-size: 1.25rem; color: var(--color-fg-muted); font-size: .8125rem; letter-spacing: normal; line-height: 1.25rem; }
+.covered-calls__lines dd > small { color: var(--color-fg-muted); font-size: .8125rem; }
+.covered-calls__local, .covered-calls__utc { white-space: nowrap; }
+.covered-calls__utc { display: none; color: var(--color-fg-muted); font-size: .8125rem; }
+.covered-calls__local[data-local] + .covered-calls__utc { display: inline; }
+.covered-calls__outcomes > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--space-2); padding-block: var(--space-2); border-bottom: 1px solid var(--hairline); }
+.covered-calls__outcomes strong { font-size: .9375rem; font-weight: var(--font-weight-medium, 500); }
+.covered-calls__outcomes span { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.covered-calls__outcomes small { grid-column: 1 / -1; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.4; }
+
+/* The calls for sale, and a portfolio's rows. */
 .covered-calls__table small { color: var(--color-fg-muted); }
-.covered-calls .covered-calls__table thead th, .covered-calls__mini thead th { color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
+.covered-calls .covered-calls__table thead th { color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
 .covered-calls__table tbody td { font-variant-numeric: tabular-nums; }
 .covered-calls__table tr.covered-calls__chosen > td { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: inset 3px 0 0 var(--color-fg); }
 .covered-calls__row-action { text-align: right; }
+/* An open window's time left, over when it closes, both to the cell's side (right in the table, left on a phone); UTC wraps under the local time in a narrow cell. */
+.covered-calls__closes { display: grid; justify-items: end; gap: 2px; }
+.covered-calls__closes > strong { font-weight: var(--font-weight-medium, 500); }
+.covered-calls__closes > span { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 var(--space-1); color: var(--color-fg-muted); font-size: .8125rem; }
 .covered-calls__table.market-list__table tbody td:first-child { text-align: left; }
-/* A portfolio row's actions sit side by side, each no wider than the token page's trade panel. */
-/* A row's actions sit side by side, compact: each its figure, its button and, when held back, its reason. */
-.covered-calls__table .portfolio__actions > td > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); align-items: start; }
-.covered-calls__table .portfolio__actions .covered-call-panel { gap: var(--space-1); }
-.covered-calls__table .portfolio__actions .covered-call-panel__body, .covered-calls__table .portfolio__actions .covered-call-panel__form { gap: var(--space-1); }
-.covered-calls__table .portfolio__actions .token-swap__submit { min-block-size: 2.5rem; font-size: .9375rem; }
-.covered-calls__table .portfolio__actions .covered-call-panel__reason { font-size: .8125rem; }
-.covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-.covered-calls__panel h3 { margin: 0; font-size: 1rem; }
-.covered-calls__panel > .covered-call-panel { max-width: 30rem; }
-.covered-calls__sell { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); }
-/* While the market is read, the Sell tab keeps the form's height, so the Contract below stays put. */
-.covered-calls__waiting { min-block-size: 34rem; }
-.covered-calls__form, .covered-calls__guide { display: grid; gap: var(--space-3); min-width: 0; }
-.covered-calls__guide { padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+/* A listing's parts sit side by side, each its figure and, when it has a next step, its button. */
+.covered-calls__parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; padding: 0; list-style: none; }
+.covered-calls__parts > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: var(--space-1) var(--space-2); min-width: 0; padding-block-start: var(--space-1); border-block-start: 1px solid var(--hairline); }
+.covered-calls__parts strong { color: var(--color-fg-muted); font-size: .875rem; font-weight: var(--font-weight-regular, 400); }
+.covered-calls__parts span { font-variant-numeric: tabular-nums; text-align: right; }
+.covered-calls__parts .covered-call-panel { grid-column: 1 / -1; gap: var(--space-1); }
+.covered-calls__parts :is(.covered-call-panel__body, .covered-call-panel__form) { gap: var(--space-1); }
+.covered-calls__parts .token-swap__submit { min-block-size: 2.75rem; font-size: .9375rem; }
+.covered-calls__parts .covered-call-panel__reason { font-size: .8125rem; }
 .covered-calls__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
 .covered-calls__facts dt { color: var(--color-fg-muted); }
 .covered-calls__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
-.covered-calls__suggest { display: grid; gap: var(--space-2); }
-.covered-calls__suggest h3 { margin: 0; font-size: .9375rem; }
-.covered-calls__mini { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.covered-calls__mini th, .covered-calls__mini td { padding: var(--space-1) 0; text-align: left; font-weight: 400; vertical-align: top; }
-.covered-calls__mini td + td, .covered-calls__mini th + td { text-align: right; }
-.covered-calls__mini small { color: var(--color-fg-muted); }
-.covered-calls__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
-.covered-calls__more { font-size: .875rem; line-height: 1.5; }
-.covered-calls__more .rg-disclosure-body { color: var(--color-fg-muted); }
-.covered-calls__more .rg-disclosure-body > * { margin: 0; }
-.covered-calls__use { min-block-size: 2rem; padding-inline: var(--space-2); font-size: .8125rem; }
 .covered-calls__contract dd { min-width: 0; overflow-wrap: anywhere; }
-.covered-call-panel__hint { color: var(--color-fg-muted); font-size: .8125rem; }
 
 /* The panel works as the token page's Stake and Claim do: the form, and the review that opens
    over it (`.token-swap__stack`, `.token-swap__review`), share one cell. */
@@ -81,7 +136,7 @@
 .covered-call-panel__body, .covered-call-panel__form { display: grid; gap: var(--space-3); min-width: 0; align-content: start; }
 .covered-call-panel__body[inert] { opacity: .45; }
 .covered-call-panel__input { display: flex; align-items: center; gap: var(--space-2); }
-.covered-call-panel__input > :is(input, select) { flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
+.covered-call-panel__input > input { flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
 .covered-call-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
 .covered-call-panel__facts { display: grid; gap: var(--space-1); margin: 0; font-size: .875rem; }
 .covered-call-panel__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
@@ -94,25 +149,28 @@
 .covered-call-panel .token-swap__review { align-self: stretch; align-content: end; }
 
 @media (hover: none) and (pointer: coarse) {
-  .covered-calls__tabs a, .covered-call-panel input, .covered-call-panel select { min-block-size: 2.75rem; }
-  .covered-calls__use { min-block-size: 2.75rem; }
   .covered-calls__contract dd > a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+  .covered-calls__suggested, .covered-call-panel input { min-block-size: 2.75rem; }
+  /* A finger-sized Max that leaves the Amount row its height. */
+  .covered-calls__max { min-block-size: 2.75rem; min-inline-size: 2.75rem; margin-block: -.5rem; }
+  .rg-tip.covered-calls__spot .rg-tip-button.rg-tip-button--figure { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {
-  .covered-calls__sell, .covered-calls__steps { grid-template-columns: minmax(0, 1fr); }
-  .covered-calls__steps { gap: var(--space-2); }
-  .covered-calls__strip, .covered-calls__strip--panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .covered-calls__strip--panel > div:last-child { grid-column: 1 / -1; }
-  .covered-calls__each { display: none; }
-  .covered-calls__tabs a { padding-inline: var(--space-2); }
+  .covered-calls__ticket { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); padding: var(--space-3); }
+  .covered-calls__waiting { min-block-size: 89.625rem; }
+  .covered-calls__result { padding: var(--space-3) 0 0; border-inline-start: 0; border-block-start: 1px solid var(--hairline); }
+  .covered-calls__pills > button { padding: 0 2px; font-size: .875rem; }
+  .covered-calls__tabs [data-tab] { inline-size: 5.5rem; }
   .covered-calls__table tr.covered-calls__chosen { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-fg); }
   .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: none; }
   /* On a phone each listing is a block of labelled figures, never wider than the screen. */
   .covered-calls__table thead { display: none; }
-  .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
-  .covered-calls__table.market-list__table tbody td { padding: 0; text-align: left; }
+  .covered-calls__table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
+  .covered-calls__table.market-list__table tbody td { min-width: 0; padding: 0; text-align: left; white-space: normal; }
   .covered-calls__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
+  .covered-calls__closes { justify-items: start; }
+  .covered-calls__closes > span { justify-content: flex-start; }
   .covered-calls__table .covered-calls__row-action, .covered-calls__table .portfolio__actions > td { grid-column: 1 / -1; }
   .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }
 }

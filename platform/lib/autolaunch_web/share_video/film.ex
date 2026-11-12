@@ -438,7 +438,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
       #{graduation_svg(film, index, graduated?)}
       #{trading_svg(film, tip)}
       #{earnings_svg(film, tip, staked?)}
-      #{stake_svg(film, tip, index, staked?)}
+      #{stake_svg(film, index, staked?)}
       #{marks_svg(film, index)}
       #{notes_svg(film, index)}
       #{tip_svg(tip_x, tip_y, tag_color, @field, index)}
@@ -457,7 +457,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         label_layers(film, index) ++
         mark_layers(film, index) ++
         graduated_layers(film, index, graduated?) ++
-        stake_layers(film, tip, index, staked?) ++
+        stake_layers(film, staked?) ++
         [box_text(tag_box, tag)] ++
         if(earned_box, do: [box_text(earned_box, earned_tag)], else: []) ++
         stat_layers(film, price, earned, graduated?, staked?, index) ++
@@ -525,13 +525,17 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   # Along a line of `{at, value}` points, between the two around `at`.
   defp between(points, at) do
     case Enum.split_while(points, fn {point_at, _value} -> point_at < at end) do
-      {[], [{_at, value} | _rest]} -> value
-      {before, []} -> before |> List.last() |> elem(1)
-      {before, [{b, vb} | _rest]} -> between_two(List.last(before), {b, vb}, at)
+      {[], [{_at, value} | _rest]} ->
+        value
+
+      {before, []} ->
+        before |> List.last() |> elem(1)
+
+      {before, [{b, vb} | _rest]} ->
+        {a, va} = List.last(before)
+        va + (vb - va) * (at - a) / (b - a)
     end
   end
-
-  defp between_two({a, va}, {b, vb}, at), do: va + (vb - va) * (at - a) / (b - a)
 
   defp x(film, at) do
     plot = @x1 - @x0
@@ -692,9 +696,9 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     """
   end
 
-  defp stake_svg(_film, _tip, _index, false), do: ""
+  defp stake_svg(_film, _index, false), do: ""
 
-  defp stake_svg(film, _tip, index, true) do
+  defp stake_svg(film, index, true) do
     sx = x(film, film.stake.at)
     sy = y(film, price_at(film, film.stake.at))
     scale = pop((index - film.stake_frame) / @pop)
@@ -707,9 +711,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     """
   end
 
-  defp stake_layers(_film, _tip, _index, false), do: []
-
-  defp stake_layers(film, _tip, _index, true), do: [box_text(stake_box(film), film.words.stake)]
+  defp stake_layers(_film, false), do: []
+  defp stake_layers(film, true), do: [box_text(stake_box(film), film.words.stake)]
 
   defp stake_box(film) do
     sx = x(film, film.stake.at)
@@ -891,9 +894,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end)
   end
 
-  # The card's two figures as the line stands: a stake's own figures in
-  # gold, the FDV and price once trading, and through an auction its clearing
-  # price with, while it still runs, the time left as of the line's tip.
   # The card's two figures as the line stands: a stake's own figures in
   # gold, the FDV and price once trading, and through an auction its clearing
   # price and price per token.

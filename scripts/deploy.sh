@@ -46,15 +46,39 @@ git archive "$commit" | tar -x -C "$export_dir"
 cp platform/deployment/*.json "$export_dir/deployment/"
 cd "$export_dir"
 
-# Every site shares one production database, and a release briefly doubles a
-# site's connections, so releases from this machine take turns: the build and
-# release run under one lock that every site's deploy takes, and wait for it.
-lock=/tmp/regent-shared-db-release.lock
-echo "==> Deploying ${commit:0:7} to $app (waits for any other release holding $lock)"
-exec lockf -k "$lock" fly deploy . \
-  --config platform/fly.toml \
-  --app "$app" \
-  --ha=false \
-  --remote-only \
-  --build-arg SOURCE_COMMIT="$commit" \
-  --image-label "${commit:0:7}"
+tag="${commit:0:7}"
+
+# Every site shares one production database, and a switch to a new image briefly
+# doubles a site's connections. Two switches fit at once across all sites, so the
+# switch takes the first shared place if it is free and otherwise waits for the
+# second. It runs in the export folder too, for the [[files]] above.
+switch() {
+  local place=/tmp/regent-shared-db-release.lock
+  lockf -k -s -t 0 "$place" true || place=/tmp/regent-shared-db-release-2.lock
+  echo "==> Deploying registry.fly.io/$app:$tag (waits for $place if it is taken)"
+  lockf -k "$place" fly deploy \
+    --config platform/fly.toml \
+    --app "$app" \
+    --ha=false \
+    --image "registry.fly.io/$app:$tag"
+}
+
+# The build takes no shared place.
+release() {
+  echo "==> Building registry.fly.io/$app:$tag from commit $commit"
+  fly deploy . \
+    --config platform/fly.toml \
+    --app "$app" \
+    --build-only --push \
+    --remote-only \
+    --build-arg SOURCE_COMMIT="$commit" \
+    --image-label "$tag"
+  switch
+}
+
+# One deploy of this site at a time; other sites' deploys never wait on it.
+lock="/tmp/regent-release-$app.lock"
+echo "==> Waiting for any other $app deploy holding $lock"
+export app commit tag
+export -f release switch
+exec lockf -k "$lock" bash -euo pipefail -c release

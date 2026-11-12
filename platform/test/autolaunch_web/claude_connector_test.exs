@@ -2,9 +2,9 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   @moduledoc """
   The Claude connector through this site's own endpoint, router, sign-in and
   agent records, as the template's is: off, nothing about agents changes; on,
-  one connected account pairs one hosted agent, checks in, and loses access when
-  it disconnects; with the agent permission, a paired app works here as its
-  agent. The hosted signer and the SIWA service are stubbed; the rest is the
+  each app an account connects pairs its own hosted agent, checks in, and loses
+  access when it disconnects; with the agent permission, a paired app works here
+  as its agent. The hosted signer and the SIWA service are stubbed; the rest is the
   site's.
   """
   use AutolaunchWeb.ConnCase, async: false
@@ -27,7 +27,6 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
     "x-siwa-receipt" => "receipt",
     "x-key-id" => "k",
     "x-timestamp" => "1",
-    "x-agent-wallet-address" => @wallet,
     "x-agent-chain-id" => "8453"
   }
   # Every request the hosted signer may be asked to sign for this site.
@@ -41,10 +40,11 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   setup do
     test = self()
 
-    # The SIWA service verifies every signed request as the one hosted wallet's.
+    # The SIWA service verifies every signed request as the wallet that signed it.
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
-      send(test, {:verify, conn.req_headers, body, Jason.decode!(body)})
+      payload = Jason.decode!(body)
+      send(test, {:verify, conn.req_headers, body, payload})
 
       Req.Test.json(conn, %{
         "code" => "http_envelope_valid",
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
           "verified" => true,
           "principal" => %{
             "kind" => "wallet",
-            "wallet_address" => @wallet,
+            "wallet_address" => payload["headers"]["x-agent-wallet-address"],
             "chain_id" => 8453,
             "audience" => "autolaunch"
           },
@@ -132,7 +132,8 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
 
     test "pair_identity makes one paired agent of the authorizing account, from that account's own code only" do
       subject = subject!()
-      %{access: token} = connect!(subject)
+      %{client_id: client, access: token} = connect!(subject)
+      wallet = wallet(subject, client)
 
       # Another account's code is refused before anything is signed.
       other = subject!()
@@ -152,7 +153,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert_received {:verify, _headers, _raw, payload}
       assert payload["body_digest"] == Siwa.content_digest_for_body(signed["body"])
 
-      assert [%{harness: :claude, wallet: @wallet, name: "Claude"}] = agents(subject)
+      assert [%{harness: :claude, wallet: ^wallet, name: "Claude"}] = agents(subject)
     end
 
     test "a first request with no token is asked to connect, so the app starts its sign-in" do
@@ -247,9 +248,9 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       end
     end
 
-    test "the hosted signer signs only the identity requests, as the account's one identity, and the connection's token stays here" do
+    test "the hosted signer signs only the identity requests, as this app's one identity, and the connection's token stays here" do
       subject = subject!()
-      %{access: token} = connect!(subject)
+      %{client_id: client, access: token} = connect!(subject)
 
       assert %{"isError" => false} = tool(token, "register_identity")
       assert %{"isError" => false} = tool(token, "get_identity")
@@ -261,7 +262,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
 
       assert %{"error" => _} = json(post_mcp(rpc("tools/call", %{"name" => "post"}), token))
 
-      key = RegentMCPAgents.identity_key("autolaunch", subject)
+      key = key(subject, client)
       asked = signer_asks()
 
       for {auth, raw, ask} <- asked do
@@ -281,7 +282,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       end
     end
 
-    test "reconnecting or refreshing keeps the one hosted identity and the one agent" do
+    test "a refreshed token keeps its app's identity and agent; another app of the account starts unpaired" do
       subject = subject!()
       first = connect!(subject)
 
@@ -290,18 +291,31 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
 
       [%{id: agent_id}] = agents(subject)
 
-      again = connect!(subject)
       assert {200, %{"access_token" => refreshed}} = refresh(first.client_id, first.refresh)
 
-      for token <- [again.access, refreshed] do
-        assert %{"structuredContent" => %{"paired" => true, "identity_id" => id}} =
-                 tool(token, "get_identity")
+      assert %{"structuredContent" => %{"paired" => true, "identity_id" => id}} =
+               tool(refreshed, "get_identity")
 
-        assert id == RegentMCPAgents.identity_key("autolaunch", subject)
-        assert %{"isError" => false} = tool(token, "check_in")
-      end
+      assert id == key(subject, first.client_id)
+      assert %{"isError" => false} = tool(refreshed, "check_in")
 
+      # A second app the same person connects has its own identity, unpaired.
+      second = connect!(subject)
+
+      assert %{"structuredContent" => %{"paired" => false, "identity_id" => second_id}} =
+               tool(second.access, "get_identity")
+
+      assert second_id == key(subject, second.client_id)
+      refute second_id == id
+      assert %{"isError" => true} = tool(second.access, "check_in")
       assert [%{id: ^agent_id}] = agents(subject)
+
+      # With a code of its own it pairs as a second agent, with its own wallet.
+      assert %{"isError" => false} =
+               tool(second.access, "pair_identity", pair_args(code!(subject)))
+
+      assert agents(subject) |> Enum.map(& &1.wallet) |> Enum.sort() ==
+               Enum.sort([wallet(subject, first.client_id), wallet(subject, second.client_id)])
     end
 
     test "only a check-in moves when the agent was last in touch" do
@@ -388,13 +402,34 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       refute "autolaunch_auction_counts" in tool_names(token)
     end
 
+    test "a second app of an account already paired through another app has its identity tools only" do
+      subject = subject!()
+      %{access: first} = connect!(subject, @agent_scopes)
+      assert %{"isError" => false} = tool(first, "pair_identity", pair_args(code!(subject)))
+      assert "autolaunch_auction_counts" in tool_names(first)
+
+      # Same account, same name, the agent permission: still not the paired agent.
+      %{access: token} = connect!(subject, @agent_scopes)
+      assert Enum.sort(tool_names(token)) == Enum.sort(RegentMCPAgents.Tools.names())
+      assert %{"error" => _} = json(post_mcp(counts_call(), token))
+      assert %{"structuredContent" => %{"paired" => false}} = tool(token, "get_identity")
+      assert [_only] = agents(subject)
+    end
+
     test "another account's token never acts as the first account's paired agent" do
       paired = subject!()
       other = subject!()
       %{access: first} = connect!(paired, @agent_scopes)
       assert %{"isError" => false} = tool(first, "pair_identity", pair_args(code!(paired)))
 
-      # The hosted signer answers every account with the same wallet, paired to the first.
+      # Even a hosted signer that answered every account with the first one's
+      # paired wallet would not make the other account its agent.
+      [%{wallet: wallet}] = agents(paired)
+
+      Req.Test.stub(RegentMCPAgents.HostedSigner, fn conn ->
+        Req.Test.json(conn, %{"address" => wallet})
+      end)
+
       %{access: token} = connect!(other, @agent_scopes)
       refute "autolaunch_auction_counts" in tool_names(token)
       assert %{"error" => _} = json(post_mcp(counts_call(), token))
@@ -457,7 +492,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert [%{last_contact_at: ^paired_at}] = agents(subject)
     end
 
-    test "the hosted signer is asked for the account's address once, not on every call" do
+    test "the hosted signer is asked for the app's address once, not on every call" do
       subject = subject!()
       %{access: token} = connect!(subject, @agent_scopes)
       for _ <- 1..3, do: post_mcp(rpc("ping"), token)
@@ -598,19 +633,21 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
 
     test = self()
 
-    # The hosted signer registers the identity and signs what it is asked to, as
-    # the one hosted wallet.
+    # The hosted signer registers each identity and signs what it is asked to, as
+    # that identity's own wallet.
     Req.Test.stub(RegentMCPAgents.HostedSigner, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
       asked = Jason.decode!(body)
       send(test, {:signer, get_req_header(conn, "authorization"), body, asked})
+      wallet = identity_wallet(asked["identity_key"])
 
       case asked do
         %{"operation" => "register"} ->
-          Req.Test.json(conn, %{"address" => @wallet})
+          Req.Test.json(conn, %{"address" => wallet})
 
         %{"operation" => "sign", "request" => r} ->
-          Req.Test.json(conn, Map.put(r, "headers", @signed))
+          headers = Map.put(@signed, "x-agent-wallet-address", wallet)
+          Req.Test.json(conn, Map.put(r, "headers", headers))
       end
     end)
 
@@ -726,6 +763,7 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
 
     conn
     |> put_req_header("x-siwa-signature", "fixture-proof")
+    |> put_req_header("x-agent-wallet-address", @wallet)
     |> endpoint()
   end
 
@@ -740,6 +778,11 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   defp pair_args(code), do: %{"code" => code, "name" => "Claude", "harness" => "claude"}
 
   defp person(subject), do: %RegentAgents.Person{privy_user_id: subject}
+
+  # Each connected app's identity for an account, and that identity's own wallet.
+  defp key(subject, client), do: RegentMCPAgents.identity_key("autolaunch", subject, client)
+  defp wallet(subject, client), do: identity_wallet(key(subject, client))
+  defp identity_wallet(key), do: "0x" <> binary_part(key, 0, 40)
 
   defp code!(subject), do: RegentAgents.issue_pairing_code!(actor: person(subject)).code
 

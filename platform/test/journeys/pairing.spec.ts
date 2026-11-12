@@ -25,12 +25,11 @@ test("P1-P10: an agent signs in, its person pairs it in the pairing window, it c
   expect(readFileSync(join(agent.home, "key.json"), "utf8")).toBe(key)
   expect(statSync(join(agent.home, "key.json")).mode & 0o077).toBe(0)
 
-  // P2: unpaired, it is told so and what its person does next, with no Points.
+  // P2: unpaired, it is told so and what its person does next.
   answer = agent.autolaunch(["agents", "whoami"])
   expect(answer.status, answer.stderr).toBe(0)
   expect(answer.json.data).toMatchObject({status: "not_paired", pairing: null})
   expect(answer.json.data.next_step).toContain("Pair New Agent on their Agents page")
-  expect(agent.autolaunch(["account", "points"]).json.error.code).toBe("agent_not_paired")
 
   // P3: the person opens Pair New Agent from the account menu on every page they
   // might be on, the developer guide among the pages drawn without LiveView, and it
@@ -102,7 +101,7 @@ test("P1-P10: an agent signs in, its person pairs it in the pairing window, it c
   await fitsAndPresses(page, touch)
 
   // P9: paired reads answer for Person A.
-  for (const command of [["drafts", "memestock", "show"], ["positions"], ["account", "balances"]]) {
+  for (const command of [["drafts", "memestock", "show"], ["positions"]]) {
     answer = agent.autolaunch(command)
     expect(answer.status, `${command.join(" ")}: ${answer.stdout}`).toBe(0)
   }

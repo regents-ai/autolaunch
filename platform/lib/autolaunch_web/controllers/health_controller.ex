@@ -54,6 +54,8 @@ defmodule AutolaunchWeb.HealthController do
       {:error, _error} -> false
     end
   rescue
+    # A repository that is not running raises or exits instead of answering;
+    # the check still answers that the site is not ready.
     _error -> false
   catch
     :exit, _reason -> false

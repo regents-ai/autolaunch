@@ -53,8 +53,14 @@ defmodule Autolaunch.BidReceipt do
     with {:ok, next_id} <- uint(address, "nextBidId()", block, opts),
          :ok <- placed(bid_id, next_id),
          {:ok, bid} <- bid(address, bid_id, block, opts),
-         {:ok, now} <- checkpoint(address, "checkpoint()", block, opts),
-         {:ok, start} <- stored_checkpoint(address, bid.start_block, block, opts),
+         {:ok, now} <- checkpoint(address, LabAbi.selector("checkpoint()"), block, opts),
+         {:ok, start} <-
+           checkpoint(
+             address,
+             LabAbi.selector("checkpoints(uint64)") <> word(bid.start_block),
+             block,
+             opts
+           ),
          {:ok, finish} <- uint(address, "endBlock()", block, opts),
          {:ok, graduated?} <- CcaSettlement.graduated(address, block, opts) do
       outcome = outcome(graduated?, block.number >= finish)
@@ -103,11 +109,8 @@ defmodule Autolaunch.BidReceipt do
     end
   end
 
-  defp stored_checkpoint(address, block_number, block, opts),
-    do: checkpoint(address, "checkpoints(uint64)", block, opts, word(block_number))
-
-  defp checkpoint(address, signature, block, opts, argument \\ "") do
-    case Rpc.call_words(address, LabAbi.selector(signature) <> argument, block, 6, opts) do
+  defp checkpoint(address, data, block, opts) do
+    case Rpc.call_words(address, data, block, 6, opts) do
       {:ok, [clearing, _raised, per_price, cumulative_mps, _prev, _next]} ->
         {:ok, %{clearing: clearing, per_price: per_price, cumulative_mps: cumulative_mps}}
 

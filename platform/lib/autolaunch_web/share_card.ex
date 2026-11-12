@@ -145,7 +145,7 @@ defmodule AutolaunchWeb.ShareCard do
       url: url(~p"/how-it-works"),
       image: url(~p"/images/og-how-it-works.png"),
       image_alt:
-        "How Autolaunch works: Revstake has 100 billion tokens and a 48 hour auction; Memestock has 1 billion tokens and a 24 hour auction."
+        "How Autolaunch works: Revstake has 100 billion tokens priced in REGENT; Memestock has 1 billion tokens paired with a stock."
     }
   end
 

@@ -80,22 +80,13 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @doc "One launch's auction, migration block and state."
   def launch(%{launchpad: :base_revstake} = pad, launch_id, block) do
-    with {:ok, launch} <-
-           words(pad.contract, pad.abi, "launches(uint256)", [launch_id], 5, block, pad),
+    with {:ok, launch} <- words(pad, :contract, "launches(uint256)", [launch_id], 5, block),
          do: distribution(pad, address(Enum.at(launch, 2)), block)
   end
 
   def launch(pad, launch_id, block) do
     with {:ok, words} <-
-           words(
-             pad.contract,
-             pad.abi,
-             "launches(uint256)",
-             [launch_id],
-             pad.shape.record_words,
-             block,
-             pad
-           ) do
+           words(pad, :contract, "launches(uint256)", [launch_id], pad.shape.record_words, block) do
       launch = pad.records.record(pad.shape, words)
 
       {:ok,
@@ -130,13 +121,12 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   defp distribution(pad, auction, block) do
     with {:ok, distribution} <-
            words(
-             pad.strategy,
-             pad.strategy_abi,
+             pad,
+             :strategy,
              "distribution(address)",
              [auction],
              LabAbi.distribution_words(),
-             block,
-             pad
+             block
            ) do
       distribution = LabAbi.distribution(distribution)
 
@@ -210,8 +200,18 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   defp robinhood(error, _version), do: error
 
-  defp words(to, abi, signature, arguments, count, block, pad),
-    do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, pad.opts)
+  @doc """
+  `count` words a launchpad answers at `block`: from its own contract, or from
+  the strategy that holds a Revstake launchpad's auctions.
+  """
+  def words(pad, :contract, signature, arguments, count, block),
+    do: call_words(pad.contract, pad.abi, signature, arguments, count, block, pad.opts)
+
+  def words(pad, :strategy, signature, arguments, count, block),
+    do: call_words(pad.strategy, pad.strategy_abi, signature, arguments, count, block, pad.opts)
+
+  defp call_words(to, abi, signature, arguments, count, block, opts),
+    do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, opts)
 
   defp address(word),
     do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(word, 16)), 40, "0")

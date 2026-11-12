@@ -13,8 +13,6 @@ defmodule AutolaunchWeb.TestFundsComponent do
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
 
-  def available?, do: Faucet.available?()
-
   @impl true
   def mount(socket), do: {:ok, Session.check_component_lease(socket, &take_account/2)}
 
@@ -55,7 +53,8 @@ defmodule AutolaunchWeb.TestFundsComponent do
         receiving wallet shown below.
       </p>
       <p :if={@signed_in} class="autolaunch-draft-hint">
-        Receiving wallet: <span class="launch-wallet-mono">{@signed_in}</span>
+        Receiving wallet:
+        <Regent.Primitives.address id={"#{@id}-wallet"} address={@signed_in} chain="test" />
       </p>
       <div :if={@signed_in} class="launch-wallet-controls">
         <Regent.Primitives.button

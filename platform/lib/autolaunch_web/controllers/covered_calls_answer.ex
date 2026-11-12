@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
   alias AutolaunchWeb.ApiError
 
   @integer_fields ~w(listing_id amount strike_per_token premium_per_token expiry)
+  @quote_fields ~w(expiry amount strike_per_token premium_per_token)
 
   @chain_unavailable {:service_unavailable,
                       "Covered calls could not be read from the chain just now."}
@@ -56,6 +57,17 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
   def body(reason) do
     {_status, message} = Map.fetch!(@refusals, reason)
     ApiError.body(Atom.to_string(reason), message)
+  end
+
+  @doc """
+  A quote request's body as the quote action's inputs, or `:error` when it
+  names a field the action does not take or gives one that is not a whole
+  number. A missing expiry is the action's to refuse.
+  """
+  def quote_input(body) do
+    if Enum.all?(body, fn {key, value} -> key in @quote_fields and is_integer(value) end),
+      do: {:ok, body},
+      else: :error
   end
 
   @doc """

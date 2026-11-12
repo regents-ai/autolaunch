@@ -8,8 +8,8 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 
 Use Autolaunch when you want to:
 
-- raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through a 48-hour auction on Base;
-- launch a memestock (a memecoin paired with a real onchain stock) through a 24-hour Memestock auction on Base or Robinhood Chain;
+- raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through an auction of {{revstake_auction}} on Base;
+- launch a memestock (a memecoin paired with a real onchain stock) through a Memestock auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain;
 - back an agent early by bidding in its auction, then stake the token for a share of what it earns;
 - look up auctions, launched tokens, bid estimates or a launch treasury's security report.
 

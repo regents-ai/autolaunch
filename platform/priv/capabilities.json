@@ -157,28 +157,6 @@
       }
     },
     {
-      "operation": "account_balances",
-      "authority": "paired_agent",
-      "switch": null,
-      "surfaces": {
-        "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
-        "http": true,
-        "cli": true
-      }
-    },
-    {
-      "operation": "account_credits_history",
-      "authority": "paired_agent",
-      "switch": null,
-      "surfaces": {
-        "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
-        "http": true,
-        "cli": true
-      }
-    },
-    {
       "operation": "account_points",
       "authority": "paired_agent",
       "switch": null,

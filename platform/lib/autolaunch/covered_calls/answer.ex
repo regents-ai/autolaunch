@@ -65,7 +65,8 @@ defmodule Autolaunch.CoveredCalls.Answer do
        read_at: positions.read_at,
        unit: positions.book.unit,
        sold: Enum.map(positions.sold, &listing(&1, positions.now)),
-       holdings: positions.holdings
+       holdings: positions.holdings,
+       balance: positions.balance
      }}
   end
 

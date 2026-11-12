@@ -14,6 +14,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
   @moduletag :capture_log
   @fixture Path.expand("../../fixtures/covered-calls-deployment.json", __DIR__)
+  @documented "../../../contracts/covered-calls.openapiv3.yaml"
+              |> Path.expand(__DIR__)
+              |> YamlElixir.read_from_file!()
+              |> get_in(["components", "schemas"])
   @contract "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
   @stock "0xb200000000000000000000d9192b6b456483c2e8"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
@@ -195,7 +199,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     end
   end
 
-  test "the public book shows each listing's stage and what is left, and the quote suggests a premium",
+  test "the public book shows each listing's stage and what is left, and the quote prices a listing",
        %{conn: conn} do
     switch(:on)
     chain()
@@ -227,6 +231,46 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
              quote["data"]
 
     assert premium > 0 and premium < 20_000_000
+    assert %{"amount" => nil, "receipt" => nil, "premium_per_token" => ^premium} = quote["data"]
+
+    priced =
+      build_conn()
+      |> send_json("POST", "/api/v1/covered-calls/AMZNc/quote", %{
+        "expiry" => expiry(),
+        "amount" => 3 * @token + 1,
+        "premium_per_token" => 2_500_000
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    # Every field the contract documents, and only those, down to each preset and the receipt.
+    assert Enum.sort(Map.keys(priced)) == documented_keys("CoveredCallQuoteEnvelope", "data")
+    assert Enum.sort(Map.keys(priced["receipt"])) == documented_keys("CoveredCallReceipt")
+
+    assert Enum.all?(
+             priced["presets"],
+             &(Enum.sort(Map.keys(&1)) == documented_keys("CoveredCallPreset"))
+           )
+
+    assert Enum.all?(
+             priced["expiries"],
+             &(Enum.sort(Map.keys(&1)) == documented_keys("CoveredCallExpiry"))
+           )
+
+    assert [%{"strike_per_token" => 235_000_000}, %{"strike_per_token" => middle}, _far] =
+             priced["presets"]
+
+    assert priced["strike_per_token"] == middle
+
+    # Three tokens and one raw unit at $2.50 is $7.50 and a rounded-up micro-USDC, less 1% rounded up.
+    assert %{"premium" => 7_500_001, "fee" => 75_001, "net_premium" => 7_425_000} =
+             priced["receipt"]
+
+    assert hd(priced["expiries"]) == %{
+             "expiry" => expiry(),
+             "exercise_opens_at" => expiry(),
+             "exercise_closes_at" => expiry() + Terms.exercise_window()
+           }
   end
 
   test "the public routes refuse an unknown market, an expiry that is not a Friday close and unknown fields",
@@ -252,6 +296,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert quote.(%{"strike_per_token" => "250", "expiry" => expiry()})
            |> json_response(422)
            |> code() == "invalid_request"
+
+    for body <- [%{"amount" => @token}, %{"expiry" => expiry(), "amount" => 0}] do
+      assert quote.(body) |> json_response(422) |> code() == "invalid_request"
+    end
   end
 
   test "a signed agent's steps are built only for a wallet of the account it acts for" do
@@ -422,7 +470,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
   test "the signed-in route needs a sign-in and reads only the signed-in wallet", %{conn: conn} do
     switch(:on)
-    chain(%{held: 3 * @token})
+    chain(%{held: 3 * @token, balance: 7 * @token})
 
     assert conn |> get("/api/v1/me/covered-calls/AMZNc") |> json_response(401) |> code() ==
              "authentication_required"
@@ -432,11 +480,23 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     mine = conn |> get("/api/v1/me/covered-calls/AMZNc") |> json_response(200)
     wallet = String.downcase(account.wallet_address)
 
-    assert %{"wallet" => ^wallet, "holdings" => [%{"listing_id" => 1, "held" => held}]} =
-             mine["data"]
+    assert %{
+             "wallet" => ^wallet,
+             "holdings" => [%{"listing_id" => 1, "held" => held}],
+             "balance" => balance
+           } = mine["data"]
 
     assert held == 3 * @token
+    # The wallet's own stock, the most it can list now.
+    assert balance == 7 * @token
   end
 
   defp code(body), do: body["error"]["code"]
+
+  # The field names the covered-call contract documents for `schema`, or for its `field` object.
+  defp documented_keys(schema, field \\ nil) do
+    schema = @documented[schema]
+    schema = if field, do: schema["properties"][field], else: schema
+    schema["properties"] |> Map.keys() |> Enum.sort()
+  end
 end

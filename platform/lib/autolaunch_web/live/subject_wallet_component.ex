@@ -18,8 +18,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   import AutolaunchWeb.Components.StepState
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Client
   alias Autolaunch.{Limits, SubjectWalletActions}
   alias AutolaunchWeb.Components.SwapForm
   alias AutolaunchWeb.Live.Session
@@ -122,7 +120,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         <dl class="subject-wallet-balances" hidden={!!@review}>
           <div>
             <dt>Wallet</dt>
-            <dd class="subject-wallet-mono">{RegentFormat.short_address(@state.signer)}</dd>
+            <dd>
+              <Regent.Primitives.address
+                id={"#{@id}-wallet"}
+                address={@state.signer}
+                variant="compact"
+              />
+            </dd>
           </div>
           <div :for={asset <- @assets}>
             <dt>{asset_label(asset.key, @symbol)}</dt>
@@ -159,10 +163,16 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
                 autocomplete="off"
                 placeholder="0.0"
               />
+              <%!-- Max fills the box in the browser at the press, so a press
+                   straight after it carries the amount however long the server takes. --%>
               <Regent.Primitives.button
                 type="button"
-                phx-click="fill_subject_amount"
-                phx-target={@myself}
+                phx-click={
+                  JS.dispatch("autolaunch:fill",
+                    to: "##{@id}-amount",
+                    detail: %{value: maximum(@asset, @state)}
+                  )
+                }
                 variant="secondary"
               >
                 Max
@@ -171,7 +181,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </div>
 
           <p :if={@state.receiver} class="subject-wallet-hint">
-            Payment address {RegentFormat.short_address(@state.receiver.address)}
+            Payment address
+            <Regent.Primitives.address
+              id={"#{@id}-receiver"}
+              address={@state.receiver.address}
+              variant="compact"
+            />
           </p>
           <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
 
@@ -225,7 +240,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
               </div>
               <div>
                 <dt>Wallet</dt>
-                <dd class="subject-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+                <dd>
+                  <Regent.Primitives.address
+                    id={"#{@id}-signer"}
+                    address={@review.signer}
+                    variant="compact"
+                  />
+                </dd>
               </div>
               <div>
                 <dt>Network</dt>
@@ -255,8 +276,14 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
                 <TokenDisplay.marked text={step.label} tickers={[@symbol, "USDC", "REGENT"]} />
               </span>
               <.step_state state={chip(step)} />
-              <span class="subject-wallet-mono" hidden={!step.entry}>
-                {step.entry && RegentFormat.short_hash(step.entry.hash)}
+              <span hidden={!step.entry}>
+                <Regent.Primitives.address
+                  :if={step.entry}
+                  id={"#{@id}-#{step.name}-hash"}
+                  address={step.entry.hash}
+                  kind="tx"
+                  chain={if Autolaunch.Lab.test_chain?(), do: "test", else: "base"}
+                />
               </span>
             </li>
           </ol>
@@ -275,6 +302,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </p>
           <p class="subject-wallet-notice" role="status" hidden={!@press_note}>{@press_note}</p>
           <SwapForm.wallet_step
+            id={@id <> "-sender"}
             next_step={next_step(@steps)}
             steps={@steps}
             reverted={reverted(@steps)}
@@ -315,16 +343,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, socket |> followed() |> read_state()}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> read_state()}
 
   def handle_event("subject_form_changed", params, socket) do
     {:noreply,
@@ -334,9 +354,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
        notice: nil
      )}
   end
-
-  def handle_event("fill_subject_amount", _params, socket),
-    do: {:noreply, assign(socket, amount: maximum(socket.assigns), notice: nil)}
 
   def handle_event("review_subject_action", params, socket) do
     case action_kind(params["kind"]) do
@@ -348,19 +365,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:subject, reason)
-        %{linked: linked, active: active, review: review} = socket.assigns
-        chain_name = review && review.chain.name
-        note = OnchainSteps.failure_note(reason, linked, active, chain_name)
-        {:noreply, assign(socket, press_note: note)}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :subject, nil)}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
@@ -374,9 +380,15 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   @impl true
   def handle_async(:state, {:ok, {wallet, result}}, socket) do
     cond do
-      wallet != shown_wallet(socket.assigns) -> {:noreply, socket}
-      match?({:ok, _state}, result) -> {:noreply, assign(socket, state: elem(result, 1))}
-      true -> {:noreply, assign(socket, state: nil, notice: copy(refusal(elem(result, 1))))}
+      wallet != shown_wallet(socket.assigns) ->
+        {:noreply, socket}
+
+      match?({:ok, _state}, result) ->
+        {:noreply, assign(socket, state: elem(result, 1))}
+
+      true ->
+        {:noreply,
+         assign(socket, state: nil, notice: copy(OnchainSteps.refusal(elem(result, 1))))}
     end
   end
 
@@ -386,15 +398,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
-  def handle_async({:result, hash}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
-
-    {:noreply, routed(socket, hash, logs)}
-  end
+  def handle_async({:result, hash}, result, socket),
+    do: {:noreply, routed(socket, hash, OnchainSteps.receipt_logs(result))}
 
   # The wallet that may act, and the balances the card shows.
 
@@ -485,7 +490,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
            signer,
            kind,
            params,
-           opts(socket)
+           OnchainSteps.opts(socket)
          ) do
       {:ok, prepared} ->
         review = Review.new(socket.assigns.id, signer, prepared.chain, prepared.steps)
@@ -501,7 +506,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         |> OnchainSteps.put_review(review)
 
       {:error, error} ->
-        assign(socket, notice: copy(refusal(error)))
+        assign(socket, notice: copy(OnchainSteps.refusal(error)))
     end
   end
 
@@ -511,8 +516,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # A confirmed payment is read from its receipt; an approval needs nothing
   # more, since the payment's button is already on the page.
-  defp confirmed(socket, %{name: "action", hash: hash, review: review}),
-    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+  defp confirmed(socket, %{name: "action"} = entry), do: OnchainSteps.read_receipt(socket, entry)
 
   defp confirmed(socket, _approval), do: socket
 
@@ -532,14 +536,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp steps(%{review: %{} = review, prepared: prepared, presses: presses, symbol: symbol}) do
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-
-      %{
-        name: name,
-        label: step_label(name, prepared.facts, symbol),
-        state: state(entry),
-        entry: entry
-      }
+      OnchainSteps.step(presses, review, name, step_label(name, prepared.facts, symbol))
     end)
   end
 
@@ -552,15 +549,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   # review yet, or one that did not go through. A sent approval moves the
   # button on to the payment at once.
   defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
-
-  defp state(nil), do: :ready
-
-  defp state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp state(%{outcome: :confirmed}), do: :done
-  defp state(%{outcome: :reverted}), do: :reverted
-  defp state(_not_this_step), do: :other
 
   defp chip(%{state: :ready}), do: "Ready"
   defp chip(%{state: state}) when state in [:sent, :stalled], do: "Sent"
@@ -650,28 +638,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     }
   end
 
-  defp maximum(%{asset: asset, state: %{balances: balances}}),
-    do: Map.get(balances, asset_key(asset), "")
-
-  defp maximum(_assigns), do: ""
+  defp maximum(asset, %{balances: balances}), do: Map.get(balances, asset_key(asset), "")
+  defp maximum(_asset, _unread), do: ""
 
   defp waiting(receiver, asset), do: Map.get(receiver.balances, asset_key(asset))
 
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
-
   defp copy(reason), do: Map.get(@copy, reason, @generic)
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

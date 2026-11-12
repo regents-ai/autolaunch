@@ -24,8 +24,12 @@ defmodule Autolaunch.LaunchDraftImageStorage do
         %Human{human_account_id: owner_id} = actor
       )
       when is_binary(bytes) do
-    with {:ok, _type} <- validate(bytes, declared_type) do
-      transact(draft, bytes, declared_type, original_filename, sha256(bytes), actor)
+    with {:ok, _type} <- ImageValidator.validate(bytes, declared_type) do
+      digest = :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
+
+      Ash.DataLayer.transaction(LaunchDraft, fn ->
+        store_transaction(draft, bytes, declared_type, original_filename, digest, actor)
+      end)
     end
   end
 
@@ -37,23 +41,13 @@ defmodule Autolaunch.LaunchDraftImageStorage do
     AutolaunchWeb.Endpoint.url() <> "/images/#{id}/#{digest}"
   end
 
-  @spec validate(binary(), String.t()) :: {:ok, String.t()} | {:error, atom()}
-  defdelegate validate(bytes, declared_type), to: ImageValidator
-
-  defp transact(draft, bytes, content_type, original_filename, digest, actor) do
-    Ash.DataLayer.transaction(LaunchDraft, fn ->
-      store_transaction(draft, bytes, content_type, original_filename, digest, actor)
-    end)
-  end
-
   defp store_transaction(expected, bytes, content_type, original_filename, digest, actor) do
     with {:ok, draft} <- locked_draft(expected.id, actor),
          :ok <- unchanged_selection(draft, expected),
          {:ok, image, reused?} <-
            existing_or_store(draft, bytes, content_type, original_filename, digest, actor),
-         url <- public_url(image),
-         :ok <- bounded_url(url),
-         {:ok, _attached} <- attach(draft, image, actor),
+         :ok <- bounded_url(public_url(image)),
+         {:ok, _attached} <- Autolaunch.attach_launch_draft_image(draft, image.id, actor: actor),
          {:ok, attached} <- Autolaunch.get_my_launch_draft(draft.id, actor: actor) do
       %{image: image, draft: attached, reused?: reused?}
     else
@@ -71,7 +65,15 @@ defmodule Autolaunch.LaunchDraftImageStorage do
   defp existing_or_store(draft, bytes, content_type, original_filename, digest, actor) do
     case Autolaunch.get_my_launch_draft_image_for_reuse(draft.id, digest, actor: actor) do
       {:ok, nil} ->
-        create_image(draft, bytes, content_type, original_filename, actor)
+        with {:ok, image} <-
+               Autolaunch.create_launch_draft_image(
+                 bytes,
+                 content_type,
+                 original_filename,
+                 draft.id,
+                 actor: actor
+               ),
+             do: {:ok, image, false}
 
       {:ok,
        %{
@@ -91,26 +93,6 @@ defmodule Autolaunch.LaunchDraftImageStorage do
     end
   end
 
-  defp create_image(draft, bytes, content_type, original_filename, actor) do
-    case Autolaunch.create_launch_draft_image(
-           bytes,
-           content_type,
-           original_filename,
-           draft.id,
-           actor: actor
-         ) do
-      {:ok, image} ->
-        {:ok, image, false}
-
-      {:error, error} ->
-        {:error, error}
-    end
-  end
-
-  defp attach(draft, image, actor) do
-    Autolaunch.attach_launch_draft_image(draft, image.id, actor: actor)
-  end
-
   defp unchanged_selection(draft, expected) do
     if draft.launch_draft_image_id == expected.launch_draft_image_id,
       do: :ok,
@@ -119,8 +101,6 @@ defmodule Autolaunch.LaunchDraftImageStorage do
 
   defp bounded_url(url) when is_binary(url) and byte_size(url) <= 256, do: :ok
   defp bounded_url(_url), do: {:error, :image_url_too_long}
-
-  defp sha256(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 
   defp normalize_error(%{errors: errors} = error) when is_list(errors) do
     cond do

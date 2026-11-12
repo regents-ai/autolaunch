@@ -223,7 +223,6 @@ defmodule Autolaunch.Stocks.LabAbi do
       lane_settled: %{regent: @regent_lane_settled, stakers: @staker_lane_settled}
     }
 
-  def requirements, do: @required
   def launch_record_words, do: length(@launch_fields)
 
   @doc "One `launches(uint256)` answer, by field, read with its version's shape."
@@ -232,16 +231,9 @@ defmodule Autolaunch.Stocks.LabAbi do
 
   def launch_signature, do: "launch(#{@launch_params})"
   def launch_created_signature, do: @launch_created
-  def launch_graduated_signature, do: @launch_graduated
-  def splitter_created_signature, do: @splitter_created
   def bid_placed_signature, do: @bid_placed
-  def hook_fee_accrued_signature, do: @hook_fee_accrued
-  def creator_lane_settled_signature, do: @creator_lane_settled
-  def regent_lane_settled_signature, do: @regent_lane_settled
   def staker_lane_settled_signature, do: @staker_lane_settled
   def fees_deposited_signature, do: @fees_deposited
-  def staked_signature, do: @staked
-  def unstaked_signature, do: @unstaked
   def claimed_signature, do: @claimed
   def creator_vesting_released_signature, do: @creator_vesting_released
   def validate(abis), do: LabAbi.validate(abis, @required)

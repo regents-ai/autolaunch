@@ -25,7 +25,7 @@ defmodule Autolaunch.Robinhood.Positions do
   alias Autolaunch.Actors.System
   alias Autolaunch.{AuctionBook, LabAbi}
   alias Autolaunch.Chain.{Abi, CcaSettlement, Rpc}
-  alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
+  alias Autolaunch.Robinhood.{Lab, Launchpad}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Amounts
   alias RegentChain.Address
@@ -103,13 +103,9 @@ defmodule Autolaunch.Robinhood.Positions do
   defp listed_token(_listing), do: {:ok, nil}
 
   defp read_positions(wallet) do
-    with {:ok, config} <- Lab.current(),
-         opts = Lab.rpc_opts(config),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, clock} <- BlockClock.read(block, opts),
-         {:ok, auctions} <- Auctions.at(config, block, opts) do
-      venue = %{abi: Lab.abi!(config, :auction), block: block, clock: clock, opts: opts}
-      pinned_positions(auctions, wallet, venue)
+    with {:ok, head} <- Launchpad.head(),
+         {:ok, auctions} <- Launchpad.auctions(head) do
+      pinned_positions(auctions, wallet, Map.put(head, :abi, Lab.abi!(head.config, :auction)))
     end
   end
 
@@ -219,14 +215,14 @@ defmodule Autolaunch.Robinhood.Positions do
          name: auction.name,
          symbol: auction.symbol,
          image: auction.image,
-         stock_symbol: auction.stock_symbol,
+         stock_symbol: auction.stock.symbol,
          bid_id: Integer.to_string(bid.bid_id),
          wallet: wallet,
-         committed: Rpc.format_units(bid.amount, auction.stock_decimals),
+         committed: Rpc.format_units(bid.amount, auction.stock.decimals),
          max_price:
-           Amounts.format_cca_price(bid.max_price_q96, auction.stock_decimals, @token_decimals),
+           Amounts.format_cca_price(bid.max_price_q96, auction.stock.decimals, @token_decimals),
          standing: standing,
-         refundable: refundable && Rpc.format_units(refundable, auction.stock_decimals),
+         refundable: refundable && Rpc.format_units(refundable, auction.stock.decimals),
          claim_block: claim_block
        }}
     end

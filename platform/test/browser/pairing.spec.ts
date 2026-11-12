@@ -23,9 +23,10 @@ async function openWindow(page: Page) {
 }
 
 // A person opens the dropdown, unless it is already open, and presses the agent's
-// name; the radio's label carries it.
+// name; the radio's label carries it. The choice closes the list, so the radio is
+// looked for hidden too when its check is read.
 async function choose(page: Page, agent: string) {
-  const radio = box(page).getByRole("radio", {name: agent, exact: true})
+  const radio = box(page).getByRole("radio", {name: agent, exact: true, includeHidden: true})
   if (!(await dropdown(page).evaluate(details => (details as HTMLDetailsElement).open))) {
     await dropdown(page).locator("summary").click()
   }

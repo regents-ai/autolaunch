@@ -42,9 +42,11 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
     the agent's tools under the same policies and its identity tools besides;
     its pairing is checked again before the answer leaves
     (`AgentAccess.recheck_before_send/2`). Otherwise the app is the actor
-    (`Autolaunch.Actors.ConnectedApp`) and has its identity tools only. The
-    budget is spent first. The identity's wallet is read from the sign-in
-    service once per account and kept (`Autolaunch.Agents.HostedAddress`);
+    (`Autolaunch.Actors.ConnectedApp`) and has its identity tools only. Each
+    app has its own identity, so an app pairs only with a code its person
+    gives it and never takes another app's pairing. The budget is spent
+    first. The identity's wallet is read from the sign-in service once per
+    account and app and kept (`Autolaunch.Agents.HostedAddress`);
     while it can't be read the call is refused (`identity_unavailable`), and
     the next call asks again. Any other token is asked to connect again, with
     the `WWW-Authenticate` challenge naming this site's sign-in and both

@@ -6,7 +6,7 @@ defmodule Autolaunch.LabRpc do
 
   def current(required_addresses \\ []) do
     with {:ok, config} <- Lab.current(),
-         opts <- opts(config),
+         opts = opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
          :ok <- live_contracts(config, required_addresses, block, opts) do
       {:ok, config, block, opts}
@@ -23,40 +23,23 @@ defmodule Autolaunch.LabRpc do
   end
 
   def uint(config, contract, signature, arguments, block, opts) do
-    Rpc.call_uint(
-      Lab.address!(config, contract),
-      LabAbi.encode(Lab.abi!(config, abi_contract(contract)), signature, arguments),
-      block,
-      opts
-    )
+    address = Lab.address!(config, contract)
+    Rpc.call_uint(address, data(config, contract, signature, arguments), block, opts)
   end
 
   def bool(config, contract, signature, arguments, block, opts) do
-    Rpc.call_bool(
-      Lab.address!(config, contract),
-      LabAbi.encode(Lab.abi!(config, abi_contract(contract)), signature, arguments),
-      block,
-      opts
-    )
+    address = Lab.address!(config, contract)
+    Rpc.call_bool(address, data(config, contract, signature, arguments), block, opts)
   end
 
   def address(config, contract, signature, arguments, block, opts) do
-    Rpc.call_address(
-      Lab.address!(config, contract),
-      LabAbi.encode(Lab.abi!(config, abi_contract(contract)), signature, arguments),
-      block,
-      opts
-    )
+    address = Lab.address!(config, contract)
+    Rpc.call_address(address, data(config, contract, signature, arguments), block, opts)
   end
 
   def words(config, contract, signature, arguments, count, block, opts) do
-    Rpc.call_words(
-      Lab.address!(config, contract),
-      LabAbi.encode(Lab.abi!(config, abi_contract(contract)), signature, arguments),
-      block,
-      count,
-      opts
-    )
+    address = Lab.address!(config, contract)
+    Rpc.call_words(address, data(config, contract, signature, arguments), block, count, opts)
   end
 
   def call_uint(config, address, abi_name, signature, arguments, block, opts) do
@@ -104,10 +87,10 @@ defmodule Autolaunch.LabRpc do
       [hash] when is_binary(hash) ->
         if Rpc.valid_hash?(hash),
           do: {:ok, %{hash: String.downcase(hash)}},
-          else: invalid_receipt()
+          else: {:error, :invalid_receipt}
 
       _other ->
-        invalid_receipt()
+        {:error, :invalid_receipt}
     end
   end
 
@@ -122,8 +105,13 @@ defmodule Autolaunch.LabRpc do
     end)
   end
 
-  defp abi_contract(contract) when contract in [:factory, :strategy, :permit2, :regent],
-    do: if(contract == :regent, do: "token", else: Atom.to_string(contract))
+  # The calldata for a deployment contract the site calls by key, encoded with
+  # that contract's ABI.
+  defp data(config, contract, signature, arguments),
+    do: LabAbi.encode(Lab.abi!(config, abi(contract)), signature, arguments)
 
-  defp invalid_receipt, do: {:error, :invalid_receipt}
+  defp abi(:regent), do: "token"
+
+  defp abi(contract) when contract in [:factory, :strategy, :permit2],
+    do: Atom.to_string(contract)
 end

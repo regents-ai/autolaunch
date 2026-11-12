@@ -39,6 +39,7 @@ defmodule AutolaunchWeb.PublicReadOriginTest do
       {:get, "/api/v1/profile"},
       {:get, "/api/agent/v1/drafts/revstake"},
       {:get, "/api/agent/v1/positions"},
+      {:get, "/api/v1/account/points"},
       {:get, "/api/agents/v1/whoami"},
       {:post, "/api/v1/auctions/#{auction.id}/bid-quote"}
     ]

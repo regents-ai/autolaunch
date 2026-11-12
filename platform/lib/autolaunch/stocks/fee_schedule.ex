@@ -24,8 +24,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @receivers %{
     creator: {"Creator's fee", "the wallet that created the launch"},
     regent: {"REGENT stakers' fee", "REGENT staking"},
-    stakers:
-      {"Token stakers' fee", "the token’s staking splitter before its 2% protocol deduction"}
+    stakers: {"Token stakers' fee", "the token’s staking, which sends 2% of it to Regent"}
   }
 
   @type chain :: :base | :robinhood
@@ -56,7 +55,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
       rate: percent(div(schedule.pool_fee, 100)),
       charged_on: :paid,
       receiver:
-        "the pool’s liquidity; collected fees from locked liquidity enter the token’s staking splitter"
+        "the pool’s liquidity; the fees the locked liquidity collects go to the token’s staking"
     }
 
     [
@@ -82,7 +81,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @doc "What a fee is charged on, in words."
   @spec charged_on(:paid | :stock) :: String.t()
   def charged_on(:paid), do: "the token the trader pays with"
-  def charged_on(:stock), do: "the gross stock side of every trade"
+  def charged_on(:stock), do: "the stock amount of every trade, before fees"
 
   @doc "A new launch's fees as rows of its fixed terms."
   @spec terms(chain()) :: [{String.t(), String.t()}]
@@ -96,7 +95,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   defp receiver(:regent, :base, _default), do: "REGENT staking after conversion to USDC"
 
   defp receiver(:regent, :robinhood, _default),
-    do: "the protocol inbox as USDG, held until the bridge to Base is configured"
+    do: "a Regent contract on Robinhood Chain as USDG, held until the transfer to Base is set up"
 
   defp receiver(_lane, _chain, default), do: default
 

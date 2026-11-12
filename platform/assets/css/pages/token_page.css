@@ -1,49 +1,64 @@
-/* The token page: the token's card and details beside the trade widget and
-   Claim Rewards. On a phone the card comes first, with its figures and chart,
-   then the widget, then the details. */
-.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
-/* The card lays itself out by its own width, so the trade widget beside it never squeezes it. */
-.token-page__overview { grid-area: overview; min-width: 0; container: token-overview / inline-size; }
+/* The token page, in the manner of a trading site: the heading across the
+   top; then the price, the chart and the market figures, with the creator and
+   the contracts under them, beside the trade widget and Claim Rewards, which
+   stay in view while the page scrolls. On a phone the price, chart and
+   figures come first, then the widget, then the creator and contracts. */
+.token-page__head { display: grid; gap: var(--space-2); min-width: 0; }
+.token-page__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-5); align-items: start; min-width: 0; }
+.token-page__overview { grid-area: overview; display: grid; gap: var(--space-5); min-width: 0; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
-.token-page__details { grid-area: details; min-width: 0; }
+.token-page__details { grid-area: details; display: grid; gap: var(--space-5); min-width: 0; }
+.token-page__title { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 400; }
 /* While the token is first read, the page holds a screen's height, so the
    footer does not sit under the reading card and jump when the token arrives. */
 .token-page__reading { min-height: 100svh; }
-/* The token's picture sits small beside its name and figures, so the price,
-   market cap and change are on the first screen. */
-.token-page .market-identity { grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-3) var(--space-4); }
-.token-page .market-identity__image { width: 120px; }
-@container token-overview (max-width: 36rem) {
-  .token-page .market-identity { grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); }
-  .token-page .market-identity__image { width: 88px; }
-}
-/* Too narrow for the figures beside the picture: the picture goes above. */
-@container token-overview (max-width: 26rem) {
-  .token-page .market-identity { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 42rem) {
-  /* Uniswap and the chart share one row under the address. */
-  .token-page .token-heading__links { display: grid; grid-template-columns: auto minmax(0, 1fr); }
-  .token-page .token-heading__copy { grid-column: 1 / -1; justify-self: start; }
-  .token-page .token-heading__chart { width: auto; }
+@container shell-page (min-width: 60rem) {
+  .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(21rem, 24rem); grid-template-areas: "overview side" "details side"; }
+  .token-page__side { position: sticky; top: var(--space-4); }
 }
 
-/* The token's first figures: its price, larger, then its market cap and
-   how far it has moved since its pool opened. */
-.token-figures { display: grid; grid-template-columns: repeat(3, minmax(0, max-content)); gap: var(--space-2) var(--space-4); margin: 0; }
-.token-figures > div { display: grid; align-content: start; gap: 2px; min-width: 0; }
-.token-figures dt { color: var(--color-fg-muted); font-size: .75rem; }
-.token-figures dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
-.token-figures strong { font-size: 1.25rem; overflow-wrap: anywhere; }
-.token-figures__price strong { font-size: 1.75rem; line-height: 1.1; }
-.token-figures small { color: var(--color-fg-muted); font-size: .75rem; }
-@container token-overview (max-width: 40rem) {
-  .token-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .token-figures__price { grid-column: 1 / -1; }
-}
-/* The widget sits beside the card only where the page leaves the card room. */
-@container shell-page (min-width: 60rem) {
-  .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
+/* The price, large, with its move since the pool opened, and the price in
+   the currency under it. */
+.token-figures { display: grid; gap: 6px; min-width: 0; }
+.token-figures p { margin: 0; }
+.token-figures__price { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
+.token-figures__price strong { font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3rem); font-weight: 400; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-figures__move { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.token-figures__move--up { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
+.token-figures__move--down { color: var(--color-error); background: color-mix(in srgb, var(--color-error) 12%, transparent); }
+.token-figures__unit { color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+
+/* The chart in its sheet: what the line is and the Trades or Time choice
+   above, the low, the high and the trades in a footer. */
+.token-page__chart .price-chart { gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 0; background: none; }
+.token-page__chart .price-chart__caption { align-items: center; font-size: .8125rem; }
+.token-page__chart .price-chart__line { height: 280px; }
+.token-page__chart .price-chart__facts { gap: var(--space-1) var(--space-5); padding-top: var(--space-2); border-top: 1px solid var(--hairline); color: var(--color-fg-muted); }
+.token-page__chart .price-chart__facts dd { color: var(--color-fg); }
+@media (max-width: 40rem) { .token-page__chart .price-chart__line { height: 200px; } }
+
+/* The market figures, three to a row on a wide screen and two on a phone. */
+.token-market__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--hairline); }
+.token-market__stats > div { display: grid; align-content: start; gap: 4px; min-width: 0; padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
+.token-market__stats dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.token-market__stats dd { margin: 0; font-size: 1.125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 40rem) { .token-market__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* The creator and the contracts as plain lists: a label and its value on
+   each ruled row. */
+.token-facts { gap: var(--space-5); }
+.token-facts .launch-trust__block { gap: 0; padding: 0; border: 0; background: none; }
+.token-facts .launch-trust__block > h2 { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 400; }
+.token-facts .launch-trust__rows { display: block; border-top: 1px solid var(--hairline); font-size: .9375rem; }
+.token-facts .launch-trust__rows > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 48px; padding-block: 6px; border-bottom: 1px solid var(--hairline); }
+.token-facts .launch-trust__rows dt { font-size: .875rem; }
+.token-facts__list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.token-facts__list > li { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 48px; padding-block: 6px; border-bottom: 1px solid var(--hairline); font-size: .9375rem; }
+.token-facts__label { color: var(--color-fg-muted); font-size: .875rem; }
+@media (max-width: 30rem) {
+  .token-facts .launch-trust__rows > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .token-facts__list > li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 
 /* The trade widget: a sliding selector over one view at a time. */

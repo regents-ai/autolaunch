@@ -80,7 +80,6 @@ defmodule Autolaunch.Chain.CcaSettlement do
           tokens_filled: non_neg_integer()
         }
 
-  def bid_exited_signature, do: @bid_exited
   def tokens_claimed_signature, do: @tokens_claimed
 
   @doc """
@@ -458,6 +457,7 @@ defmodule Autolaunch.Chain.CcaSettlement do
         {:error, :chain_unavailable}
     end
   rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
     _error -> {:error, :chain_unavailable}
   end
 

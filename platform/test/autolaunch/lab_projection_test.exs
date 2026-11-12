@@ -63,6 +63,34 @@ defmodule Autolaunch.LabProjectionTest do
     assert bid.onchain_bid_id == "9"
   end
 
+  test "a bid receipt checked again after the bid settled leaves its standing and amounts" do
+    assert {:ok, [_ | _]} = LabProjection.project_launch(launch_operation(), launch_result())
+    auction = one(Auction)
+    assert :ok = LabProjection.project_bid(bid_context(auction.id), bid_result())
+
+    settlement = %{bid_id: LabProjection.bid_identity(@auction, "9"), claim_next?: true}
+
+    assert :ok =
+             LabProjection.project_settlement(settlement, "exit", %{
+               "tokens_filled" => "4",
+               "currency_refunded_units" => "1.5",
+               "tokens_filled_units" => "4"
+             })
+
+    assert :ok =
+             LabProjection.project_settlement(settlement, "claim", %{
+               "tokens_claimed_units" => "4"
+             })
+
+    settled = one(Bid)
+    assert %{status: :claimed, tokens_filled: "4", tokens_claimed: "4"} = settled
+
+    # The page checks the same receipt again once the auction has ended.
+    assert :ok = LabProjection.project_bid(bid_context(auction.id), bid_result())
+
+    assert one(Bid) |> Map.take(fields()) == Map.take(settled, fields())
+  end
+
   test "a launch row written first keeps its details and state when a second confirmation arrives" do
     creator = account!("first-confirmation")
 
@@ -168,6 +196,19 @@ defmodule Autolaunch.LabProjectionTest do
       "current_clearing_price" => "1"
     }
   end
+
+  defp fields,
+    do: [
+      :status,
+      :amount,
+      :current_clearing_price,
+      :estimated_tokens_if_end_now,
+      :exited_at,
+      :claimed_at,
+      :currency_refunded,
+      :tokens_filled,
+      :tokens_claimed
+    ]
 
   defp one(resource) do
     case all(resource) do

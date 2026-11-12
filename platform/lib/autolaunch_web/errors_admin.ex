@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ErrorsAdmin do
   @moduledoc """
-  Keeps the saved errors at /admin/errors for Credits admins: a signed-in
-  account the Credits `:admins` setting names (REGENT_CREDITS_ADMINS). Anyone
+  Keeps the saved errors at /admin/errors for the site's admins: a signed-in
+  account the site's `:admins` setting names (config/config.exs). Anyone
   else gets the site's ordinary not-found page, so the page's existence is not
   shown either.
 
@@ -78,5 +78,5 @@ defmodule AutolaunchWeb.ErrorsAdmin do
 
   defp leave(socket), do: {:halt, redirect(socket, to: "/")}
 
-  defp admin_id?(id), do: id in Application.fetch_env!(:regent_credits, :admins)
+  defp admin_id?(id), do: id in Application.fetch_env!(:autolaunch, :admins)
 end

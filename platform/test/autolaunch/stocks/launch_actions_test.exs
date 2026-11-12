@@ -83,7 +83,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
 
   # AT09: the exact tuple the launchpad executes.
   test "the launch calldata carries only what the creator chose" do
-    assert {:ok, executable} = LaunchActions.executable(@fields, @snapshot, @config)
+    assert {:ok, executable} = LaunchActions.executable(@snapshot)
 
     # The auction's lowest floor, 2^32 + 1, rounded up onto the bid grid.
     assert executable.floor_price_q96 == 4_294_967_300
@@ -108,13 +108,12 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     assert {:ok, @stock} == Abi.word_address(stock)
 
     assert {:error, %{reason: :launches_paused}} =
-             LaunchActions.executable(@fields, %{@snapshot | paused: true}, @config)
+             LaunchActions.executable(%{@snapshot | paused: true})
 
     assert {:error, %{reason: :stock_not_admitted}} =
-             LaunchActions.executable(
-               @fields,
-               %{@snapshot | admission: %{@snapshot.admission | admitted: false}},
-               @config
-             )
+             LaunchActions.executable(%{
+               @snapshot
+               | admission: %{@snapshot.admission | admitted: false}
+             })
   end
 end

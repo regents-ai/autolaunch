@@ -33,21 +33,18 @@ defmodule Autolaunch.Agents.ActivityReading do
   end
 
   defp keep(agent) do
-    reading = Activity.recent(agent)
-    measure(reading)
-    {:commit, reading, expire: kept(reading)}
+    case Activity.recent(agent) do
+      {:ok, _reading} = reading ->
+        {:commit, reading, expire: @kept}
+
+      {:error, reason} = reading ->
+        :telemetry.execute([:autolaunch, :agents, :activity_unread], %{count: 1}, %{
+          reason: reason(reason)
+        })
+
+        {:commit, reading, expire: @failure_kept}
+    end
   end
-
-  defp kept({:ok, _reading}), do: @kept
-  defp kept({:error, _reason}), do: @failure_kept
-
-  defp measure({:ok, _reading}), do: :ok
-
-  defp measure({:error, reason}),
-    do:
-      :telemetry.execute([:autolaunch, :agents, :activity_unread], %{count: 1}, %{
-        reason: reason(reason)
-      })
 
   defp reason(reason)
        when reason in [:bad_day, :bad_days, :registration_unreadable, :not_configured],

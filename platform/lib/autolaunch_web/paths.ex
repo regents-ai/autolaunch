@@ -158,21 +158,24 @@ defmodule AutolaunchWeb.Paths do
   recorded, or one made elsewhere).
   """
   @spec robinhood_auction_page(String.t()) :: String.t() | nil
-  def robinhood_auction_page(address), do: with_robinhood_auction(address, &auction/1)
-
-  @doc "The page of the token a Robinhood auction launched; see `robinhood_auction_page/1`."
-  @spec robinhood_token_page(String.t()) :: String.t() | nil
-  def robinhood_token_page(auction_address),
-    do: with_robinhood_auction(auction_address, &token/1)
-
-  defp with_robinhood_auction(address, path) do
+  def robinhood_auction_page(address) do
     with {:ok, address} <- Address.normalize(address),
          {:ok, %{} = auction} <- Autolaunch.get_robinhood_auction(address, actor: nil) do
-      path.(auction)
+      auction(auction)
     else
       _unlisted -> nil
     end
   end
+
+  @doc """
+  The page of the auction a wallet's Robinhood bid is in
+  (`Autolaunch.Robinhood.Positions`), its token's once it has graduated; nil
+  for a bid on an auction the site does not list or has hidden.
+  """
+  def robinhood_bid_page(%{listing: %{hidden: true}}), do: nil
+  def robinhood_bid_page(%{token: %Autolaunch.Token{}, listing: listing}), do: token(listing)
+  def robinhood_bid_page(%{listing: %{} = listing}), do: auction(listing)
+  def robinhood_bid_page(_position), do: nil
 
   defp symbol(%{token_symbol: symbol}) when is_binary(symbol), do: symbol
 end

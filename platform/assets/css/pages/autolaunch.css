@@ -25,8 +25,6 @@
 .regent-token-links__note, .regent-scope { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }
 .autolaunch-exact-value { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
-/* An address on a line of its own: its one line sits in a full 44px press; when it wraps, its lines are the press. */
-a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, calc((2.75rem - 1lh) / 2)); }
 .chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .link-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 /* ENS's own mark: dark blue on a light page, white on a dark one. */
@@ -46,7 +44,6 @@ a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, cal
 /* The launch review reads label above value; the value carries the weight. */
 .launch-wallet-review dt { font-size: .6875rem; }
 .launch-wallet-review dd { margin-top: var(--space-1); font-size: 1.0625rem; color: var(--color-fg); line-height: 1.35; }
-.launch-wallet-review dd .launch-wallet-mono { font-size: .9375rem; font-weight: 400; }
 .launch-wallet-review dd.launch-wallet-text { font-size: .9375rem; font-weight: 400; overflow-wrap: anywhere; }
 .launch-wallet-picture { display: block; width: 3.5rem; height: 3.5rem; border-radius: var(--radius); object-fit: cover; }
 .launchpad-form-section { padding: 24px; min-width: 0; }
@@ -67,13 +64,12 @@ a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, cal
 .subject-wallet-amount input { flex: 1; min-width: 0; }
 .launch-wallet-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .bid-settlement-row .launch-wallet-review { padding: var(--space-2); border: 1px solid var(--hairline); }
-.subject-wallet-mono, .launch-wallet-mono { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
+.launch-wallet-mono { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
 .bid-steps, .subject-wallet-steps, .launch-wallet-steps { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
 :is(.bid-steps, .subject-wallet-steps, .launch-wallet-steps) li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--hairline); min-width: 0; }
-.launch-wallet-hash:not([hidden]), .launch-placed__transaction { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
-:is(.launch-wallet-hash, .launch-placed__transaction) .launch-wallet-mono { flex: 1 1 100%; }
+.launch-wallet-hash:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
 .launch-placed:focus { outline: none; }
-:where(.bid-notice, .subject-wallet-hint, .subject-wallet-share, .subject-wallet-notice, .subject-wallet-settled, .launch-wallet-hint, .launch-wallet-risk, .launch-wallet-notice, .launch-wallet-settled) { margin: 0; padding: var(--space-2); border-left: 3px solid var(--hairline-strong); overflow-wrap: anywhere; }
+:where(.bid-notice, .subject-wallet-hint, .subject-wallet-share, .subject-wallet-notice, .subject-wallet-settled, .launch-wallet-risk, .launch-wallet-notice, .launch-wallet-settled) { margin: 0; padding: var(--space-2); border-left: 3px solid var(--hairline-strong); overflow-wrap: anywhere; }
 :is(.bid-notice, .subject-wallet-notice, .launch-wallet-notice)[role="alert"] { border-left-color: var(--color-error); }
 .treasury-security, .treasury-verification { padding: var(--space-3); border-block: 1px solid var(--hairline); }
 .autolaunch-live-market { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(10rem,100%),1fr)); margin: 0; border-top: 1px solid var(--hairline); }

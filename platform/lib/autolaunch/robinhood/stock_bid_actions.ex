@@ -19,8 +19,8 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   estimates.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{Abi, Client, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab, StockBidChainClient}
@@ -36,7 +36,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   # so the deadline the review shows is always one it can state.
   @max_header_seconds 253_402_300_799 - @deadline_seconds
   @bid_record_words 7
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc """
   Prepares one USDG bid on one auction from `address`, a wallet the signed-in
@@ -56,8 +55,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
                Map.get(request, :slippage_percent, Autolaunch.BidSlippage.default())
              )
            ),
-         {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, usdg_amount} <- usdg_amount(usdg_amount),
@@ -84,8 +82,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   """
   @spec bids(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def bids(auction, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          rpc <- Lab.rpc_opts(config),
@@ -450,57 +447,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
     end
   end
 
-  defp chain({:ok, value}), do: {:ok, value}
-  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
-  defp chain({:error, reason}), do: unavailable(reason)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The wallet has to be one the leased account links, read now: never a guess.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address, :invalid_address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: linked_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp linked_wallet(%{wallet_addresses: wallets}, candidate) when is_list(wallets) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
-  end
-
-  defp linked_wallet(_account, _candidate), do: unavailable(:wrong_signer)
-
   # Shared helpers
 
   defp address(value, reason) do
@@ -512,6 +458,4 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

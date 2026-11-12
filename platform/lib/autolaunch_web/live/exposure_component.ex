@@ -64,12 +64,6 @@ defmodule AutolaunchWeb.ExposureComponent do
   def handle_event("change", params, socket),
     do: {:noreply, socket |> assign(inputs: inputs(socket.assigns.kind, params)) |> sync()}
 
-  def handle_event("max", _params, %{assigns: %{holdings: holdings}} = socket)
-      when is_map(holdings),
-      do: {:noreply, socket |> assign(inputs: filled(socket.assigns, holdings)) |> sync()}
-
-  def handle_event("max", _params, socket), do: {:noreply, socket}
-
   # A press made before the panel holds steps for the form as pressed: the steps
   # are built now and the pressed one handed back to send. When they can't be
   # (the chain unreadable just now, or a form that doesn't read as an amount),
@@ -175,7 +169,7 @@ defmodule AutolaunchWeb.ExposureComponent do
       "You sold #{F.tokens(amount, series.stock.decimals)} #{Map.fetch!(series, leg).symbol} for USDC."
     ]
 
-  @doc "The note a landed split or redemption leaves on the page, with View Portfolio."
+  @doc "The note a landed split or redemption leaves on the page, with View portfolio."
   attr :id, :string, required: true
   attr :done, :map, required: true
   attr :dismiss, :string, required: true
@@ -384,6 +378,20 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   defp room(series), do: max(series.deposit_cap - series.accounted, 0)
 
+  # Max fills the boxes in the browser at the press, with the wallet as last
+  # read, so a press straight after it carries the amounts however long the
+  # server takes; each box's input event runs the form's change.
+  defp max_fill(id, kind, leg, series, holdings) do
+    %{kind: kind, leg: leg, series: series}
+    |> filled(holdings)
+    |> Enum.reduce(%JS{}, fn {name, value}, js ->
+      JS.dispatch(js, "autolaunch:fill",
+        to: "##{id}-form input[name=#{name}]",
+        detail: %{value: value}
+      )
+    end)
+  end
+
   @impl true
   def render(assigns) do
     assigns =
@@ -448,7 +456,9 @@ defmodule AutolaunchWeb.ExposureComponent do
         />
         <p :if={@holdings} class="exposure-panel__balance">
           <span>{balance(@kind, @holdings, @series, @leg)}</span>
-          <button type="button" phx-click="max" phx-target={@myself}>Max</button>
+          <button type="button" phx-click={max_fill(@id, @kind, @leg, @series, @holdings)}>
+            Max
+          </button>
         </p>
       </form>
 

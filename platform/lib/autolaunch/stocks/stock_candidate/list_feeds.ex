@@ -19,7 +19,7 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
   """
 
   alias Autolaunch.AuctionFinish.Launchpads
-  alias Autolaunch.Stocks.PriceFeeds
+  alias Autolaunch.Stocks.Assets
 
   @directory "https://reference-data-directory.vercel.app"
 
@@ -50,7 +50,7 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
     with {:ok, feeds} <- stock_feeds(file, issuer),
          {:ok, stocks} <- Autolaunch.chain_stocks(chain_id, actor: @actor),
          {:ok, listed} <- Autolaunch.chain_stock_candidates(chain_id, actor: @actor) do
-      admitted = for %{admitted: true, symbol: symbol} <- stocks, do: PriceFeeds.ticker(symbol)
+      admitted = for %{admitted: true, symbol: symbol} <- stocks, do: Assets.ticker(symbol)
       wanted = Map.drop(feeds, admitted)
 
       kept =

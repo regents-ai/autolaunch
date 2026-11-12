@@ -79,8 +79,8 @@ defmodule Autolaunch.PoolRange do
   @doc "Whether the pool's current tick is inside the position's range, where it earns fees."
   def in_range?(%{lower: lower, upper: upper}, tick), do: lower <= tick and tick < upper
 
-  @doc "Uniswap's `TickMath.getSqrtPriceAtTick`, exactly."
-  def sqrt_price_at_tick(tick) when is_integer(tick) and abs(tick) <= @max_tick do
+  # Uniswap's `TickMath.getSqrtPriceAtTick`, exactly.
+  defp sqrt_price_at_tick(tick) when is_integer(tick) and abs(tick) <= @max_tick do
     magnitude = abs(tick)
 
     start =

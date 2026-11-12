@@ -138,8 +138,8 @@ defmodule AutolaunchWeb.TokenDetails do
 
     [
       "## Fees on each trade",
-      "- Stakers: #{lane.(:stakers).rate} of the #{pool.currency.symbol} side of every trade. Waiting in the pool now: #{stakers.accrued} #{pool.currency.symbol}. Sent to the staking contract so far: #{stakers.settled_currency} #{pool.currency.symbol}.",
-      "- REGENT stakers: #{lane.(:regent).rate} of the #{pool.currency.symbol} side. Waiting in the pool: #{regent.accrued} #{pool.currency.symbol}; swapped so far: #{regent.settled_currency} #{pool.currency.symbol}; " <>
+      "- Stakers: #{lane.(:stakers).rate} of the #{pool.currency.symbol} amount of every trade, before fees. Waiting in the pool now: #{stakers.accrued} #{pool.currency.symbol}. Sent to the staking contract so far: #{stakers.settled_currency} #{pool.currency.symbol}.",
+      "- REGENT stakers: #{lane.(:regent).rate} of the #{pool.currency.symbol} amount, before fees. Waiting in the pool: #{regent.accrued} #{pool.currency.symbol}; swapped so far: #{regent.settled_currency} #{pool.currency.symbol}; " <>
         regent_paid(pool) <> " Not part of #{pool.token.symbol} staking rewards.",
       creator_lane(pool),
       "- Uniswap pool fee: #{lane.(:pool).rate}, earned by the Uniswap Liquidity Pool and sent to stakers when collected.",
@@ -160,7 +160,7 @@ defmodule AutolaunchWeb.TokenDetails do
     rate = FeeSchedule.lane(pool.chain, :v2, :creator).rate
 
     [
-      "- Creator: #{rate} of the #{pool.currency.symbol} side, paid to the wallet that launched it. Waiting: #{creator.accrued} #{pool.currency.symbol}; paid so far: #{creator.settled_currency} #{pool.currency.symbol}.",
+      "- Creator: #{rate} of the #{pool.currency.symbol} amount, before fees, paid to the wallet that launched it. Waiting: #{creator.accrued} #{pool.currency.symbol}; paid so far: #{creator.settled_currency} #{pool.currency.symbol}.",
       pool.vesting &&
         "- Creator's #{pool.token.symbol}: #{pool.vesting.released} released so far, #{pool.vesting.releasable} ready to release to #{pool.vesting.creator}."
     ]

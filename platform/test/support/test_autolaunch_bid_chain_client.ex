@@ -8,7 +8,7 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
   is never installed outside a test, and nothing it answers is reviewed evidence.
   """
 
-  @behaviour Autolaunch.ChainClient
+  @behaviour Autolaunch.LabBidChainClient
 
   @key :autolaunch_bid_fixture
 

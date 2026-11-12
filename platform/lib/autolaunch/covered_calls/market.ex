@@ -4,7 +4,9 @@ defmodule Autolaunch.CoveredCalls.Market do
   figures and the same refusals:
 
     * `:book` — a market's listings, as its contract holds them (public)
-    * `:quote` — the suggested premium for a strike and expiry (public)
+    * `:quote` — a seller's quote for an expiry: the reference price, the
+      next expiries, three suggested strikes, and what a listing of the
+      chosen strike and premium pays (public)
     * `:positions` — what a wallet of the acting account sold and holds
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
@@ -49,21 +51,27 @@ defmodule Autolaunch.CoveredCalls.Market do
     action :quote, :map do
       argument :symbol, :string, allow_nil?: false, description: @symbol
 
-      argument :strike_per_token, :integer,
-        allow_nil?: false,
-        constraints: @amount,
-        description: "The strike in micro-USDC (6 decimals) per whole token."
-
       argument :expiry, :integer,
         allow_nil?: false,
         constraints: @expiry,
         description: "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
 
-      run fn input, _context ->
-        input.arguments.symbol
-        |> Quote.suggest(input.arguments.strike_per_token, input.arguments.expiry)
-        |> __MODULE__.refused()
-      end
+      argument :amount, :integer,
+        constraints: @amount,
+        description:
+          "Raw stock units to list; unit raw units make one whole token. Leave it out for the per-token figures only."
+
+      argument :strike_per_token, :integer,
+        constraints: @amount,
+        description:
+          "The strike in micro-USDC (6 decimals) per whole token. Leave it out for the middle suggested strike."
+
+      argument :premium_per_token, :integer,
+        constraints: @amount,
+        description:
+          "The premium the listing asks, in micro-USDC per whole token. Leave it out for the suggested premium."
+
+      run fn input, _context -> input.arguments |> Quote.read() |> __MODULE__.refused() end
     end
 
     action :positions, :map do

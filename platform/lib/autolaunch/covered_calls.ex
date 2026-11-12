@@ -30,7 +30,7 @@ defmodule Autolaunch.CoveredCalls do
     tool :covered_call_quote, Autolaunch.CoveredCalls.Market, :quote do
       title("Suggest a covered-call premium")
 
-      description "Suggest a premium per whole token for a covered call on one Base stock token at a strike (micro-USDC per whole token) and weekly expiry (a Friday at 21:00 UTC, Unix seconds), from the stock's reference price. A guide for a seller only: the contract enforces nothing from it, and it is refused while the reference price is more than four days old. Reads only."
+      description "Quote a covered call on one Base stock token before listing it, for a weekly expiry: the stock's reference price (spot_per_token, micro-USDC per whole token) and when its feed last updated it; the next four weekly expiries, each with its exercise window (Unix seconds), and the chosen one's term in whole days (term_days); three suggested strikes above the reference price (presets), each with how far above it is as a fraction and a suggested premium per whole token; and, for the chosen strike (the middle suggestion when none is given) and premium (the suggestion when none is given), what a listing of amount raw token units pays if all of it is bought at once and all of it exercised (receipt): the premium, the 1% fee, what the seller keeps, the strike, the stock's worth at the reference price, and the premium kept as a fraction of that worth for the term (net_premium_yield, not a yearly rate). Without an amount the per-token figures still come back and the totals are null. Every USDC figure is what the contract counts, rounded up. A guide for a seller only: the contract enforces no suggestion, and the quote is refused while the reference price is more than four days old. Reads only."
 
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
@@ -38,7 +38,7 @@ defmodule Autolaunch.CoveredCalls do
     tool :covered_call_positions, Autolaunch.CoveredCalls.Market, :positions_answer do
       title("Read my covered calls on a stock")
 
-      description "Read my person's covered calls on one Base stock token, for the wallet they signed in with, at the latest block: the listings it sold and, on every listing, the calls it may exercise (held) and the stock it may claim (claimable), in raw token units. Changes nothing."
+      description "Read my person's covered calls on one Base stock token, for the wallet they signed in with, at the latest block: the listings it sold, on every listing the calls it may exercise (held) and the stock it may claim (claimable), and the stock in the wallet itself (balance), the most it can list now, in raw token units. Changes nothing."
 
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
@@ -57,7 +57,7 @@ defmodule Autolaunch.CoveredCalls do
   resources do
     resource Autolaunch.CoveredCalls.Market do
       define :covered_call_book, action: :book_answer, args: [:symbol]
-      define :covered_call_quote, action: :quote, args: [:symbol, :strike_per_token, :expiry]
+      define :covered_call_quote, action: :quote, args: [:symbol]
       define :covered_call_positions, action: :positions_answer, args: [:symbol]
       define :prepare_covered_call, action: :prepare_answer, args: [:symbol, :kind]
       define :read_covered_call_book, action: :book, args: [:symbol]

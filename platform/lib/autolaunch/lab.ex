@@ -157,29 +157,18 @@ defmodule Autolaunch.Lab do
 
   def load(_path), do: {:error, :absolute_path_required}
 
-  def full_binding(%{run_id: run_id} = config) do
-    %{
-      run_id: run_id,
-      path: config.path,
-      rpc_url: config.rpc_url,
-      public_rpc_url: config.public_rpc_url,
-      chain_id: config.chain_id,
-      addresses: config.addresses,
-      abis: config.abis
-    }
-  end
-
-  @doc "The exact decimal a Q96 fixed-point price names: `q96 / 2^96`, with no rounding."
-  def price_decimal(q96) when is_integer(q96) and q96 >= 0, do: plain(q96 * @five_pow_96, -96)
+  @doc """
+  The exact decimal a Q96 fixed-point price names, `q96 / 2^96` with no
+  rounding, as the plain decimal string the site stores and shows.
+  """
+  def format_price(q96) when is_integer(q96) and q96 >= 0,
+    do: (q96 * @five_pow_96) |> plain(-96) |> Decimal.to_string(:normal)
 
   # Drops trailing zeros by hand: `Decimal.normalize/1` would round the
   # coefficient to the context precision, and a Q96 price has more digits.
   defp plain(0, _exp), do: Decimal.new(0)
   defp plain(coef, exp) when rem(coef, 10) == 0, do: plain(div(coef, 10), exp + 1)
   defp plain(coef, exp), do: Decimal.new(1, coef, exp)
-
-  @doc "`price_decimal/1` as the plain decimal string the site stores and shows."
-  def format_price(q96), do: q96 |> price_decimal() |> Decimal.to_string(:normal)
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))

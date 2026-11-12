@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.Router do
     plug :protect_from_forgery
   end
 
-  # The saved errors: Credits admins only. Anyone else gets the not-found page under
+  # The saved errors: the site's admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (AutolaunchWeb.ErrorsAdmin).
   pipeline :errors_admin do
@@ -235,8 +235,12 @@ defmodule AutolaunchWeb.Router do
     get "/drafts/:kind", AgentAccountController, :draft
     patch "/drafts/:kind", AgentAccountController, :save_draft
     get "/positions", AgentAccountController, :positions
-    get "/account/balances", AgentAccountController, :balances
-    post "/account/credits/history", AgentAccountController, :history
+  end
+
+  # A paired agent's read of its person's Points, at the address every Regent
+  # site gives it.
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :api
     get "/account/points", AgentAccountController, :points
   end
 
@@ -389,7 +393,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :public_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/", HomeLive, :home
@@ -405,6 +408,7 @@ defmodule AutolaunchWeb.Router do
 
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
+    get "/unavailable", UnavailableController, :show
 
     get "/auth/x/callback", XOAuthController, :callback, log: false
 
@@ -412,7 +416,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/create", StocksCreateLive, :create
@@ -440,7 +443,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/stock/covered-call", CoveredCallsLive, :index
@@ -457,7 +459,6 @@ defmodule AutolaunchWeb.Router do
       on_mount: [
         {AutolaunchWeb.Showcase, :motion_lab},
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/animations", AnimationsLive, :index

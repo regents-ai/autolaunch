@@ -11,71 +11,9 @@ defmodule AutolaunchWeb.Components.CreateNext do
   """
   use AutolaunchWeb, :html
 
+  alias Autolaunch.LaunchActions, as: RevstakeLaunchActions
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
-
-  # RegentLBPStrategyV2: START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS,
-  # CLAIM_DELAY_BLOCKS and MIGRATION_DELAY_BLOCKS.
-  @revstake_schedule %{opens: 300, length: 86_401, claim: 64, pool: 128}
-
-  @supply %{
-    memestock: %{
-      words: "1 billion",
-      parts: [
-        %{
-          key: :auction,
-          label: "Auction",
-          amount: "497.5 million",
-          share: 49.75,
-          note: "Winning bidders claim what they bought."
-        },
-        %{
-          key: :pool,
-          label: "Trading pool",
-          amount: "497.5 million",
-          share: 49.75,
-          note:
-            "The stock raised funds a full-range position at the final price; any stock left over from rounding joins the protocol fee. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
-        },
-        %{
-          key: :creator,
-          label: "You, the creator",
-          amount: "5 million",
-          share: 0.5,
-          note:
-            "Released to you block by block over 30 days from graduation. Anyone can send the release, and it always pays you."
-        }
-      ]
-    },
-    revstake: %{
-      words: "100 billion",
-      parts: [
-        %{
-          key: :auction,
-          label: "Auction",
-          amount: "20 billion",
-          share: 20,
-          note: "Winning bidders claim what they bought."
-        },
-        %{
-          key: :pool,
-          label: "Trading pool",
-          amount: "Up to 10 billion",
-          share: 10,
-          note: "Paired with up to half the REGENT raised and locked forever."
-        },
-        %{
-          key: :creator,
-          label: "Your treasury",
-          amount: "70 billion",
-          share: 70,
-          note:
-            "Released over 365 days from graduation, with the unpaired reserve and auction rounding leftovers."
-        }
-      ]
-    }
-  }
 
   attr :id, :string, required: true
   attr :kind, :atom, required: true, values: [:memestock, :revstake]
@@ -87,11 +25,13 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
   @doc "The five cards of the launch plan, in reading order."
   def launch_plan(assigns) do
+    schedule = schedule(assigns.kind, assigns.chain)
+
     assigns =
       assign(assigns,
-        supply: Map.fetch!(@supply, assigns.kind),
+        supply: supply(assigns.kind, assigns.chain, schedule),
         unit: assigns.currency || default_unit(assigns.kind),
-        schedule: schedule(assigns.kind, assigns.chain)
+        schedule: schedule
       )
 
     ~H"""
@@ -361,8 +301,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
         label: "Token stakers",
         rate: "2.00%",
         percent: 2.0,
-        note:
-          "Of every trade, sent to the launch's revenue splitter before its 2% protocol deduction."
+        note: "Of every trade, sent to the token's staking, which sends 2% of it to Regent."
       },
       %{
         label: "Pool fee",
@@ -384,9 +323,68 @@ defmodule AutolaunchWeb.Components.CreateNext do
     percent
   end
 
-  defp schedule(:revstake, _chain), do: @revstake_schedule
-  defp schedule(:memestock, :base), do: LaunchActions.schedule()
-  defp schedule(:memestock, :robinhood), do: RobinhoodLaunchActions.schedule()
+  defp schedule(:revstake, :base), do: RevstakeLaunchActions.schedule()
+  defp schedule(:memestock, chain), do: LaunchActions.schedule(chain)
+
+  # Where the supply goes; a Memestock creator's release takes the chain's own time.
+  defp supply(:memestock, chain, schedule),
+    do: %{
+      words: "1 billion",
+      parts: [
+        %{
+          key: :auction,
+          label: "Auction",
+          amount: "497.5 million",
+          share: 49.75,
+          note: "Winning bidders claim what they bought."
+        },
+        %{
+          key: :pool,
+          label: "Trading pool",
+          amount: "497.5 million",
+          share: 49.75,
+          note:
+            "At the final price, the stock raised funds liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is liquidity in the token alone, for prices above the opening token price. Both are locked forever."
+        },
+        %{
+          key: :creator,
+          label: "You, the creator",
+          amount: "5 million",
+          share: 0.5,
+          note:
+            "Released to you block by block over #{LaunchChain.time_estimate(chain, schedule.vesting)} from graduation. Anyone can send the release, and it always pays you."
+        }
+      ]
+    }
+
+  defp supply(:revstake, :base, _schedule),
+    do: %{
+      words: "100 billion",
+      parts: [
+        %{
+          key: :auction,
+          label: "Auction",
+          amount: "20 billion",
+          share: 20,
+          note: "Winning bidders claim what they bought."
+        },
+        %{
+          key: :pool,
+          label: "Trading pool",
+          amount: "Up to 10 billion",
+          share: 10,
+          note: "Paired with up to half the REGENT raised and locked forever."
+        },
+        %{
+          key: :creator,
+          label: "Your treasury",
+          amount: "70 billion",
+          share: 70,
+          note:
+            "Released over 365 days from graduation, with the unpaired reserve and auction rounding leftovers."
+        }
+      ]
+    }
 
   # Each milestone at its block after the launch, as a time after it.
   defp milestones(chain, %{opens: opens, length: length, claim: claim, pool: pool}) do

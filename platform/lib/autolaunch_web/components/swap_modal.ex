@@ -22,21 +22,10 @@ defmodule AutolaunchWeb.Components.SwapModal do
       )
 
     ~H"""
-    <dialog
-      id={@id}
-      class="token-swap-modal"
-      phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
-      data-record-id={@token.id}
-      aria-labelledby={@id <> "-title"}
-      aria-modal="true"
-    >
-      <header class="token-swap-modal__header">
+    <.window id={@id} record_id={@token.id} close_label="Close swap form">
+      <:title>
         <h2 id={@id <> "-title"}>Trade <span class="ticker">{@presentation.symbol}</span></h2>
-        <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close swap form">
-          Close
-        </Regent.Primitives.button>
-      </header>
+      </:title>
       <%!-- The swap's Review button dips as the token page's does (`SiteButtons`). --%>
       <div
         id={@id <> "-buttons"}
@@ -57,7 +46,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
           portfolio={@portfolio}
         />
       </div>
-    </dialog>
+    </.window>
     """
   end
 
@@ -90,33 +79,24 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
   def bid_modal(assigns) do
     ~H"""
-    <dialog
-      id={@id}
-      class="token-swap-modal"
-      phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
-      data-record-id={@auction.id}
-      aria-labelledby={@id <> "-title"}
-      aria-modal="true"
-    >
-      <header class="token-swap-modal__header">
+    <.window id={@id} record_id={@auction.id} close_label="Close bid form">
+      <:title>
         <.auction_title id={@id <> "-title"} auction={@auction}>Bid on</.auction_title>
-        <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
-          Close
-        </Regent.Primitives.button>
-      </header>
+      </:title>
       <.live_component
         module={AutolaunchWeb.BidComponent}
         id={@id <> "-input"}
         auction={@auction}
+        page={@page}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
       />
-    </dialog>
+    </.window>
     """
   end
 
@@ -131,26 +111,16 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
   def robinhood_bid_modal(assigns) do
     ~H"""
-    <dialog
-      id={@id}
-      class="token-swap-modal"
-      phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
-      data-record-id={@auction.id}
-      aria-labelledby={@id <> "-title"}
-      aria-modal="true"
-    >
-      <header class="token-swap-modal__header">
+    <.window id={@id} record_id={@auction.id} close_label="Close bid form">
+      <:title>
         <.auction_title id={@id <> "-title"} auction={@auction}>
           {if @ended, do: "Your bids on", else: "Bid on"}
         </.auction_title>
-        <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
-          Close
-        </Regent.Primitives.button>
-      </header>
+      </:title>
       <.live_component
         module={AutolaunchWeb.RobinhoodStockBidComponent}
         id={@id <> "-input"}
@@ -159,11 +129,12 @@ defmodule AutolaunchWeb.Components.SwapModal do
         ended={@ended}
         stake_path={@stake_path}
         token_symbol={@auction.token_symbol}
+        page={@page}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
       />
-    </dialog>
+    </.window>
     """
   end
 
@@ -176,21 +147,10 @@ defmodule AutolaunchWeb.Components.SwapModal do
   @doc "One ended Base bid's settlement card, for withdrawing its money or claiming its tokens."
   def settlement_modal(assigns) do
     ~H"""
-    <dialog
-      id={@id}
-      class="token-swap-modal"
-      phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
-      data-record-id={@position.id}
-      aria-labelledby={@id <> "-title"}
-      aria-modal="true"
-    >
-      <header class="token-swap-modal__header">
+    <.window id={@id} record_id={@position.id} close_label="Close">
+      <:title>
         <.auction_title id={@id <> "-title"} auction={@position.auction}>Your bid on</.auction_title>
-        <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close">
-          Close
-        </Regent.Primitives.button>
-      </header>
+      </:title>
       <.live_component
         module={AutolaunchWeb.BidSettlementComponent}
         id={@id <> "-input"}
@@ -199,6 +159,36 @@ defmodule AutolaunchWeb.Components.SwapModal do
         current_human_id={@current_human_id}
         session_lease={@session_lease}
       />
+    </.window>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :record_id, :any, required: true
+  attr :close_label, :string, required: true
+  slot :title, required: true
+  slot :inner_block, required: true
+
+  # The browser's own dialog every trade and bid opens in: its title and
+  # Close in the header, then the panel it is for.
+  defp window(assigns) do
+    ~H"""
+    <dialog
+      id={@id}
+      class="token-swap-modal"
+      phx-hook="AutolaunchSwapDialog"
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
+      data-record-id={@record_id}
+      aria-labelledby={@id <> "-title"}
+      aria-modal="true"
+    >
+      <header class="token-swap-modal__header">
+        {render_slot(@title)}
+        <Regent.Primitives.button variant="quiet" data-close-swap aria-label={@close_label}>
+          Close
+        </Regent.Primitives.button>
+      </header>
+      {render_slot(@inner_block)}
     </dialog>
     """
   end

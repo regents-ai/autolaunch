@@ -2,13 +2,15 @@ defmodule Autolaunch.Robinhood.Launchpad do
   @moduledoc """
   The Robinhood chain as the site reads it, all at one pinned block: the head
   and its rollup clock, one launch record with its token's name, symbol and
-  metadata (`Autolaunch.Robinhood.Discovery`), one auction's market, its floor
-  price and token supply, and a graduated launch's pool price
-  (`Autolaunch.AuctionMarket`). New launches are discovered on the current
-  launchpad; an auction's market is read from the launchpad of its own
-  contracts version.
+  metadata (`Autolaunch.Robinhood.Discovery`), every launchpad's auctions for
+  a wallet's portfolio (`Autolaunch.Robinhood.Positions`), one auction's
+  market, its floor price and token supply, and a graduated launch's pool
+  price (`Autolaunch.AuctionMarket`). New launches are discovered on the
+  current launchpad; an auction's market is read from the launchpad of its
+  own contracts version.
   """
 
+  alias Autolaunch.Auction.MarketState
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.{Abi, Lifecycle, Rpc}
   alias Autolaunch.LabAbi
@@ -27,9 +29,61 @@ defmodule Autolaunch.Robinhood.Launchpad do
 
   def next_launch_id(head), do: launchpad_uint(head, current(head), "nextLaunchId()", [])
 
-  def launch(head, launch_id) do
-    contracts = current(head)
+  def launch(head, launch_id), do: read_launch(head, current(head), launch_id)
 
+  @doc """
+  Every auction the launchpads record, newest first: the current launchpad's,
+  then the first Memestock launchpad's (ids run from 1 to `nextLaunchId() - 1`
+  on each), each launch as `launch/2` reads it with its state against the
+  rollup clock and its auction's stored clearing price.
+  """
+  def auctions(head) do
+    Enum.reduce_while(Lab.versions(head.config), {:ok, []}, fn version, {:ok, found} ->
+      case launchpad_auctions(head, version) do
+        {:ok, auctions} -> {:cont, {:ok, found ++ auctions}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp launchpad_auctions(head, version) do
+    with {:ok, contracts} <- Lab.contracts(head.config, version),
+         {:ok, next_id} <- launchpad_uint(head, contracts, "nextLaunchId()", []) do
+      Enum.reduce_while(1..(next_id - 1)//1, {:ok, []}, &newest_first(head, contracts, &1, &2))
+    end
+  end
+
+  defp newest_first(head, contracts, launch_id, {:ok, found}) do
+    case auction(head, contracts, launch_id) do
+      {:ok, auction} -> {:cont, {:ok, [auction | found]}}
+      error -> {:halt, error}
+    end
+  end
+
+  defp auction(head, contracts, launch_id) do
+    with {:ok, launch} <- read_launch(head, contracts, launch_id),
+         {:ok, clearing} <-
+           Rpc.call_uint(
+             launch.auction,
+             auction_call(head, "clearingPrice()"),
+             head.block,
+             head.opts
+           ) do
+      {:ok,
+       Map.merge(launch, %{
+         state:
+           MarketState.observed(
+             launch.lifecycle,
+             head.clock,
+             launch.start_block,
+             launch.end_block
+           ),
+         clearing_price_q96: clearing
+       })}
+    end
+  end
+
+  defp read_launch(head, contracts, launch_id) do
     with {:ok, record} <- launch_record(head, contracts, launch_id),
          {:ok, launcher} <- Abi.word_address(record.launcher),
          {:ok, token} <- Abi.word_address(record.new_token),

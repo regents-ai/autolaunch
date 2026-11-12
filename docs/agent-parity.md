@@ -23,6 +23,12 @@ surface are in `operations/FEATURES.md`.
 | Count live and graduated auctions | `auction_counts` (`Autolaunch.Auction`, `:counts`) | `/auctions`, the counts | `autolaunch_auction_counts` (`GET /api/v1/auction-counts`) | `autolaunch_auction_counts` | `autolaunch_auction_counts`, once paired with the agent permission | `regents autolaunch auctions counts` |
 | Keep a connected app's identity, pair it and check in | `Autolaunch.Agents.Connection` (`register_identity`, `get_identity`, `pair_identity`, `check_in`) | `/pair`, Claude (switch on) | None: it belongs to a connected app | The four identity tools, for a connected app | The four identity tools | `regents autolaunch agents pair` and `agents status`, for an agent with its own wallet |
 
+## Account
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane. The regents-cli the site names (`fd325437`) asks `account points` at `/api/agent/v1/account/points`, an address the site no longer answers; it closes when the site names a regents-cli that asks `/api/v1/account/points` |
+
 ## Covered calls
 
 Offered only while the site's covered-call switch is on (`AUTOLAUNCH_COVERED_CALLS=true`).
@@ -35,7 +41,7 @@ the switch goes on, so the CLI never offers them while the site does not.
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
 | Read a stock's listings | `covered_call_book` | `/stock/covered-call`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | `covered_call_book` | `covered_call_book`, once paired with the agent permission | Gap: regents-cli lane |
-| Suggested premium | `covered_call_quote` | `/stock/covered-call`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | `covered_call_quote` | `covered_call_quote`, once paired with the agent permission | Gap: regents-cli lane |
+| Quote a listing | `covered_call_quote` | `/stock/covered-call`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | `covered_call_quote` | `covered_call_quote`, once paired with the agent permission | Gap: regents-cli lane |
 | Read my listings and holdings | `covered_call_positions` | `/portfolio`, Covered calls | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | `covered_call_positions` | `covered_call_positions`, once paired with the agent permission | Gap: regents-cli lane |
 | List calls (sell) | `prepare_covered_call`, kind `list` | `/stock/covered-call`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
 | Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/stock/covered-call`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |

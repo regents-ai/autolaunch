@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.StockListingTest do
 
     for {id, title, path} <- [
           {"memestock", "Memestock", "/create"},
-          {"calls", "Call Options", "/stock/covered-call"}
+          {"calls", "Covered calls", "/stock/covered-call"}
         ] do
       assert has_element?(view, "#home-product-#{id} a[href='#{path}'] h2", title)
     end

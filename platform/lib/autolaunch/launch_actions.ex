@@ -12,11 +12,10 @@ defmodule Autolaunch.LaunchActions do
   happen before the lease transaction; only the row write happens inside it.
   """
 
-  alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Client, LaunchAbi, Rpc}
-  alias Autolaunch.Stocks.Amounts
+  alias Autolaunch.Stocks.{Amounts, LaunchOperations}
   alias RegentChain.{Address, Review}
 
   alias Autolaunch.{
@@ -26,7 +25,7 @@ defmodule Autolaunch.LaunchActions do
     LaunchDraft,
     LaunchDraftImageStorage,
     LaunchLinks,
-    LaunchOperations,
+    LaunchOperation,
     TreasurySecurity
   }
 
@@ -59,18 +58,14 @@ defmodule Autolaunch.LaunchActions do
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         :ok <- LaunchOperations.signer_matches(account, signer),
+    with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
+           LaunchOperations.signed_in_wallet(address, opts, LaunchOperation),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft, actor),
          {:ok, snapshot} <- snapshot(signer),
          :ok <- reviewable(fields, snapshot),
          {:ok, treasury_report} <- review_treasury(draft),
-         review <- review(draft, fields, signer, snapshot, treasury_report),
+         review = review(draft, fields, signer, snapshot, treasury_report),
          {:ok, operation} <- open(lease, draft, signer, review) do
       {:ok, reviewed(operation)}
     end
@@ -85,7 +80,7 @@ defmodule Autolaunch.LaunchActions do
   """
   @spec current(map(), keyword()) :: :current | :changed | :unread
   def current(%{signer: signer, facts: facts}, opts) do
-    with {:ok, actor} <- human(opts),
+    with %Human{} = actor <- Keyword.get(opts, :actor),
          {:ok, draft} <- owned_draft(facts["draft_id"], actor),
          {:ok, snapshot} <- snapshot(signer) do
       if standing?(snapshot, facts) and treasury_standing?(draft, facts),
@@ -98,9 +93,10 @@ defmodule Autolaunch.LaunchActions do
 
   defp standing?(snapshot, facts),
     do:
-      not snapshot.paused and same?(snapshot.strategy_factory, snapshot.factory) and
-        same?(snapshot.factory, facts["factory"]) and same?(snapshot.strategy, facts["strategy"]) and
-        same?(snapshot.hook, facts["hook"])
+      not snapshot.paused and Address.equal?(snapshot.strategy_factory, snapshot.factory) and
+        Address.equal?(snapshot.factory, facts["factory"]) and
+        Address.equal?(snapshot.strategy, facts["strategy"]) and
+        Address.equal?(snapshot.hook, facts["hook"])
 
   defp treasury_standing?(draft, facts) do
     case review_treasury(draft) do
@@ -153,6 +149,15 @@ defmodule Autolaunch.LaunchActions do
   @floor_price_q96 4_294_967_300
   @decimals 18
   @total_supply 100_000_000_000
+
+  @doc """
+  A Revstake launch's fixed schedule in Base blocks, `RegentLBPStrategyV2`'s
+  START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS, CLAIM_DELAY_BLOCKS and
+  MIGRATION_DELAY_BLOCKS: bidding opens `opens` after the launch, runs for
+  `length`, and claims and the trading pool open `claim` and `pool` after
+  bidding ends. The treasury's release is counted in time (365 days), not here.
+  """
+  def schedule, do: %{opens: 300, length: 86_401, claim: 64, pool: 128}
 
   @doc """
   What a launch opens at, in REGENT: the price of one token at the auction's
@@ -270,7 +275,7 @@ defmodule Autolaunch.LaunchActions do
          {:ok, image} <- launch_image(draft, actor),
          :ok <- treasury_confirmed(draft),
          true <- LaunchDraft.treasury_complete?(draft),
-         {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid) do
+         {:ok, treasury} <- Address.normalize(draft.treasury) do
       {:ok,
        Map.merge(fields, %{
          telegram: draft.telegram,
@@ -280,7 +285,7 @@ defmodule Autolaunch.LaunchActions do
          treasury: treasury
        })}
     else
-      false -> unavailable(:launch_treasury_invalid)
+      invalid when invalid in [false, :error] -> unavailable(:launch_treasury_invalid)
       error -> error
     end
   end
@@ -319,13 +324,6 @@ defmodule Autolaunch.LaunchActions do
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-
-  defp address(value, reason) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(reason)
-    end
-  end
 
   # Chain snapshot
 
@@ -374,7 +372,7 @@ defmodule Autolaunch.LaunchActions do
       refused_treasury?(fields.treasury, snapshot) ->
         unavailable(:launch_treasury_refused)
 
-      not same?(snapshot.strategy_factory, snapshot.factory) ->
+      not Address.equal?(snapshot.strategy_factory, snapshot.factory) ->
         unavailable(:strategy_not_bound)
 
       true ->
@@ -390,27 +388,41 @@ defmodule Autolaunch.LaunchActions do
 
     Enum.any?(
       [factory, strategy, hook, lp_locker | @frozen_refused_treasuries],
-      &same?(treasury, &1)
+      &Address.equal?(treasury, &1)
     )
   end
 
   # Saved reviews
 
-  defp open(lease, draft, signer, review) do
-    transact(lease, fn account ->
-      with :ok <- LaunchOperations.signer_matches(account, signer) do
-        LaunchOperations.create(account, %{
-          action_id: action_id(),
-          launch_draft_id: draft.id,
-          review: review,
-          signer: signer,
-          step: :launch
-        })
+  # The write runs inside the mounted lease as the outermost transaction, so a
+  # review cannot outlive a concurrent logout, revocation or lapse of provider
+  # evidence. The owner is the account the lease locks, and the signer is
+  # proved to be one of its wallets again there, rather than taken from an
+  # actor read earlier.
+  defp open(%{lineage: lineage, account_id: account_id}, draft, signer, review) do
+    lineage
+    |> SessionAuthority.transact_lease(account_id, fn account ->
+      if Enum.any?(account.wallet_addresses, &Address.equal?(&1, signer)) do
+        LaunchOperation.prepare(
+          %{
+            action_id: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower),
+            human_account_id: account.id,
+            launch_draft_id: draft.id,
+            review: review,
+            signer: signer,
+            step: :launch
+          },
+          actor: %System{}
+        )
+      else
+        unavailable(:wrong_signer)
       end
     end)
+    |> case do
+      {:error, :stale_authority} -> unavailable(:session_unavailable)
+      result -> result
+    end
   end
-
-  defp action_id, do: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
 
   defp review_treasury(draft) do
     if Lab.test_chain?() do
@@ -485,52 +497,9 @@ defmodule Autolaunch.LaunchActions do
     }
   end
 
-  defp transact(lease, callback), do: LaunchOperations.transact(lease, callback)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The account the mounted lease resolves to right now. A lineage that has been
-  # revoked, rebound or whose provider evidence has lapsed resolves to nothing.
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  # The lease and the acting human have to name one account, so a lease held for
-  # another account answers about nothing.
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  # Shared helpers
-
-  defp normalize(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(:invalid_address)
-    end
-  end
-
-  defp same?(left, right), do: Address.equal?(left, right)
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # page can name the fact that actually stopped the launch.
+  defp unavailable(reason),
+    do:
+      {:error, Ash.Error.Invalid.Unavailable.exception(resource: LaunchOperation, reason: reason)}
 end
