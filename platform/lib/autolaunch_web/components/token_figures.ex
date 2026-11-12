@@ -74,23 +74,23 @@ defmodule AutolaunchWeb.Components.TokenFigures do
       <dl id={@id} class="token-market__stats">
         <div>
           <dt>Market cap</dt>
-          <dd>{@market_cap || "No price yet"}</dd>
+          <dd class="rg-figure">{@market_cap || "No price yet"}</dd>
         </div>
         <div>
           <dt>Price in {@unit}</dt>
-          <dd><TokenDisplay.price amount={@price} /></dd>
+          <dd class="rg-figure"><TokenDisplay.price amount={@price} /></dd>
         </div>
         <div>
           <dt>Change</dt>
-          <dd>{@change}</dd>
+          <dd class="rg-figure">{@change}</dd>
         </div>
         <div>
           <dt>Total supply</dt>
-          <dd>{@supply || "Not read yet"}</dd>
+          <dd class="rg-figure">{@supply || "Not read yet"}</dd>
         </div>
         <div>
           <dt>Trades</dt>
-          <dd>{@trades}</dd>
+          <dd class="rg-figure">{@trades}</dd>
         </div>
         <div>
           <dt>Launch type</dt>
