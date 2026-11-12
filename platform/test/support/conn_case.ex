@@ -18,6 +18,10 @@ defmodule AutolaunchWeb.ConnCase do
 
   setup tags do
     Autolaunch.DataCase.setup_sandbox(tags)
+    # Every test's requests come from one address with one request budget a
+    # minute, so each test starts with all of it, however fast the suite runs.
+    :ets.delete_all_objects(Autolaunch.Accounts.RequestRateLimiter)
+
     {:ok, conn: AutolaunchWeb.SessionAuthorityHelpers.build_conn()}
   end
 end
