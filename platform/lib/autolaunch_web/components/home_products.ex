@@ -4,7 +4,9 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   launches and Revstake launches. Each card is one dark link: a moving panel of
   small lit cells drawn on the GPU (`HomeCells` in `assets/js/hooks/home_cells.ts`),
   a pattern and a colour for each product; under it the product's name in its
-  colour with its place in the row, what it is for, and what the link does. The
+  colour with its place in the row, a headline and a line on what it is for,
+  and what the link does. A screen reader names the link by the product and
+  its action, and reads the headline and line as its description. The
   product's line drawing is the picture until the panel has drawn, and stays it
   without WebGPU.
 
@@ -40,6 +42,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
             :if={!product.launch or @launches_open}
             navigate={product.path}
             class="home-product__face"
+            aria-labelledby={"home-product-#{product.id}-title home-product-#{product.id}-action"}
+            aria-describedby={"home-product-#{product.id}-headline home-product-#{product.id}-line"}
           >
             <.face product={product} place={place} count={length(@products)} action={product.action} />
           </.link>
@@ -67,12 +71,12 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     </div>
     <div class="home-product__words">
       <div class="home-product__meta">
-        <h2 class="home-product__title">{@product.title}</h2>
+        <h2 id={"home-product-#{@product.id}-title"} class="home-product__title">{@product.title}</h2>
         <span class="home-product__place" aria-hidden="true">{place(@place)} / {place(@count)}</span>
       </div>
-      <p class="home-product__headline">{@product.headline}</p>
-      <p class="home-product__line">{@product.line}</p>
-      <p class="home-product__action">
+      <p id={"home-product-#{@product.id}-headline"} class="home-product__headline">{@product.headline}</p>
+      <p id={"home-product-#{@product.id}-line"} class="home-product__line">{@product.line}</p>
+      <p id={"home-product-#{@product.id}-action"} class="home-product__action">
         {@action}<Regent.Icons.icon name="arrow-right" class="home-product__arrow" />
       </p>
     </div>
@@ -108,7 +112,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         id: "revstake",
         title: "Revstake",
         headline: "Tokens that share revenue.",
-        line: "Agents and projects raise REGENT, and stakers share their fees and payments.",
+        line: "Agents and projects raise REGENT, and stakers share the token's fees and payments.",
         action: "Launch one",
         path: "/agent-business",
         launch: true

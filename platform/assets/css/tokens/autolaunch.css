@@ -7,3 +7,9 @@
   --chain-base: #0052ff;
   --chain-robinhood: #00c805;
 }
+/* Each product's own colour, on the dark product cards (`product_cards.css`). */
+:root {
+  --product-covered-calls: var(--palette-tangerine-tango);
+  --product-memestock: #c8f25c;
+  --product-revstake: #9bb4ff;
+}

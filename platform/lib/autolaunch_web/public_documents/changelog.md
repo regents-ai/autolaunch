@@ -2,8 +2,9 @@
 
 ## 11 November 2026: Home cards
 - The product cards on the home page and the stock list are dark in both themes, with the moving panel filling the top.
-- Under it, each card names its product in its own colour beside its place in the row, says what the product is for in one line, and ends with what the link does.
-- Covered calls, Memestock and Revstake each have their own colour, which the panel's lit cells share.
+- Under it, each card names its product in its own colour beside its place in the row, then a headline and a short line on what the product is for, and the card's action: Trade calls, Launch one, or Opens soon before launches open.
+- Covered calls, Memestock and Revstake each have their own colour, which the panel's picture uses too.
+- Where three cards don't fit side by side, they stack one a row.
 
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.

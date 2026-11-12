@@ -1,6 +1,6 @@
 /**
  * The home product cards' moving pictures: a panel of small lit cells, like an
- * instrument's display, one pattern for each product. Call Options draws a
+ * instrument's display, one pattern for each product. Covered calls draws a
  * call's payoff, flat then rising past a strike that drifts; Memestock draws two
  * colours meeting along a seam, the stock's and the memecoin's; Revstake draws
  * revenue as bars that rise and fall, each topped in the accent. The pointer
