@@ -37,7 +37,8 @@ defmodule AutolaunchWeb.ShareVideoLimitTest do
     {:ok, auction} = Paths.find_auction("FULL", String.slice(stored.auction_address, -5, 5))
     a_day_of_videos(stored.id)
 
-    address = URI.parse(ShareVideo.wallet_url(auction, account.wallet_address, DateTime.utc_now()))
+    address =
+      URI.parse(ShareVideo.wallet_url(auction, account.wallet_address, DateTime.utc_now()))
 
     refused =
       conn

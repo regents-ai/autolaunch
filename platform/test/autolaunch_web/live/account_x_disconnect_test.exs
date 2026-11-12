@@ -38,7 +38,10 @@ defmodule AutolaunchWeb.AccountXDisconnectTest do
         actor: %Human{human_account_id: account.id}
       )
 
-      render_hook(view, "refresh_x_connections", %{"role" => "profile", "status" => "disconnected"})
+      render_hook(view, "refresh_x_connections", %{
+        "role" => "profile",
+        "status" => "disconnected"
+      })
 
       refute has_element?(view, "#account-connections-x-profile [data-x-disconnect-role]")
       assert has_element?(view, "#account-connections-x-profile [data-x-connect-role]")
