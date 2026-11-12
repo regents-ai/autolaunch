@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
      |> assign_new(:notify, fn -> false end)
      |> assign_new(:bare, fn -> false end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:ens_error, fn -> nil end)
      |> assign_new(:resolving, fn -> false end)
      |> assign_ens()}
   end
@@ -68,7 +69,14 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     else
       socket
       |> cancel_async(:connect_ens)
-      |> assign(scope: scope, notice: nil, resolving: false, ens_name: "", ens_address: nil)
+      |> assign(
+        scope: scope,
+        notice: nil,
+        ens_error: nil,
+        resolving: false,
+        ens_name: "",
+        ens_address: nil
+      )
     end
   end
 
@@ -92,7 +100,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
 
     {:noreply,
      socket
-     |> assign(resolving: true, notice: nil, ens_address: nil, ens_name: name)
+     |> assign(resolving: true, notice: nil, ens_error: nil, ens_address: nil, ens_name: name)
      |> start_async(:connect_ens, fn -> Accounts.connect_ens(name, opts) end)}
   end
 
@@ -110,12 +118,13 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
   end
 
   # A refused name says why in its own words (`Autolaunch.Accounts.ConnectEns`):
-  # try again, taken by another account, or not this wallet's. Anything else is
-  # a real error, as on a page (`AutolaunchWeb.ReadFailure`).
+  # try again, taken by another account, or not this wallet's, under the name's
+  # own field. Anything else is a real error, as on a page
+  # (`AutolaunchWeb.ReadFailure`).
   def handle_async(:connect_ens, {:ok, {:error, %Ash.Error.Invalid{errors: errors}}}, socket) do
     case Enum.find_value(errors, &refusal/1) do
       nil -> raise AutolaunchWeb.ReadFailedError
-      notice -> {:noreply, assign(socket, resolving: false, notice: notice)}
+      refusal -> {:noreply, assign(socket, resolving: false, ens_error: refusal)}
     end
   end
 
@@ -159,7 +168,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
 
   defp row_assigns(assigns) do
     assigns
-    |> Map.take([:x_connections, :x_enabled, :ens_name, :ens_address, :resolving])
+    |> Map.take([:x_connections, :x_enabled, :ens_name, :ens_address, :ens_error, :resolving])
     |> Map.merge(%{github: assigns.identities[:github], ens: assigns.identities[:ens]})
   end
 
@@ -235,12 +244,19 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
                 placeholder="yourname.eth"
                 autocomplete="off"
                 required
+                aria-invalid={@ens_error && "true"}
+                aria-describedby={if @ens_error, do: "#{@id}-ens-errors", else: "#{@id}-ens-hint"}
               />
               <Regent.Primitives.button type="submit" variant="secondary" disabled={@resolving}>
                 {if @resolving, do: "Checking…", else: "Verify"}
               </Regent.Primitives.button>
             </div>
-            <small>Use a name controlled by your signed-in wallet and resolving to it.</small>
+            <small :if={!@ens_error} id={"#{@id}-ens-hint"}>
+              Use a name controlled by your signed-in wallet and resolving to it.
+            </small>
+            <div id={"#{@id}-ens-errors"} class="rg-field-errors" aria-live="polite">
+              <p :if={@ens_error}>{@ens_error}</p>
+            </div>
           </form>
         </:below>
       </.connection>

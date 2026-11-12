@@ -1061,7 +1061,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         placeholder={@placeholder}
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       >{@value}</textarea>
       <input
         :if={@kind == :text}
@@ -1074,7 +1074,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       />
       <p :if={@hint} id={"#{@id}-hint"} class="create-page__hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>

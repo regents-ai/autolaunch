@@ -1248,7 +1248,7 @@ defmodule AutolaunchWeb.CreateLive do
         rows="3"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       >{@value}</textarea>
       <input
         :if={@field.kind == :text}
@@ -1260,7 +1260,7 @@ defmodule AutolaunchWeb.CreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       />
       {render_slot(@inner_block)}
       <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
