@@ -2,11 +2,12 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   @moduledoc """
   A launched token's page heading: its picture, its name and the pair it
   trades as, a line of tags (its chain, its launch type and who made it), and
-  its actions: Share, its shortened address with a copy button, and where to
-  trade and chart it. The trade and chart buttons hold their place from the
-  first paint and open once the pool is read, so nothing below them moves.
-  They name public networks only, so a local fork's token shows its address
-  without them. Where the outside chart site has no chart for the pool, the
+  its actions: Share, its address through `Regent.Primitives.address` (short
+  form, copy icon, explorer arrow), and where to trade and chart it. The trade
+  and chart buttons hold their place from the first paint and open once the
+  pool is read, so nothing below them moves. They and the explorer arrow name
+  public networks only, so a local fork's token shows its address and copy
+  icon without them. Where the outside chart site has no chart for the pool, the
   chart button opens the page's own price chart instead.
   """
   use Phoenix.Component
@@ -55,15 +56,11 @@ defmodule AutolaunchWeb.Components.TokenHeading do
       </div>
       <div class="token-heading__links">
         {render_slot(@actions)}
-        <Regent.Primitives.copy_button
-          id="token-heading-copy"
-          text={@address}
-          class="token-heading__copy"
-          aria-label={"Copy the #{@symbol} token address"}
-        >
-          <span class="token-heading__address">{RegentFormat.short_address(@address)}</span>
-          <Regent.Icons.icon name="copy" class="token-heading__icon" />
-        </Regent.Primitives.copy_button>
+        <Regent.Primitives.address
+          id="token-heading-address"
+          address={@address}
+          chain={@network || "test"}
+        />
         <a
           :if={@network && @pool}
           class="rg-button rg-button--secondary token-heading__link"
