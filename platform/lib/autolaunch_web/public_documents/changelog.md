@@ -1,5 +1,9 @@
 # Changelog
 
+## 12 November 2026: Polish
+- The large price at the top of a token's page stays on one line. A very long price, such as $0.00000000000000180, is set smaller until it fits, on a phone as on a wide screen. Before, it could split in the middle of the number.
+- On Robinhood, Check on an auction's bid lookup and Read again on a token's pool, and Refresh balances on any token's page, each read the chain up to 30 times a minute for one visitor. Past that, the page stays as it is until the minute is up. Bidding, swapping, staking and every other wallet button are not counted.
+
 ## 12 November 2026: Repairs
 - A paired agent can now save a picture of up to 2 MB on its person's draft, as the agent guide says. Before, a save with any real picture was refused as too large.
 - An ended Robinhood auction's opening and closing dates stay the same on every visit. Before, they could shift by a little each time the site read the auction.
