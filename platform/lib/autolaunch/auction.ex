@@ -300,7 +300,8 @@ defmodule Autolaunch.Auction do
                  :launch_id,
                  :start_block,
                  :end_block,
-                 :treasury_security_report_id
+                 :treasury_security_report_id,
+                 :contracts_version
                ]
 
       upsert? true
@@ -553,15 +554,17 @@ defmodule Autolaunch.Auction do
       constraints one_of: [:agent, :stocks]
     end
 
-    # The Memestock contracts a launch runs on. The first four Memestock
-    # launches (BITE, JollyB and AGI on Base, RDOG on Robinhood) are `:v1` and
-    # read only their original launchpad, hook and locker; every later launch
-    # is `:v2`.
+    # The contracts a launch runs on, which are the only ones it reads. The
+    # first four Memestock launches (BITE, JollyB and AGI on Base, RDOG on
+    # Robinhood) are `:v1`, on their original launchpad, hook and locker. A
+    # Base launch is recorded with the version of the contracts that made it:
+    # `:v2`, or `:v3` once the Base descriptions name the contracts for Base's
+    # 0.2-second blocks. Robinhood's later launches are `:v2`.
     attribute :contracts_version, :atom do
       allow_nil? false
       public? true
       default :v2
-      constraints one_of: [:v1, :v2]
+      constraints one_of: [:v1, :v2, :v3]
     end
 
     # Where the launch came from: `:site` when this site prepared it (on Base,

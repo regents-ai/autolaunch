@@ -43,9 +43,9 @@ An agent, or any service that earns stablecoins, raises early backing in an auct
 
 ### Memestock tokens
 
-A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A v2 auction runs for {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. The stock raised and the tokens it needs become liquidity at every price, and any remaining reserve becomes liquidity in the token alone, for prices above the opening token price. Any stock left over from rounding is added to the REGENT stakers' fee. The creator receives 0.5% of the supply over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation and earns 0.3% of the stock amount of every trade, before fees.
+A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A new auction runs for {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. The stock raised and the tokens it needs become liquidity at every price, and any remaining reserve becomes liquidity in the token alone, for prices above the opening token price. Any stock left over from rounding is added to the REGENT stakers' fee. The creator's 0.5% of the supply is released {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation, and the creator earns 0.3% of the stock amount of every trade, before fees.
 
-New launches use v2. The four existing v1 Memestock auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
+The four existing v1 Memestock auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
 
 ### Token staking
 
@@ -59,7 +59,7 @@ Autolaunch uses Uniswap's continuous clearing auction, which sells tokens a litt
 
 ### A minimum raise, or everyone gets their money back
 
-Each v2 auction must reach its minimum before it can graduate. It opens at the lowest price it accepts, and its minimum is the whole sale allocation at that price, rounded up. The launcher chooses neither. If it falls short, every bidder takes back their full bid, and the refunds are paid by the Uniswap auction contract itself.
+From v2 on, each auction must reach its minimum before it can graduate. It opens at the lowest price it accepts, and its minimum is the whole sale allocation at that price, rounded up. The launcher chooses neither. If it falls short, every bidder takes back their full bid, and the refunds are paid by the Uniswap auction contract itself.
 
 ### Liquidity that can't be pulled
 
@@ -84,7 +84,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ### What's the difference between Revstake and Memestock?
 
-Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in an auction of {{revstake_auction}} priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in an auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain, and 0.5% goes to the creator over {{memestock_release_base}} on Base or {{memestock_release_robinhood}} on Robinhood Chain from graduation.
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in an auction of {{revstake_auction}} priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in an auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain, and 0.5% is released to the creator {{memestock_release_base}} on Base or {{memestock_release_robinhood}} on Robinhood Chain from graduation.
 
 ### Why does everyone pay the same price?
 

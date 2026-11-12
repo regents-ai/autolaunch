@@ -260,9 +260,9 @@ The revenue mesh has no deployment script and no production address.
   launchpad pulls no REGENT and never holds it; the Robinhood launchpad pulls no USDG.
 - **The launcher chooses the required raise.** Every launchpad admits any raise above zero that the
   fixed inventory can reach at the highest bid price, and there is no governance minimum.
-- **Every auction opens on a fixed clock**: 300 blocks after the launch on Base, 6,000 blocks on
-  Robinhood Chain (the Base schedule times twenty for 0.1-second blocks). The launcher does not
-  choose it.
+- **Every auction opens on a fixed clock**: 3,000 blocks after the launch on Base's v3 contracts
+  (300 on v2), ten minutes at Base's 0.2-second blocks, and 6,000 blocks on Robinhood Chain
+  (ten minutes at 0.1-second blocks). The launcher does not choose it.
 - **Memestake preset accepted** (9 September 2026): the fixed terms in `StocksPreset.sol` stand, on
   the basis that their 13-step schedule leaves about 30% of the auction inventory for the final
   block, as the Revstake schedule does (29.88% on Base). `stocks/README.md` marks each of them

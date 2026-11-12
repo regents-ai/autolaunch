@@ -44,6 +44,8 @@ defmodule Autolaunch.LabProjection do
         creator_address: String.downcase(signer),
         state: :created,
         auction_address: result["auction"],
+        # The receipt was verified against the factory new launches go to.
+        contracts_version: Autolaunch.Lab.current!().version,
         quote_token_address: facts["regent"],
         required_currency_raised: facts["terms"]["required_regent_raised"],
         treasury_address: result["treasury"],

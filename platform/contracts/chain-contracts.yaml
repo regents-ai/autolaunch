@@ -219,6 +219,58 @@ contracts:
           are frozen constants in contracts/revstake-v2/src/bindings/BaseBindings.sol at
           source_commit.
         action_ids: []
+      - contract_id: regents_autolaunch_factory_v3
+        contract_name: RegentsAutolaunchFactoryV3
+        target: c5_admitted_factory_address
+        source_commit: 5b7d7e3e8ce127917f89ffcfbb605c38dfe4a14d
+        abi_path: abi/regents-autolaunch-factory-v3.json
+        abi_sha256: 3988835d8a2ac56d3b965d78c0b6b5dcd653fac5c87114c6ce7ec64a1df78d96
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v3/abi/RegentsAutolaunchFactoryV3.json
+          this site calls and decodes, from contracts/revstake-v3/src/factory/RegentsAutolaunchFactoryV3.sol
+          at source_commit. It declares the same signatures as the second factory's.
+        interface_note: >-
+          The second factory's interface for Base's 0.2-second blocks: launch takes the same one
+          tuple, with no launch fee and no REGENT allowance. New launches go to this factory once
+          the Base description names it; launches made through the second factory keep reading
+          through it. pauseLaunches and unpauseLaunches are deliberately not derived.
+        confirmation_event_signatures:
+          - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
+        action_ids:
+          - launch
+      - contract_id: regent_lbp_strategy_v3
+        contract_name: RegentLBPStrategyV3
+        target: reviewed_factory_bound_strategy_address
+        source_commit: 5b7d7e3e8ce127917f89ffcfbb605c38dfe4a14d
+        abi_path: abi/regent-lbp-strategy-v3.json
+        abi_sha256: d13690359ed8bfe27c74bef3db2fa2f68422c0f75a767f2be6a8efe5f15eedda
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v3/abi/RegentLBPStrategyV3.json this
+          site reads, from contracts/revstake-v3/src/strategy/RegentLBPStrategyV3.sol at
+          source_commit. It is byte for byte the second strategy's subset.
+        interface_note: >-
+          The second strategy's reads and treasury refusals, with the schedule restated for
+          Base's 0.2-second blocks: START_DELAY_BLOCKS 3,000, AUCTION_DURATION_BLOCKS 864,001,
+          CLAIM_DELAY_BLOCKS 640 and MIGRATION_DELAY_BLOCKS 1,280. The three frozen refused
+          treasuries are the same constants in contracts/revstake-v3/src/bindings/BaseBindings.sol.
+          No strategy call is prepared.
+        reads:
+          - id: hook
+            signature: hook()
+            selector: "0x7f5a7c7b"
+          - id: lp_locker
+            signature: lpLocker()
+            selector: "0x03fc2013"
+          - id: floor_price_q96
+            signature: FLOOR_PRICE_Q96()
+            selector: "0x14ec99b0"
+          - id: bid_tick_spacing_q96
+            signature: BID_TICK_SPACING_Q96()
+            selector: "0xf54c506c"
+          - id: required_regent_raised
+            signature: REQUIRED_REGENT_RAISED()
+            selector: "0xcfc7e1db"
+        action_ids: []
       - contract_id: regent_revenue_staking
         address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
         runtime_code:
@@ -245,10 +297,11 @@ contracts:
     deployment_status: local_lab_only
     admission: disabled
     source_note: >-
-      Autolaunch Stocks version 2. The ABIs below are the compiled ABIs of contracts/stocks-v2
-      (StocksLaunchpadV2, its StocksFeeHookV1 and StockBidAdapterV1). The website reads the
-      deployment's ABIs from its stocks site config and validates them against the shapes in
-      Autolaunch.Stocks.LabAbi; this entry pins no address.
+      Autolaunch Stocks versions 2 and 3. The ABIs below are the compiled ABIs of contracts/stocks-v2
+      (StocksLaunchpadV2, its StocksFeeHookV1 and StockBidAdapterV1) and of StocksLaunchpadV3 in
+      contracts/stocks-v3, whose fee hook and bid adapter ABIs are the second version's. The
+      website reads the deployment's ABIs from its stocks site config and validates them against
+      the shapes in Autolaunch.Stocks.LabAbi; this entry pins no address.
     admitted_prepared_actions: []
     reviewed_action_evidence:
       - contract_id: stocks_launchpad_v2
@@ -265,6 +318,39 @@ contracts:
           (releaseCreatorVesting, callable by anyone, pays the launcher). Graduation clones a memestock splitter per launch
           (MemestockSplitterCreated) and locks a full-range position and a new-token-only position
           in the launchpad's locker.
+        confirmation_event_signatures:
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint256,uint256)
+        reads:
+          - id: stock_admission
+            signature: stockAdmission(address)
+          - id: launches
+            signature: launches(uint256)
+          - id: launches_paused
+            signature: launchesPaused()
+          - id: creator_releasable
+            signature: creatorReleasable(uint256)
+          - id: launch_id_of_token
+            signature: launchIdOfToken(address)
+          - id: locker
+            signature: locker()
+          - id: splitter_implementation
+            signature: splitterImplementation()
+        action_ids:
+          - launch
+          - release_creator_vesting
+      - contract_id: stocks_launchpad_v3
+        contract_name: StocksLaunchpadV3
+        target: stocks_lab_launchpad_address
+        abi_path: abi/stocks-launchpad-v3.json
+        abi_sha256: 6f2f17063afeb60d650735c775d177df85da0bdcf0e14b3a917fa86270b7e625
+        interface_note: >-
+          The second launchpad's interface for Base's 0.2-second blocks. Bidding opens
+          StocksPreset.START_LEAD_BLOCKS, 3,000 blocks, after the creation block and runs
+          AUCTION_DURATION_BLOCKS, 431,991 blocks; claims open 640 and the pool 1,280 blocks after
+          the end. The creator's 5 million tokens vest by the clock over
+          StocksPreset.CREATOR_VESTING_SECONDS, 30 days, from the graduation timestamp the launch
+          record holds as vestingStart (releaseCreatorVesting, callable by anyone, pays the
+          launcher).
         confirmation_event_signatures:
           - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint256,uint256)
         reads:

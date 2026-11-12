@@ -105,7 +105,7 @@ defmodule Autolaunch.DiscoverySkipsTest do
     if selector == LabAbi.selector("nextLaunchId()") do
       [BaseRpcStub.hex_word(2)]
     else
-      List.duplicate(0, StocksLabAbi.launch_record_words())
+      List.duplicate(0, StocksLabAbi.shape(:v2).record_words)
       |> List.replace_at(5, @start_block)
       |> List.replace_at(8, @migration_block)
       |> List.replace_at(9, @running)

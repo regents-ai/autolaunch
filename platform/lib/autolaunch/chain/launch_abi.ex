@@ -5,6 +5,8 @@ defmodule Autolaunch.Chain.LaunchAbi do
 
   Every signature here is declared by an ABI file taken from the contract
   source, and the module refuses to compile unless that file still declares it.
+  The files are the third factory's and strategy's; the second's declare the
+  same signatures.
   Calldata is encoded from the deployment description (`Autolaunch.LabAbi`),
   never here.
   """
@@ -12,10 +14,10 @@ defmodule Autolaunch.Chain.LaunchAbi do
   alias Autolaunch.Chain.Abi
 
   @factory_abi_path Path.expand(
-                      "../../../contracts/abi/regents-autolaunch-factory-v2.json",
+                      "../../../contracts/abi/regents-autolaunch-factory-v3.json",
                       __DIR__
                     )
-  @strategy_abi_path Path.expand("../../../contracts/abi/regent-lbp-strategy-v2.json", __DIR__)
+  @strategy_abi_path Path.expand("../../../contracts/abi/regent-lbp-strategy-v3.json", __DIR__)
   @external_resource @factory_abi_path
   @external_resource @strategy_abi_path
 

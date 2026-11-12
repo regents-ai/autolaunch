@@ -3,7 +3,7 @@
 Autolaunch runs public auctions for new tokens. It then pays the people who stake those tokens a
 share of every trade.
 
-Anyone can launch a token with the fixed v2 terms. Anyone can bid. At each
+Anyone can launch a token on fixed terms. Anyone can bid. At each
 moment the auction has one clearing price, and every bid still buying pays it. If the auction
 raises its minimum, the token graduates: it starts trading in a Uniswap pool whose liquidity is
 locked forever. If it falls short, every bidder takes their full bid back. After graduation,
@@ -20,7 +20,7 @@ Revstake launches run on Base.
 **Memestock** tokens are memecoins paired with a tokenised stock, such as Tesla or Apple. Bids are
 paid in that stock. Nobody keeps what the auction raises: every unit goes into the token's locked
 trading pool, apart from a rounding remainder routed to the protocol fee lane. The creator receives
-0.5% of the token supply over about 3 days on Base or about 30 days on Robinhood Chain, and 0.3% of the stock side of trades. There is no team treasury. Memestock
+0.5% of the token supply over 30 days from graduation, and 0.3% of the stock side of trades. There is no team treasury. Memestock
 launches run on Base and on Robinhood Chain.
 
 | | Revstake | Memestock |
@@ -30,14 +30,17 @@ launches run on Base and on Robinhood Chain.
 | Total supply | 100 billion | 1 billion |
 | Sold in the auction | 20% | 49.75% |
 | Reserved for the trading pool | Up to 10% | 49.75% |
-| Everything else | 70%, plus unpaired reserve and rounding leftovers, vests to the treasury over 365 days from graduation | 0.5% vests to the creator from graduation, over about 3 days on Base or about 30 days on Robinhood Chain; remaining rounding leftovers are retired |
+| Everything else | 70%, plus unpaired reserve and rounding leftovers, vests to the treasury over 365 days from graduation | 0.5% vests to the creator over 30 days from graduation; remaining rounding leftovers are retired |
 | Where the raise goes | Up to half funds the locked pool; at least half goes to the treasury | All funds the locked pool, apart from rounding dust credited to the protocol fee lane |
-| Bidding opens | about 1 minute after launch | about 1 minute after launch on Base, about 10 minutes on Robinhood Chain |
-| Bidding lasts | about 5 hours | about 2 hours on Base, about 24 hours on Robinhood Chain |
+| Bidding opens | about 10 minutes after launch | about 10 minutes after launch |
+| Bidding lasts | about 2 days | about 24 hours |
 
 Launching is free apart from the network fee.
 
-These are the terms for new v2 launches. The four existing v1 Memestock auctions
+These are the terms for new launches: v3 on Base and v2 on Robinhood Chain. Base launches made
+on v2 keep their own timing: bidding opened about 1 minute after launch and lasted about 5 hours
+for Revstake or about 2 hours for Memestock, and a Memestock creator's 0.5% is released block by
+block over about 3 days. The four existing v1 Memestock auctions
 (AGI, JollyB, BITE and RDOG) keep their 80% auction / 20% reserve allocation, no creator
 allocation, and two 1% hook fees. New v1 launches are paused; existing withdrawals,
 claims, trading and staking remain supported.
@@ -55,7 +58,7 @@ the whole auction, not all at once at the end.
    price depends on when your bid was buying.
 3. **If the price passes your limit,** your bid stops buying. You keep the tokens it already bought
    and take back the rest of your money.
-4. **The minimum.** Every v2 auction uses the lowest floor the auction permits. Its minimum
+4. **The minimum.** From v2 on, every auction uses the lowest floor the auction permits. Its minimum
    is the whole sale allocation at that floor, rounded up; the launcher chooses neither.
    The auction page shows how close it is, and the auction list shows a green check once an auction
    has reached its minimum.

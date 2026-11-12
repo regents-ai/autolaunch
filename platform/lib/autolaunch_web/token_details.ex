@@ -155,18 +155,26 @@ defmodule AutolaunchWeb.TokenDetails do
     do:
       "sent on as USDG: #{pool.fees.regent.settled_usdc} USDG, held on Robinhood Chain until the transfer to Base is set up."
 
-  defp creator_lane(%{version: :v2} = pool) do
+  defp creator_lane(%{version: version} = pool) when version in [:v2, :v3] do
     creator = pool.fees.creator
-    rate = FeeSchedule.lane(pool.chain, :v2, :creator).rate
+    rate = FeeSchedule.lane(pool.chain, version, :creator).rate
 
     [
       "- Creator: #{rate} of the #{pool.currency.symbol} amount, before fees, paid to the wallet that launched it. Waiting: #{creator.accrued} #{pool.currency.symbol}; paid so far: #{creator.settled_currency} #{pool.currency.symbol}.",
       pool.vesting &&
-        "- Creator's #{pool.token.symbol}: #{pool.vesting.released} released so far, #{pool.vesting.releasable} ready to release to #{pool.vesting.creator}."
+        "- Creator's #{pool.token.symbol}: #{pool.vesting.released} released so far, #{pool.vesting.releasable} ready to release to #{pool.vesting.creator}" <>
+          creator_period(pool.vesting) <> "."
     ]
   end
 
   defp creator_lane(_pool), do: nil
+
+  # A launch on Base's third launchpad releases the creator's tokens over 30
+  # days from the pool opening, so its dates are known once the pool opens.
+  defp creator_period(%{starts_at: starts_at, ends_at: ends_at}),
+    do: "; released steadily from #{date(starts_at)} to #{date(ends_at)}"
+
+  defp creator_period(_vesting), do: ""
 
   defp liquidity(pool) do
     [

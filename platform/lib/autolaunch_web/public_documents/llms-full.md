@@ -64,7 +64,7 @@ Revstake supply: 100 billion tokens.
 | Liquidity reserve | Up to 10 billion (10%) | Paired with up to half the REGENT raised in a permanently locked trading position. The pool opens at the auction's final clearing price. |
 | Treasury | 70 billion (70%) | Released to the launch's treasury over 365 days from graduation, with the unpaired reserve and auction rounding leftovers. The treasury also receives at least half the REGENT raised at graduation. |
 
-Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale at that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it. The launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 100 billion tokens are retired to the dead address.
+From v2 on, every auction opens at the lowest price it accepts. Its minimum is the whole sale at that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it. The launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 100 billion tokens are retired to the dead address.
 
 The launcher of the revstake token is making an implicit promise to pass all future revenue through the revstake contract, where stakers receive a pro rata slice. You buy the token, stake it, and then always receive a portion of the USDC made by the agent or service.
 
@@ -74,7 +74,7 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestock: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Create a memecoin paired to onchain stock. Holders earn the stock from trading fees. Memestock launches last {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Create a memecoin paired to onchain stock. Holders earn the stock from trading fees. Memestock launches last {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% is released to the token's creator {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain. Stakers earn the onchain stock from fees.
 
 Memestock supply: 1 billion tokens.
 
@@ -82,9 +82,9 @@ Memestock supply: 1 billion tokens.
 | --- | --- | --- |
 | Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
 | Liquidity reserve | 497.5 million (49.75%) | At the final clearing price, the stock raised and the tokens it needs become liquidity at every price. Remaining reserve is locked as liquidity in the token alone, for prices above the opening token price, available as that price rises. Both are locked forever; any stock left over from rounding is added to the REGENT stakers' fee. |
-| Creator | 5 million (0.5%) | Released to the token's creator block by block over {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
+| Creator | 5 million (0.5%) | Released to the token's creator {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
-Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
+From v2 on, every auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
 The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% trading fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
 

@@ -4,7 +4,8 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   Chain: the pool fee on the token the trader pays with, and the creator's,
   REGENT stakers' and token stakers' fees on the stock side of every trade.
   The first four Memestock tokens (`:v1`) charge no creator's fee and 1% to
-  their stakers. Every page that states these fees reads them here.
+  their stakers; Base's third launchpad (`:v3`) charges what the second does.
+  Every page that states these fees reads them here.
   """
 
   # Mirrors the contracts: StocksPreset.sol (POOL_FEE, CREATOR_LANE_BPS,
@@ -15,6 +16,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @v2 %{pool_fee: 3_000, lanes: [creator: 30, regent: 100, stakers: 300]}
   @v1 %{pool_fee: 3_000, lanes: [regent: 100, stakers: 100]}
   @schedules %{
+    {:base, :v3} => @v2,
     {:base, :v2} => @v2,
     {:robinhood, :v2} => @v2,
     {:base, :v1} => @v1,
@@ -28,7 +30,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   }
 
   @type chain :: :base | :robinhood
-  @type version :: :v1 | :v2
+  @type version :: :v1 | :v2 | :v3
   @type lane :: %{
           key: :pool | :creator | :regent | :stakers,
           label: String.t(),

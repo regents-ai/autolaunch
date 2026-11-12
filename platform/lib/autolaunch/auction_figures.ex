@@ -68,7 +68,9 @@ defmodule Autolaunch.AuctionFigures do
   @spec token_allocation(map()) :: Decimal.t()
   def token_allocation(%{kind: :agent}), do: Decimal.new(20_000_000_000)
   def token_allocation(%{kind: :stocks, contracts_version: :v1}), do: Decimal.new(800_000_000)
-  def token_allocation(%{kind: :stocks, contracts_version: :v2}), do: Decimal.new(497_500_000)
+
+  def token_allocation(%{kind: :stocks, contracts_version: version}) when version in [:v2, :v3],
+    do: Decimal.new(497_500_000)
 
   @price_digits 18
 

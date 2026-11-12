@@ -71,7 +71,7 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          true <- Address.equal?(event.launcher, signer),
          true <- Address.equal?(event.stock, facts["stock"]),
          opts <- Lab.rpc_opts(config),
-         shape = StocksLabAbi.shape(:v2),
+         shape = StocksLabAbi.shape(config.version),
          {:ok, words} <-
            launchpad_words(
              config,

@@ -17,8 +17,11 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
     strategy's `distribution(auction)` its start block, and the strategy's
     `START_DELAY_BLOCKS()` the delay; the log is the factory's `LaunchCreated`.
   - Memestock: the launchpad's `launches(id)` names the launcher, auction and
-    start block, `START_LEAD_BLOCKS` (300, in `StocksPreset.sol`) before which
-    the launchpad's `StockLaunchCreated` was emitted.
+    start block, the launchpad version's `START_LEAD_BLOCKS` (in its
+    `StocksPreset.sol`; `Autolaunch.Stocks.LaunchActions.schedule/2`) before
+    which the launchpad's `StockLaunchCreated` was emitted. The launchpad does
+    not answer its lead, so it is the one figure read from the site's own
+    copy of the preset.
 
   It runs every five minutes, and at once when a press on a chain with a Base
   launchpad lands (`Autolaunch.ChainRefresh`), so a creator's own launch is
@@ -40,9 +43,9 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
   alias Autolaunch.LabAbi
   alias Autolaunch.LaunchDiscovery.Count
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias Autolaunch.Stocks.LaunchActions, as: StocksLaunchActions
 
   @launchpads [:base_revstake, :base_memestock]
-  @start_lead_blocks 300
 
   # No job runs while the site is read-only before launch (`Autolaunch.Application`).
   @impl true
@@ -179,13 +182,13 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
              :contract,
              "launches(uint256)",
              [launch_id],
-             StocksLabAbi.launch_record_words(),
+             pad.shape.record_words,
              block
            ),
          {:ok, launcher} <- address(launcher),
          {:ok, auction} <- address(auction) do
-      {:ok,
-       %{launcher: launcher, auction: auction, created_block: start_block - @start_lead_blocks}}
+      lead = StocksLaunchActions.schedule(:base, pad.shape.version).opens
+      {:ok, %{launcher: launcher, auction: auction, created_block: start_block - lead}}
     end
   end
 

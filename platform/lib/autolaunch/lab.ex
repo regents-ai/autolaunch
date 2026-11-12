@@ -12,6 +12,13 @@ defmodule Autolaunch.Lab do
   deployment and starts over. Chain
   31337 is a test chain, a local lab's Base fork carrying test assets;
   `test_chain?/0` is what the lab-only features key off.
+
+  The top level names the Revstake factory, strategy, hook and LP locker new
+  launches go to. Once version 3 is the top level, a `v2` section names
+  version 2's four, with their ABIs, for the launches made on them; both
+  versions share the escrow, splitter and payment receiver implementations
+  and the UERC20 factory. A launch reads only the contracts of its own
+  version (`contracts/2`).
   """
 
   alias Autolaunch.LabRpcUrl
@@ -37,6 +44,10 @@ defmodule Autolaunch.Lab do
     uerc20_factory
   )
   @abi_keys ~w(auction escrow factory hook lp_locker permit2 receiver splitter strategy token)
+  # The contracts each Revstake version has of its own.
+  @version_keys ~w(factory hook lp_locker strategy)
+
+  @type version :: :v2 | :v3
 
   @type t :: %{
           path: String.t(),
@@ -44,8 +55,10 @@ defmodule Autolaunch.Lab do
           rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
+          version: version(),
           addresses: %{required(String.t()) => String.t()},
-          abis: %{required(String.t()) => [map()]}
+          abis: %{required(String.t()) => [map()]},
+          v2: %{addresses: map(), abis: map()} | nil
         }
 
   @doc "Whether this site was given a Base deployment description."
@@ -136,15 +149,18 @@ defmodule Autolaunch.Lab do
          {:ok, chain_id} <- chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
-         :ok <- Autolaunch.LabAbi.validate(abis) do
+         :ok <- Autolaunch.LabAbi.validate(abis),
+         {:ok, v2} <- v2_section(decoded["v2"]) do
       {:ok,
        %{
          path: path,
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
+         version: newest(v2),
          addresses: addresses,
-         abis: abis
+         abis: abis,
+         v2: v2
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -172,6 +188,26 @@ defmodule Autolaunch.Lab do
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
+
+  @doc """
+  The deployment as a Revstake launch on `version` reads it: the description
+  itself for a launch on the top level's version, or the description with
+  version 2's factory, strategy, hook and LP locker in place of version 3's.
+  """
+  @spec contracts(t(), version()) :: {:ok, t()} | {:error, :contracts_missing}
+  def contracts(%{version: version} = config, version), do: {:ok, config}
+
+  def contracts(%{v2: %{} = v2} = config, :v2),
+    do:
+      {:ok,
+       %{
+         config
+         | version: :v2,
+           addresses: Map.merge(config.addresses, v2.addresses),
+           abis: Map.merge(config.abis, v2.abis)
+       }}
+
+  def contracts(_config, _version), do: {:error, :contracts_missing}
 
   @doc "The RPC options for reads and calls against this deployment's chain."
   def rpc_opts(config, scope \\ "autolaunch local lab"), do: Autolaunch.LabRpc.opts(config, scope)
@@ -201,6 +237,31 @@ defmodule Autolaunch.Lab do
   end
 
   defp exact_abis(_abis), do: {:error, :invalid_abis}
+
+  # The top level is version 3 once version 2 has a section of its own.
+  defp newest(nil), do: :v2
+  defp newest(%{}), do: :v3
+
+  defp v2_section(nil), do: {:ok, nil}
+
+  defp v2_section(%{"addresses" => addresses, "abis" => abis} = section)
+       when map_size(section) == 2 do
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @version_keys,
+         true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
+         true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @version_keys,
+         true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
+         :ok <- Autolaunch.LabAbi.validate_v2(abis) do
+      {:ok,
+       %{
+         addresses: Map.new(addresses, fn {key, value} -> {key, String.downcase(value)} end),
+         abis: abis
+       }}
+    else
+      _ -> {:error, :invalid_v2}
+    end
+  end
+
+  defp v2_section(_section), do: {:error, :invalid_v2}
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
 end

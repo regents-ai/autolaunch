@@ -41,7 +41,9 @@ Modes:
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoints the founder passes, to reports/generated/deployment/. It
+              ABIs and the endpoints the founder passes, to reports/generated/deployment/, with a
+              section per earlier version (Revstake `v2`, Memestake `v1` and `v2`) from that
+              version's committed deployed manifest and ABIs, for the launches made on it. It
               names no stocks: the site reads the stocks a launchpad admits from the chain.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`), matching the `[rpc_endpoints]`
@@ -584,6 +586,21 @@ def version_two_record(path: Path) -> dict:
     return manifest
 
 
+def earlier_section(manifest_path: Path, abi_dir: Path, address_keys: tuple[str, ...],
+                    abi_contracts: dict[str, str]) -> dict:
+    """An earlier version's section of the site-config: the contracts the website keeps reading
+    for the launches made on them, from that version's committed deployed manifest and its
+    committed ABIs."""
+    manifest = load_json(manifest_path)
+    if manifest.get("status") != "deployed":
+        raise CeremonyError(f"{manifest_path} is not a deployed record")
+    deployed = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
+    return {
+        "addresses": {key: deployed[key].lower() for key in sorted(address_keys)},
+        "abis": {key: load_json(abi_dir / f"{contract}.json")["abi"] for key, contract in sorted(abi_contracts.items())},
+    }
+
+
 def abi_word(value: str | int) -> str:
     """One static ABI word: an address, a bool or an unsigned integer."""
     return format(int(value, 16) if isinstance(value, str) else int(value), "064x")
@@ -606,6 +623,9 @@ class RevstakeV3(Package):
     REUSED = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
               ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"))
     VERSION_TWO = Path("../revstake-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+    # Version 2's own contracts, which its launches keep running on: site key and contract.
+    VERSION_TWO_OWN = {"factory": "RegentsAutolaunchFactoryV2", "strategy": "RegentLBPStrategyV2",
+                       "lp_locker": "RevstakeLPLocker", "hook": "RegentFeeHook"}
     CREATIONS = ("RegentsAutolaunchFactoryV3", "RegentLBPStrategyV3", "RevstakeLPLocker", "RegentFeeHook")
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE")
@@ -732,7 +752,9 @@ class RevstakeV3(Package):
         }
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
-        """Revstake launches are found by the factory's `nextLaunchId`, so no start block is written."""
+        """Revstake launches are found by the factory's `nextLaunchId`, so no start block is written.
+        The `v2` section names version 2's factory, strategy, LP locker and hook, which the website
+        keeps reading for the launches made on them."""
         addresses = {
             **{entry["contract_key"]: entry["address"] for entry in manifest["contracts"]},
             **manifest["selection"]["reused"],
@@ -749,6 +771,8 @@ class RevstakeV3(Package):
             "public_rpc_url": args.public_rpc_url,
             "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
             "abis": abis,
+            "v2": earlier_section(self.VERSION_TWO, Path("../revstake-v2/abi"), tuple(self.VERSION_TWO_OWN),
+                                  self.VERSION_TWO_OWN),
         }
 
 
@@ -768,6 +792,13 @@ class StocksV3(Package):
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
     VERSION_TWO = Path("../stocks-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+    # The earlier launchpads, which their launches keep running on: the site-config section, the
+    # package, and the contracts of each whose ABIs the website reads. Each section also names the
+    # bid adapter its USDC bids went through.
+    EARLIER = (("v1", Path("../stocks"), {"launchpad": "StocksLaunchpadV1", "hook": "StocksFeeHookV1",
+                                          "locker": "MemestockLPLocker"}),
+               ("v2", Path("../stocks-v2"), {"launchpad": "StocksLaunchpadV2", "hook": "StocksFeeHookV1",
+                                             "locker": "MemestockLPLocker"}))
 
     def version_two_inputs(self) -> dict:
         """The UERC20 factory version 2's launchpad binds and the stocks it admits with their routes."""
@@ -931,6 +962,8 @@ class StocksV3(Package):
         parser.add_argument("--agent-factory", required=True, help="the deployed Base Revstake factory, from contracts/revstake-v3/deployments/base-mainnet/deployed-manifest.json")
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
+        """The `v1` and `v2` sections name the earlier launchpads, which the website keeps reading
+        for the launches made on them."""
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
         addresses = {
             **created,
@@ -950,6 +983,9 @@ class StocksV3(Package):
             "chain_id": self.chain.chain_id,
             "addresses": {key: value.lower() for key, value in addresses.items()},
             "abis": abis,
+            **{section: earlier_section(package / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME, package / "abi",
+                                        ("bid_adapter", *contracts), contracts)
+               for section, package, contracts in self.EARLIER},
         }
 
 

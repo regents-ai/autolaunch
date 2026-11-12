@@ -12,7 +12,17 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   require Ash.Query
   import Ecto.Query, only: [from: 2]
 
-  alias Autolaunch.{Accounts, Auction, BaseRpcStub, Lab, LabAbi, LaunchDiscovery, LaunchReviews}
+  alias Autolaunch.{
+    Accounts,
+    Auction,
+    BaseRpcStub,
+    Lab,
+    LabAbi,
+    LaunchDiscovery,
+    LaunchReviews,
+    ThirdLaunchers
+  }
+
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.Stocks.Lab, as: StocksLab
@@ -30,10 +40,10 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @hash "0x" <> String.duplicate("4d", 32)
   @data "0x" <> String.duplicate("ab", 36)
   @launch_id 1
-  # Bidding opens START_LEAD_BLOCKS (300) after the block the launch was made in.
+  # Bidding opens START_LEAD_BLOCKS after the block the launch was made in: 300
+  # on the second launchpad, 3,000 on the third.
   @created_block 10
-  @start_block @created_block + 300
-  @end_block @start_block + 1_000
+  @auction_blocks 1_000
   @floor 79_228_162_514_264_337_593_543_900
   @required 100_000_000
 
@@ -53,7 +63,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
         }
       },
       launchpad: launchpad,
-      launcher: @launcher
+      launcher: @launcher,
+      start_block: @created_block + 300
     })
 
     start_supervised!(
@@ -332,6 +343,34 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{token_symbol: "EARLY", origin: :chain}] = auctions()
   end
 
+  @tag :tmp_dir
+  test "a launch on the third launchpad is found by its own lead and listed on its version",
+       %{tmp_dir: dir} do
+    ThirdLaunchers.install(dir)
+    launchpad = StocksLab.address!(StocksLab.current!(), :launchpad)
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      revstake: Lab.address!(Lab.current!(), :factory),
+      launchpad: launchpad,
+      launcher: @stranger,
+      start_block: @created_block + 3_000,
+      token: %{"name()" => "Third", "symbol()" => "THIRD", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+
+    # The launch's own transaction is looked for in the block it was made in.
+    created = "0x" <> String.downcase(Integer.to_string(@created_block, 16))
+    assert_received {:rpc, "eth_getLogs", [%{fromBlock: ^created, toBlock: ^created}]}
+
+    run_triggers()
+
+    assert [%{state: :listed, contract: ^launchpad, launcher: @stranger}] = discoveries()
+    assert [%{contracts_version: :v3, token_symbol: "THIRD", origin: :chain}] = auctions()
+  end
+
   test "the two test launches the operator hid are never listed" do
     mainnet = "0x1d4bc582a9193061d53c4bfa429d366ed38eed0b"
 
@@ -487,8 +526,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   # The launch transaction, mined and past the safe head, with its one
   # `StockLaunchCreated`.
   defp mined(launchpad) do
-    %{launcher: launcher} = BaseRpcStub.state()
-    log = launch_log(launchpad, launcher)
+    %{launcher: launcher, start_block: start_block} = BaseRpcStub.state()
+    log = launch_log(launchpad, launcher, start_block)
     number = "0x" <> Integer.to_string(@created_block, 16)
 
     BaseRpcStub.put(%{
@@ -506,7 +545,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     })
   end
 
-  defp launch_log(launchpad, launcher) do
+  defp launch_log(launchpad, launcher, start_block) do
     %{
       "address" => launchpad,
       "blockHash" => BaseRpcStub.receipt_block_hash(),
@@ -522,8 +561,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
           Enum.join([
             BaseRpcStub.address_word(@stock),
             BaseRpcStub.address_word(@auction),
-            BaseRpcStub.hex_word(@start_block),
-            BaseRpcStub.hex_word(@end_block),
+            BaseRpcStub.hex_word(start_block),
+            BaseRpcStub.hex_word(start_block + @auction_blocks),
             BaseRpcStub.hex_word(4975 * 10 ** 23),
             BaseRpcStub.hex_word(4975 * 10 ** 23),
             BaseRpcStub.hex_word(5 * 10 ** 24)
@@ -548,7 +587,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
           [BaseRpcStub.hex_word(@launch_id)]
 
         selector == LabAbi.selector("launches(uint256)") ->
-          launch_record(state.launcher)
+          launch_record(state.launcher, state.start_block)
 
         true ->
           token_string(selector, Map.get(state, :token, %{}))
@@ -588,17 +627,19 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
   # launcher, newToken, stock, auction, splitter, startBlock, endBlock,
   # claimBlock, migrationBlock, lifecycle, then the rest of the twenty words.
-  defp launch_record(launcher) do
+  defp launch_record(launcher, start_block) do
+    end_block = start_block + @auction_blocks
+
     [
       BaseRpcStub.address_word(launcher),
       BaseRpcStub.address_word(@new_token),
       BaseRpcStub.address_word(@stock),
       BaseRpcStub.address_word(@auction),
       BaseRpcStub.hex_word(0),
-      BaseRpcStub.hex_word(@start_block),
-      BaseRpcStub.hex_word(@end_block),
-      BaseRpcStub.hex_word(@end_block + 64),
-      BaseRpcStub.hex_word(@end_block + 128),
+      BaseRpcStub.hex_word(start_block),
+      BaseRpcStub.hex_word(end_block),
+      BaseRpcStub.hex_word(end_block + 64),
+      BaseRpcStub.hex_word(end_block + 128),
       BaseRpcStub.hex_word(1)
     ] ++ List.duplicate(BaseRpcStub.hex_word(0), 10)
   end

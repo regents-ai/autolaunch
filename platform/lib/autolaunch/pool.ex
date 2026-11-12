@@ -24,6 +24,7 @@ defmodule Autolaunch.Pool do
   alias Autolaunch.Stocks.FeeSchedule
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias Autolaunch.Stocks.LaunchActions, as: StocksLaunchActions
   alias RegentChain.Address
 
   @dead "0x000000000000000000000000000000000000dead"
@@ -268,8 +269,10 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  # A launch reads only the strategy of its own version.
   defp agent_record(auction, config, block, opts) do
-    with {:ok, words} <-
+    with {:ok, config} <- Lab.contracts(config, auction.contracts_version),
+         {:ok, words} <-
            LabRpc.words(
              config,
              :strategy,
@@ -315,10 +318,11 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  # The second launchpad vests 0.5% of each launch's supply to its creator.
+  # The second and third launchpads vest 0.5% of each launch's supply to its
+  # creator.
   defp creator_vesting(%{version: :v1}, _record, _launch_id, _block, _opts), do: {:ok, nil}
 
-  defp creator_vesting(%{version: :v2} = contracts, record, launch_id, block, opts) do
+  defp creator_vesting(contracts, record, launch_id, block, opts) do
     with {:ok, releasable} <-
            launchpad_uint(contracts, "creatorReleasable(uint256)", [launch_id], block, opts),
          do: vesting(record, releasable)
@@ -326,31 +330,46 @@ defmodule Autolaunch.Pool do
 
   @doc """
   A launch's creator vesting as a pool shows it: the creator it pays, what
-  has been released and what anyone can release to the creator now.
+  has been released and what anyone can release to the creator now. A launch
+  on Base's third launchpad vests by the clock from the graduation time its
+  record holds (`vesting_start`), so once it has graduated it also has the
+  times it vests from and to (`starts_at`, `ends_at`, in Unix seconds). A
+  launchpad that vests block by block has no fixed days.
   """
   def vesting(record, releasable) do
     with {:ok, creator} <- Abi.word_address(record.launcher) do
       {:ok,
-       %{
-         creator: creator,
-         released: Rpc.format_units(record.creator_released, @token_decimals),
-         releasable: Rpc.format_units(releasable, @token_decimals)
-       }}
+       Map.merge(
+         %{
+           creator: creator,
+           released: Rpc.format_units(record.creator_released, @token_decimals),
+           releasable: Rpc.format_units(releasable, @token_decimals)
+         },
+         vesting_period(record)
+       )}
     end
   end
 
+  defp vesting_period(%{vesting_start: start}) when start > 0,
+    do: %{starts_at: start, ends_at: start + StocksLaunchActions.vesting_seconds(:base, :v3)}
+
+  defp vesting_period(_record), do: %{}
+
   # Beside the full-range position, the first launchpad keeps a stock-only
-  # position and the second a new-token-only one above the opening price.
+  # position, and the second and third a new-token-only one above the opening
+  # price.
   defp second_position(:v1, record),
     do: %{key: :stock_only, token_id: record.stock_only_token_id, used: record.stock_only_used}
 
-  defp second_position(:v2, record),
+  defp second_position(version, record) when version in [:v2, :v3],
     do: %{key: :new_only, token_id: record.new_only_token_id, used: record.new_only_used}
 
   # Agent
 
+  # The strategy, hook and LP locker are the launch's own version's.
   defp read_agent(auction, config, block, opts) do
-    with {:ok, distribution} <- agent_record(auction, config, block, opts),
+    with {:ok, config} <- Lab.contracts(config, auction.contracts_version),
+         {:ok, distribution} <- agent_record(auction, config, block, opts),
          {:ok, fee} <- LabRpc.uint(config, :strategy, "POOL_FEE()", [], block, opts),
          {:ok, spacing} <- LabRpc.uint(config, :strategy, "POOL_TICK_SPACING()", [], block, opts),
          {:ok, unsold} <-

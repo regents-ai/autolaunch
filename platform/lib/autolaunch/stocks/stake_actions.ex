@@ -303,15 +303,15 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
-  # The hook and locker the launch's actions go to, with their ABIs: a
-  # Revstake launch's deployment, or a memestock launch's own contracts
-  # version, with its launchpad too.
+  # The hook and locker the launch's actions go to, with their ABIs: those of
+  # the launch's own contracts version, a memestock launch's with its
+  # launchpad too. Each Revstake version's hook and locker take the same calls.
   defp contracts(%{kind: :agent} = pool, venue, config),
     do:
       {:ok,
        %{
          hook: pool.hook,
-         locker: venue.lab.address!(config, :lp_locker),
+         locker: pool.locker,
          abis: %{
            "hook" => venue.lab.abi!(config, :hook),
            "locker" => venue.lab.abi!(config, :lp_locker)
