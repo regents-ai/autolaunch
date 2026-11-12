@@ -1,19 +1,33 @@
 # Base mainnet
 
-**Not deployed.** `mainnet-no-go-packet.json` carries the selection `prepare` derived on 12 November
-2026 at Base block 56,519,000 (digest
-`0xdba99ae57caae5c06185cded85bf5495140626c93b38edd6da529dd0dee40818`): the deployer
-`0x9b2C414614aEE294202c1219520955EF3B596031` at nonces 69 and 70, right after Base Revstake version
-3's one creation at nonce 68. Sending is the founder's decision alone, and nothing in this directory
-authorizes it. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
-confirmed Base receipts.
+**Deployed and open, 12 November 2026.** The founder sent both creations of the packet
+`mainnet-no-go-packet.json` (digest
+`0xdba99ae57caae5c06185cded85bf5495140626c93b38edd6da529dd0dee40818`, selection derived at Base
+block 56,519,000) from the deployer `0x9b2C414614aEE294202c1219520955EF3B596031`, right after Base
+Revstake version 3's creation at nonce 68:
 
-The selection holds only while the deployer's nonce is 68 and Revstake goes first. Anything else the
-deployer sends before it moves the nonce, the deploy scripts then stop before sending anything, and
-both packets are prepared again at the new nonces (new addresses, new digests, new transaction data
-and a new Safe batch).
+| Nonce | Transaction | Block |
+| --- | --- | --- |
+| 69 | `0xb8abcf9d70499a9edbcaa6b7be5c88f24657c7d507dc8b9a1da72ab8d3951764` | 56,661,100 (22:29 UTC) |
+| 70 | `0xe95a0fd337fde8b68104a8faee4205611646c1af90cf78dafe0d0669bc81442f` | 56,661,111 (22:29 UTC) |
 
-| Nonce | Creates | Predicted address | Transaction data |
+`deployed-manifest.json` is the record `record` wrote from the confirmed receipts: every created
+contract landed at its prediction, its code matches the frozen build, and the five wiring
+readbacks matched at the last creation's block, the launchpad still paused.
+
+The Governance and Regent Safe switched version 3 on in transaction
+`0x3ee0a4044b7641aae1fd7bb492f749fc03820fc74fa1f350d3070b07240c116f` at block 56,661,365 (22:30
+UTC): `safe-switch-on.json`'s thirteen calls exactly, the ten admissions, the hook's executor and
+`unpauseLaunches()` on this launchpad and on Base Revstake version 3's factory. Both read
+`launchesPaused() == false` since. An earlier identical batch, transaction `0x3719a6a6…e253a`, ran
+before the creations against addresses that held no code yet and changed nothing.
+
+Version 2's launchpad `0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B` and version 1's
+`0x1d36a95112835f81b1B499A808e556020C64Cac2` stay paused; their launches keep their bids, claims,
+vesting, staking and trading on their own contracts, USDC bids included through their own bid
+adapters.
+
+| Nonce | Creates | Address | Transaction data |
 | --- | --- | --- | --- |
 | 69 | StocksLaunchpadV3 | `0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C` | `transaction-data-launchpad.txt` |
 | 69, inside | MemestockSplitterV1 | `0x892E2EdE6cFF49C24DDd4A1a85F5bE4696836cae` | |
@@ -111,8 +125,12 @@ python3 bin/ceremony.py prepare --deployer 0x…      # read-only, REGENT_BASE_R
 # review reports/generated/deployment/mainnet-no-go-packet.json, install it here, commit it
 python3 bin/ceremony.py rehearse                    # read-only
 python3 bin/ceremony.py preflight 0                 # right before each creation
-python3 bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
+python3 bin/ceremony.py record --receipts receipts.json --approved-digest 0x…   # Foundry 1.5.1
 ```
+
+`record` runs under Foundry 1.5.1, whose `cast --json` answers are the plain receipt and
+transaction; 1.8.6 wraps them in an envelope the tool does not read. It reads the readbacks at the
+last creation's block, so the Safe's later switch-on does not count against the ceremony.
 
 `rehearse` reads the latest Base block's gas limit off the node at that run and offers each
 creation all of it, one creation per simulated block. Base's block gas limit changes with Denim on

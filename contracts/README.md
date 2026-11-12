@@ -10,24 +10,22 @@ splitter. When it does not graduate, the token supply is retired and bidders ref
 
 Eight Foundry projects, one per directory. Each is built and verified from its own directory.
 
-New launches use version 2. The four existing version 1 Memestake auctions remain supported;
-keeping their bindings permits claims, withdrawals, staking and fee collection without reopening
-the old launchpads. The legacy packages and deployment records below are historical.
+New Base launches use version 3, deployed and opened on 12 November 2026; it keeps version 2's
+clock times on Base's 0.2 second blocks (since 5 November 2026). Robinhood Chain launches use
+version 2. Base's version 2 launchers are paused, and every launch made on version 2 or on the
+four version 1 Memestake auctions keeps its claims, withdrawals, staking and fee collection on
+its own contracts. The legacy packages and deployment records below are historical.
 
 | Current project | Chain | Deployment record | Verify |
 | --- | --- | --- | --- |
-| [revstake-v2/](revstake-v2/README.md) | Base (8453) | [Revstake v2 receipts](revstake-v2/deployments/base-mainnet/README.md) | `cd revstake-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
-| [stocks-v2/](stocks-v2/README.md) | Base (8453) | [Memestake v2 receipts](stocks-v2/deployments/base-mainnet/README.md) | `cd stocks-v2 && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` |
+| [revstake-v3/](revstake-v3/README.md) | Base (8453) | [Revstake v3 receipts](revstake-v3/deployments/base-mainnet/README.md) | `cd revstake-v3 && forge test`, then `FOUNDRY_PROFILE=base forge test` |
+| [stocks-v3/](stocks-v3/README.md) | Base (8453) | [Memestake v3 receipts](stocks-v3/deployments/base-mainnet/README.md) | `cd stocks-v3 && forge test`, then `FOUNDRY_PROFILE=base forge test` |
 | [robinhood-v2/](robinhood-v2/README.md) | Robinhood Chain (4663), receiver on Base | [Robinhood v2 receipts](robinhood-v2/deployments/robinhood-mainnet/README.md) | `cd robinhood-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
 
-Base moves to 0.2 second blocks on 5 November 2026 at 18:00 UTC. Version 3 keeps version 2's
-clock times on the faster blocks; it is built and tested, not deployed, and opens only after Base
-mainnet runs 0.2 second blocks.
-
-| Next project | Chain | Deployment record | Verify |
+| Paused project | Chain | Deployment record | Verify |
 | --- | --- | --- | --- |
-| [revstake-v3/](revstake-v3/README.md) | Base (8453) | Not deployed | `cd revstake-v3 && forge test`, then `FOUNDRY_PROFILE=sepolia forge test` |
-| [stocks-v3/](stocks-v3/README.md) | Base (8453) | Not deployed | `cd stocks-v3 && forge test`, then `FOUNDRY_PROFILE=sepolia forge test` |
+| [revstake-v2/](revstake-v2/README.md) | Base (8453) | [Revstake v2 receipts](revstake-v2/deployments/base-mainnet/README.md) | `cd revstake-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
+| [stocks-v2/](stocks-v2/README.md) | Base (8453) | [Memestake v2 receipts](stocks-v2/deployments/base-mainnet/README.md) | `cd stocks-v2 && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` |
 
 For Uniswap CCA engineers, [CCA-INTEGRATION.md](CCA-INTEGRATION.md) lists every CCA parameter our
 contracts set and every one the launcher chooses.

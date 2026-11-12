@@ -1,18 +1,25 @@
 # Base mainnet
 
-**Not deployed.** `mainnet-no-go-packet.json` carries the selection `prepare` derived on 12 November
-2026 at Base block 56,518,999 (digest
-`0x0ef9d1209779378e80a4982f72c1e176bd04cf38a8a3982e95cfac59c5cb6f28`): the deployer
-`0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 68, before Base Memestake version 3's two
-creations at 69 and 70. Sending is the founder's decision alone, and nothing in this directory
-authorizes it. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
-confirmed Base receipts.
+**Deployed and open, 12 November 2026.** The founder sent the creation of the packet
+`mainnet-no-go-packet.json` (digest
+`0x0ef9d1209779378e80a4982f72c1e176bd04cf38a8a3982e95cfac59c5cb6f28`, selection derived at Base
+block 56,518,999) from the deployer `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 68, in
+transaction `0x7aaf058f354f53b0992c6a550eb67a83da74ad87fbf90854cbd95a08e9e1d8ea` at Base block
+56,660,037 (22:26 UTC). `deployed-manifest.json` is the record `record` wrote from the confirmed
+receipt: every created contract landed at its prediction, its code matches the frozen build, and
+the twelve wiring readbacks matched at the creation's block, the factory still paused.
 
-The selection holds only while the deployer's nonce is 68. Anything else the deployer sends first
-moves it, the deploy script then stops before sending anything, and both packets are prepared again
-at the new nonces.
+The Governance and Regent Safe opened launches in transaction
+`0x3ee0a4044b7641aae1fd7bb492f749fc03820fc74fa1f350d3070b07240c116f` at block 56,661,365 (22:30
+UTC), the thirteen calls of `../../stocks-v3/deployments/base-mainnet/safe-switch-on.json`, whose
+last is this factory's `unpauseLaunches()`. The factory reads `launchesPaused() == false` since. An
+earlier identical batch, transaction `0x3719a6a6…e253a`, ran before the creations against
+addresses that held no code yet and changed nothing.
 
-| Nonce | Creates | Predicted address |
+Version 2's factory `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` stays paused; its launches keep
+their bids, claims, vesting, staking and trading on version 2's own contracts.
+
+| Nonce | Creates | Address |
 | --- | --- | --- |
 | 68 | RegentsAutolaunchFactoryV3 | `0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48` |
 | 68, inside | RegentLBPStrategyV3 | `0x9253413b8eD663548b15a596481E495698FA4a67` |
@@ -60,8 +67,12 @@ python3 ../stocks-v3/bin/ceremony.py prepare --deployer 0x…      # read-only, 
 # review reports/generated/deployment/mainnet-no-go-packet.json, install it here, commit it
 python3 ../stocks-v3/bin/ceremony.py rehearse                    # read-only
 python3 ../stocks-v3/bin/ceremony.py preflight 0                 # right before the creation
-python3 ../stocks-v3/bin/ceremony.py record --receipts receipts.json --approved-digest 0x…
+python3 ../stocks-v3/bin/ceremony.py record --receipts receipts.json --approved-digest 0x…   # Foundry 1.5.1
 ```
+
+`record` runs under Foundry 1.5.1, whose `cast --json` answers are the plain receipt and
+transaction; 1.8.6 wraps them in an envelope the tool does not read. It reads the readbacks at the
+last creation's block, so the Safe's later switch-on does not count against the ceremony.
 
 `rehearse` reads the latest Base block's gas limit off the node at that run and offers the
 creation all of it. Base's block gas limit changes with Denim on 5 November 2026, so it is never

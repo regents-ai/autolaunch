@@ -169,7 +169,9 @@ contracts:
           launch takes one tuple: name, symbol, description, website, image and treasury. The
           floor and the required raise are the strategy's fixed constants (FLOOR_PRICE_Q96,
           REQUIRED_REGENT_RAISED). There is no launch fee and no REGENT allowance.
-          pauseLaunches and unpauseLaunches are deliberately not derived.
+          pauseLaunches and unpauseLaunches are deliberately not derived. On Base mainnet it is
+          0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E, paused since 30 October 2026; the launches
+          made through it keep reading through it, and new launches go to the third factory.
         confirmation_event_signatures:
           - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
         action_ids:
@@ -231,8 +233,10 @@ contracts:
           at source_commit. It declares the same signatures as the second factory's.
         interface_note: >-
           The second factory's interface for Base's 0.2-second blocks: launch takes the same one
-          tuple, with no launch fee and no REGENT allowance. New launches go to this factory once
-          the Base description names it; launches made through the second factory keep reading
+          tuple, with no launch fee and no REGENT allowance. On Base mainnet it is
+          0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48, deployed and opened on 12 November 2026
+          (contracts/revstake-v3/deployments/base-mainnet/deployed-manifest.json). New Base
+          launches go to this factory; launches made through the second factory keep reading
           through it. pauseLaunches and unpauseLaunches are deliberately not derived.
         confirmation_event_signatures:
           - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
@@ -344,7 +348,12 @@ contracts:
         abi_path: abi/stocks-launchpad-v3.json
         abi_sha256: 6f2f17063afeb60d650735c775d177df85da0bdcf0e14b3a917fa86270b7e625
         interface_note: >-
-          The second launchpad's interface for Base's 0.2-second blocks. Bidding opens
+          The second launchpad's interface for Base's 0.2-second blocks; on Base mainnet
+          0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C, deployed and opened on 12 November 2026 with
+          its bid adapter 0xa28334dEbaeea58Cd0b12D6814219498293EE1fA
+          (contracts/stocks-v3/deployments/base-mainnet/deployed-manifest.json), where new Base
+          launches go. The second launchpad, 0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B, is
+          paused; its launches keep their own launchpad, hook, locker and bid adapter. Bidding opens
           StocksPreset.START_LEAD_BLOCKS, 3,000 blocks, after the creation block and runs
           AUCTION_DURATION_BLOCKS, 431,991 blocks; claims open 640 and the pool 1,280 blocks after
           the end. The creator's 5 million tokens vest by the clock over

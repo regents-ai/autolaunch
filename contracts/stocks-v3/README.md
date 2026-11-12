@@ -15,8 +15,11 @@ changes. It builds against the pinned dependency snapshot it exports itself (`de
 
 ## Status
 
-**Not deployed.** The launchpad is born paused, as every version is, and the Governance and REGENT
-Safe opens it. Base mainnet has made 0.2-second blocks since block 53,556,127 (5 November 2026,
+**Deployed and open since 12 November 2026**: the launchpad at
+`0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C` and its bid adapter at
+`0xa28334dEbaeea58Cd0b12D6814219498293EE1fA` ([receipts](deployments/base-mainnet/README.md)). The
+launchpad was born paused, as every version is, and the Governance and REGENT Safe admitted the ten
+stocks and opened it the same day. Base mainnet has made 0.2-second blocks since block 53,556,127 (5 November 2026,
 18:00:01 UTC), measured on the chain on 12 November 2026 over 3,000 and 300,000 blocks; Base has
 announced no further change. Nothing here branches on the Denim block: version 2, now paused,
 served launches before it, version 3 serves them after it.

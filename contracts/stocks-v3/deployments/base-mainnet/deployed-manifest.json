@@ -1,12 +1,157 @@
 {
   "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
   "version": 1,
-  "status": "not deployed",
+  "status": "deployed",
   "populated_by": "confirmed receipts, and nothing else",
   "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes.",
-  "approved_packet_digest": null,
-  "selection": null,
-  "transactions": [],
-  "contracts": [],
-  "readbacks": null
+  "approved_packet_digest": "0xdba99ae57caae5c06185cded85bf5495140626c93b38edd6da529dd0dee40818",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 69,
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000003171",
+    "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+    "admissions": [
+      {
+        "symbol": "AAPLc",
+        "stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+        "route": "0xc0e910234d2a057Eb5E78B69C5149567617c0563"
+      },
+      {
+        "symbol": "AMZNc",
+        "stock": "0xb200000000000000000000d9192b6B456483C2E8",
+        "route": "0x7755bB35d838602748a44A66f671f96f2b42eFa2"
+      },
+      {
+        "symbol": "GOOGLc",
+        "stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+        "route": "0x4dC2b96F07271b82e0F97DfF7A1555153fe3EF6d"
+      },
+      {
+        "symbol": "METAc",
+        "stock": "0xb2000000000000000000008bC8786B856E61707C",
+        "route": "0x71280E11Da1B4ed47E168B364fb52e2918975417"
+      },
+      {
+        "symbol": "MSFTc",
+        "stock": "0xB200000000000000000000Ab99cFa739E253872B",
+        "route": "0xC090F75b7C664a60CA56aE4b8590De34e46FBDe1"
+      },
+      {
+        "symbol": "MSTRc",
+        "stock": "0xb2000000000000000000004884b426556b92883d",
+        "route": "0x8e901a2b5775d3FF8d93E8c83D0622df08D74868"
+      },
+      {
+        "symbol": "NVDAc",
+        "stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+        "route": "0x390Bc80fCf71dBcd3782fF9DB3954a7211fed999"
+      },
+      {
+        "symbol": "SNDKc",
+        "stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+        "route": "0x75d0B57bC539F72DD16fB248855873126bd08916"
+      },
+      {
+        "symbol": "SPCXc",
+        "stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+        "route": "0xC9Ae2AeBa42fC2408Ac664Ef278dF1D996E27B19"
+      },
+      {
+        "symbol": "TSLAc",
+        "stock": "0xb2000000000000000000001e800a7f5189430cD0",
+        "route": "0x55009863EaFf428C4dc52520f6468B423C99B38a"
+      }
+    ],
+    "predicted_addresses": {
+      "launchpad": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "splitter_implementation": "0x892E2EdE6cFF49C24DDd4A1a85F5bE4696836cae",
+      "locker": "0xb3FD1ceBF07Bc47c39b42Da054552Bd041B125b6",
+      "hook": "0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc",
+      "bid_adapter": "0xa28334dEbaeea58Cd0b12D6814219498293EE1fA"
+    }
+  },
+  "transactions": [
+    {
+      "index": 0,
+      "chain_id": 8453,
+      "hash": "0xb8abcf9d70499a9edbcaa6b7be5c88f24657c7d507dc8b9a1da72ab8d3951764",
+      "block_number": 56661100,
+      "nonce": 69,
+      "contract": "StocksLaunchpadV3",
+      "address": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C"
+    },
+    {
+      "index": 1,
+      "chain_id": 8453,
+      "hash": "0xe95a0fd337fde8b68104a8faee4205611646c1af90cf78dafe0d0669bc81442f",
+      "block_number": 56661111,
+      "nonce": 70,
+      "contract": "StockBidAdapterV1",
+      "address": "0xa28334dEbaeea58Cd0b12D6814219498293EE1fA"
+    }
+  ],
+  "contracts": [
+    {
+      "contract": "StocksLaunchpadV3",
+      "contract_key": "launchpad",
+      "chain_id": 8453,
+      "address": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "created_by": "deployer",
+      "block_number": 56661100,
+      "codehash": "0x85f893263730250813f630704b59d437caff25e1161c4c7350caf07d1887ec10",
+      "runtime_bytes": 21580,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "StockBidAdapterV1",
+      "contract_key": "bid_adapter",
+      "chain_id": 8453,
+      "address": "0xa28334dEbaeea58Cd0b12D6814219498293EE1fA",
+      "created_by": "deployer",
+      "block_number": 56661111,
+      "codehash": "0xd50728bc5c3668dca249ead74bb03d6226cdd18630e1b256eed732f6a61450b4",
+      "runtime_bytes": 3189,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "MemestockSplitterV1",
+      "contract_key": "splitter_implementation",
+      "chain_id": 8453,
+      "address": "0x892E2EdE6cFF49C24DDd4A1a85F5bE4696836cae",
+      "created_by": "StocksLaunchpadV3 constructor",
+      "block_number": 56661100,
+      "codehash": "0x8f5b607af0fc8c6d3c62a5c171f2f9e475adc537679cd5d70c22ea27b06bf415",
+      "runtime_bytes": 6447,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "MemestockLPLocker",
+      "contract_key": "locker",
+      "chain_id": 8453,
+      "address": "0xb3FD1ceBF07Bc47c39b42Da054552Bd041B125b6",
+      "created_by": "StocksLaunchpadV3 constructor",
+      "block_number": 56661100,
+      "codehash": "0xee812ba6dae4b8231bda66a4e6edeab1680abc7f9388ee6eccaaca0264e5abc0",
+      "runtime_bytes": 3271,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "StocksFeeHookV1",
+      "contract_key": "hook",
+      "chain_id": 8453,
+      "address": "0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc",
+      "created_by": "StocksLaunchpadV3 constructor",
+      "block_number": 56661100,
+      "codehash": "0x4fd94d62a5b62f98e14a4e42ff88cc17ec27f235fdfbc4358970fcf7066bc012",
+      "runtime_bytes": 8728,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    }
+  ],
+  "readbacks": {
+    "launchpad.hook": "0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc",
+    "launchpad.locker": "0xb3FD1ceBF07Bc47c39b42Da054552Bd041B125b6",
+    "launchpad.splitterImplementation": "0x892E2EdE6cFF49C24DDd4A1a85F5bE4696836cae",
+    "launchpad.launchesPaused": true,
+    "bidAdapter.launchpad": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C"
+  }
 }

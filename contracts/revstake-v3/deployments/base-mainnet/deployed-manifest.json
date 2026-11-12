@@ -1,12 +1,96 @@
 {
   "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
   "version": 1,
-  "status": "not deployed",
+  "status": "deployed",
   "populated_by": "confirmed receipts, and nothing else",
   "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes.",
-  "approved_packet_digest": null,
-  "selection": null,
-  "transactions": [],
-  "contracts": [],
-  "readbacks": null
+  "approved_packet_digest": "0x0ef9d1209779378e80a4982f72c1e176bd04cf38a8a3982e95cfac59c5cb6f28",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 68,
+    "hook_salt": "0x000000000000000000000000000000000000000000000000000000000000f7cc",
+    "predicted_addresses": {
+      "factory": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+      "strategy": "0x9253413b8eD663548b15a596481E495698FA4a67",
+      "lp_locker": "0x30fDDFFDa111F52AcfACf8bc71F019B9dCC93925",
+      "hook": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044"
+    },
+    "reused": {
+      "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+      "escrow_implementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
+      "splitter_implementation": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+      "receiver_implementation": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc"
+    }
+  },
+  "transactions": [
+    {
+      "index": 0,
+      "chain_id": 8453,
+      "hash": "0x7aaf058f354f53b0992c6a550eb67a83da74ad87fbf90854cbd95a08e9e1d8ea",
+      "block_number": 56660037,
+      "nonce": 68,
+      "contract": "RegentsAutolaunchFactoryV3",
+      "address": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48"
+    }
+  ],
+  "contracts": [
+    {
+      "contract": "RegentsAutolaunchFactoryV3",
+      "contract_key": "factory",
+      "chain_id": 8453,
+      "address": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+      "created_by": "deployer",
+      "block_number": 56660037,
+      "codehash": "0x8f4d43640e9137234e3e8b18f67fe345d0f291fbd35a01698e751b4edc7b7b23",
+      "runtime_bytes": 6777,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RegentLBPStrategyV3",
+      "contract_key": "strategy",
+      "chain_id": 8453,
+      "address": "0x9253413b8eD663548b15a596481E495698FA4a67",
+      "created_by": "RegentsAutolaunchFactoryV3 constructor",
+      "block_number": 56660037,
+      "codehash": "0x0d43990ebe95bd6d7f1c62fd16fad67a11924accfd6453cc520e1a12949323e8",
+      "runtime_bytes": 19549,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RevstakeLPLocker",
+      "contract_key": "lp_locker",
+      "chain_id": 8453,
+      "address": "0x30fDDFFDa111F52AcfACf8bc71F019B9dCC93925",
+      "created_by": "RegentLBPStrategyV3 constructor",
+      "block_number": 56660037,
+      "codehash": "0x5ad4223d49323fc4758cd5c85b3969c73bcdb81429421091744ce91d4e7aaf7a",
+      "runtime_bytes": 3474,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RegentFeeHook",
+      "contract_key": "hook",
+      "chain_id": 8453,
+      "address": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044",
+      "created_by": "RegentsAutolaunchFactoryV3 constructor",
+      "block_number": 56660037,
+      "codehash": "0x59fb8809c9871f66b4fefd97703683fa80f3792ade7b00ba1ab2424fee60e415",
+      "runtime_bytes": 5168,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    }
+  ],
+  "readbacks": {
+    "factory.uerc20Factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+    "factory.strategy": "0x9253413b8eD663548b15a596481E495698FA4a67",
+    "factory.hook": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044",
+    "factory.launchesPaused": true,
+    "strategy.factory": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+    "strategy.escrowImplementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
+    "strategy.splitterImplementation": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+    "strategy.receiverImplementation": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+    "strategy.lpLocker": "0x30fDDFFDa111F52AcfACf8bc71F019B9dCC93925",
+    "strategy.hook": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044",
+    "lpLocker.strategy": "0x9253413b8eD663548b15a596481E495698FA4a67",
+    "hook.strategy": "0x9253413b8eD663548b15a596481E495698FA4a67"
+  }
 }

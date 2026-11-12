@@ -38,8 +38,10 @@ Modes:
               the committed one, that the deployer's confirmed and pending nonces both equal that
               creation's nonce, and that its predicted address holds no code yet. Sends nothing.
   record      Verifies the founder's confirmed transaction hashes against the committed packet
-              (sender, nonce, order, created address, status, code identity, readbacks) and writes
-              a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
+              (sender, nonce, order, created address, status, code identity, and the readbacks at
+              the last creation's block, before the Safe's switch-on) and writes a deployed-manifest
+              candidate to reports/generated/deployment/. A human installs it. Its `cast --json`
+              reads take Foundry 1.5.1's plain answers.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
               ABIs and the endpoints the founder passes, to reports/generated/deployment/, with a
               section per earlier version (Revstake `v2`, Memestake `v1` and `v2`) from that
@@ -264,11 +266,11 @@ class Chain:
     def codehash(self, account: str) -> str:
         return freeze.keccak256(self.code(account))
 
-    def call(self, to: str, signature: str, *arguments: str) -> str:
-        return self.cast("call", to, signature, *arguments)
+    def call(self, to: str, signature: str, *arguments: str, block: int | str = "latest") -> str:
+        return self.cast("call", "--block", str(block), to, signature, *arguments)
 
-    def call_address(self, to: str, signature: str, *arguments: str) -> str:
-        found = ADDRESS_RE.findall(self.call(to, signature, *arguments))
+    def call_address(self, to: str, signature: str, *arguments: str, block: int | str = "latest") -> str:
+        found = ADDRESS_RE.findall(self.call(to, signature, *arguments, block=block))
         if len(found) != 1:
             raise CeremonyError(f"{signature} on {to} did not return one address")
         return checksum(found[0])
@@ -279,8 +281,8 @@ class Chain:
     def call_uint(self, to: str, signature: str, *arguments: str) -> int:
         return int(self.call(to, signature, *arguments).split()[0])
 
-    def call_bool(self, to: str, signature: str) -> bool:
-        value = self.call(to, signature)
+    def call_bool(self, to: str, signature: str, block: int | str = "latest") -> bool:
+        value = self.call(to, signature, block=block)
         if value not in ("true", "false"):
             raise CeremonyError(f"{signature} on {to} did not return a bool")
         return value == "true"
@@ -541,11 +543,13 @@ class Package:
         """The Safe batch's name and description, for a package whose governance plan has calls."""
         raise NotImplementedError
 
-    def readbacks(self, selection: dict, problems: list[str]) -> dict:
+    def readbacks(self, selection: dict, block: int, problems: list[str]) -> dict:
+        """The wiring as the ceremony left it: read at the block of its last creation, so a later
+        governance call (the Safe opening launches) is not taken for a different ceremony."""
         found = {}
         for key, to, signature, wanted in self.readback_plan(selection):
             read = self.chain.call_bool if signature.endswith("(bool)") else self.chain.call_address
-            found[key] = read(to, signature)
+            found[key] = read(to, signature, block=block)
             if found[key] != wanted:
                 problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
         return found
@@ -1272,7 +1276,7 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
     for contract, predicted, created_by in package.internal_plan(selection):
         block = transactions[creator_index]["block_number"]
         contracts.append(verify_code(chain, frozen, artifacts, contract, predicted, block, created_by, problems))
-    readbacks = package.readbacks(selection, problems)
+    readbacks = package.readbacks(selection, transactions[-1]["block_number"], problems)
     if problems:
         raise CeremonyError("the receipts do not record the committed ceremony:\n  " + "\n  ".join(problems))
     manifest = {

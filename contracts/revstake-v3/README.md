@@ -13,8 +13,9 @@ builds against) and never fetches. Nothing in `contracts/revstake-v2` or any oth
 
 ## Status
 
-**Not deployed.** The factory is born paused, as every version is, and the Governance and REGENT
-Safe opens it. Base mainnet has made 0.2-second blocks since block 53,556,127 (5 November 2026,
+**Deployed and open since 12 November 2026** at `0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48`
+([receipts](deployments/base-mainnet/README.md)). The factory was born paused, as every version
+is, and the Governance and REGENT Safe opened it the same day. Base mainnet has made 0.2-second blocks since block 53,556,127 (5 November 2026,
 18:00:01 UTC), measured on the chain on 12 November 2026 over 3,000 and 300,000 blocks; Base has
 announced no further change. Nothing here branches on the Denim block: version 2, now paused,
 served launches before it, version 3 serves them after it.
