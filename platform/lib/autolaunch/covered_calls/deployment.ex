@@ -25,7 +25,6 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   alias RegentChain.Address
 
   @market_keys ~w(contract feed stock symbol)
-  @issuer Autolaunch.Stocks.Assets.issuer(:base)
   @chain "Base"
 
   @type market :: %{
@@ -86,7 +85,7 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   def identity(market) do
     market
     |> Map.take([:symbol, :chain_id, :stock, :contract])
-    |> Map.merge(%{issuer: @issuer, chain: @chain})
+    |> Map.merge(%{issuer: Autolaunch.Stocks.Assets.issuer(:base), chain: @chain})
   end
 
   def load!(path) do
