@@ -80,19 +80,23 @@ export function press(event: MouseEvent) {
 // A dialog rises as a sheet, a header menu pops open and a dropdown's list
 // drops in, and leaves again when it closes. A page that redraws an open one
 // closes and reopens it within one moment, which reports it as having been open
-// all along, so it does not move again.
+// all along, so it does not move again. Once it rests where it opens, moved or
+// not, it carries `data-settled`, so whatever measures it, such as the browser
+// walk, knows when.
 function toggle(event: Event) {
   if (!(event instanceof ToggleEvent) || !(event.target instanceof HTMLElement)) return
   const {target} = event
   const moves = lastInputByPointer() && !still(target)
   if (event.newState === "closed") {
+    target.removeAttribute("data-settled")
     if (moves) close(target)
     return
   }
   if (event.oldState !== "closed") return
 
-  if (moves) open(target)
-  else openStill(target)
+  Promise.resolve(moves ? open(target) : openStill(target)).then(() => {
+    if (target.matches("[open], :popover-open")) target.dataset.settled = ""
+  })
 }
 
 function open(target: HTMLElement) {

@@ -19,7 +19,7 @@ const pairButton = (page: Page) =>
 async function openWindow(page: Page) {
   await pairButton(page).click()
   await expect(pairingWindow(page)).toBeVisible()
-  await expect.poll(() => pairingWindow(page).evaluate(element => element.getAnimations({subtree: true}).length)).toBe(0)
+  await expect(pairingWindow(page)).toHaveAttribute("data-settled", "")
 }
 
 // A person opens the dropdown, unless it is already open, and presses the agent's
