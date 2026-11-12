@@ -16,7 +16,7 @@
 .market-list__search label { display: block; }
 .market-list__search input { width: 100%; }
 .market-list__pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.market-list__pills a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 4px 14px; border: 1px solid var(--hairline); border-radius: 999px; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
+.market-list__pills a { display: inline-flex; align-items: center; --pill-h: 2.75rem; min-height: var(--pill-h); padding: 4px 14px; border: 1px solid var(--hairline); border-radius: calc(var(--pill-h) / 2); color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
 .market-list__pills a:hover { color: var(--color-fg); border-color: var(--hairline-strong); }
 .market-list__pills a[aria-current] { border-color: var(--color-fg); background: var(--color-fg); color: var(--color-surface); }
 .market-list { display: grid; gap: 16px; }

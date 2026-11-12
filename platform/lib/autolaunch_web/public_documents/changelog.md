@@ -1,5 +1,12 @@
 # Changelog
 
+## 12 November 2026: Forms
+- On both create pages, a field is checked when you leave it and when you send the form, not while you are typing.
+- A field that is too long now says how many characters to use.
+- On your Account page, an ENS name that cannot be connected says why under the name's own box, and the box is marked.
+- A button or field you reach with the keyboard shows a ring that follows its shape, and a field you cannot use yet is greyed.
+- On a phone, the tables on About and the agent guides show each row as a card, with every column's name above its value, instead of scrolling sideways.
+
 ## 12 November 2026: Stock tokens
 - A stock token is now named by who issues it, the chain it is on and its own address, not by a ticker or a company's name alone. On Base they are Coinbase tokens; on Robinhood Chain, Robinhood tokens. They are tokens, not the company's shares.
 - Choosing a paired stock on the create page shows each token's own name, its issuer and chain, and its address, which you can copy or open on the chain's explorer. The link to the company's website is gone. The stock you chose shows the same way under the picker, in the summary and before you sign the launch.
