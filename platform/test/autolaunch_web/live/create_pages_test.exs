@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.CreatePagesTest do
   @moduledoc """
   The two create pages, Memestock at /create and Revstake at /agent-business:
-  each keeps a card of the launch beside the form and says what is still
-  needed under its button, and Revstake's treasury is a Safe. Closed for
-  launches, both addresses answer as unknown.
+  each keeps a card of the launch beside the form, says what is still needed
+  under its button, and Revstake's treasury type decides whether the
+  single-key warning is asked for. Closed for launches, both addresses answer
+  as unknown.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -33,31 +34,27 @@ defmodule AutolaunchWeb.CreatePagesTest do
     view
   end
 
-  # Sean, 12 Nov 2026, audit finding A4: a Revstake treasury is a Safe, with
-  # no single key or other contract to choose instead.
-  test "REVSTAKE_TREASURY_IS_A_SAFE: Revstake's card, the still-needed line and a treasury that takes only a Safe's address",
+  test "Revstake's card, the still-needed line and the treasury type's single-key warning",
        %{conn: conn} do
     view = open(conn, "/agent-business")
 
     assert has_element?(view, "#revstake-summary", "Opening price")
     assert has_element?(view, "#revstake-summary", "FDV")
     assert has_element?(view, ".create-page__need", "Still needed")
+    refute has_element?(view, ".autolaunch-custody-eoa")
 
-    fields =
-      view
-      |> element("#launch-treasury-details")
-      |> render()
-      |> LazyHTML.from_fragment()
-      |> LazyHTML.query("input, select, textarea")
-      |> LazyHTML.attribute("name")
+    view
+    |> element("#launch-treasury-details")
+    |> render_change(%{"launch_draft" => %{"treasury_path" => "eoa"}})
 
-    assert fields == ["launch_draft[treasury]"]
+    assert has_element?(view, ".autolaunch-custody-eoa label", "Warning")
+    assert has_element?(view, "#revstake-summary", "Single key")
 
-    assert has_element?(
-             view,
-             "#launch-treasury-details a[href='https://app.safe.global/new-safe/create?chain=base']"
-           )
+    view
+    |> element("#launch-treasury-details")
+    |> render_change(%{"launch_draft" => %{"treasury_path" => "safe"}})
 
+    refute has_element?(view, ".autolaunch-custody-eoa")
     assert has_element?(view, "#revstake-summary", "Safe")
   end
 

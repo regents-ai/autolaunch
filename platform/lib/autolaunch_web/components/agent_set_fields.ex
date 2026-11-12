@@ -19,9 +19,12 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
     other_link_3: "Link",
     image: "Picture",
     treasury: "Treasury address",
+    treasury_path: "Treasury owner",
     chain: "Chain",
     stock_address: "Paired stock"
   }
+
+  @paths %{safe: "A Safe", contract: "A smart contract account", eoa: "A private key (EOA)"}
 
   attr :draft, :map, required: true, doc: "the person's draft, Revstake or Memestock"
 
@@ -77,6 +80,7 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
     """
   end
 
+  defp shown(:treasury_path, path), do: Map.fetch!(@paths, path)
   defp shown(:chain, chain), do: if(chain == :robinhood, do: "Robinhood Chain", else: "Base")
   defp shown(:image, _url), do: "Shown above"
   defp shown(_field, value) when value in [nil, ""], do: "Left empty"

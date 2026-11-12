@@ -7,7 +7,6 @@
 - When a withdraw, claim, convert, stake, covered call or payment does not go through, the panel says so beside its button and gets the next try ready from the chain as it is now. Before, the next press sent the same transaction again.
 - After a page loses its connection and comes back, your next press in a wallet panel is checked again before your wallet opens. Before, it could send a transaction from before the drop, or a second bid from old figures.
 - Every amount in a wallet review is shown to its last digit, however large. Before, a very large amount could be rounded.
-- A Revstake treasury is always a 2-of-3 Safe on Base. The Contract and Single key choices are gone from the create page, and a paired agent's draft takes only the Safe's address: `treasury_path` is no longer part of a Revstake draft.
 - The create pages notice when new launches pause or reopen, and the launch button comes back as soon as launches reopen. Before, a page kept what it read when it opened.
 - An auction's treasury says whether its Safe is verified, and at which Base block. The launch panel shows a verified Safe as verified. Before, every treasury said it was waiting for a check, and the launch panel could say no launch could be prepared for a Safe that was fine. `GET /api/v1/treasury-security/{address}` answers `verification_state` as `verified` or `unverified`, with its `verification_reason`.
 

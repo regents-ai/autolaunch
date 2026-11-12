@@ -44,6 +44,7 @@ defmodule Autolaunch.AgentDraftsTest do
                  "symbol" => "rsrch",
                  "description" => "Earns stablecoins for its stakers.",
                  "treasury" => @treasury,
+                 "treasury_path" => "contract",
                  "image" => picture
                },
                agent
@@ -51,15 +52,17 @@ defmodule Autolaunch.AgentDraftsTest do
 
     assert draft.symbol == "RSRCH"
     assert draft.treasury == @treasury
+    assert draft.treasury_path == :contract
     assert draft.image =~ "/images/"
 
     assert Enum.sort(draft.agent_set_fields) ==
-             Enum.sort([:name, :symbol, :description, :treasury, :image])
+             Enum.sort([:name, :symbol, :description, :treasury, :treasury_path, :image])
 
     assert %{agent_set_fields: _, treasury: @treasury} = AgentDrafts.present(draft)
   end
 
-  test "the person's own edits leave the agent's list", %{agent: agent, person: person} do
+  test "the person's own edits leave the agent's list; their EOA acknowledgement is never the agent's",
+       %{agent: agent, person: person} do
     {:ok, _draft} =
       AgentDrafts.save("revstake", %{"name" => "Agent Name", "treasury" => @treasury}, agent)
 
@@ -68,28 +71,34 @@ defmodule Autolaunch.AgentDraftsTest do
       |> Ash.Query.for_read(:agent_read, %{}, actor: agent)
       |> Ash.read_one()
 
-    renamed =
+    acknowledged =
       draft
+      |> Ash.Changeset.for_update(
+        :autosave_treasury,
+        %{treasury: @treasury, treasury_path: :eoa, eoa_acknowledgement: "typed by the person"},
+        actor: person
+      )
+      |> Ash.update!()
+
+    # The person chose the path; the agent's treasury is still theirs to check.
+    assert :treasury in acknowledged.agent_set_fields
+    refute :treasury_path in acknowledged.agent_set_fields
+
+    renamed =
+      acknowledged
       |> Ash.Changeset.for_update(:autosave_token_details, %{name: "Person Name"}, actor: person)
       |> Ash.update!()
 
     refute :name in renamed.agent_set_fields
 
-    # The agent's treasury stays theirs to check until the person changes it.
-    assert :treasury in renamed.agent_set_fields
+    # An agent changing the treasury takes back the person's acknowledgement.
+    {:ok, changed} =
+      AgentDrafts.save("revstake", %{"treasury" => "0x" <> String.duplicate("7b", 20)}, agent)
 
-    retyped =
-      renamed
-      |> Ash.Changeset.for_update(
-        :autosave_treasury,
-        %{treasury: "0x" <> String.duplicate("7b", 20)},
-        actor: person
-      )
-      |> Ash.update!()
-
-    refute :treasury in retyped.agent_set_fields
+    assert changed.eoa_acknowledgement == nil
 
     for refused <- [
+          %{"eoa_acknowledgement" => "typed by the agent"},
           %{"name" => 7},
           %{"wallet" => @wallet},
           %{"image" => %{"content_type" => "image/png", "data" => "not base64!"}},

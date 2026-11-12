@@ -116,7 +116,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
         </p>
         <p :if={!verified?(@treasury_report)} data-treasury-verification-state="unverified">
-          Not verified. Verify the Safe below to launch.
+          Unverified. No launch can be prepared on the official Safe path.
         </p>
         <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
           <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
@@ -171,7 +171,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </div>
           <div>
             <dt>Treasury custody</dt>
-            <dd>2-of-3 Safe</dd>
+            <dd>{custody_label(@prepared.facts["treasury_path"])}</dd>
           </div>
         </:rows>
         <dl class="launch-wallet-terms">
@@ -362,4 +362,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  defp custody_label("safe"), do: "2-of-3 Safe"
+  defp custody_label("contract"), do: "Existing contract"
+  defp custody_label("eoa"), do: "Single-key EOA"
 end

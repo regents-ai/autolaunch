@@ -117,8 +117,9 @@ request a fresh owner code rather than replaying a lost response blindly.
 
 Read the paired owner's Revstake launch draft. Route:
 `GET /api/agent/v1/drafts/revstake`; no body inputs. Returns `{data, kind}` with the
-draft or null: its details, `image`, `treasury` and `agent_set_fields`, the fields an
-agent set that the owner has not changed since. It creates nothing.
+draft or null: its details, `image`, `treasury`, `treasury_path` and
+`agent_set_fields`, the fields an agent set that the owner has not changed since. It
+creates nothing.
 
 Server: admit current paired actor → resolve its local owner → Ash `agent_read` on
 the existing Revstake draft (`Autolaunch.AgentDrafts`). Requires shared
@@ -131,7 +132,7 @@ prelaunch read-only gate.
 Fill in the same owner's Revstake launch draft. Route:
 `PATCH /api/agent/v1/drafts/revstake`. Stdin fields: `name`, `symbol`, `description`,
 `website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3`,
-`treasury` (the address of a 2-of-3 Safe on Base) and `image`
+`treasury`, `treasury_path` (`safe`, `contract` or `eoa`) and `image`
 (`{"content_type", "data"}`, the file base64). Returns `{data, kind}` with the saved
 draft and current pairing attribution.
 

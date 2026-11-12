@@ -9,14 +9,23 @@ defmodule Autolaunch.LaunchDraft do
 
   @account_token_fields [:name, :symbol, :description, :website | LaunchLinks.fields()]
 
-  # Every Revstake treasury is a 2-of-3 Safe on Base, named by its address.
-  @draft_fields @account_token_fields ++ [:treasury]
+  @treasury_fields [
+    :treasury,
+    :treasury_path,
+    :eoa_acknowledgement
+  ]
 
-  # What a paired agent may set: the token's details and its treasury Safe.
-  @agent_fields @draft_fields
+  @draft_fields @account_token_fields ++ @treasury_fields
+
+  # What a paired agent may set: the token's details and where its treasury
+  # goes. Owning a treasury with a private key (the EOA path) also takes the
+  # creator's own acknowledgement, which only the creator can give.
+  @agent_fields @account_token_fields ++ [:treasury, :treasury_path]
 
   @doc "The fields a paired agent may set on a Revstake draft, besides its picture."
   def agent_fields, do: @agent_fields
+
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   @metadata_limits [name: 64, description: 512]
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
@@ -44,15 +53,22 @@ defmodule Autolaunch.LaunchDraft do
   defp website_complete?(website), do: LaunchLinks.web_link?(website)
 
   @doc "Whether the persisted treasury stage is ready for launch review."
-  def treasury_complete?(draft), do: treasury_address?(Map.get(draft, :treasury))
+  def treasury_complete?(draft) do
+    path = Map.get(draft, :treasury_path)
+
+    treasury_address?(Map.get(draft, :treasury)) and path in [:safe, :contract, :eoa] and
+      (path != :eoa or Map.get(draft, :eoa_acknowledgement) == @eoa_acknowledgement)
+  end
 
   @doc """
-  Whether the creator still has to confirm a Safe their paired agent chose as
-  the treasury (`:confirm_agent_treasury`) before the launch review is
-  prepared.
+  Whether the creator still has to confirm a Safe or smart contract account
+  their paired agent chose as the treasury (`:confirm_agent_treasury`) before
+  the launch review is prepared.
   """
-  def treasury_confirmation_needed?(draft),
-    do: :treasury in Map.get(draft, :agent_set_fields, [])
+  def treasury_confirmation_needed?(draft) do
+    Map.get(draft, :treasury_path) in [:safe, :contract] and
+      Enum.any?([:treasury, :treasury_path], &(&1 in Map.get(draft, :agent_set_fields, [])))
+  end
 
   @doc "Whether `treasury` is a whole address a launch can send to."
   def treasury_address?(treasury),
@@ -120,6 +136,10 @@ defmodule Autolaunch.LaunchDraft do
       change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.LaunchDraft.Validations.PartialFields
 
+      # A treasury the agent chose was never acknowledged by the creator.
+      change set_attribute(:eoa_acknowledgement, nil),
+        where: [any([changing(:treasury), changing(:treasury_path)])]
+
       change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @agent_fields, mark: true}
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
@@ -186,11 +206,12 @@ defmodule Autolaunch.LaunchDraft do
     end
 
     update :autosave_treasury do
-      accept [:treasury]
+      accept @treasury_fields
       require_atomic? false
       validate Autolaunch.LaunchDraft.Validations.PartialFields
 
-      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: [:treasury], mark: false}
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:treasury, :treasury_path], mark: false}
     end
 
     update :confirm_agent_treasury do
@@ -237,6 +258,8 @@ defmodule Autolaunch.LaunchDraft do
       change set_attribute(:image, nil)
       change set_attribute(:launch_draft_image_id, nil)
       change set_attribute(:treasury, nil)
+      change set_attribute(:treasury_path, :safe)
+      change set_attribute(:eoa_acknowledgement, nil)
       change set_attribute(:agent_set_fields, [])
     end
   end
@@ -315,9 +338,6 @@ defmodule Autolaunch.LaunchDraft do
     attribute :image, :string, public?: true
     attribute :treasury, :string, public?: true
 
-    # The treasury kind a draft once chose and a private key's typed warning.
-    # Every treasury is a Safe now, so nothing reads or writes either; they
-    # stay only until a migration drops their columns.
     attribute :treasury_path, :atom do
       allow_nil? false
       public? true

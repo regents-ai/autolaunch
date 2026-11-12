@@ -1,9 +1,10 @@
 defmodule Autolaunch.LaunchDraft.Changes.ConfirmAgentTreasury do
   @moduledoc """
-  The creator confirms the Safe their paired agent chose as the treasury, and
-  the treasury is theirs from then on, as if they had chosen it. The draft is
-  read again under its lock first, as the creator's own, so a treasury the
-  agent changed after the page showed it is never confirmed in its place.
+  The creator confirms the Safe or smart contract account their paired agent
+  chose as the treasury, and the treasury is theirs from then on, as if they
+  had chosen it. The draft is read again under its lock first, as the
+  creator's own, so a treasury the agent changed after the page showed it is
+  never confirmed in its place.
   """
   use Ash.Resource.Change
 
@@ -26,7 +27,7 @@ defmodule Autolaunch.LaunchDraft.Changes.ConfirmAgentTreasury do
       Ash.Changeset.force_change_attribute(
         %{changeset | data: draft},
         :agent_set_fields,
-        draft.agent_set_fields -- [:treasury]
+        draft.agent_set_fields -- [:treasury, :treasury_path]
       )
     else
       _changed ->

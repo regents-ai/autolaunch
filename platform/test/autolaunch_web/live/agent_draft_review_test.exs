@@ -36,7 +36,11 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     {:ok, agent, _account} = Agents.resolve(@wallet)
 
     {:ok, _draft} =
-      AgentDrafts.save("revstake", %{"name" => "Agent Chosen", "treasury" => @treasury}, agent)
+      AgentDrafts.save(
+        "revstake",
+        %{"name" => "Agent Chosen", "treasury" => @treasury, "treasury_path" => "contract"},
+        agent
+      )
 
     session = signed_in_session(account.id)
 
@@ -49,6 +53,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     review = view |> element("#agent-set-fields") |> render()
     assert review =~ "Agent Chosen"
     assert review =~ @treasury
+    assert review =~ "A smart contract account"
 
     view
     |> form("#launch-token-details", launch_draft: %{name: "Person Chosen"})

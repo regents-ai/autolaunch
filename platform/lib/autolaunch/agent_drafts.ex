@@ -3,10 +3,10 @@ defmodule Autolaunch.AgentDrafts do
   A paired agent's reads and saves of its person's launch draft, Revstake or
   Memestock. An agent can fill in everything the person's create form takes:
   the token's details, its picture and its launch settings (a Revstake
-  draft's treasury Safe, a Memestock draft's chain and paired stock). It
-  cannot confirm the treasury it chose, launch, or sign anything: the person
-  opens the create page, sees every field the agent set named in the review,
-  and signs.
+  draft's treasury, a Memestock draft's chain and paired stock). It cannot
+  give the person's own acknowledgement for a treasury owned by a private
+  key, launch, or sign anything: the person opens the create page, sees
+  every field the agent set named in the review, and signs.
 
   A save is one transaction. It opens the draft through the agent's own
   action, which locks the pairing first, so a pairing revoked meanwhile saves
@@ -160,7 +160,7 @@ defmodule Autolaunch.AgentDrafts do
     do: Map.merge(shared(draft), Map.take(draft, [:chain, :stock_address]))
 
   def present(%LaunchDraft{} = draft),
-    do: Map.merge(shared(draft), Map.take(draft, [:treasury]))
+    do: Map.merge(shared(draft), Map.take(draft, [:treasury, :treasury_path]))
 
   defp shared(draft),
     do:

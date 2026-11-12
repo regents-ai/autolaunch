@@ -1,5 +1,9 @@
 /* Creating launches, the Make a payment card on token pages, and the account page. */
 
+/* A single-key treasury: the warning, and the box it is typed into. */
+.autolaunch-custody-eoa { display: grid; gap: var(--space-2); }
+.autolaunch-custody-eoa > p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.autolaunch-custody-eoa textarea { min-height: 8rem; resize: vertical; }
 /* Every text box on Create has its top-right corner cut, like the buttons. The
    cut would hide an outside focus ring, so the ring draws just inside the box. */
 .create-page__form :is(input[type="text"], textarea) {
@@ -28,6 +32,8 @@
 .agent-treasury > p { margin: 0; }
 .agent-treasury__address { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
 .agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); }
+.autolaunch-custody-eoa textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
+.autolaunch-custody-ack-matched { display: flex; align-items: center; gap: var(--space-1); color: var(--color-success); }
 /* Connected accounts: one row each, mark · account · buttons, all alike. */
 .connections { display: grid; gap: var(--space-2); }
 [data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
