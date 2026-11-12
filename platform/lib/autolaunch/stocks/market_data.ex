@@ -16,11 +16,13 @@ defmodule Autolaunch.Stocks.MarketData do
   linked to the pair's DexScreener page; the site writes that link itself from
   the pair's id. A pool whose venue or depth the source leaves out is not a
   venue. A full answer is kept for ten minutes. A read that failed, or left a stock's price out, is tried again
-  after one second, then two, four and so on, up to ten minutes. The reads
-  happen in whichever process asks, so a page that asks from a background task
-  never waits on them, and the kept answers are read straight from their
-  cache, never through one process.
+  after one second, then two, four and so on, up to ten minutes. One read
+  fills an answer however many ask for it at once (`Cachex.fetch/4`): the
+  others wait for that read, so a page asks from a background task. The kept
+  answers are read straight from their cache, never through one process.
   """
+
+  require Logger
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
@@ -79,28 +81,38 @@ defmodule Autolaunch.Stocks.MarketData do
     do: cached({:venues, chain, stock.address}, fn -> read_venues(chain, stock) end, [])
 
   # A full answer is kept for the whole ten minutes; a partial answer or none
-  # is kept only until the next try, each wait twice the last. An answer past
-  # its time stays kept with its count of misses, so the next wait doubles.
+  # is kept only until the next try, each wait twice the last. The misses are
+  # counted beside the answer, so the count outlives each short-kept answer
+  # and the next wait doubles. A cache that cannot answer is no answer yet.
   defp cached(key, read, empty) do
-    case Cachex.get!(@cache, key) do
-      {value, expires_at, misses} ->
-        if expires_at > now(), do: value, else: read_again(key, read, empty, misses)
+    case Cachex.fetch(@cache, key, fn -> read_once(key, read, empty) end) do
+      {status, {:kept, value}} when status in [:ok, :commit] ->
+        value
 
-      nil ->
-        read_again(key, read, empty, 0)
+      {:error, reason} ->
+        Logger.warning("stock market data not read: #{inspect(reason)}")
+        empty
     end
   end
 
-  defp read_again(key, read, empty, misses) do
-    {value, entry} =
-      case read.() do
-        {:ok, value} -> {value, {value, now() + @ttl_ms, 0}}
-        {:partial, value} -> {value, {value, now() + retry_ms(misses), misses + 1}}
-        :error -> {empty, {empty, now() + retry_ms(misses), misses + 1}}
-      end
+  # Kept inside a tuple: the cache takes a bare nil for nothing kept.
+  defp read_once(key, read, empty) do
+    case read.() do
+      {:ok, value} ->
+        {:ok, _counted?} = Cachex.del(@cache, {:misses, key})
+        {:commit, {:kept, value}, expire: @ttl_ms}
 
-    Cachex.put!(@cache, key, entry)
-    value
+      {:partial, value} ->
+        missed(key, value)
+
+      :error ->
+        missed(key, empty)
+    end
+  end
+
+  defp missed(key, value) do
+    {:ok, misses} = Cachex.incr(@cache, {:misses, key})
+    {:commit, {:kept, value}, expire: retry_ms(misses - 1)}
   end
 
   defp retry_ms(misses), do: min(@first_retry_ms * Integer.pow(2, misses), @ttl_ms)
@@ -332,6 +344,4 @@ defmodule Autolaunch.Stocks.MarketData do
     # Finch raises, not returns, when no pooled connection frees up in time.
     _error -> :error
   end
-
-  defp now, do: System.monotonic_time(:millisecond)
 end
