@@ -1,9 +1,29 @@
 # Base mainnet
 
-**Not deployed.** `mainnet-no-go-packet.json` carries no selection: the deployer, its starting
-nonce and the time to send are the founder's decision, and nothing in this directory authorizes a
-deployment. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
+**Not deployed.** `mainnet-no-go-packet.json` carries the selection `prepare` derived on 12 November
+2026 at Base block 56,519,000 (digest
+`0xdba99ae57caae5c06185cded85bf5495140626c93b38edd6da529dd0dee40818`): the deployer
+`0x9b2C414614aEE294202c1219520955EF3B596031` at nonces 69 and 70, right after Base Revstake version
+3's one creation at nonce 68. Sending is the founder's decision alone, and nothing in this directory
+authorizes it. `deployed-manifest.json` is the empty record; it is written once, by `record`, from
 confirmed Base receipts.
+
+The selection holds only while the deployer's nonce is 68 and Revstake goes first. Anything else the
+deployer sends before it moves the nonce, the deploy scripts then stop before sending anything, and
+both packets are prepared again at the new nonces (new addresses, new digests, new transaction data
+and a new Safe batch).
+
+| Nonce | Creates | Predicted address | Transaction data |
+| --- | --- | --- | --- |
+| 69 | StocksLaunchpadV3 | `0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C` | `transaction-data-launchpad.txt` |
+| 69, inside | MemestockSplitterV1 | `0x892E2EdE6cFF49C24DDd4A1a85F5bE4696836cae` | |
+| 69, inside | MemestockLPLocker | `0xb3FD1ceBF07Bc47c39b42Da054552Bd041B125b6` | |
+| 69, inside | StocksFeeHookV1 (salt `0x…3171`) | `0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc` | |
+| 70 | StockBidAdapterV1 | `0xa28334dEbaeea58Cd0b12D6814219498293EE1fA` | `transaction-data-bid-adapter.txt` |
+
+Each transaction-data file is the creation's data byte for byte: the init code hashes to the
+packet's `creation_keccak256`, the rest is the packet's constructor arguments, and the deploy script
+sent exactly these bytes in the rehearsal below.
 
 The tool is `bin/ceremony.py`, shared with Base Revstake version 3 and run from this package
 directory (`contracts/stocks-v3`). Version 3 builds on version 2's deployment: `prepare` reads the
@@ -46,9 +66,41 @@ creations have landed.
 | SPCXc | `0xb2000000000000000000007b9fcbd005511aCBd5` | `0xC9Ae2AeBa42fC2408Ac664Ef278dF1D996E27B19` |
 | TSLAc | `0xb2000000000000000000001e800a7f5189430cD0` | `0x55009863EaFf428C4dc52520f6468B423C99B38a` |
 
-Setting the hook's executor (`setExecutor`) and opening launches (`unpauseLaunches`) are further
-Safe calls, each made by its own decision once Base runs 0.2-second blocks; neither is in this
-batch.
+`safe-switch-on.json` is the one Safe batch that switches version 3 on, for the Safe's Transaction
+Builder: the ten admissions above, `setExecutor(0x72E2FB09147d3E6E5c9F44A4E127E6321e022045)` on
+the hook (the executor version 2's hook names on Base), `unpauseLaunches()` on the launchpad, and
+`unpauseLaunches()` on Base Revstake version 3's factory `0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48`.
+Thirteen calls, each to a predicted address, so it is signed only after all three creations have
+landed and the site reads version 3. Version 2's launchers stay paused; their existing launches keep
+their claims and withdrawals.
+
+## Rehearsal
+
+On 12 November 2026, on an anvil copy of Base mainnet at block 56,519,000, nothing sent to Base: `prepare` against the
+copy, then the founder's exact sends with the deployer impersonated (`--unlocked`), Revstake first,
+then the Safe batch from the Safe.
+
+| Send | Gas used | Gas limit forge asked for |
+| --- | --- | --- |
+| Revstake factory, nonce 68 | 7,829,467 | 10,178,307 |
+| StocksLaunchpadV3, nonce 69 | 8,895,862 | 11,564,620 |
+| StockBidAdapterV1, nonce 70 | 747,404 | 971,625 |
+| The Safe batch's thirteen calls, each sent from the impersonated Safe | 650,690 in all | |
+
+Every creation landed at its prediction, each fits Base's 16,777,216-gas limit for one transaction
+and the copy's 40,000,000-gas block, and after the Safe batch both launchers read
+`launchesPaused() == false`, the hook names the executor, and all ten stocks are admitted with
+their routes. At Base's fees on 12 November (a base fee of 0.005 gwei) the three creations cost
+about 0.0001 ETH plus under 0.00001 ETH of L1 data fee; the deployer holds 0.0049 ETH.
+
+## Sending it
+
+`/Users/sean/Documents/regent/handoffs/autolaunch-sean-steps/Deploy Base auctions V3.command` sends
+the three creations from the `autolaunch-deployer` keystore, from a copy of both packages at the
+commit that holds these packets. For each creation it runs the deploy script once without sending,
+requires the data it would send to equal the transaction-data file byte for byte, then sends it
+(`--broadcast --slow`, never `--resume`). The scripts themselves require Base, the packet's nonce
+and every predicted address before anything is signed.
 
 ## Steps
 
