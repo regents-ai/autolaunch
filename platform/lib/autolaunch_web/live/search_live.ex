@@ -31,12 +31,7 @@ defmodule AutolaunchWeb.SearchLive do
   # reader's recent searches and hands them over each time it opens.
   def handle_event("open", %{"recent" => recent}, socket) do
     socket = assign(socket, recent: recent_searches(recent))
-
-    if socket.assigns.opened?,
-      do: {:noreply, socket},
-      else:
-        {:noreply,
-         socket |> assign(opened?: true) |> MarketCard.assign_figure_rates() |> search()}
+    {:noreply, if(socket.assigns.opened?, do: socket, else: search(socket))}
   end
 
   def handle_event("recent", %{"recent" => recent}, socket),
@@ -57,6 +52,12 @@ defmodule AutolaunchWeb.SearchLive do
     do: {:noreply, assign(socket, results: results, results_q: q, failed?: false)}
 
   def handle_async(:search, _failure, socket), do: {:noreply, assign(socket, failed?: true)}
+
+  # The first search reads the dollar prices its results show. That is the
+  # window opening, or a search from a window the browser already had open
+  # when its page connected again.
+  defp search(%{assigns: %{opened?: false}} = socket),
+    do: socket |> assign(opened?: true) |> MarketCard.assign_figure_rates() |> search()
 
   defp search(socket) do
     %{q: q, category: category, chain: chain} = socket.assigns
