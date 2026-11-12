@@ -46,3 +46,15 @@
 .document-page table { border-collapse: collapse; font-size: .875rem; }
 .document-page :is(th, td) { padding: 8px 12px; border-bottom: 1px solid var(--rg-page-rule); text-align: left; vertical-align: top; }
 .document-page :is(p, li, td code) { overflow-wrap: anywhere; }
+/* Each cell starts with its column's name, shown only when the rows stand as cards. */
+.document-page td > span:first-child { display: none; }
+/* Under 768px each table row stands as a card, every column's name above its value. */
+@media (max-width: 47.99rem) {
+  .document-table { overflow-x: visible; }
+  .document-page :is(table, tbody, tr, td) { display: block; }
+  .document-page thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .document-page tr { display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--rg-page-rule); }
+  .document-page tr + tr { border-block-start: 0; }
+  .document-page td { padding: 0; border: 0; overflow-wrap: anywhere; }
+  .document-page td > span:first-child { display: block; color: var(--color-fg-muted); font-size: var(--type-caption-size); line-height: var(--type-caption-line); }
+}

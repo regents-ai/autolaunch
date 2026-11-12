@@ -231,31 +231,66 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "An address on this site, absolute."
   def url(path), do: AutolaunchWeb.Endpoint.url() <> path
 
+  # A table keeps its roles when a phone shows its rows as cards, and the only
+  # spans are the cells' column names (`label_cells/1`), which a screen reader
+  # already has.
   @sanitize [
-    tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br table thead tbody tr th td),
+    tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br table thead tbody tr th td span),
     tag_attributes: %{"a" => ["href"]},
     generic_attributes: [],
     url_schemes: ~w(http https mailto),
     url_relative: :deny,
-    link_rel: "noopener noreferrer"
+    link_rel: "noopener noreferrer",
+    set_tag_attribute_values: %{
+      "table" => %{"role" => "table"},
+      "thead" => %{"role" => "rowgroup"},
+      "tbody" => %{"role" => "rowgroup"},
+      "tr" => %{"role" => "row"},
+      "th" => %{"role" => "columnheader"},
+      "td" => %{"role" => "cell"},
+      "span" => %{"aria-hidden" => "true"}
+    }
   ]
+  @markdown [extension: [table: true, inline_code_attributes: false]]
 
   @doc """
-  A document's committed Markdown as sanitized HTML. A table sits in a box
-  that scrolls sideways on a narrow screen and can be reached from the
-  keyboard to scroll it.
+  A document's committed Markdown as sanitized HTML. On a wide screen a table
+  sits in a box that scrolls sideways and can be reached from the keyboard to
+  scroll it; under 768px each of its rows stands as a card (`facts.css`).
   """
   # The HTML is MDEx-sanitized from the committed public Markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
     markdown
-    |> MDEx.to_html!(extension: [table: true, inline_code_attributes: false], sanitize: @sanitize)
+    |> MDEx.parse_document!(@markdown)
+    |> MDEx.traverse_and_update(&label_cells/1)
+    |> MDEx.to_html!(@markdown ++ [sanitize: @sanitize])
     |> String.replace(
-      "<table>",
-      ~s(<div class="document-table" role="region" aria-label="Table" tabindex="0"><table>)
+      ~s(<table role="table">),
+      ~s(<div class="document-table" role="region" aria-label="Table" tabindex="0"><table role="table">)
     )
     |> String.replace("</table>", "</table></div>")
     |> Phoenix.HTML.raw()
+  end
+
+  # Every cell starts with its column's name, shown only when the rows stand as cards.
+  defp label_cells(%MDEx.Table{nodes: [%MDEx.TableRow{nodes: heads} = head | rows]} = table) do
+    labels = Enum.map(heads, &cell_label/1)
+    %{table | nodes: [head | Enum.map(rows, &label_row(&1, labels))]}
+  end
+
+  defp label_cells(node), do: node
+
+  defp label_row(%MDEx.TableRow{nodes: cells} = row, labels),
+    do: %{row | nodes: Enum.zip_with(cells, labels, &%{&1 | nodes: [&2 | &1.nodes]})}
+
+  defp cell_label(%MDEx.TableCell{nodes: nodes}) do
+    text = Enum.map_join(nodes, &Map.get(&1, :literal, ""))
+
+    %MDEx.Raw{
+      literal:
+        "<span>#{text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()}</span>"
+    }
   end
 
   @doc "Where an agent that reached a missing or refused address can go instead."
