@@ -1,9 +1,9 @@
 /**
  * A decorative canvas the browser owns, and every reason not to draw on it.
  *
- * The light behind the site's main buttons is one of these. What lives here is
- * everything the light does not draw itself: the canvas box, when a frame is
- * worth drawing, and the still face the visitor sees until one really lands.
+ * Each holographic card is one of these. What lives here is everything the card
+ * does not draw itself: the canvas box, when a frame is worth drawing, and the
+ * still face the visitor sees until one really lands.
  */
 
 type RequestFrame = (callback: FrameRequestCallback) => number
@@ -62,13 +62,21 @@ type IslandInteraction<Renderer extends IslandRenderer> = {
 type IslandKind<Renderer extends IslandRenderer> = {
   /** The canvas inside the island root. */
   readonly canvasSelector: string
-  /** Dataset flag raised on the root once a first frame really landed. */
+  /**
+   * Dataset flag on the root: "true" once a first frame really landed, "false" once
+   * the island knows it will not draw here, and absent while that is still open.
+   */
   readonly readyFlag: string
   readonly browserLoad: LoadRenderer<Renderer>
   /** A picture that moves is never drawn for a visitor who asked for less of it. */
   readonly motionSensitive: boolean
   /** A picture that keeps moving by itself never runs out of frames to settle in. */
   readonly continuous: boolean
+  /**
+   * The sharpest the picture is drawn, in device pixels per CSS pixel. A small
+   * picture may go past the usual ceiling; the pixel budget still holds.
+   */
+  readonly maxDevicePixelRatio?: number
   /** Listeners the island keeps for as long as it is watching. */
   interact?(island: IslandInteraction<Renderer>): () => void
 }
@@ -99,8 +107,9 @@ export function drawingBufferSize(
   width: number,
   height: number,
   devicePixelRatio: number,
+  maxDevicePixelRatio: number = MAX_DEVICE_PIXEL_RATIO,
 ): readonly [number, number] {
-  const ratio = Math.min(MAX_DEVICE_PIXEL_RATIO, Math.max(1, devicePixelRatio))
+  const ratio = Math.min(maxDevicePixelRatio, Math.max(1, devicePixelRatio))
   const requested = width * height * ratio * ratio
   const fit =
     requested > MAX_DRAWING_BUFFER_PIXELS ? Math.sqrt(MAX_DRAWING_BUFFER_PIXELS / requested) : 1
@@ -164,9 +173,13 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   const motionPermits = () => !kind.motionSensitive || !motion.matches
 
+  /**
+   * The canvas's own box from layout. A transform round the island, such as a panel
+   * growing in, changes how big it looks for a moment, never how big it is drawn.
+   */
   const measure = (): readonly [number, number] => {
-    const {width, height} = canvas().getBoundingClientRect()
-    return drawingBufferSize(width, height, devicePixelRatio())
+    const view = canvas()
+    return drawingBufferSize(view.clientWidth, view.clientHeight, devicePixelRatio(), kind.maxDevicePixelRatio)
   }
 
   const stopFrame = () => {
@@ -243,10 +256,17 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
     renderer = undefined
   }
 
-  /** A retreat the island does not come back from: the GPU is not going to draw this. */
+  /**
+   * A retreat the island does not come back from: the GPU is not going to draw this,
+   * so everything the island watches with, and whatever steers the picture, lets go
+   * now, and the flag says so, so the page can show what the server rendered.
+   */
   const retire = () => {
     retired = true
+    release?.()
+    release = undefined
     retreat()
+    root.dataset[kind.readyFlag] = "false"
   }
 
   /**
@@ -370,7 +390,11 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   return {
     mount() {
-      if (release || !supportsWebGpu()) return
+      if (release) return
+      if (!supportsWebGpu()) {
+        root.dataset[kind.readyFlag] = "false"
+        return
+      }
       mounted = true
       retired = false
       recoveries = 0

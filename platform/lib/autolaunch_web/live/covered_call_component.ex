@@ -156,7 +156,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: {:noreply, assign(socket, quote: nil, refusal: :chain_unavailable)}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async(:balance, {:ok, {key, balance}}, socket) do
     if key == socket.assigns.balance_for,
@@ -313,6 +313,16 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     |> sync()
   end
 
+  # A step of the open review that did not go through: the action is reviewed
+  # again at once from the chain as it is now (`OnchainSteps.rebuild_reverted/4`).
+  defp step_reverted(socket, entry) do
+    note = reverted_copy(socket.assigns.kind)
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket |> closed() |> reviewed() |> OnchainSteps.rebuilt(note)
+    end)
+  end
+
   defp finished(socket) do
     %{kind: kind, reviewed: prepared} = socket.assigns
 
@@ -438,7 +448,6 @@ defmodule AutolaunchWeb.CoveredCallComponent do
           facts={(@reviewed && facts(@kind, @reviewed.facts, assigns)) || []}
           steps={@steps}
           next_step={@next_step}
-          reverted={reverted(@steps, @kind)}
           notice={@press_note}
           target={@myself}
           signer={@review && @review.signer}
@@ -727,16 +736,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp step_state(%{outcome: :reverted}), do: :reverted
   defp step_state(_not_this_step), do: :other
 
-  defp reverted(steps, kind) do
-    if Enum.any?(steps, &(&1.state == :reverted)), do: reverted_copy(kind)
-  end
-
   defp reverted_copy(:fill),
-    do:
-      "The purchase did not go through and nothing moved. Someone may have bought these first: close this and review again."
+    do: "The purchase did not go through and nothing moved. Someone may have bought these first."
 
-  defp reverted_copy(_kind),
-    do: "That did not go through and nothing moved. Close this and review again."
+  defp reverted_copy(_kind), do: "That did not go through and nothing moved."
 
   defp action_label(:list, _symbol), do: "List calls"
   defp action_label(:fill, _symbol), do: "Buy calls"

@@ -81,7 +81,8 @@ export const OnchainSteps: Hook = {
     this.leaving = new AbortController()
 
     // Every hook on the page hears this event; keep only this component's review.
-    // No review means no eligible wallet: a press then sends nothing.
+    // With no review, a press asks the server for one where the card can, and
+    // otherwise sends nothing.
     this.handleEvent("onchain-steps:review", payload => {
       const {component_id, review} = payload as {component_id: string; review: Review | null}
       if (component_id !== this.el.id) return
@@ -151,6 +152,15 @@ export const OnchainSteps: Hook = {
     }
 
     this.walletChanged()
+    this.refresh?.()
+  },
+
+  // The held review stays through a dropped connection, so a press while the
+  // page is away, or before the server that takes over answers, still reaches
+  // the wallet with it. That server hears the wallet Privy has active and
+  // pushes a fresh review, which replaces the held one.
+  reconnected(this: OnchainStepsHook) {
+    this.walletChanged?.()
     this.refresh?.()
   },
 

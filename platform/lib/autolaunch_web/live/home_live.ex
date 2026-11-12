@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.StockLists
   import AutolaunchWeb.Components.SwapModal
+  import AutolaunchWeb.Components.ValueCards
   alias Autolaunch.{CoveredCalls, HomeMarket}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
   alias Phoenix.LiveView.AsyncResult
@@ -73,7 +74,8 @@ defmodule AutolaunchWeb.HomeLive do
        token_kinds: @token_kinds,
        statuses: @statuses,
        unfiltered: @unfiltered,
-       no_connection: @no_connection
+       no_connection: @no_connection,
+       values: values()
      )
      |> LiveListings.subscribe()
      |> LiveSettle.watch()
@@ -117,6 +119,67 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp lists(%{options?: true}), do: @lists
   defp lists(_assigns), do: Keyword.delete(@lists, :options)
+
+  # The "Principles" row at the foot of the page: what Autolaunch holds to, one
+  # card each, drawn by the panels in assets/js/value_cards/panels/.
+  defp values do
+    [
+      %{
+        id: "clearing",
+        name: "Fair price",
+        headline: "One price for every bidder.",
+        line: "Bids above the clearing price all pay that price, not their own limit.",
+        tint: "#ff5b19",
+        action: "Read rules",
+        navigate: ~p"/how-it-works#how-it-works-auction"
+      },
+      %{
+        id: "vault",
+        name: "Locked liquidity",
+        headline: "Liquidity no one can pull.",
+        line: "It sits in a contract that can only collect trading fees.",
+        tint: "#4fd3ec",
+        action: "See fees",
+        navigate: ~p"/how-it-works#how-it-works-fees"
+      },
+      %{
+        id: "address",
+        name: "Stock tokens",
+        headline: "Every stock named exactly.",
+        line: "Each stock shows its issuer and chain, and its exact address before you sign.",
+        tint: "#00c805",
+        action: "See stocks",
+        navigate: ~p"/stocks"
+      },
+      %{
+        id: "signature",
+        name: "Your wallet",
+        headline: "Your wallet signs everything.",
+        line: "Autolaunch never holds your keys or your money.",
+        tint: "#e5e3d2",
+        action: "See portfolio",
+        navigate: ~p"/portfolio"
+      },
+      %{
+        id: "handoff",
+        name: "Agents",
+        headline: "Agents prepare, you sign.",
+        line: "A paired agent can fill in your launch for you to check and sign.",
+        tint: "#f5c16c",
+        action: "Pair agent",
+        navigate: ~p"/account/agents"
+      },
+      %{
+        id: "blocks",
+        name: "Onchain",
+        headline: "Figures from the chain.",
+        line: "Auction prices, bids and amounts raised come from the auction contracts.",
+        tint: "#aecacd",
+        action: "See auctions",
+        navigate: ~p"/auctions"
+      }
+    ]
+  end
 
   # The auctions or tokens the options name, read unless they are the ones
   # already shown.
@@ -813,6 +876,11 @@ defmodule AutolaunchWeb.HomeLive do
             <.backed_card auction={auction} rank={rank} rate={figure_rate(@rates, auction)} />
           </li>
         </ol>
+      </section>
+
+      <section class="home-values" aria-labelledby="home-values-title">
+        <h2 id="home-values-title">Principles</h2>
+        <.value_cards id="cards-row" label="Principles" cards={@values} />
       </section>
       <.swap_modal
         :if={match?(%{record: %Autolaunch.Token{}}, @trade)}

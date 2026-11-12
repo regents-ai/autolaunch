@@ -141,9 +141,11 @@ defmodule AutolaunchWeb.OnchainCalls do
 
   @doc """
   One answer from `handle_async({:onchain_calls, calls_id}, result, socket)`.
-  `confirmed` runs once, with the entry, when the batch lands and succeeds.
+  `confirmed` runs once, with the entry, when the batch lands and succeeds;
+  `reverted` runs once when it lands and reverts, so the panel can build its
+  review again (`OnchainSteps.rebuild_reverted/4`).
   """
-  def checked(socket, calls_id, result, confirmed) do
+  def checked(socket, calls_id, result, confirmed, reverted) do
     answer =
       case result do
         {:ok, answer} -> answer
@@ -162,6 +164,9 @@ defmodule AutolaunchWeb.OnchainCalls do
 
         entry.outcome == :nothing ->
           {entry, &confirmed.(&1, entry)}
+
+        entry.outcome == :reverted ->
+          {entry, &reverted.(&1, entry)}
 
         true ->
           {entry, nil}

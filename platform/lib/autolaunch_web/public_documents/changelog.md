@@ -1,5 +1,20 @@
 # Changelog
 
+## 12 November 2026: Home
+- The home page now ends with Principles: six cards on what Autolaunch holds to. One price for every bidder, liquidity no one can pull, every stock named exactly, your wallet signs everything, agents prepare and you sign, and figures from the chain. Each card opens the page that explains it.
+- Each card has a small moving picture in its own colours that follows your pointer. With reduced motion, or in a browser that can't draw it, the card shows a still picture instead.
+
+## 12 November 2026: Wallet
+- Withdraw, Claim and a new bid now work in a busy auction, however many bids came before yours. Before, an auction with a long history of bids could leave a bid the site could neither return, claim nor place.
+- Your bids from every wallet linked to your account now show on Base auctions, in the lists and in your portfolio, each with its Withdraw or Claim. Whichever of your wallets is open can press it, and the money goes to the wallet that placed the bid, which the panel names. Before, only the wallet you signed in with was shown.
+- On Robinhood, Withdraw and Claim open your wallet on the first press, even while the auction is still being read or after a step that did not go through. Before, such a press sent nothing, and after a failed read the button could disappear.
+- When a withdraw, claim, convert, stake, covered call or payment does not go through, the panel says so beside its button and gets the next try ready from the chain as it is now. Before, the next press sent the same transaction again.
+- While a page has lost its connection, a press in a wallet panel still opens your wallet with what the panel showed. Once the page is back, each wallet panel gets ready again for the wallet you have open. Before, a panel kept what it had before the drop.
+- Every amount in a wallet review is shown to its last digit, however large. Before, a very large amount could be rounded.
+- A bid estimate's token count is exact to the token's last unit, however large the amount. Before, a very large amount was rounded.
+- The create pages check again every five minutes whether new launches are paused, so the launch button comes back within five minutes of launches reopening. Before, a page kept what it read when it opened.
+- An auction's treasury says whether its Safe is verified, and at which Base block. The launch panel shows a verified Safe as verified. Before, every treasury said it was waiting for a check, and the launch panel could say no launch could be prepared for a Safe that was fine. `GET /api/v1/treasury-security/{address}` answers `verification_state` as `verified` or `unverified`, with its `verification_reason`; a report stored before 9 November can give `configuration_changed` as its reason.
+
 ## 12 November 2026: Polish
 - The large price at the top of a token's page stays on one line. A very long price, such as $0.00000000000000180, is set smaller until it fits, on a phone as on a wide screen. Before, it could split in the middle of the number.
 - On Robinhood, Check on an auction's bid lookup and Read again on a token's pool, and Refresh balances on any token's page, each read the chain up to 30 times a minute for one visitor. Past that, the page stays as it is until the minute is up. Bidding, swapping, staking and every other wallet button are not counted.

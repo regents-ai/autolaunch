@@ -275,8 +275,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             token_symbol={@launch.token_symbol}
             claim_block={@snapshot.result.blocks.claim}
           />
+          <%!-- An auction whose bidding window is not read yet has no timeline
+               to draw. --%>
           <.auction_activity
-            :if={@clock && @history.ok? && @history.result}
+            :if={
+              @clock && @launch.start_block && @launch.end_block && @history.ok? &&
+                @history.result
+            }
             id="robinhood-auction-activity"
             bids={@history.result.bids}
             symbol={@launch.quote_token_symbol}

@@ -92,7 +92,7 @@ defmodule AutolaunchWeb.MyPositionsController do
     |> Ash.read()
   end
 
-  defp read_bids(actor, wallet), do: Autolaunch.list_wallet_bid_positions(wallet, actor: actor)
+  defp read_bids(actor, wallet), do: Autolaunch.list_wallet_bid_positions([wallet], actor: actor)
 
   # The price books of the auctions still taking bids that the Base bids are
   # in; a book that cannot be read leaves its bids' standing unread.

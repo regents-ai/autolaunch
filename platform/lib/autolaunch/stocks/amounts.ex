@@ -5,7 +5,10 @@ defmodule Autolaunch.Stocks.Amounts do
   Decimal inputs are plain nonnegative decimal strings (no exponents, whitespace
   or floats). CCA prices are currency base units per NEW base unit in Q96, as in
   the pinned CCA PriceLib. This is not a pool sqrt-price or tick encoder.
+  Raw amounts are shown with `Autolaunch.Chain.Rpc.format_units/2`.
   """
+  alias Autolaunch.Chain.Rpc
+
   @uint256_max Integer.pow(2, 256) - 1
   @q96 Integer.pow(2, 96)
   @max_input_bytes 512
@@ -24,22 +27,6 @@ defmodule Autolaunch.Stocks.Amounts do
   end
 
   def parse_units(_, _), do: {:error, :invalid_decimals}
-
-  def format_units(raw, decimals)
-      when is_integer(raw) and raw in 0..@uint256_max and
-             is_integer(decimals) and decimals in 0..255,
-      do: {:ok, plain_decimal(raw, decimals)}
-
-  def format_units(_, _), do: {:error, :invalid_amount}
-
-  defp plain_decimal(raw, 0), do: Integer.to_string(raw)
-
-  defp plain_decimal(raw, decimals) do
-    digits = raw |> Integer.to_string() |> String.pad_leading(decimals + 1, "0")
-    {whole, fraction} = String.split_at(digits, byte_size(digits) - decimals)
-    fraction = String.trim_trailing(fraction, "0")
-    if fraction == "", do: whole, else: whole <> "." <> fraction
-  end
 
   @doc "Returns a downward Q96 candidate and exact rounding evidence; not an executable bid."
   def cca_price(value, stock_decimals, new_decimals)
@@ -77,7 +64,10 @@ defmodule Autolaunch.Stocks.Amounts do
       when is_integer(q96) and q96 in 0..@uint256_max and
              is_integer(stock_decimals) and stock_decimals in 0..255 and
              is_integer(new_decimals) and new_decimals in 0..255 do
-    plain_decimal(q96 * Integer.pow(5, 96) * Integer.pow(10, new_decimals), 96 + stock_decimals)
+    Rpc.format_units(
+      q96 * Integer.pow(5, 96) * Integer.pow(10, new_decimals),
+      96 + stock_decimals
+    )
   end
 
   @doc """

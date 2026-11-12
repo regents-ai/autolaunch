@@ -19,13 +19,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   recorded price.
 
   The wallet that acts is Privy's active wallet when the signed-in account
-  links it (`AutolaunchWeb.OnchainSteps`), and only the wallet that placed the
-  bid can settle it; a note names both while the wallet app has another one
+  links it (`AutolaunchWeb.OnchainSteps`). It settles any bid the account
+  holds: the auction takes a return or a claim from any sender and pays the
+  wallet that placed the bid, which a note names while another wallet is
   open. Nothing is stored while a settlement is on its way: the review lives on
   this page only, the browser reports a hash and stops, and every outcome on
   screen is the server's own read of that hash against the review it was sent
   from. A confirmed return or claim is recorded on the position from its
-  receipt.
+  receipt; one that did not go through is prepared again from the auction.
   """
 
   use AutolaunchWeb, :live_component
@@ -46,8 +47,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     session_lease_required: "Sign in again to continue.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
-    not_your_bid:
-      "This bid was placed from a different wallet. Switch to that wallet to settle it.",
+    not_your_bid: "This bid is not held by a wallet on your account.",
     position_not_on_chain: "This bid has no on-chain record to settle.",
     bid_not_found: "The auction has no record of this bid.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
@@ -59,8 +59,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     bid_not_exited: "Return this bid before claiming its tokens.",
     bid_needs_partial_exit_hints_unavailable:
       "This bid was only partly filled and the auction's records for it could not be traced. Try again in a moment.",
+    price_history_long:
+      "This auction's price history is long, and only part of it could be read just now. Press again to read on.",
     settlement_reverted: "The auction refused this right now."
   }
+
+  @early_history_long "This auction's price history is long, and only part of it could be read just now. Reload the page to read on."
 
   @generic "That did not go through. Try again in a moment."
 
@@ -88,7 +92,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
        status: nil,
        checking: false,
        checked_at: nil,
-       recorded: false
+       recorded: false,
+       carried_note: nil
      )}
   end
 
@@ -158,7 +163,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         line: line(assigns.status, auction),
         steps: steps,
         next_step: early_next(assigns, steps),
-        other_wallet: other_wallet(assigns)
+        paid_to: payee(assigns)
       )
 
     ~H"""
@@ -211,13 +216,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             tickers={tickers(@auction)}
           />
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <.paid_to id={@id <> "-paid-to"} owner={@paid_to} />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @auction)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -242,7 +246,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         rate: assigns.usd_rate.result,
         steps: steps,
         next_step: next_step(assigns, steps, action),
-        other_wallet: other_wallet(assigns),
+        paid_to: payee(assigns),
         claimed: claimed(assigns.settled, assigns.position)
       )
 
@@ -378,13 +382,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             tickers={tickers(@auction)}
           />
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <.paid_to id={@id <> "-paid-to"} owner={@paid_to} />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @auction)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -454,6 +457,30 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     """
   end
 
+  attr :id, :string, required: true
+
+  attr :owner, :string,
+    default: nil,
+    doc: "the wallet that placed the bid, when another one is open"
+
+  attr :chain, :string, default: "base"
+
+  @doc """
+  The line naming where a settlement pays out, shown while a wallet other than
+  the one that placed the bid is open: the auction pays that wallet, whoever
+  sends.
+  """
+  def paid_to(assigns) do
+    ~H"""
+    <p role="status" hidden={!@owner}>
+      <%= if @owner do %>
+        This bid pays out to
+        <Regent.Primitives.address id={@id} address={@owner} chain={@chain} variant="compact" />, the wallet that placed it.
+      <% end %>
+    </p>
+    """
+  end
+
   @impl true
   def handle_event("onchain_active_wallet", params, socket),
     do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> offer()}
@@ -507,7 +534,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
       status == :refused ->
-        {:noreply, assign(socket, status: :refused, notice: copy(OnchainSteps.refusal(prepared)))}
+        {:noreply,
+         assign(socket,
+           status: :refused,
+           notice: refusal_copy(socket.assigns, OnchainSteps.refusal(prepared)),
+           carried_note: nil
+         )}
 
       held?(socket.assigns) ->
         {:noreply, assign(socket, status: status)}
@@ -529,7 +561,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
        )}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket),
     do: {:noreply, settled(socket, hash, OnchainSteps.receipt_logs(result))}
@@ -574,25 +606,32 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     end)
   end
 
-  defp settle_key(%{authenticated: true, signer: signer, position: position} = assigns)
+  defp settle_key(%{authenticated: true, signer: signer, position: position})
        when is_binary(signer) do
-    if owner?(assigns) and action(position, position.auction),
-      do: {signer, position.id, position.status}
+    if action(position, position.auction), do: {signer, position.id, position.status}
   end
 
   defp settle_key(_assigns), do: nil
 
+  # A review prepared again after a step did not go through carries the words
+  # about that step beside its button.
   defp reviewed(socket, key, {:ok, prepared}) do
     review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps)
 
     socket
-    |> assign(prepared_for: key, notice: nil, press_note: nil)
+    |> assign(prepared_for: key, notice: nil, press_note: socket.assigns.carried_note)
+    |> assign(carried_note: nil)
     |> put_review(review, prepared)
     |> refresh_later()
   end
 
   defp reviewed(socket, key, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
+    do:
+      assign(socket,
+        prepared_for: {:refused, key},
+        notice: refusal_copy(socket.assigns, OnchainSteps.refusal(error)),
+        carried_note: nil
+      )
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the settlement it belongs to.
@@ -661,22 +700,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp start_early(%{assigns: assigns} = socket) do
     %{position: position, signer: signer} = assigns
-    owner = if owner?(assigns), do: signer
     offered = if assigns.review, do: :record
     opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(checking: true)
-    |> start_async(:early, fn -> {signer, early_offer(position, owner, offered, opts)} end)
+    |> start_async(:early, fn -> {signer, early_offer(position, signer, offered, opts)} end)
   end
 
   # Read-only until the money can come back, now or after recording the
-  # price, and the bid's own wallet is active: only then is a review
+  # price, and a wallet that may act is open: only then is a review
   # prepared, and a review already offered for the same answer is kept.
-  defp early_offer(position, owner, offered, opts) do
+  defp early_offer(position, signer, offered, opts) do
     case BidSettlementActions.return_status(position) do
-      {:ok, status} when status in [:now, :record] and is_binary(owner) and status != offered ->
-        {status, BidSettlementActions.prepare(position.id, owner, opts)}
+      {:ok, status} when status in [:now, :record] and is_binary(signer) and status != offered ->
+        {status, BidSettlementActions.prepare(position.id, signer, opts)}
 
       {:ok, status} ->
         {status, nil}
@@ -686,7 +724,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     end
   end
 
-  defp offered(socket, _key, nil), do: socket
+  defp offered(socket, _key, nil), do: assign(socket, carried_note: nil)
 
   defp offered(socket, {status, signer}, result),
     do: reviewed(socket, {signer, socket.assigns.position.id, status}, result)
@@ -700,6 +738,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     do: socket |> assign(recorded: true, checked_at: nil) |> withdrawn() |> early_check()
 
   defp confirmed(socket, entry), do: OnchainSteps.read_receipt(socket, entry)
+
+  # A step of the open review that did not go through: the settlement is read
+  # again from the auction and prepared afresh (`OnchainSteps.rebuild_reverted/4`),
+  # and the new review, or the auction's reason nothing can be done now,
+  # replaces the one that failed.
+  defp step_reverted(socket, %{name: name} = entry) do
+    note = reverted_copy(name, socket.assigns.position.auction)
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket
+      |> assign(carried_note: OnchainSteps.rebuilt_words(note), checked_at: nil)
+      |> withdrawn()
+      |> offer()
+    end)
+  end
 
   # What the step did is recorded on the position, whichever of this page's
   # reviews it was sent from, and the page that owns the card reads it again.
@@ -837,36 +890,22 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp settled_copy(_none, _auction), do: nil
 
-  defp reverted(steps, auction) do
-    case Enum.find(steps, &(&1.state == :reverted)) do
-      %{name: "record"} ->
-        "Recording the price did not go through. Only the network fee was spent. Press again."
+  defp reverted_copy("record", _auction),
+    do: "Recording the price did not go through. Only the network fee was spent."
 
-      %{name: "claim"} ->
-        "That claim did not go through, so no #{auction.token_symbol} moved. Only the network fee was spent. Press again."
+  defp reverted_copy("claim", auction),
+    do:
+      "That claim did not go through, so no #{auction.token_symbol} moved. Only the network fee was spent."
 
-      %{} ->
-        "That did not go through, so nothing came back. Only the network fee was spent. Press again."
+  defp reverted_copy(_exit, _auction),
+    do: "That did not go through, so nothing came back. Only the network fee was spent."
 
-      nil ->
-        nil
-    end
-  end
+  # Any wallet on the account settles the bid, and the auction pays the wallet
+  # that placed it; while another one is open, the card names that wallet.
+  defp payee(%{signer: signer, position: %{owner_address: owner}}) when is_binary(signer),
+    do: if(Address.equal?(signer, owner), do: nil, else: owner)
 
-  # The bid's own wallet settles it; while another wallet on the account is
-  # active, the card says which one to switch to.
-  defp other_wallet(%{signer: signer, position: position} = assigns) when is_binary(signer) do
-    if !owner?(assigns),
-      do:
-        "This bid was placed from #{RegentFormat.short_address(position.owner_address)}. Switch to that wallet in your wallet app to settle it."
-  end
-
-  defp other_wallet(_assigns), do: nil
-
-  defp owner?(%{signer: signer, position: %{owner_address: owner}}) when is_binary(signer),
-    do: Address.equal?(signer, owner)
-
-  defp owner?(_assigns), do: false
+  defp payee(_assigns), do: nil
 
   # The line under the bid, from the auction's answer; the minimum still to
   # raise is the auction's own minimum less what it has raised.
@@ -1001,6 +1040,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  # A refusal in words. The early card has no button to press again; it reads
+  # the auction again when the page does.
+  defp refusal_copy(%{early: true}, :price_history_long), do: @early_history_long
+  defp refusal_copy(_assigns, reason), do: copy(reason)
 
   # The dollar price of the bid's currency, read once per auction and apart
   # from the card, so a slow price never holds a settlement back.

@@ -47,6 +47,7 @@ defmodule AutolaunchWeb.ConvertComponent do
       "The stock's Chainlink price is not answering right now. Turn off the 95% floor to sell with no minimum, or try again later."
   }
   @generic "That did not go through. Try again in a moment."
+  @reverted "The conversion did not go through and nothing moved. Only the network fee was spent."
 
   @impl true
   def mount(socket) do
@@ -212,7 +213,6 @@ defmodule AutolaunchWeb.ConvertComponent do
           facts={(@review && @prepared.facts) || []}
           steps={@steps}
           next_step={next_step(@steps)}
-          reverted={reverted(@steps)}
           notice={@press_note}
           target={@myself}
           signer={@review && @review.signer}
@@ -234,33 +234,8 @@ defmodule AutolaunchWeb.ConvertComponent do
       else: {:noreply, socket}
   end
 
-  def handle_event("review", params, socket) do
-    socket = entered(socket, params)
-
-    request = %{
-      kind: :convert,
-      launch: socket.assigns.launch,
-      amount: socket.assigns.amount,
-      floor: socket.assigns.floor
-    }
-
-    case prepare(socket, request) do
-      {:ok, prepared} ->
-        review =
-          Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
-
-        {:noreply,
-         socket
-         |> assign(prepared: prepared, notice: nil, press_note: nil, done: nil)
-         |> OnchainSteps.put_review(review)}
-
-      {:error, :no_signer} ->
-        {:noreply, assign(socket, notice: no_signer(socket.assigns))}
-
-      {:error, error} ->
-        {:noreply, assign(socket, notice: copy(OnchainSteps.refusal(error)))}
-    end
-  end
+  def handle_event("review", params, socket),
+    do: {:noreply, socket |> entered(params) |> reviewed()}
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
@@ -280,12 +255,38 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   @impl true
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket) do
     case socket.assigns.review do
       %{id: id} -> {:noreply, finished(socket, id, hash, OnchainSteps.receipt_logs(result))}
       nil -> {:noreply, socket}
+    end
+  end
+
+  # The conversion of the amount on the form, read from the fee contract now.
+  defp reviewed(socket) do
+    request = %{
+      kind: :convert,
+      launch: socket.assigns.launch,
+      amount: socket.assigns.amount,
+      floor: socket.assigns.floor
+    }
+
+    case prepare(socket, request) do
+      {:ok, prepared} ->
+        review =
+          Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
+
+        socket
+        |> assign(prepared: prepared, notice: nil, press_note: nil, done: nil)
+        |> OnchainSteps.put_review(review)
+
+      {:error, :no_signer} ->
+        assign(socket, notice: no_signer(socket.assigns))
+
+      {:error, error} ->
+        assign(socket, notice: copy(OnchainSteps.refusal(error)))
     end
   end
 
@@ -315,6 +316,16 @@ defmodule AutolaunchWeb.ConvertComponent do
   defp confirmed(socket, entry) do
     send(self(), :reload_pool)
     OnchainSteps.read_receipt(socket, entry)
+  end
+
+  # A conversion that did not go through is reviewed again at once from the
+  # fee contract as it is now, so its minimum follows the price now
+  # (`OnchainSteps.rebuild_reverted/4`); the pool is read again too.
+  defp step_reverted(socket, entry) do
+    OnchainSteps.rebuild_reverted(socket, entry, @reverted, fn socket ->
+      send(self(), :reload_pool)
+      socket |> closed() |> reviewed() |> OnchainSteps.rebuilt(@reverted)
+    end)
   end
 
   # The open review closes once its conversion landed; a receipt that could not
@@ -368,12 +379,6 @@ defmodule AutolaunchWeb.ConvertComponent do
   # go through. A sent step moves the button on at once; nothing waits for the
   # network before the next press can reach the wallet.
   defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
-
-  defp reverted(steps) do
-    if Enum.any?(steps, &(&1.state == :reverted)),
-      do:
-        "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
-  end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
