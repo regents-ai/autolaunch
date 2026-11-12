@@ -8,6 +8,8 @@
 - `GET /api/v1/health` also answers `migrations_applied`, which is `false` while a release waits on a database change.
 
 ## 12 November 2026: Fixes
+- On an ended auction's page, Finish auction now opens your wallet when pressed straight after the page loads. Before, a press in that first moment sent nothing.
+- A new launch is listed even when an earlier launch can't be read just then. Before, one launch that couldn't be read held back every launch after it.
 - On a Robinhood auction's page, Retry now shows the auction once it can be read again. Before, the page could stop working after a first failed load.
 - Search lists its results when you type straight after the page reconnects, instead of the search window stopping.
 - A bid, withdraw or claim panel keeps working when the page reconnects while one of your transactions is on its way.
