@@ -23,7 +23,7 @@ contract DeployAfterHours is Script {
     address internal constant AMZN_FEED = 0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295;
     /// @notice 0.4 AMZNc (8 decimals), about $100: the first series is a live demo (Sean, 28 Oct 2026).
     uint256 internal constant DEPOSIT_CAP = 0.4e8;
-    /// @notice 40 AMZNc (8 decimals), about $10,000: the first public series (Sean, 29 Oct 2026).
+    /// @notice 40 AMZNc (8 decimals), about $10,000: the public series (Sean, 29 Oct 2026).
     uint256 internal constant MONDAY_DEPOSIT_CAP = 40e8;
     /// @notice A week, so the prices can be recorded in two sittings: Friday's close on the evening
     ///         itself, and the rest after the last close.
@@ -119,5 +119,40 @@ contract DeployAfterHours is Script {
             sessionName: "AMZNc Market-hours 2 to 6 Nov 2026",
             sessionSymbol: "AMZNc-MH-1102"
         });
+    }
+
+    /// @notice The calldata the Safe sends to `factory` for a week's series: from the Friday close at
+    ///         `fridayClose` (UTC seconds) to the next Friday's close, every open and close between.
+    function weekSeriesCall(
+        address oracle,
+        bytes32 termsHash,
+        uint64 fridayClose,
+        string calldata overnightName,
+        string calldata overnightSymbol,
+        string calldata sessionName,
+        string calldata sessionSymbol
+    ) external view returns (bytes memory data) {
+        checkOracle(oracle);
+        ExposureSeriesV1.Terms memory terms = mondaySeriesTerms(oracle, termsHash);
+        terms.boundaries = weekBoundaries(fridayClose);
+        terms.overnightName = overnightName;
+        terms.overnightSymbol = overnightSymbol;
+        terms.sessionName = sessionName;
+        terms.sessionSymbol = sessionSymbol;
+        data = abi.encodeCall(ExposureFactoryV1.createSeries, (terms));
+        console.logBytes(data);
+    }
+
+    /// @notice A Friday's 16:00 New York close, then 09:30 and 16:00 New York each weekday of the next
+    ///         week. The offsets hold for a week New York keeps one clock (no change between 13:00
+    ///         Friday and the next Friday) and with no market holiday; the caller checks both.
+    function weekBoundaries(uint64 fridayClose) public pure returns (uint64[] memory boundaries) {
+        boundaries = new uint64[](11);
+        boundaries[0] = fridayClose;
+        for (uint64 day; day < 5; ++day) {
+            uint64 open = fridayClose + 3 days - 6.5 hours + day * 1 days; // Monday 09:30 New York
+            boundaries[1 + 2 * day] = open;
+            boundaries[2 + 2 * day] = open + 6.5 hours;
+        }
     }
 }
