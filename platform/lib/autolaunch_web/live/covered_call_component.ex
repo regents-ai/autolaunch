@@ -244,14 +244,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   # When the window closes on calls the wallet holds, for the soonest window
   # that is open or opens within three days.
-  defp exercise_by(%{holdings: holdings, book: book, now: now}) do
-    expiries = Map.new(book.listings, &{&1.id, &1.expiry})
-
+  defp exercise_by(%{holdings: holdings, now: now}) do
     for(
-      %{listing_id: id, held: held} <- holdings,
+      %{listing: %{expiry: expiry}, held: held} <- holdings,
       held > 0,
-      closes = expiries[id] + Terms.exercise_window(),
-      now < closes and expiries[id] - now <= @soon,
+      closes = expiry + Terms.exercise_window(),
+      now < closes and expiry - now <= @soon,
       do: closes
     )
     |> Enum.min(fn -> nil end)
@@ -785,7 +783,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # window has closed, whatever its price does.
   defp locked(expiry), do: ["Locked", "Once sold, until #{F.window_closes(expiry)}"]
 
-  defp break_even(per_token, symbol), do: ["Break-even", "#{F.usd(per_token)} per #{symbol}"]
+  defp break_even(per_token, symbol), do: ["Break-even", "#{F.usd_due(per_token)} per #{symbol}"]
 
   defp done_lines(:list, facts, %{unit: unit, symbol: symbol}),
     do: [

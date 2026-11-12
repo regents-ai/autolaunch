@@ -185,10 +185,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   def handle_async(:book, {:ok, {:ok, book}}, socket) do
     if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
 
-    open =
-      for(listing <- book.listings, Terms.stage(listing, book.now) == :open, do: listing.expiry) ++
-        for bid <- book.bids, Terms.bid_stage(bid, book.now) == :open, do: bid.expiry
-
+    open = Enum.map(book.listings ++ book.bids, & &1.expiry)
     wait = Terms.next_wait([book.effective_at | open], book.now)
 
     {:noreply,
@@ -439,11 +436,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     |> Map.new()
   end
 
-  # Where a bid sits on Sell: equal terms together and the best for a seller
-  # first, by the soonest expiry, then the lowest strike, then the highest
-  # premium, then the oldest bid.
-  defp for_sellers(bid), do: {bid.expiry, bid.strike_per_token, -bid.premium_per_token, bid.id}
-
   # Whether a quote answered for every figure asked.
   defp answers?(nil, _asked), do: false
   defp answers?(quote, asked), do: Enum.all?(asked, fn {name, value} -> quote[name] == value end)
@@ -454,19 +446,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     assigns =
       assign(assigns,
         reading: book,
-        open:
-          if(book,
-            do: Enum.filter(book.listings, &(Terms.stage(&1, book.now) == :open)),
-            else: []
-          ),
-        bids:
-          if(book,
-            do:
-              book.bids
-              |> Enum.filter(&(Terms.bid_stage(&1, book.now) == :open))
-              |> Enum.sort_by(&for_sellers/1),
-            else: []
-          ),
+        # What the shared reading offers: open, best first, the first fifty.
+        open: if(book, do: book.listings, else: []),
+        bids: if(book, do: book.bids, else: []),
         human_id: current_human_id(assigns.access_context)
       )
 
@@ -600,8 +582,16 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           class="covered-calls__note"
           role="status"
         >
-          Listing {@selected} isn't for sale now: it has sold out, passed its expiry or stopped
-          selling.
+          Listing {@selected} isn't for sale here now: it has sold out, passed its expiry or
+          stopped selling{if @reading.listings_total > length(@open),
+            do: ", or it is not one of the best #{length(@open)}"}.
+        </p>
+        <p
+          :if={@tab == :buy && @reading && @reading.listings_total > length(@open)}
+          id="covered-calls-listings-more"
+          class="covered-calls__note"
+        >
+          The best {length(@open)} of {@reading.listings_total} listings
         </p>
         <.buy_ticket
           :for={listing <- @open}
@@ -669,7 +659,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           class="covered-calls__note"
           role="status"
         >
-          Bid {@bid} isn't open now: it has sold out, passed its expiry or stopped.
+          Bid {@bid} isn't offered here now: it has sold out, passed its expiry or stopped, or
+          less than 1 {@market.symbol} is left on it{if @reading.bids_total > length(@bids),
+            do: ", or it is not one of the best #{length(@bids)}"}.
         </p>
       </section>
 
@@ -715,6 +707,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </tbody>
           </table>
         </div>
+        <p
+          :if={@reading.bids_total > length(@bids)}
+          id="covered-calls-bids-more"
+          class="covered-calls__note"
+        >
+          The best {length(@bids)} of {@reading.bids_total} bids
+        </p>
         <.sale_ticket
           :for={bid <- @bids}
           :if={@bid == bid.id}
@@ -962,8 +961,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             <h3 id="covered-calls-bid-receipt-title">Receipt</h3>
             <P.tip id="covered-calls-bid-receipt-tip" label="About the receipt">
               The premium waits in the contract until sellers sell into the bid, each sale at
-              least {F.tokens(@min_sale, @unit)} {@symbol}. Stop the bid at any time, or wait for
-              the expiry, and refund what isn't spent.
+              least {F.tokens(@min_sale, @unit)} {@symbol} or all that is left. Stop the bid at
+              any time, or wait for the expiry, and refund what isn't spent.
             </P.tip>
             <span class="covered-calls__status" role="status">{@refused}</span>
           </div>
@@ -991,7 +990,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             <div>
               <dt>Break-even</dt>
               <dd id="covered-calls-bid-break-even">
-                {F.usd(@break_even)} <small>per {@symbol}</small>
+                {F.usd_due(@break_even)} <small>per {@symbol}</small>
               </dd>
             </div>
             <.window id="covered-calls-bid" expiry={@t.expiry} />
@@ -1003,7 +1002,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <.buyer_steps id="covered-calls-bid-steps" first="Approve USDC and place the bid now." />
         </section>
 
-        <.buyer_outcomes id="covered-calls-bid-outcomes" strike={@t.strike} break_even={@break_even} />
+        <.buyer_outcomes
+          id="covered-calls-bid-outcomes"
+          symbol={@symbol}
+          strike={@t.strike}
+          break_even={@break_even}
+        />
       </div>
     </Regent.Structure.panel>
     """
@@ -1040,7 +1044,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         order: amount && %{bid_id: bid.id, amount: amount},
         sale: amount && Terms.sale(bid, amount, unit),
         exercise: amount && Terms.usdc_for(amount, bid.strike_per_token, unit),
-        max: assigns.balance && min(assigns.balance, Terms.available(bid))
+        max: assigns.balance && min(assigns.balance, Terms.available(bid)),
+        under: under_price(bid, amount || unit, reading)
       )
 
     ~H"""
@@ -1163,7 +1168,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </small>
           </li>
         </ul>
-        <.seller_risks id={"#{@id}-risks"} symbol={@symbol} expiry={@bid.expiry} />
+        <.seller_risks id={"#{@id}-risks"} symbol={@symbol} expiry={@bid.expiry} under={@under} />
       </div>
     </Regent.Structure.panel>
     """
@@ -1407,11 +1412,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   attr :symbol, :string, required: true
   attr :expiry, :integer, required: true
 
-  # What a seller gives up, in plain sight on both Sell tickets.
+  attr :under, :map,
+    default: nil,
+    doc: "a sale into a bid whose strike and premium are under the price (`under_price/3`)"
+
+  # What a seller gives up, in plain sight on both Sell tickets. A sale into a
+  # bid that pays less than the stock is priced at says so first, with both
+  # totals.
   defp seller_risks(assigns) do
     ~H"""
     <p id={@id} class="covered-calls__risks">
       <strong>Risks</strong>
+      <span :if={@under} id={"#{@id}-under"}>
+        This bid is under the price: if exercised you receive {F.usd(@under.receive)} for {@under.tokens} {@symbol} priced at {F.usd(
+          @under.worth
+        )}.
+      </span>
       Once sold, your {@symbol} is locked until the window closes on {F.window_closes(@expiry)}.
       If the price falls you cannot sell it before then. If the price rises above the strike,
       the gain above it goes to the buyer. The buyer chooses. Nothing is exercised automatically.
@@ -1420,26 +1436,28 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   attr :id, :string, required: true
+  attr :symbol, :string, required: true
   attr :strike, :integer, default: nil, doc: "USDC per token; nil while it is not set"
   attr :break_even, :integer, default: nil, doc: "USDC per token; nil while it is not set"
 
-  # How calls can end for whoever holds them, by where the stock closes.
+  # How calls can end for whoever holds them, by where the stock token's own
+  # price stands in the window: the token's, never the share's on its exchange.
   defp buyer_outcomes(assigns) do
     ~H"""
     <ul id={@id} class="covered-calls__outcomes" aria-label="Outcomes">
       <li>
         <strong>Above break-even</strong>
-        <span>Over {F.usd(@break_even)}</span>
-        <small>Exercise for a profit</small>
+        <span>{@symbol}'s price over {F.usd_due(@break_even)}</span>
+        <small>Exercising costs less than the price</small>
       </li>
       <li>
         <strong>In between</strong>
-        <span>{F.usd(@strike)} – {F.usd(@break_even)}</span>
+        <span>{@symbol}'s price {F.usd(@strike)} – {F.usd_due(@break_even)}</span>
         <small>Exercise to win back part of the premium</small>
       </li>
       <li>
         <strong>Below strike</strong>
-        <span>Under {F.usd(@strike)}</span>
+        <span>{@symbol}'s price under {F.usd(@strike)}</span>
         <small>Let it lapse; the premium is spent</small>
       </li>
     </ul>
@@ -1561,7 +1579,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             <div>
               <dt>Break-even</dt>
               <dd id={"#{@id}-break-even"}>
-                {F.usd(@break_even)} <small>per {@symbol}</small>
+                {F.usd_due(@break_even)} <small>per {@symbol}</small>
               </dd>
             </div>
             <.window id={@id} expiry={@listing.expiry} />
@@ -1571,6 +1589,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
         <.buyer_outcomes
           id={"#{@id}-outcomes"}
+          symbol={@symbol}
           strike={@listing.strike_per_token}
           break_even={@break_even}
         />
@@ -1675,6 +1694,24 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp quote_refusal(:price_unavailable), do: "No reference price right now"
   defp quote_refusal(_unavailable), do: "The price couldn't be read"
 
+  # A sale of `amount` into `bid` when its strike plus its premium is under
+  # the reference price: what the seller ends with if it is exercised (the
+  # premium less the fee, and the strike), and what that stock is priced at.
+  # Nil when the bid is at or over the price, or there is no reference price.
+  defp under_price(bid, amount, reading) do
+    spot = spot(reading)
+
+    if spot && bid.strike_per_token + bid.premium_per_token < spot do
+      %{
+        tokens: F.tokens(amount, reading.unit),
+        receive:
+          Terms.usdc_for(amount, bid.strike_per_token, reading.unit) +
+            Terms.sale(bid, amount, reading.unit).receive,
+        worth: div(amount * spot, reading.unit)
+      }
+    end
+  end
+
   defp spot(reading) do
     case Quote.spot(reading) do
       {:ok, spot} -> spot
@@ -1708,14 +1745,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # lowest listing for a bidder; nothing when the book has none on those terms.
   defp live_price("sell", t, reading, symbol) do
     reading.bids
-    |> Enum.filter(&(Terms.bid_stage(&1, reading.now) == :open and same_terms?(&1, t)))
+    |> Enum.filter(&same_terms?(&1, t))
     |> Enum.max_by(& &1.premium_per_token, fn -> nil end)
     |> live_words("Best bid", reading, symbol)
   end
 
   defp live_price("bid", t, reading, symbol) do
     reading.listings
-    |> Enum.filter(&(Terms.stage(&1, reading.now) == :open and same_terms?(&1, t)))
+    |> Enum.filter(&same_terms?(&1, t))
     |> Enum.min_by(& &1.premium_per_token, fn -> nil end)
     |> live_words("Lowest ask", reading, symbol)
   end

@@ -9,13 +9,15 @@ defmodule AutolaunchWeb.Components.StockLists do
   alias Autolaunch.CoveredCalls.{Deployment, Terms}
   alias AutolaunchWeb.CoveredCallsFormat
 
-  attr :book, :map, required: true, doc: "a covered-call market's book, from `Book.read/1`"
+  attr :book, :map,
+    required: true,
+    doc: "a covered-call market's open listings, best first, from `Book.read/1`"
 
   @doc "The calls for sale on a covered-call market, each opening its Buy panel."
   def call_list(assigns) do
     assigns =
       assign(assigns,
-        open: Enum.filter(assigns.book.listings, &(Terms.stage(&1, assigns.book.now) == :open)),
+        open: assigns.book.listings,
         symbol: assigns.book.market.symbol,
         stock: Deployment.identity(assigns.book.market)
       )
@@ -68,6 +70,9 @@ defmodule AutolaunchWeb.Components.StockLists do
         </tbody>
       </table>
     </div>
+    <p :if={@book.listings_total > length(@open)} id="home-calls-more" class="home-calls__read">
+      The best {length(@open)} of {@book.listings_total} listings
+    </p>
     <div :if={@open == []} class="home-empty" role="status">
       <h2>No listings</h2>
       <p>Calls for sale show here within a few minutes of being listed.</p>

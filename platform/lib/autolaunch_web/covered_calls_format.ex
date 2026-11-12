@@ -20,8 +20,10 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
 
   @doc """
   USDC a person pays, rounded up to the cent before it is shown, so a review
-  never shows less than the wallet will be asked for.
+  never shows less than the wallet will be asked for; and a break-even, the
+  price a buyer must see passed, so it is never shown lower than it is.
   """
+  def usd_due(nil), do: usd(nil)
   def usd_due(micro) when is_integer(micro), do: usd(div(micro + 9_999, 10_000) * 10_000)
 
   @doc "A raw stock amount as whole tokens, without trailing zeros."

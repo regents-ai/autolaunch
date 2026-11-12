@@ -143,6 +143,64 @@ defmodule Autolaunch.CoveredCalls.Terms do
     end
   end
 
+  @doc "How long after its window closes a holder's lapsed calls stay on the portfolio."
+  def lapsed_shown, do: 4 * @week
+
+  @doc """
+  Whether a listing or bid, as read at `now`, can never change again, so it is
+  read once and kept (`Autolaunch.CoveredCalls.Book`).
+
+  A bid is settled once its expiry has passed with nothing left to sell into
+  and nothing to refund: the contract then refuses `raiseBid`, `sellToBid`,
+  `cancelBid` and `refundBid` on it. Before the expiry a sold-out or stopped
+  bid can still be raised. A listing is settled once its window has closed,
+  its seller has taken back the stock not exercised and collected every
+  strike paid: `fill`, `exercise`, `cancel` and `collectStrike` are then
+  refused, and a `claim` only sends stock already counted.
+  """
+  def settled?(%{bidder: _bidder} = bid, now),
+    do: now >= bid.expiry and bid.amount == bid.filled and bid.refund_due == 0
+
+  def settled?(%{seller: _seller} = listing, now),
+    do:
+      now >= listing.expiry + @window and listing.stock_returned and
+        listing.strike_paid == listing.strike_collected
+
+  @doc """
+  Whether a bid is dust: less than one whole token of `unit` raw units is left
+  to sell into it. The site offers no sale into a dust bid; its bidder still
+  sees it in their portfolio, to stop and refund it.
+  """
+  def dust?(bid, unit), do: available(bid) < unit
+
+  @doc """
+  Where an open listing sits for a buyer, best first: the soonest expiry, then
+  the lowest break-even (strike plus premium), then the oldest listing.
+  """
+  def for_buyers(listing),
+    do: {listing.expiry, listing.strike_per_token + listing.premium_per_token, listing.id}
+
+  @doc """
+  Where an open bid sits for a seller, best first: the soonest expiry, then the
+  most a seller ends with per token at the reference price `spot` (USDC per
+  token; nil when there is none), then the highest premium, the highest strike
+  and the oldest bid.
+
+  What a seller ends with is the premium plus the strike, the strike counted
+  no higher than `spot`: above it the calls are not exercised and the seller
+  keeps stock worth `spot`. So a bid that pays a real premium comes before one
+  with a strike far above the price and a premium of nothing, which costs its
+  bidder nothing to post, and before one whose strike and premium together are
+  under the price, which sells the stock for less than it is worth. With no
+  reference price the order is by strike plus premium.
+  """
+  def for_sellers(bid, spot) do
+    strike = if spot, do: min(bid.strike_per_token, spot), else: bid.strike_per_token
+
+    {bid.expiry, -(strike + bid.premium_per_token), -bid.premium_per_token, -bid.strike_per_token,
+     bid.id}
+  end
+
   @doc """
   The smallest sale into a bid of `amount` raw units the site asks for: one
   whole token of `unit` raw units, or the whole bid when it asks for less. The

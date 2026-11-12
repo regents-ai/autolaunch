@@ -5,7 +5,9 @@ defmodule Autolaunch.CoveredCalls.Answer do
   `:positions_answer` and `:prepare_answer`): the HTTP routes send them as their
   `data`, and the hosted MCP tools as their result. The figures come unchanged
   from the readings: stock amounts in raw token units, prices and USDC in
-  micro-USDC (6 decimals), times in Unix seconds. Each answer names the stock
+  micro-USDC (6 decimals), times in Unix seconds. A book answers with at most
+  fifty open listings and fifty open bids, each best first, beside how many of
+  each are open in all (`Autolaunch.CoveredCalls.Book`). Each answer names the stock
   its calls are on (`market`: symbol, issuer, chain and the exact addresses of
   the stock and of its covered-calls contract).
 
@@ -57,8 +59,9 @@ defmodule Autolaunch.CoveredCalls.Answer do
        multiplier_change_at: book.effective_at,
        reference_price: book.price,
        listings: Enum.map(book.listings, &listing(&1, book.now)),
-       bids:
-         for(bid <- book.bids, Terms.bid_stage(bid, book.now) == :open, do: bid(bid, book.now))
+       listings_total: book.listings_total,
+       bids: Enum.map(book.bids, &bid(&1, book.now)),
+       bids_total: book.bids_total
      }}
   end
 
@@ -68,14 +71,14 @@ defmodule Autolaunch.CoveredCalls.Answer do
   def positions({:ok, positions}) do
     {:ok,
      %{
-       symbol: positions.book.market.symbol,
-       market: Deployment.identity(positions.book.market),
+       symbol: positions.market.symbol,
+       market: Deployment.identity(positions.market),
        wallet: positions.wallet,
        now: positions.now,
        read_at: positions.read_at,
-       unit: positions.book.unit,
+       unit: positions.unit,
        sold: Enum.map(positions.sold, &listing(&1, positions.now)),
-       holdings: Enum.map(positions.holdings, &holding(&1, positions)),
+       holdings: Enum.map(positions.holdings, &holding(&1, positions.now)),
        bids:
          Enum.map(
            positions.bids,
@@ -133,10 +136,10 @@ defmodule Autolaunch.CoveredCalls.Answer do
 
   # Calls held, with the terms a holder acts on: the strike to pay, and the
   # one day they may be exercised in.
-  defp holding(%{listing_id: id} = holding, %{book: book, now: now}) do
-    listing = Enum.find(book.listings, &(&1.id == id))
-
-    Map.merge(holding, %{
+  defp holding(%{listing: listing} = holding, now) do
+    holding
+    |> Map.take([:listing_id, :held, :claimable])
+    |> Map.merge(%{
       strike_per_token: listing.strike_per_token,
       expiry: listing.expiry,
       exercise_closes_at: listing.expiry + Terms.exercise_window(),

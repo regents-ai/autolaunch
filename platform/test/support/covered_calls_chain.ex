@@ -4,11 +4,17 @@ defmodule Autolaunch.CoveredCallsChain do
   read at the latest block by the contract asked: the covered-call contract's
   listings, bids, holdings and terms, the stock's balance, allowance, multiplier and
   scheduled change, USDC's balance and allowance, and the reference feed and its
-  past rounds. Every other request goes to `Autolaunch.BaseRpcStub`.
+  past rounds, each asked on its own or many at once through Multicall3's
+  `aggregate3`. Every other request goes to `Autolaunch.BaseRpcStub`.
 
   `install/1` switches covered calls on with a one-market settings file and puts
   the chain; `put/1` changes it mid-test (`unreadable: true` fails every contract
-  read). Both are undone when the test exits.
+  read; `silent: true` makes the covered-call contract answer nothing, as an
+  address with no contract does; `hold: pid` stops each read until `pid` lets
+  it go). Both are undone when the test exits.
+
+  `requests/0` is how many `eth_call` requests the chain has answered since
+  `install/1`, so a test can tell reads sent together from reads sent one by one.
   """
 
   alias Autolaunch.{BaseRpcStub, Lab}
@@ -18,6 +24,7 @@ defmodule Autolaunch.CoveredCallsChain do
   @contract "0x36d04f63c812dc945efd23eb7b6dcae1cdd08398"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   @feed "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
+  @multicall Autolaunch.Chain.Multicall.address()
   @unit 100_000_000
   # The latest block's time, a Wednesday.
   @now 0x6A000000
@@ -62,10 +69,12 @@ defmodule Autolaunch.CoveredCallsChain do
     })
 
     put(overrides)
+    Application.put_env(:autolaunch, :covered_calls_chain_requests, :counters.new(1, []))
 
     ExUnit.Callbacks.on_exit(fn ->
       Enum.each(previous, &restore/1)
       Application.delete_env(:autolaunch, :covered_calls_chain)
+      Application.delete_env(:autolaunch, :covered_calls_chain_requests)
       File.rm(path)
     end)
 
@@ -138,18 +147,44 @@ defmodule Autolaunch.CoveredCallsChain do
     )
   end
 
+  @doc "How many `eth_call` requests the chain has answered since `install/1`."
+  def requests,
+    do: :counters.get(Application.fetch_env!(:autolaunch, :covered_calls_chain_requests), 1)
+
   def post(url, options) do
     case options[:json] do
       %{method: "eth_call"} = call ->
-        call(Application.fetch_env!(:autolaunch, :covered_calls_chain), call)
+        :counters.add(Application.fetch_env!(:autolaunch, :covered_calls_chain_requests), 1, 1)
+        state = Application.fetch_env!(:autolaunch, :covered_calls_chain)
+        hold(state[:hold])
+        call(state, call)
 
       _other ->
         BaseRpcStub.post(url, options)
     end
   end
 
+  # `hold: pid` stops a read until `pid` lets it go: `pid` is sent
+  # `{:held, reader}` and answers `reader` with `:go`.
+  defp hold(nil), do: :ok
+
+  defp hold(pid) do
+    send(pid, {:held, self()})
+
+    receive do
+      :go -> :ok
+    after
+      5_000 -> :ok
+    end
+  end
+
   # `unreadable: true` makes every contract read fail, as a chain that can't be reached just now.
   defp call(%{unreadable: true}, _call), do: {:ok, %{status: 503, body: ""}}
+
+  # Multicall3's `aggregate3`: every read in the request answered as it would
+  # be on its own.
+  defp call(_state, %{params: [%{to: @multicall, data: data}, _block]}),
+    do: {:ok, %{status: 200, body: %{"result" => BaseRpcStub.aggregate(data, &answer/2)}}}
 
   defp call(_state, %{params: [%{to: to, data: data}, _block]}) do
     case answer(String.downcase(to), data) do
@@ -176,6 +211,10 @@ defmodule Autolaunch.CoveredCallsChain do
   defp answer(to, data) do
     state = Application.fetch_env!(:autolaunch, :covered_calls_chain)
 
+    if to == @contract and state[:silent], do: "0x", else: answered(state, to, data)
+  end
+
+  defp answered(state, to, data) do
     case words(Map.fetch!(@reads, String.slice(data, 0, 10)), to, state, data) do
       :reverted -> :reverted
       words -> "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)

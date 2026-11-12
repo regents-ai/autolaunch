@@ -2,29 +2,47 @@ defmodule Autolaunch.CoveredCalls.BookTest do
   @moduledoc """
   The shared reading of a market is kept between visits, and a covered-call
   step that lands drops it, so the next read shows what the step changed. It
-  carries the market's bids beside its listings. A wallet's positions never
-  come from the kept reading, and carry its own bids with what a refund would
-  send it now.
+  holds what the site offers: the best fifty open listings and open bids, with
+  the count of all of each, and no bid with less than a whole token left.
+  Listings and bids are read many to a request, and those that can never
+  change again are read once. A wallet's positions never come from the kept
+  reading, and carry its own bids with what a refund would send it now.
   """
   use ExUnit.Case, async: false
+  use ExUnitProperties
 
-  alias Autolaunch.CoveredCalls.{Book, Positions}
+  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, Positions, Terms}
   alias Autolaunch.CoveredCallsChain
 
   @unit CoveredCallsChain.unit()
+  @now CoveredCallsChain.now()
+  @wallet "0x" <> String.duplicate("ab", 20)
 
   setup do
     previous = Application.get_env(:autolaunch, :covered_calls_book_kept_ms)
     Application.put_env(:autolaunch, :covered_calls_book_kept_ms, 300_000)
-    :ok = Book.expire("AMZNc")
+    restart_book()
 
     on_exit(fn ->
-      :ok = Book.expire("AMZNc")
-
       if previous,
         do: Application.put_env(:autolaunch, :covered_calls_book_kept_ms, previous),
         else: Application.delete_env(:autolaunch, :covered_calls_book_kept_ms)
+
+      restart_book()
     end)
+  end
+
+  # A new book process keeps no reading and no settled record of an earlier test.
+  defp restart_book do
+    :ok = Supervisor.terminate_child(Autolaunch.Supervisor, Book)
+    {:ok, _pid} = Supervisor.restart_child(Autolaunch.Supervisor, Book)
+  end
+
+  defp at_latest do
+    {:ok, config} = Deployment.current()
+    {:ok, market} = Deployment.market("AMZNc")
+    {:ok, block, opts} = Chain.latest(config.lab)
+    {market, block, opts}
   end
 
   test "a kept reading stays until a landed step drops it" do
@@ -43,13 +61,202 @@ defmodule Autolaunch.CoveredCalls.BookTest do
 
   test "a crowd asking to read again keeps a fresh reading: one read per ten seconds" do
     CoveredCallsChain.install()
-    {:ok, %{chain_id: chain_id}} = Autolaunch.CoveredCalls.Deployment.current()
+    {:ok, %{chain_id: chain_id}} = Deployment.current()
     {:ok, before} = Book.read("AMZNc")
     assert [%{filled: filled}] = before.listings
 
     CoveredCallsChain.put(%{listings: [CoveredCallsChain.listing(%{filled: 5 * @unit})]})
     for _visitor <- 1..5, do: Book.refresh(chain_id)
     assert {:ok, %{listings: [%{filled: ^filled}]}} = Book.read("AMZNc")
+  end
+
+  test "visitors asking while a reading is taken wait for that one reading" do
+    CoveredCallsChain.install(%{hold: self()})
+    visitors = for _visitor <- 1..3, do: Task.async(fn -> Book.read("AMZNc") end)
+
+    assert_receive {:held, reader}
+    refute_receive {:held, _another}, 100
+
+    CoveredCallsChain.put(%{})
+    send(reader, :go)
+
+    assert [{:ok, reading}, {:ok, reading}, {:ok, reading}] = Task.await_many(visitors)
+    # One request for the counts and terms, one for the listings; there are no bids.
+    assert CoveredCallsChain.requests() == 2
+  end
+
+  test "a step landing while a reading is taken drops that reading too" do
+    CoveredCallsChain.install(%{hold: self()})
+    visitor = Task.async(fn -> Book.read("AMZNc") end)
+    assert_receive {:held, reader}
+
+    :ok = Book.expire("AMZNc")
+    CoveredCallsChain.put(%{})
+    send(reader, :go)
+    assert {:ok, _from_before_the_step} = Task.await(visitor)
+
+    CoveredCallsChain.put(%{listings: [CoveredCallsChain.listing(%{filled: 6 * @unit})]})
+    assert {:ok, %{listings: [%{filled: filled}]}} = Book.read("AMZNc")
+    assert filled == 6 * @unit
+  end
+
+  property "listings and bids read many to a request are those read one by one" do
+    CoveredCallsChain.install()
+
+    check all(listings <- integer(0..450), bids <- integer(0..450), max_runs: 6) do
+      CoveredCallsChain.put(%{
+        listings: for(n <- 1..listings//1, do: CoveredCallsChain.listing(%{filled: n})),
+        bids: for(n <- 1..bids//1, do: CoveredCallsChain.bid(%{filled: n, premium: 1_000 + n}))
+      })
+
+      {market, block, opts} = at_latest()
+      before = CoveredCallsChain.requests()
+      assert {:ok, book} = Chain.book(market, block, opts)
+      requests = CoveredCallsChain.requests() - before
+
+      assert book.listings ==
+               for(id <- 1..listings//1, do: one(Chain.listing(market, id, block, opts)))
+
+      assert book.bids == for(id <- 1..bids//1, do: one(Chain.bid(market, id, block, opts)))
+      assert requests == 1 + batches(listings) + batches(bids)
+    end
+  end
+
+  defp one({:ok, record}), do: record
+
+  defp batches(count), do: div(count + 199, 200)
+
+  test "the reading holds the best fifty open listings and bids with the count of all" do
+    expiry = hd(Terms.expiries(@now))
+
+    listings =
+      for n <- 1..60, do: CoveredCallsChain.listing(%{strike: 260_000_000 + rem(n * 7, 60)})
+
+    bids =
+      for n <- 1..70, do: CoveredCallsChain.bid(%{premium: 1_000_000 + rem(n * 11, 70)})
+
+    # One that sold out, one stopped and one past its expiry are not open.
+    closed = [
+      CoveredCallsChain.listing(%{filled: 10 * @unit}),
+      CoveredCallsChain.listing(%{amount: 0, filled: 0}),
+      CoveredCallsChain.listing(%{expiry: @now - 60})
+    ]
+
+    CoveredCallsChain.install(%{listings: listings ++ closed, bids: bids})
+    {:ok, reading} = Book.read("AMZNc")
+
+    assert {length(reading.listings), reading.listings_total} == {50, 60}
+    assert {length(reading.bids), reading.bids_total} == {50, 70}
+    assert Enum.all?(reading.listings, &(&1.expiry == expiry and &1.id <= 60))
+
+    # The ten listings left out ask more than any shown; the twenty bids left out pay less.
+    assert Enum.map(reading.listings, & &1.strike_per_token) ==
+             Enum.map(0..49, &(260_000_000 + &1))
+
+    assert Enum.map(reading.bids, & &1.premium_per_token) ==
+             Enum.map(69..20//-1, &(1_000_000 + &1))
+  end
+
+  test "a bid with less than one whole token left is not offered, and is still its bidder's" do
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{bidder: @wallet, filled: 10 * @unit - (@unit - 1)}),
+        CoveredCallsChain.bid(%{bidder: @wallet, filled: 9 * @unit}),
+        CoveredCallsChain.bid(%{amount: 0, filled: 0})
+      ]
+    })
+
+    assert {:ok, %{bids: [%{id: 2}], bids_total: 1}} = Book.read("AMZNc")
+    assert {:ok, %{bids: [%{id: 1}, %{id: 2}]}} = Positions.read("AMZNc", @wallet)
+  end
+
+  defp open_bid do
+    gen all(
+          id <- positive_integer(),
+          week <- integer(0..2),
+          strike <- integer(1..500_000_000),
+          premium <- integer(0..20_000_000)
+        ) do
+      %{
+        id: id,
+        expiry: @now + week * 604_800,
+        strike_per_token: strike,
+        premium_per_token: premium
+      }
+    end
+  end
+
+  property "of two bids with one expiry, the one better for a seller in premium and strike comes first" do
+    check all(
+            bid <- open_bid(),
+            more_premium <- integer(0..5_000_000),
+            more_strike <- integer(0..50_000_000),
+            more_premium + more_strike > 0,
+            spot <- one_of([constant(nil), integer(1..500_000_000)])
+          ) do
+      better = %{
+        bid
+        | id: bid.id + 1,
+          premium_per_token: bid.premium_per_token + more_premium,
+          strike_per_token: bid.strike_per_token + more_strike
+      }
+
+      assert Terms.for_sellers(better, spot) < Terms.for_sellers(bid, spot)
+    end
+  end
+
+  property "bids are in order of expiry, and a strike above the price never outranks a higher premium" do
+    check all(
+            spot <- integer(1..500_000_000),
+            bid <- open_bid(),
+            over <- integer(0..1_000_000_000_000),
+            less <- integer(1..20_000_000)
+          ) do
+      at_price = %{bid | strike_per_token: spot, premium_per_token: bid.premium_per_token + less}
+      far_strike = %{bid | id: bid.id + 1, strike_per_token: spot + over}
+      later = %{at_price | expiry: bid.expiry + 604_800, premium_per_token: 20_000_000 + less}
+
+      assert Terms.for_sellers(at_price, spot) < Terms.for_sellers(far_strike, spot)
+      assert Terms.for_sellers(far_strike, spot) < Terms.for_sellers(later, spot)
+    end
+  end
+
+  test "a listing or bid that can never change again is read once and kept" do
+    over = @now - 2 * Terms.exercise_window()
+
+    settled_listing =
+      CoveredCallsChain.listing(%{seller: @wallet, expiry: over, returned: 1, exercised: @unit})
+
+    settled_bid = CoveredCallsChain.bid(%{bidder: @wallet, expiry: over, filled: 10 * @unit})
+    # Past its expiry with a refund still to take, so it can change.
+    unsettled_bid = CoveredCallsChain.bid(%{bidder: @wallet, expiry: over, refund_due: 5})
+
+    CoveredCallsChain.install(%{
+      listings: [settled_listing, CoveredCallsChain.listing(%{})],
+      bids: [settled_bid, unsettled_bid]
+    })
+
+    assert {:ok, %{listings: [%{id: 2}], bids: []}} = Book.read("AMZNc")
+
+    # The chain never changes a settled record; the double does, to show which are read again.
+    CoveredCallsChain.put(%{
+      listings: [%{settled_listing | filled: 1}, CoveredCallsChain.listing(%{filled: 5 * @unit})],
+      bids: [%{settled_bid | filled: 1}, %{unsettled_bid | refund_due: 0, amount: 0, filled: 0}],
+      claimable: @unit
+    })
+
+    :ok = Book.expire("AMZNc")
+    assert {:ok, %{listings: [%{id: 2, filled: refilled}]}} = Book.read("AMZNc")
+    assert refilled == 5 * @unit
+
+    assert {:ok, positions} = Positions.read("AMZNc", @wallet)
+    assert [%{id: 1, filled: sold}] = positions.sold
+    assert sold == 4 * @unit
+    # The settled bid is as first read; the other, since stopped and refunded, is finished.
+    assert [%{id: 1, filled: filled, refundable: 0}] = positions.bids
+    assert filled == 10 * @unit
+    # Stock from a settled listing some of which was exercised can still be claimed.
+    assert [%{listing_id: 1, claimable: @unit, listing: %{id: 1}}] = positions.holdings
   end
 
   test "a wallet's positions are read at the latest block, never from the kept reading" do
@@ -63,14 +270,22 @@ defmodule Autolaunch.CoveredCalls.BookTest do
       held: @unit
     })
 
-    wallet = "0x" <> String.duplicate("ab", 20)
-    assert {:ok, positions} = Positions.read("AMZNc", wallet)
-    assert Enum.map(positions.book.listings, & &1.id) == [1, 2]
-    assert Enum.map(positions.holdings, & &1.listing_id) == [1, 2]
+    assert {:ok, positions} = Positions.read("AMZNc", @wallet)
+    assert Enum.map(positions.holdings, &{&1.listing_id, &1.listing.id}) == [{1, 1}, {2, 2}]
     assert {:ok, %{listings: [_only]}} = Book.read("AMZNc")
   end
 
-  test "the shared reading carries every bid beside the listings, read once for every visitor" do
+  test "a wallet's place is asked only of listings it can have one on" do
+    # Nothing was bought from either listing, so no one holds calls on them.
+    CoveredCallsChain.install(%{
+      listings: for(_n <- 1..2, do: CoveredCallsChain.listing(%{filled: 0})),
+      held: @unit
+    })
+
+    assert {:ok, %{holdings: []}} = Positions.read("AMZNc", @wallet)
+  end
+
+  test "the shared reading carries the open bids beside the listings, read once for every visitor" do
     bids = [
       CoveredCallsChain.bid(%{}),
       CoveredCallsChain.bid(%{amount: 0, filled: 0, min_sale: 2 * @unit})
@@ -79,33 +294,31 @@ defmodule Autolaunch.CoveredCalls.BookTest do
     CoveredCallsChain.install(%{bids: bids})
     {:ok, reading} = Book.read("AMZNc")
 
-    assert [open, cancelled] = reading.bids
-    assert open.id == 1 and cancelled.id == 2
+    assert [open] = reading.bids
+    assert open.id == 1
     assert open.bidder == "0x3333333333333333333333333333333333333333"
     assert {open.amount, open.filled, open.min_sale} == {10 * @unit, 4 * @unit, @unit}
     assert {open.strike_per_token, open.premium_per_token} == {260_000_000, 3_000_000}
-    assert open.expiry == hd(Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now()))
-    assert cancelled.min_sale == 2 * @unit
+    assert open.expiry == hd(Terms.expiries(@now))
 
     # A bid posted after the reading waits for the next one, as a listing does.
     CoveredCallsChain.put(%{bids: bids ++ [CoveredCallsChain.bid(%{})]})
-    assert {:ok, %{bids: [_one, _two]}} = Book.read("AMZNc")
+    assert {:ok, %{bids: [_one]}} = Book.read("AMZNc")
   end
 
   test "a wallet's positions carry its own bids with what a refund would send it now" do
-    wallet = "0x" <> String.duplicate("ab", 20)
-
     CoveredCallsChain.install(%{
       bids: [
-        CoveredCallsChain.bid(%{bidder: wallet, refund_due: 6_000_000, refundable: 6_000_000}),
+        CoveredCallsChain.bid(%{bidder: @wallet, refund_due: 6_000_000, refundable: 6_000_000}),
         CoveredCallsChain.bid(%{}),
-        CoveredCallsChain.bid(%{bidder: wallet, refundable: 18_000_000})
+        CoveredCallsChain.bid(%{bidder: @wallet, refundable: 18_000_000}),
+        # Stopped with nothing sold and the refund taken: finished.
+        CoveredCallsChain.bid(%{bidder: @wallet, amount: 0, filled: 0})
       ]
     })
 
-    assert {:ok, positions} = Positions.read("AMZNc", wallet)
+    assert {:ok, positions} = Positions.read("AMZNc", @wallet)
     assert [%{id: 1, refundable: 6_000_000}, %{id: 3, refundable: 18_000_000}] = positions.bids
-    assert length(positions.book.bids) == 3
   end
 
   test "a sale into a bid is the seller's sold listing and the bidder's held calls" do

@@ -819,7 +819,12 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=7")
     render_async(view)
-    assert has_element?(view, ".covered-calls__note[role=status]", "Listing 7 isn't for sale now")
+
+    assert has_element?(
+             view,
+             ".covered-calls__note[role=status]",
+             "Listing 7 isn't for sale here now"
+           )
   end
 
   test "the Sell tab lists the open bids under the ticket, with what each still wants",
@@ -868,9 +873,11 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     {:ok, view, _html} = live(conn, "/stock/covered-call")
     html = settled(view)
 
-    # The soonest expiry, then the lowest strike, then the highest premium, then the oldest.
+    # The soonest expiry, then the most a seller ends with at the $254 price
+    # (the premium plus the strike, counted no higher than the price), then the
+    # highest strike, then the oldest.
     order = Enum.sort_by(1..5, &position(html, "covered-call-bids-#{&1}"))
-    assert order == [4, 1, 5, 3, 2]
+    assert order == [3, 4, 1, 5, 2]
   end
 
   test "with no open bids the Sell tab has no Bids", %{conn: conn} do
@@ -908,7 +915,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{amount: 0, filled: 0})]})
     {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
     settled(view)
-    assert has_element?(view, ".covered-calls__note[role=status]", "Bid 1 isn't open now")
+    assert has_element?(view, ".covered-calls__note[role=status]", "Bid 1 isn't offered here now")
   end
 
   test "signed in, Max on Sell now fills what the bid still wants or the wallet holds, the less",

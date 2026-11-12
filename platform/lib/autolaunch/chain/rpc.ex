@@ -94,6 +94,9 @@ defmodule Autolaunch.Chain.Rpc do
   """
   def call_bytes(to, data, block, opts \\ []), do: call(to, data, block, &decode_bytes/1, opts)
 
+  @doc "One answer as the bytes the contract returned, left undecoded."
+  def call_raw(to, data, block, opts \\ []), do: call(to, data, block, &decode_raw/1, opts)
+
   def request(method, params, opts \\ []) do
     case answer(method, params, opts) do
       {:error, :refused} -> {:error, :chain_unavailable}
@@ -404,6 +407,9 @@ defmodule Autolaunch.Chain.Rpc do
   end
 
   defp decode_bytes(_result), do: :error
+
+  defp decode_raw("0x" <> hex), do: Base.decode16(hex, case: :mixed)
+  defp decode_raw(_result), do: :error
 
   defp zero_quantity?(value) when value in ["0x0", "0x", "0"], do: true
   defp zero_quantity?(_value), do: false

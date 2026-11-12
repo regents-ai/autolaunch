@@ -125,12 +125,9 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   # When the wallet's own listings and bids next change what they allow.
-  defp changes(%{book: book, bids: bids} = positions) do
-    mine = listing_ids(positions)
-
+  defp changes(%{sold: sold, holdings: holdings, bids: bids}) do
     for(
-      %{id: id, expiry: expiry} <- book.listings,
-      id in mine,
+      %{expiry: expiry} <- sold ++ Enum.map(holdings, & &1.listing),
       at <- [expiry, expiry + Terms.exercise_window()],
       do: at
     ) ++ Enum.map(bids, & &1.expiry)
@@ -222,29 +219,27 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   defp market(%{read: {:ok, positions}} = assigns) do
-    book = positions.book
-    by_id = Map.new(book.listings, &{&1.id, &1})
     holdings = Map.new(positions.holdings, &{&1.listing_id, &1})
 
     rows =
       (Enum.map(positions.sold, &{:sold, &1}) ++
          for(
-           %{listing_id: id} <- positions.holdings,
-           by_id[id].seller != positions.wallet,
-           do: {:held, by_id[id]}
+           %{listing: listing} <- positions.holdings,
+           listing.seller != positions.wallet,
+           do: {:held, listing}
          ))
       |> Enum.map(fn {side, listing} ->
-        row(side, listing, holdings[listing.id], book.unit, positions.now)
+        row(side, listing, holdings[listing.id], positions.unit, positions.now)
       end)
-      |> Enum.concat(Enum.map(positions.bids, &bid_row(&1, book.unit, positions.now)))
+      |> Enum.concat(Enum.map(positions.bids, &bid_row(&1, positions.unit, positions.now)))
       # An open exercise window comes first: it is the one that closes soon.
       |> Enum.sort_by(&(&1.stage != :exercise))
 
     assigns =
       assign(assigns,
         rows: rows,
-        market: book.market,
-        unit: book.unit,
+        market: positions.market,
+        unit: positions.unit,
         now: positions.now,
         read_at: Calendar.strftime(positions.read_at, "%-d %b, %H:%M UTC")
       )
@@ -419,7 +414,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       stage == :open &&
         %{
           name: :escrow,
-          label: "Held",
+          label: "Unspent",
           figure: {:usd, Terms.escrow_left(bid, unit)},
           step: :cancel_bid
         },

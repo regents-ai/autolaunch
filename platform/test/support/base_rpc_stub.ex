@@ -5,8 +5,12 @@ defmodule Autolaunch.BaseRpcStub do
   Chain identity, the `safe` header, headers by number, receipts and transactions
   have exactly one shape for every surface. Only the block-pinned `eth_call`
   answers differ, so a test supplies those as the `:calls` function it installs,
-  which is given the call (`to` and `data`) and the stub's state.
+  which is given the call (`to` and `data`) and the stub's state. Reads sent
+  together through Multicall3's `aggregate3` are each answered by that same
+  function (`aggregate/2`).
   """
+
+  @multicall Autolaunch.Chain.Multicall.address()
 
   @safe_hash "0x" <> String.duplicate("5a", 32)
   @receipt_block_hash "0x" <> String.duplicate("7b", 32)
@@ -94,6 +98,36 @@ defmodule Autolaunch.BaseRpcStub do
     end
   end
 
+  @doc """
+  Multicall3's answer to an `aggregate3` request: each read in `data` answered
+  by `answer`, given its contract and calldata, with `:reverted` or
+  `:unavailable` a failed read that returns nothing.
+  """
+  def aggregate("0x82ad56cb" <> reads, answer) do
+    <<32::256, count::256, body::binary>> = Base.decode16!(reads, case: :mixed)
+
+    answers =
+      for <<offset::256 <- binary_part(body, 0, count * 32)>> do
+        <<_before::binary-size(^offset), contract::256, _allow_failure::256, 96::256, size::256,
+          data::binary-size(size), _rest::binary>> = body
+
+        case answer.("0x" <> binary_part(hex_word(contract), 24, 40), hex(data)) do
+          "0x" <> returned -> returned(Base.decode16!(returned, case: :mixed))
+          _failed -> <<0::256, 64::256, 0::256>>
+        end
+      end
+
+    {offsets, _end} = Enum.map_reduce(answers, count * 32, &{<<&2::256>>, &2 + byte_size(&1)})
+    hex([<<32::256, count::256>>, offsets, answers])
+  end
+
+  defp returned(bytes) do
+    padding = rem(32 - rem(byte_size(bytes), 32), 32)
+    <<1::256, 64::256, byte_size(bytes)::256, bytes::binary, 0::size(padding)-unit(8)>>
+  end
+
+  defp hex(bytes), do: "0x" <> Base.encode16(IO.iodata_to_binary(bytes), case: :lower)
+
   def uint(value), do: "0x" <> hex_word(value)
 
   def hex_word(value),
@@ -129,6 +163,9 @@ defmodule Autolaunch.BaseRpcStub do
 
   defp result("eth_getTransactionByHash", [hash], state),
     do: state |> Map.get(:transactions, %{}) |> Map.get(hash)
+
+  defp result("eth_call", [%{to: @multicall, data: data}, _block], state),
+    do: aggregate(data, &state.calls.(%{to: &1, data: &2}, state))
 
   defp result("eth_call", [call, _block], state), do: state.calls.(call, state)
 
