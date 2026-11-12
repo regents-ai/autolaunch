@@ -1,7 +1,7 @@
 import {getAddress, type Hash, type Hex} from "viem"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {asksServer, press, pressCalls, type Review} from "../js/hooks/onchain_steps"
+import {asksServer, OnchainSteps, press, pressCalls, type Review} from "../js/hooks/onchain_steps"
 import {replaceActiveEthereumWallet, type EthereumProvider} from "../js/wallet_actions/connected_wallet"
 
 const signer = getAddress("0x1111111111111111111111111111111111111111")
@@ -242,5 +242,95 @@ describe("a press with no review yet asks the server for one when the card prepa
     expect(asksServer(review, {}, true)).toBe(false)
     expect(asksServer({...review, inputs: {amount: "1"}}, {amount: "1"}, false)).toBe(false)
     expect(asksServer(undefined, {}, false)).toBe(false)
+  })
+})
+
+// A3: after the connection dropped and came back, a press sent the review the
+// page still held, which the server that took over had never built (money-path
+// audit, 12 Nov 2026).
+describe("a press after the connection comes back sends a review the server holds", () => {
+  const fresh: Review = {
+    ...review,
+    id: "review-2",
+    steps: [{kind: "transaction", step: "bid", to: target, data: "0xa52c872801" as Hex, value: "0x0" as Hex}],
+  }
+
+  // The hook on a card that prepares on press, mounted; `answer` is the
+  // server's reply to `prepare_and_send`.
+  function mountedCard(answer: Review) {
+    let clicked: (event: Event) => void = () => {}
+    let reviewed: (payload: unknown) => void = () => {}
+    const el = {
+      id: "card",
+      hasAttribute: (name: string) => name === "data-onchain-prepare",
+      addEventListener: (_event: string, listener: (event: Event) => void) => (clicked = listener),
+      querySelectorAll: () => [],
+      querySelector: () => null,
+    }
+    const pushEventTo = vi.fn(async (_target: unknown, event: string) =>
+      event === "prepare_and_send" ? [{status: "fulfilled", value: {reply: {review: answer, send: "bid"}}}] : [],
+    )
+    const hook = {
+      el,
+      pushEventTo,
+      handleEvent: (_event: string, callback: (payload: unknown) => void) => (reviewed = callback),
+    }
+    OnchainSteps.mounted!.call(hook)
+
+    const button = {dataset: {onchainStep: "bid"}, hasAttribute: () => false, closest: () => el}
+    const target = {closest: (selector: string) => (selector.includes("data-onchain-step") ? button : el)}
+    const pressBid = () => clicked({target} as unknown as Event)
+    const push = (sent: Review | null) => reviewed({component_id: "card", review: sent})
+    const asked = () => pushEventTo.mock.calls.filter(([, event]) => event === "prepare_and_send").length
+    // LiveView calls these on a hook that has them, as the connection drops and rejoins.
+    const dropped = () => OnchainSteps.disconnected?.call(hook)
+    const rejoined = () => OnchainSteps.reconnected?.call(hook)
+
+    return {pressBid, push, asked, dropped, rejoined, pushEventTo}
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("window", {
+      location: {origin: "https://autolaunch.sh", hash: ""},
+      dispatchEvent: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
+  })
+
+  const sentData = (provider: ReturnType<typeof wallet>) =>
+    provider.request.mock.calls
+      .filter(([call]) => call.method === "eth_sendTransaction")
+      .map(([call]) => (call.params as [{data: string}])[0].data)
+
+  it("asks the server that took over for its review and sends that one", async () => {
+    const provider = wallet()
+    activate(provider)
+    const card = mountedCard(fresh)
+    card.push(review)
+
+    card.dropped()
+    card.rejoined()
+    card.pressBid()
+
+    await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c872801"]))
+    expect(card.asked()).toBe(1)
+    // The server that took over hears the wallet Privy has active.
+    expect(card.pushEventTo.mock.calls.filter(([, event]) => event === "onchain_active_wallet")).toHaveLength(2)
+  })
+
+  it("sends the review the server pushes as it rejoins without asking again", async () => {
+    const provider = wallet()
+    activate(provider)
+    const card = mountedCard(review)
+    card.push(review)
+
+    card.dropped()
+    card.push(fresh)
+    card.rejoined()
+    card.pressBid()
+
+    await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c872801"]))
+    expect(card.asked()).toBe(0)
   })
 })
