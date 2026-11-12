@@ -158,12 +158,12 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
   contracts they rely on. Their source code is public, and the deployed Revstake contracts are
   verified on Basescan.
 
-## Status (9 October 2026)
+## Status (12 November 2026)
 
 | | |
 | --- | --- |
-| Revstake on Base | V2 deployed and open for new launches ([deployment records](contracts/revstake-v2/deployments/base-mainnet/README.md)) |
-| Memestock on Base | V2 deployed and open, with ten admitted stocks ([deployment records](contracts/stocks-v2/deployments/base-mainnet/README.md)) |
+| Revstake on Base | V3 deployed and open for new launches since 12 November 2026 ([deployment records](contracts/revstake-v3/deployments/base-mainnet/README.md)); V2 paused, its launches still served ([deployment records](contracts/revstake-v2/deployments/base-mainnet/README.md)) |
+| Memestock on Base | V3 deployed and open since 12 November 2026, with ten admitted stocks ([deployment records](contracts/stocks-v3/deployments/base-mainnet/README.md)); V2 paused, its launches still served ([deployment records](contracts/stocks-v2/deployments/base-mainnet/README.md)) |
 | Memestock on Robinhood Chain | V2 deployed and open, with 25 admitted stocks ([deployment records](contracts/robinhood-v2/deployments/robinhood-mainnet/README.md)) |
 | autolaunch.sh | Live. Launching, bidding and trading opened on 24 September 2026, 15:00 UTC. What changed for people and agents is in [the changelog](platform/lib/autolaunch_web/public_documents/changelog.md), at https://autolaunch.sh/changelog; which release carried which commit is in [RELEASES.md](RELEASES.md) |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |

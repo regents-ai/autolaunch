@@ -1,5 +1,11 @@
 # Changelog
 
+## 12 November 2026: Launches open
+- New Memestock and Revstake launches are open again on Base, on new launch contracts made for Base's faster blocks. Each auction opens ten minutes after its launch and runs for about a day on Memestock and about two days on Revstake.
+- Any wallet can launch. Revstake's treasury can still be a Safe, another contract or a single key; a Safe is recommended.
+- Auctions and tokens launched before today work as before: bids (USDC bids too), withdrawals, claims, vesting, staking and trading each go through the contracts their launch was made on.
+- If Base pauses new launches again, the create pages say "New launches are paused right now." beside the greyed-out launch button.
+
 ## 12 November 2026: Home
 - The home page now ends with Principles: six cards on what Autolaunch holds to. One price for every bidder, liquidity no one can pull, every stock named exactly, your wallet signs everything, agents prepare and you sign, and figures from the chain. Each card opens the page that explains it.
 - Each card has a small moving picture in its own colours that follows your pointer. With reduced motion, or in a browser that can't draw it, the card shows a still picture instead.

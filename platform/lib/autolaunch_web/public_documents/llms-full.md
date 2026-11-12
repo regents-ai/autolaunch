@@ -88,9 +88,11 @@ From v2 on, every auction opens at the lowest price it accepts. Its minimum is t
 
 The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% trading fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
 
+New Base launches use v3 since 12 November 2026, made for Base's faster blocks, with the same allocations and fees as v2. New v2 launches on Base are paused; existing v2 auctions and tokens keep their bids, withdrawals, claims, vesting, trading and staking on their own contracts.
+
 ## Trading fees
 
-V2 Revstake trades pay a 3% trading fee: 2% goes to the token's staking and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees: 3% goes to the token's staking, 1% is the REGENT stakers' fee and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% pool fee, and what the locked liquidity earns goes to the token's staking.
+From v2 on, Revstake trades pay a 3% trading fee: 2% goes to the token's staking and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. From v2 on, Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees: 3% goes to the token's staking, 1% is the REGENT stakers' fee and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% pool fee, and what the locked liquidity earns goes to the token's staking.
 
 | Launch | Fee paid in | Where it goes |
 | --- | --- | --- |
