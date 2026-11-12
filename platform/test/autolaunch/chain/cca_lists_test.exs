@@ -2,8 +2,9 @@ defmodule Autolaunch.Chain.CcaListsTest do
   @moduledoc """
   The two auction lists, held in memory, of every length and with the answer
   anywhere along them: a new bid's tick is always one the auction holds below
-  its price, and a settlement's crossing is always the exact one, found within
-  the stated reads in each request however long the history.
+  its price, and a settlement's crossings are always the exact ones, found
+  within the stated reads in each request however long the history, the
+  second going on from the first.
   """
   use ExUnit.Case, async: true
   use ExUnitProperties
@@ -55,22 +56,27 @@ defmodule Autolaunch.Chain.CcaListsTest do
   end
 
   describe "a settlement's crossing" do
-    property "is the exact crossing, within the stated reads in each request" do
-      check all(auction <- auction(), strict? <- boolean()) do
-        %{prices: prices, blocks: blocks, bids: bids, bid: bid, max: max} = auction
-        below? = if strict?, do: &(&1 < max), else: &(&1 <= max)
+    property "is the exact crossing within the stated reads in each request, and a looser one goes on from it" do
+      check all(auction <- auction()) do
+        %{prices: prices, bids: bids, bid: bid, max: max} = auction
         reads = reads(auction)
         after_it = length(bids) - 1 - bid.id
         bound = 2 * ceil_log2(after_it + 1) + CcaLists.reads() + 1
 
-        crossing = Enum.find_index(prices, &(not below?.(&1))) || length(prices)
-        last = Enum.at(blocks, crossing - 1)
-        following = Enum.at(blocks, crossing, :final)
+        filled = Enum.find_index(prices, &(&1 >= max)) || length(prices)
+        outbid = Enum.find_index(prices, &(&1 > max)) || length(prices)
 
-        {result, requests} = until_found(reads, bid, below?, bound)
+        {{:ok, found}, requests} = until_found(reads, bid, &(&1 < max), bound)
 
-        assert result == {:ok, {last, following}}
-        assert requests <= div(crossing, CcaLists.reads()) + 1
+        assert {found.last, found.following} == expected(auction, filled)
+        assert requests <= div(filled, CcaLists.reads()) + 1
+
+        from = %{id: found.bid, start_block: found.last}
+        looser_reads = %{reads | key: make_ref()}
+        {{:ok, looser}, requests} = until_found(looser_reads, from, &(&1 <= max), bound)
+
+        assert {looser.last, looser.following} == expected(auction, outbid)
+        assert requests <= div(outbid - filled + 1, CcaLists.reads()) + 1
       end
     end
 
@@ -83,13 +89,46 @@ defmodule Autolaunch.Chain.CcaListsTest do
       assert {:error, :price_history_long} = CcaLists.crossing(reads, auction.bid, below?)
       assert {:error, :price_history_long} = CcaLists.crossing(reads, auction.bid, below?)
 
-      assert {:ok, {last, following}} = CcaLists.crossing(reads, auction.bid, below?)
+      assert {:ok, %{last: last, following: following}} =
+               CcaLists.crossing(reads, auction.bid, below?)
+
       assert {last, following} == {Enum.at(auction.blocks, 699), Enum.at(auction.blocks, 700)}
 
       # Built again soon after, it reads only the crossing.
       {counted_reads, count} = counted_reads(reads)
-      assert {:ok, {^last, ^following}} = CcaLists.crossing(counted_reads, auction.bid, below?)
+
+      assert {:ok, %{last: ^last, following: ^following}} =
+               CcaLists.crossing(counted_reads, auction.bid, below?)
+
       assert count.() == 2
+    end
+
+    # A node behind the others could not read the checkpoint the walk had
+    # reached, and the walk forgot it, so the next request started over
+    # (review of the money-path fixes, 12 Nov 2026).
+    test "a request from a node behind the others leaves where the walk reached as it is" do
+      auction = auction(List.duplicate(5, 700) ++ [9], [0], 0, 9)
+      reads = reads(auction)
+      below? = &(&1 < 9)
+
+      assert {:error, :price_history_long} = CcaLists.crossing(reads, auction.bid, below?)
+      assert {:error, :price_history_long} = CcaLists.crossing(reads, auction.bid, below?)
+
+      # Pinned to the 300th block, before the one the walk reached.
+      seen =
+        reads(%{
+          auction
+          | prices: Enum.take(auction.prices, 300),
+            blocks: Enum.take(auction.blocks, 300)
+        })
+
+      behind = %{reads | checkpoint: seen.checkpoint, at: seen.at}
+      assert {:error, :price_history_long} = CcaLists.crossing(behind, auction.bid, below?)
+
+      {counted_reads, count} = counted_reads(reads)
+      assert {:ok, %{last: last}} = CcaLists.crossing(counted_reads, auction.bid, below?)
+      assert last == Enum.at(auction.blocks, 699)
+      assert count.() <= 700 - 2 * CcaLists.reads() + 2
     end
 
     test "a bid whose own checkpoint does not pass has no crossing to give" do
@@ -165,18 +204,24 @@ defmodule Autolaunch.Chain.CcaListsTest do
       bid_start: &{:ok, Map.fetch!(starts, &1)},
       checkpoint: &{:ok, Map.get(checkpoints, &1, %{price: 0, next: 0})},
       last_bid: length(bids) - 1,
+      at: List.last(blocks),
       key: make_ref()
     }
   end
 
+  # The last checkpoint before index `crossing` and the block of the one at
+  # it, or `:final` past the end.
+  defp expected(%{blocks: blocks}, crossing),
+    do: {Enum.at(blocks, crossing - 1), Enum.at(blocks, crossing, :final)}
+
   # Requests until the crossing is found, each checked against `bound` reads.
-  defp until_found(reads, bid, below?, bound, requests \\ 1) do
+  defp until_found(reads, from, below?, bound, requests \\ 1) do
     {counted_reads, count} = counted_reads(reads)
-    result = CcaLists.crossing(counted_reads, bid, below?)
+    result = CcaLists.crossing(counted_reads, from, below?)
     assert count.() <= bound
 
     case result do
-      {:error, :price_history_long} -> until_found(reads, bid, below?, bound, requests + 1)
+      {:error, :price_history_long} -> until_found(reads, from, below?, bound, requests + 1)
       found -> {found, requests}
     end
   end

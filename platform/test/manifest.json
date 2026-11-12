@@ -1,5 +1,5 @@
 {
-  "total": 215,
+  "total": 216,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2374,91 +2374,91 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 17,
+      "line": 18,
       "test_name": "is a tick the auction holds below the price, the one just below it when in reach",
       "keep_because": "Audit finding A2 (12 Nov 2026): a new bid's tick hint walked the auction's tick list and gave up after 256 steps. Property case over lists of any length: the hint is always a tick the auction holds below the bid's price, and the one just below it when the walk reaches it. It fails if a hint above the price or not in the list is ever given.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 229,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 44,
+      "line": 45,
       "test_name": "is refused when the floor is not below the price or the list does not climb",
       "keep_because": "A tick list that does not climb, or a floor at or above the price, has no valid hint; the walk says so instead of handing back a tick the auction would refuse. It fails if such a list yields a hint.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 230,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 51,
+      "line": 52,
       "test_name": "a read that fails is the read's own answer",
       "keep_because": "A tick read that fails ends the walk with that failure, so the bid card says the chain could not be read just now instead of building a bid from a partial walk. It fails if a failed read becomes a hint.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 231,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 58,
-      "test_name": "is the exact crossing, within the stated reads in each request",
-      "keep_because": "Audit finding A1 (12 Nov 2026): a settlement's checkpoint hints walked from the bid and gave up after 256 steps, stranding a bid in a busy auction. Property case: for a crossing anywhere along any history, the hints are the exact ones, and each request reads at most 2*ceil(log2(n + 1)) + 257 entries. It fails on a wrong crossing or a read count over the bound.",
+      "line": 59,
+      "test_name": "is the exact crossing within the stated reads in each request, and a looser one goes on from it",
+      "keep_because": "Audit finding A1 (12 Nov 2026) and its review: a settlement's checkpoint hints walked from the bid and gave up after 256 steps, stranding a bid in a busy auction, and the outbid walk then read the same stretch again from the bid. Property case: for crossings anywhere along any history, the last fully filled and the outbid hints are the exact ones, the outbid walk going on from where the first ended, and each request reads at most 2*ceil(log2(n + 1)) + 257 entries. It fails on a wrong crossing, a read count over the bound, or an outbid walk that starts again from the bid.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 232,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 77,
+      "line": 83,
       "test_name": "a long stretch no bid wrote is read across requests, each going on from the last",
       "keep_because": "A stretch of checkpoints longer than one request's reads is walked across requests, each going on from where the last one stopped, until the crossing is found. It fails if a request starts over or never reaches the crossing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 233,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 95,
+      "line": 134,
       "test_name": "a bid whose own checkpoint does not pass has no crossing to give",
       "keep_because": "A bid still fully in the auction has no crossing; the walk says so instead of inventing hints. It fails if such a bid gets settlement hints.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 234,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain/cca_lists_test.exs",
-      "line": 102,
+      "line": 141,
       "test_name": "a read that fails is the read's own answer, and keeps where the walk reached",
       "keep_because": "A checkpoint read that fails answers that failure and keeps where the walk had reached, so the next request goes on from there. It fails if a failed read becomes hints or the walk's progress is lost.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "907904ea5fa51079b6e39674c8d32aef4ad51fcb1c2e7a8b8ab448789eed2607"
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     },
     {
       "id": 235,
@@ -2497,20 +2497,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dc2bb67c0c0ff2d2b3efcbe7135d4339a46b0f4325f3a0d4b0615a18522d2704"
+      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
     },
     {
       "id": 238,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
-      "line": 164,
-      "test_name": "a stretch longer than one request's reads is read across requests, then settled",
-      "keep_because": "A crossing further than one request's reads is reached over several requests through the kept walk, then settled with the exact hints. It fails if the reader starts over each time or never settles.",
+      "line": 167,
+      "test_name": "a stretch longer than one request's reads is read across requests, and the outbid walk goes on from the filled one",
+      "keep_because": "Audit finding A1 and its review (12 Nov 2026): a crossing further than one request's reads is reached over several requests through the kept walk, then the outbid walk goes on from the last fully filled checkpoint instead of reading the stretch again, so the review settles on the second request. It fails if the reader starts over, never settles, or walks the stretch twice.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dc2bb67c0c0ff2d2b3efcbe7135d4339a46b0f4325f3a0d4b0615a18522d2704"
+      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
     },
     {
       "id": 239,
@@ -2797,6 +2797,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
+    },
+    {
+      "id": 262,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 109,
+      "test_name": "a request from a node behind the others leaves where the walk reached as it is",
+      "keep_because": "Review of audit finding A1 (12 Nov 2026): a request pinned to a block before the checkpoint a walk had reached, from a node behind the others, could not read it and the walk forgot it, so the next request read the whole stretch again. Such a request now walks from the bid and leaves what is kept. It fails if a lagging read erases or uses the kept progress.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
     }
   ],
   "legacy_folders_to_remove": [

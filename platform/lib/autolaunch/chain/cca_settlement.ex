@@ -312,25 +312,28 @@ defmodule Autolaunch.Chain.CcaSettlement do
     with {:ok, next_bid_id} <-
            Rpc.call_uint(auction, LabAbi.selector("nextBidId()"), venue.block, venue.opts),
          reads = checkpoint_reads(venue, auction, next_bid_id - 1),
-         {:ok, {last_full, _following}} <-
+         {:ok, filled} <-
            CcaLists.crossing(%{reads | key: {reads.key, max, :filled}}, bid, &(&1 < max)),
-         {:ok, outbid_block} <- outbid_block(reads, bid, terms) do
-      {:ok, %{last_fully_filled_block: last_full, outbid_block: outbid_block}}
+         {:ok, outbid_block} <- outbid_block(reads, filled, bid, terms) do
+      {:ok, %{last_fully_filled_block: filled.last, outbid_block: outbid_block}}
     end
   end
 
   # None when the final price equals the maximum. Otherwise the first stored
-  # checkpoint priced above it, or the final one: once bidding has ended
-  # (`final_block` is the end block) the settlement itself writes it; while
-  # bidding is open (`final_block` is `nil`) the current price is not
-  # recorded yet.
-  defp outbid_block(_reads, %{max_price_q96: price}, %{clearing_price: price}), do: {:ok, 0}
+  # checkpoint priced above it, walked to from the last fully filled one, or
+  # the final one: once bidding has ended (`final_block` is the end block)
+  # the settlement itself writes it; while bidding is open (`final_block` is
+  # `nil`) the current price is not recorded yet.
+  defp outbid_block(_reads, _filled, %{max_price_q96: price}, %{clearing_price: price}),
+    do: {:ok, 0}
 
-  defp outbid_block(reads, %{max_price_q96: max} = bid, %{final_block: final_block}) do
-    case CcaLists.crossing(%{reads | key: {reads.key, max, :outbid}}, bid, &(&1 <= max)) do
-      {:ok, {_last, :final}} when is_nil(final_block) -> {:error, :price_not_recorded}
-      {:ok, {_last, :final}} -> {:ok, final_block}
-      {:ok, {_last, outbid}} -> {:ok, outbid}
+  defp outbid_block(reads, filled, %{max_price_q96: max}, %{final_block: final_block}) do
+    from = %{id: filled.bid, start_block: filled.last}
+
+    case CcaLists.crossing(%{reads | key: {reads.key, max, :outbid}}, from, &(&1 <= max)) do
+      {:ok, %{following: :final}} when is_nil(final_block) -> {:error, :price_not_recorded}
+      {:ok, %{following: :final}} -> {:ok, final_block}
+      {:ok, %{following: outbid}} -> {:ok, outbid}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -350,6 +353,7 @@ defmodule Autolaunch.Chain.CcaSettlement do
              do: {:ok, %{price: price, next: next}}
       end,
       last_bid: last_bid,
+      at: venue.block.number,
       key: {:erlang.phash2(venue.rpc_url), auction}
     }
   end

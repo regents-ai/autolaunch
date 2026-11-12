@@ -161,11 +161,13 @@ defmodule Autolaunch.LabBidSettlementChainClientTest do
     assert exit.currency_refunded == 10 ** 18
   end
 
-  test "a stretch longer than one request's reads is read across requests, then settled" do
+  # The outbid walk went back to the bid's own checkpoint and read the whole
+  # stretch again, so this took a third request (review of the money-path
+  # fixes, 12 Nov 2026).
+  test "a stretch longer than one request's reads is read across requests, and the outbid walk goes on from the filled one" do
     HistoryStub.install([100, 550])
     auction = "0x" <> String.duplicate("a2", 20)
 
-    assert {:ok, %{exit: {:refused, :price_history_long}}} = snapshot(auction)
     assert {:ok, %{exit: {:refused, :price_history_long}}} = snapshot(auction)
 
     assert {:ok, %{exit: %{hints: %{last_fully_filled_block: 499, outbid_block: 550}}}} =
