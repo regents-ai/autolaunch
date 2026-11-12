@@ -195,14 +195,40 @@ Deploy a commit on origin/main from a clean checkout, from the repository root:
 scripts/deploy.sh autolaunch-sh
 ```
 
-The script refuses a working tree with any change and a commit that is not on
-origin/main, then builds on Fly's builders with `SOURCE_COMMIT` set to the full
-commit and deploys. It runs that under `lockf -k /tmp/regent-shared-db-release.lock`,
-the lock every site's deploy takes, so a release waits for any other site's release on
-the shared database to finish. Before any machine changes, fly.toml's `release_command` runs
+The script refuses a working tree with any change, a commit that is not on
+origin/main, and a commit that does not contain the one already live, which it reads
+from `https://autolaunch.sh/healthz`; when that address cannot be read, or names a
+commit the checkout does not hold, the deploy is refused. So an older commit of main
+never replaces a newer live one. It then builds on Fly's builders with `SOURCE_COMMIT`
+set to the full commit and switches the app to the new image. One deploy or rollback
+of the site runs at a time (`/tmp/regent-release-autolaunch-sh.lock`); the build takes
+no shared lock, and the switch takes one of the two places every site shares on the
+production database (`/tmp/regent-shared-db-release.lock`, or
+`/tmp/regent-shared-db-release-2.lock`). Run the script as it is, never inside `lockf`.
+Before any machine changes, fly.toml's `release_command` runs
 `/app/bin/migrate` on a temporary machine; a failed migration stops the deploy. The
 new image then starts beside the old one and takes traffic once `/healthz` is green.
 `/healthz` answers `ok <commit>`.
+
+`scripts/deploy.sh autolaunch-sh --dry-run` runs every check and prints the build and
+switch commands without building or switching anything.
+
+### Rollback
+
+To put the site back on an earlier release's image:
+
+```sh
+scripts/rollback.sh autolaunch-sh v269 --dry-run   # the checks, and the command it would run
+scripts/rollback.sh autolaunch-sh v269
+```
+
+It takes the same locks as a deploy. It refuses a release Fly does not list as complete,
+and a release whose commit holds different migrations than the live commit: the database
+would no longer match the older code, so that rollback needs a person
+([operations/RELEASE.md](../operations/RELEASE.md#rollback)). Otherwise it switches the
+app to that release's image and reads `/healthz` until it names that release's commit.
+The deployment descriptions placed on the machine are the ones in `platform/deployment/`
+now, not the ones that release went out with.
 
 Copy the three deployment descriptions (`base-revstake.json`, `base-memestock.json`,
 `robinhood.json`) into `platform/deployment/` first. They carry the site's private RPC

@@ -2,6 +2,7 @@
 
 Which Fly release of `autolaunch-sh` carried which commit. This is the operator record; the public
 [The changelog](platform/lib/autolaunch_web/public_documents/changelog.md) (https://autolaunch.sh/changelog) says what changed for people and agents, under the same dates and titles.
+To go back to a release listed here, see [Rollback](operations/RELEASE.md#rollback).
 
 | Fly release | Date | Commit | Changelog entry |
 | --- | --- | --- | --- |

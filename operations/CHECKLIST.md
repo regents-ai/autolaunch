@@ -34,6 +34,8 @@ that proves each one, with the gaps; a release that adds or changes one of them 
    pin that ships one, follows [RELEASE.md](RELEASE.md) first: a fresh backup and its id
    in the evidence. The deploy runs the migrations itself.
 9. Write down the release the site can go back to (`fly releases -a autolaunch-sh`).
+   `scripts/rollback.sh` goes back to it ([RELEASE.md](RELEASE.md#rollback)) unless this
+   release adds or changes a migration; then say in the evidence that going back needs a person.
 10. Start a `fly logs -a autolaunch-sh` tail before the deploy, saved in the evidence folder,
    and keep it until the checks after the deploy are done.
 11. Push the head to main, then deploy it from a clean checkout with
