@@ -472,7 +472,6 @@ defmodule AutolaunchWeb.StakeComponent do
       facts: (assigns.review && assigns.prepared.facts) || [],
       steps: steps,
       next_step: next_step(assigns, steps),
-      reverted: reverted(steps, assigns.prepared),
       notice: assigns.press_note,
       target: assigns.myself,
       signer: assigns.review && assigns.review.signer,
@@ -573,10 +572,12 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:onchain_calls, calls_id}, result, socket),
-    do: {:noreply, OnchainCalls.checked(socket, calls_id, result, &batch_confirmed/2)}
+    do:
+      {:noreply,
+       OnchainCalls.checked(socket, calls_id, result, &batch_confirmed/2, &step_reverted/2)}
 
   def handle_async({:batch_result, calls_id}, result, socket),
     do: {:noreply, batch_resulted(socket, calls_id, OnchainSteps.receipt_logs(result))}
@@ -654,6 +655,19 @@ defmodule AutolaunchWeb.StakeComponent do
       do: resulted(socket, hash, []),
       else: OnchainSteps.read_receipt(socket, entry)
   end
+
+  # A step, or a batch, of the open review that did not go through: the same
+  # action is reviewed again at once from the chain as it is now
+  # (`OnchainSteps.rebuild_reverted/4`).
+  defp step_reverted(%{assigns: %{prepared: %{kind: kind}}} = socket, entry) do
+    note = reverted_copy(kind)
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket |> closed() |> reviewed(kind, %{}) |> OnchainSteps.rebuilt(note)
+    end)
+  end
+
+  defp step_reverted(socket, _closed_review), do: socket
 
   # A batch from the open review landed: what each of its steps moved is read
   # from its one receipt. One from a review the page has since left still
@@ -836,26 +850,13 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("collect_new_only", _prepared), do: "Collect the one-sided fees"
   defp step_label("release", _prepared), do: "Confirm release"
 
-  defp reverted(steps, prepared) do
-    if Enum.any?(steps, &(&1.state == :reverted)), do: reverted_copy(prepared.kind)
-  end
-
-  defp reverted_copy(:stake),
-    do:
-      "The stake did not go through and nothing moved. Press again, or close this and review again."
+  defp reverted_copy(:stake), do: "The stake did not go through and nothing moved."
 
   defp reverted_copy(:unstake),
     do:
-      "That did not go through and nothing moved. Staking and leaving in the same block is not allowed: wait a moment and try again."
+      "That did not go through and nothing moved. Staking and leaving in the same block is not allowed, so wait a moment."
 
-  defp reverted_copy(:claim),
-    do:
-      "That did not go through and nothing moved. Close this, wait a moment, and press Claim rewards again for what is waiting now."
-
-  defp reverted_copy(:settle),
-    do: "That did not go through. Close this and review again for what is waiting now."
-
-  defp reverted_copy(:release), do: @generic
+  defp reverted_copy(_claim_settle_or_release), do: "That did not go through and nothing moved."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
@@ -865,7 +866,6 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :facts, :list, default: [], doc: "[label, value] pairs"
   attr :steps, :list, required: true
   attr :next_step, :map, default: nil
-  attr :reverted, :string, default: nil
   attr :notice, :string, default: nil
   attr :target, :any, default: nil
   attr :signer, :string, default: nil
@@ -934,7 +934,6 @@ defmodule AutolaunchWeb.StakeComponent do
         id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
-        reverted={@reverted}
         signer={@signer}
         chain_name={@chain_name}
         mismatch={@mismatch}

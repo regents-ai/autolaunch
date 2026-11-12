@@ -2,7 +2,8 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
   @moduledoc """
   A settlement press made before the card has read its review still reaches the
   wallet: the card prepares the review for the press and hands back its first
-  step to send, as the bid form does (`AutolaunchWeb.BidComponent`).
+  step to send, as the bid form does (`AutolaunchWeb.BidComponent`). A step
+  that did not go through is prepared again from the auction as it is then.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -10,7 +11,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
   import Phoenix.LiveViewTest
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.{LabAbi, TestAutolaunchBidSettlementChainClient}
+  alias Autolaunch.{BaseRpcStub, LabAbi, TestAutolaunchBidSettlementChainClient}
   alias RegentChain.BuilderCode
 
   @bid_id 7
@@ -78,6 +79,84 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     assert data == BuilderCode.append(exit_bid_data())
   end
 
+  # A return that reverted was sent again unchanged by the next press, and
+  # never left the card while the auction had moved on (money-path audit A5).
+  test "a return that did not go through is prepared again from the auction as it is now",
+       %{conn: conn} = context do
+    {view, card} = card(conn, context)
+    render_async(view)
+    exit_data = BuilderCode.append(exit_bid_data())
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: first_id, steps: [%{step: "exit", data: ^exit_data} = step]} = review
+    })
+
+    # The auction now wants the partly filled exit, with its hints.
+    partial = LabAbi.selector("exitPartiallyFilledBid(uint256,uint64,uint64)") <> word(@bid_id)
+    install(exit: %{signature: "exitPartiallyFilledBid(uint256,uint64,uint64)", data: partial})
+    reverted(card, context.wallet, review, step)
+    render_async(view)
+
+    assert render(view) =~
+             "That did not go through, so nothing came back. Only the network fee was spent. This review now uses the latest figures: press again to send it."
+
+    partial_data = BuilderCode.append(partial)
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: second_id, steps: [%{step: "exit", data: ^partial_data}]}
+    })
+
+    assert second_id != first_id
+  end
+
+  test "a return that did not go through after the bid was returned another way gives the auction's answer",
+       %{conn: conn} = context do
+    {view, card} = card(conn, context)
+    render_async(view)
+
+    assert_push_event(view, "onchain-steps:review", %{review: %{steps: [step]} = review})
+
+    # Anyone may return a bid to its owner; the auction now has it returned.
+    install(exit: {:refused, :already_exited})
+    reverted(card, context.wallet, review, step)
+    render_async(view)
+
+    html = render(view)
+
+    assert html =~
+             "That did not go through, so nothing came back. Only the network fee was spent."
+
+    assert html =~ "This bid has no tokens to claim."
+    assert_push_event(view, "onchain-steps:review", %{review: nil})
+  end
+
+  # The step is sent from `review`, and Base reads it back as reverted.
+  defp reverted(card, wallet, review, step) do
+    hash = "0x" <> String.duplicate("c4", 32)
+
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn _call, _state -> "0x" end)
+
+    BaseRpcStub.put(%{
+      transactions: %{
+        hash => %{
+          "hash" => hash,
+          "chainId" => "0x" <> Integer.to_string(review.chain.chain_id, 16),
+          "from" => wallet,
+          "to" => step.to,
+          "input" => step.data,
+          "value" => "0x0"
+        }
+      },
+      receipts: %{hash => BaseRpcStub.receipt(hash, "0x1c9c381", [], "0x0")}
+    })
+
+    render_hook(card, "step_sent", %{
+      "review_id" => review.id,
+      "step" => step.step,
+      "transaction_hash" => hash
+    })
+  end
+
   # The card of a failed auction's bid, opened by its signed-in owner with
   # their wallet active.
   defp card(conn, context) do
@@ -126,9 +205,19 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     |> Ash.create!()
   end
 
-  # A failed auction: the bid exits with its whole amount and there is nothing to claim.
-  defp install do
-    TestAutolaunchBidSettlementChainClient.install(%{
+  # A failed auction: the bid exits with its whole amount and there is nothing
+  # to claim, unless `changes` say the auction answers otherwise now.
+  defp install(changes \\ []) do
+    failed_auction()
+    |> Map.merge(Map.new(changes), fn
+      :exit, %{} = exit, %{} = change -> Map.merge(exit, change)
+      _key, _before, change -> change
+    end)
+    |> TestAutolaunchBidSettlementChainClient.install()
+  end
+
+  defp failed_auction do
+    %{
       end_block: 90,
       claim_block: 95,
       currency: Autolaunch.BidFixture.regent(),
@@ -150,7 +239,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
         currency_refunded: 12 * 10 ** 18
       },
       claim: {:refused, :nothing_to_claim}
-    })
+    }
   end
 
   defp exit_bid_data, do: LabAbi.selector("exitBid(uint256)") <> word(@bid_id)

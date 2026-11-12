@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   this page only, the browser reports a hash and stops, and every outcome on
   screen is the server's own read of that hash against the review it was sent
   from. A confirmed return or claim is recorded on the position from its
-  receipt.
+  receipt; one that did not go through is prepared again from the auction.
   """
 
   use AutolaunchWeb, :live_component
@@ -90,7 +90,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
        status: nil,
        checking: false,
        checked_at: nil,
-       recorded: false
+       recorded: false,
+       carried_note: nil
      )}
   end
 
@@ -219,7 +220,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @auction)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -386,7 +386,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @auction)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -509,7 +508,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
       status == :refused ->
-        {:noreply, assign(socket, status: :refused, notice: copy(OnchainSteps.refusal(prepared)))}
+        {:noreply,
+         assign(socket,
+           status: :refused,
+           notice: copy(OnchainSteps.refusal(prepared)),
+           carried_note: nil
+         )}
 
       held?(socket.assigns) ->
         {:noreply, assign(socket, status: status)}
@@ -531,7 +535,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
        )}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket),
     do: {:noreply, settled(socket, hash, OnchainSteps.receipt_logs(result))}
@@ -584,17 +588,25 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp settle_key(_assigns), do: nil
 
+  # A review prepared again after a step did not go through carries the words
+  # about that step beside its button.
   defp reviewed(socket, key, {:ok, prepared}) do
     review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps)
 
     socket
-    |> assign(prepared_for: key, notice: nil, press_note: nil)
+    |> assign(prepared_for: key, notice: nil, press_note: socket.assigns.carried_note)
+    |> assign(carried_note: nil)
     |> put_review(review, prepared)
     |> refresh_later()
   end
 
   defp reviewed(socket, key, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
+    do:
+      assign(socket,
+        prepared_for: {:refused, key},
+        notice: copy(OnchainSteps.refusal(error)),
+        carried_note: nil
+      )
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the settlement it belongs to.
@@ -688,7 +700,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     end
   end
 
-  defp offered(socket, _key, nil), do: socket
+  defp offered(socket, _key, nil), do: assign(socket, carried_note: nil)
 
   defp offered(socket, {status, signer}, result),
     do: reviewed(socket, {signer, socket.assigns.position.id, status}, result)
@@ -702,6 +714,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     do: socket |> assign(recorded: true, checked_at: nil) |> withdrawn() |> early_check()
 
   defp confirmed(socket, entry), do: OnchainSteps.read_receipt(socket, entry)
+
+  # A step of the open review that did not go through: the settlement is read
+  # again from the auction and prepared afresh (`OnchainSteps.rebuild_reverted/4`),
+  # and the new review, or the auction's reason nothing can be done now,
+  # replaces the one that failed.
+  defp step_reverted(socket, %{name: name} = entry) do
+    note = reverted_copy(name, socket.assigns.position.auction)
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket
+      |> assign(carried_note: OnchainSteps.rebuilt_words(note), checked_at: nil)
+      |> withdrawn()
+      |> offer()
+    end)
+  end
 
   # What the step did is recorded on the position, whichever of this page's
   # reviews it was sent from, and the page that owns the card reads it again.
@@ -839,21 +866,15 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp settled_copy(_none, _auction), do: nil
 
-  defp reverted(steps, auction) do
-    case Enum.find(steps, &(&1.state == :reverted)) do
-      %{name: "record"} ->
-        "Recording the price did not go through. Only the network fee was spent. Press again."
+  defp reverted_copy("record", _auction),
+    do: "Recording the price did not go through. Only the network fee was spent."
 
-      %{name: "claim"} ->
-        "That claim did not go through, so no #{auction.token_symbol} moved. Only the network fee was spent. Press again."
+  defp reverted_copy("claim", auction),
+    do:
+      "That claim did not go through, so no #{auction.token_symbol} moved. Only the network fee was spent."
 
-      %{} ->
-        "That did not go through, so nothing came back. Only the network fee was spent. Press again."
-
-      nil ->
-        nil
-    end
-  end
+  defp reverted_copy(_exit, _auction),
+    do: "That did not go through, so nothing came back. Only the network fee was spent."
 
   # The bid's own wallet settles it; while another wallet on the account is
   # active, the card says which one to switch to.

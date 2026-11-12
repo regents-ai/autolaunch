@@ -6,7 +6,7 @@ defmodule Autolaunch.ChainRefresh do
   The site's background readers of a chain run on a slow clock (five minutes),
   because a node is paid for each call and almost nothing changes between two
   reads. What does change a reading is a person acting: so a confirmed on-chain
-  press (`AutolaunchWeb.OnchainSteps.checked/5`, `AutolaunchWeb.OnchainCalls.checked/4`)
+  press (`AutolaunchWeb.OnchainSteps.checked/5`, `AutolaunchWeb.OnchainCalls.checked/5`)
   and a press of a page's Refresh call `request/1` with the chain's id.
 
   Each reader named in this module's `:readers` setting implements `refresh/1`
