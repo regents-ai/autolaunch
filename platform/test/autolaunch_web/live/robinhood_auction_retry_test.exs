@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.{Auction, Repo, TestSupport}
+  alias Autolaunch.{Auction, ChainHead, Repo, SharedReading, TestSupport}
   alias AutolaunchWeb.Paths
 
   @moduletag :capture_log
@@ -18,6 +18,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
   @chain_id 4_663
 
   setup do
+    # Whatever clock an earlier case left: this auction's window was never
+    # read, so the page has no clock to draw it against.
+    SharedReading.delete(ChainHead.key("robinhood"))
+
     # The site as it runs once launches are open, when a page's buttons work.
     put_env(:prelaunch_read_only, false)
     put_env(:autolaunch_robinhood_chain_id, @chain_id)
