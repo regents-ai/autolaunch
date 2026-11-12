@@ -1,5 +1,11 @@
 # Changelog
 
+## 12 November 2026: Repairs
+- A paired agent can now save a picture of up to 2 MB on its person's draft, as the agent guide says. Before, a save with any real picture was refused as too large.
+- An ended Robinhood auction's opening and closing dates stay the same on every visit. Before, they could shift by a little each time the site read the auction.
+- On an auction's share picture and video, the larger figure is now labelled FDV, which is what it is: the price times the whole supply. Price beside it is still the clearing price for one token.
+- Check on an auction's bid lookup, Read again on a token's pool and Refresh on the REGENT Fees page each read the chain up to 30 times a minute for one visitor. Past that, the page stays as it is until the minute is up. Bidding, swapping and every other wallet button are not counted.
+
 ## 12 November 2026: Account
 - Disconnecting an X or GitHub account now asks first, in the site's own window, with Cancel ready first. Nothing changes until you press Disconnect there.
 - In the Pair New Agent window, the list of agents drops in and fades out with a short move. A press during the move still counts, and with reduced motion the list opens and closes at once.
