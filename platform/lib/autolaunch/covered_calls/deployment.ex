@@ -25,7 +25,7 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   alias RegentChain.Address
 
   @market_keys ~w(contract feed stock symbol)
-  @issuer "Coinbase"
+  @issuer Autolaunch.Stocks.Assets.issuer(:base)
   @chain "Base"
 
   @type market :: %{

@@ -44,11 +44,21 @@ defmodule AutolaunchWeb.StockListingTest do
 
     for path <- links do
       assert sitemap =~ path
-      assert conn |> get(path) |> html_response(200) =~ "Onchain token address"
+      assert conn |> get(path) |> html_response(200) =~ "Chainlink feed address"
     end
 
     # The list carries the stocks, not their details.
-    refute listing =~ "Onchain token address"
+    refute listing =~ "Chainlink feed address"
+  end
+
+  test "a stock's page gives its token's own address, whole, to open and copy", %{conn: conn} do
+    for %{"token_address" => address} = stock when is_binary(address) <-
+          UpcomingCatalog.stocks() do
+      {:ok, view, _html} = live(conn, "/stocks/#{stock["symbol"]}")
+
+      assert view |> element("#stock-token-full") |> render() =~ address
+      assert has_element?(view, "#stock-token-copy")
+    end
   end
 
   test "a symbol is read in any case, and one the listing does not hold is not found",

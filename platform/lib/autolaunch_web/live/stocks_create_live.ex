@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.Actors.Human
   alias Autolaunch.{AgentDrafts, ImageColor, LaunchChain, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, LaunchDraftImageStorage}
-  alias AutolaunchWeb.Components.{AutolaunchHelpers, MarketCard, StockSelect}
+  alias AutolaunchWeb.Components.{AutolaunchHelpers, MarketCard, StockIdentity, StockSelect}
   alias AutolaunchWeb.{DraftMarks, ReadFailure, UsdValue}
   alias AutolaunchWeb.Live.Session
   alias RegentChain.Address
@@ -381,6 +381,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
                   id="stocks-terms-stock_address"
                   name="stock_draft[stock_address]"
                   value={@draft_values["stock_address"]}
+                  chain={@launch_chain}
                   stocks={@stocks}
                   sort={@stock_sort}
                   sort_event="sort_stocks"
@@ -526,7 +527,17 @@ defmodule AutolaunchWeb.StocksCreateLive do
               {MarketCard.money(@opening.fdv, @opening.rate, @stock && @stock.symbol) ||
                 "Choose a stock"}
             </:row>
-            <:row label="Paired stock">{if @stock, do: @stock.symbol, else: "Choose one"}</:row>
+            <:row label="Paired stock">
+              <span :if={@stock}>
+                {@stock.symbol}
+                <StockIdentity.stock_identity
+                  id="memestock-summary-stock"
+                  chain={@launch_chain}
+                  address={@stock.address}
+                />
+              </span>
+              <span :if={!@stock}>Choose one</span>
+            </:row>
             <:row label="Creator share">0.5%</:row>
           </.summary_card>
 
@@ -630,7 +641,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
           minimum={minimum_raise(@stock)}
           chosen={[
             {"Chain", LaunchChain.label(@launch_chain)},
-            {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
+            {"Paired stock",
+             if(@stock,
+               do: "#{@stock.symbol} · #{StockIdentity.words(@launch_chain)}",
+               else: "Choose a stock"
+             )}
           ]}
         />
       </section>
@@ -1046,7 +1061,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         placeholder={@placeholder}
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       >{@value}</textarea>
       <input
         :if={@kind == :text}
@@ -1059,7 +1074,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="400"
+        phx-debounce="blur"
       />
       <p :if={@hint} id={"#{@id}-hint"} class="create-page__hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>

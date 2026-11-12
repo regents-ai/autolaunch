@@ -78,9 +78,9 @@ defmodule Autolaunch.LaunchDraft.Validations.PartialFields do
   defp hidden?(_field, _value), do: false
 
   defp too_long(field, limit) when field in @text_fields,
-    do: "Too long: up to #{limit} characters, and an emoji counts as several."
+    do: "Use #{limit} characters or fewer. An emoji counts as several."
 
-  defp too_long(_field, limit), do: "Too long: up to #{limit} characters."
+  defp too_long(_field, limit), do: "Use #{limit} characters or fewer."
 
   defp error(field, message), do: InvalidAttribute.exception(field: field, message: message)
 end

@@ -23,7 +23,7 @@
 
 .search-dialog__results { display: grid; align-content: start; gap: 20px; min-height: 0; padding: 12px 16px 16px; overflow-y: auto; overscroll-behavior: contain; }
 .search-dialog__chains, .search-dialog__recent { display: flex; flex-wrap: wrap; gap: 8px; }
-.search-dialog__chains button, .search-dialog__recent button { min-height: 2.75rem; padding: 0 12px; border-color: var(--hairline); border-radius: 999px; }
+.search-dialog__chains button, .search-dialog__recent button { --pill-h: 2.75rem; min-height: var(--pill-h); padding: 0 12px; border-color: var(--hairline); border-radius: calc(var(--pill-h) / 2); }
 .search-dialog__chains button:hover, .search-dialog__recent button:hover { color: var(--color-fg); }
 .search-dialog__chains button[aria-pressed="true"] { border-color: var(--color-fg); color: var(--color-fg); }
 

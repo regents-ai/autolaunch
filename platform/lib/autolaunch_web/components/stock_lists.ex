@@ -6,7 +6,8 @@ defmodule AutolaunchWeb.Components.StockLists do
 
   use Phoenix.Component
 
-  alias Autolaunch.CoveredCalls.{Deployment, Terms}
+  alias Autolaunch.CoveredCalls.Terms
+  alias AutolaunchWeb.Components.StockIdentity
   alias AutolaunchWeb.CoveredCallsFormat
 
   attr :book, :map,
@@ -18,8 +19,7 @@ defmodule AutolaunchWeb.Components.StockLists do
     assigns =
       assign(assigns,
         open: assigns.book.listings,
-        symbol: assigns.book.market.symbol,
-        stock: Deployment.identity(assigns.book.market)
+        symbol: assigns.book.market.symbol
       )
 
     ~H"""
@@ -44,7 +44,8 @@ defmodule AutolaunchWeb.Components.StockLists do
               <.link navigate={"/stock/covered-call?listing=#{listing.id}"} class="market-list__token">
                 <span class="market-list__label">
                   <span class="market-list__name">
-                    <strong>{@symbol} call · {@stock.issuer} · {@stock.chain}</strong>
+                    <strong>{@symbol} call</strong>
+                    <small>{StockIdentity.words(:base)}</small>
                     <small>Strike {CoveredCallsFormat.usd(listing.strike_per_token)}</small>
                   </span>
                 </span>

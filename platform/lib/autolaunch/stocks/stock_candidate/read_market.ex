@@ -45,8 +45,9 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   # A feed answers a signed number; from here up it is negative.
   @negative Integer.pow(2, 255)
 
-  # Whose stock tokens each chain's launchpad takes.
-  @issuers %{8453 => :coinbase, 4663 => :robinhood}
+  # The launch chain each candidate's chain id names. Its launchpad takes one
+  # issuer's stock tokens (`Autolaunch.Stocks.Assets.issuer/1`).
+  @chains %{8453 => :base, 4663 => :robinhood}
 
   # Where a beacon proxy keeps its beacon (EIP-1967), and the beacon every
   # Robinhood stock token runs behind.
@@ -186,13 +187,13 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   # The deepest pool whose token is the issuer's, or none. The pools arrive
   # deepest first, so each token is asked about once, at its deepest pool.
   defp issuers_pool(pools, candidate, head, opts) do
-    issuer = Map.fetch!(@issuers, candidate.chain_id)
+    chain = Map.fetch!(@chains, candidate.chain_id)
     symbol = symbol(candidate)
 
     pools
     |> Enum.uniq_by(& &1.token)
     |> Enum.reduce_while({:ok, nil}, fn pool, {:ok, nil} ->
-      case issuers?(issuer, pool.token, symbol, head, opts) do
+      case issuers?(chain, pool.token, symbol, head, opts) do
         {:ok, true} -> {:halt, {:ok, pool}}
         {:ok, false} -> {:cont, {:ok, nil}}
         {:error, reason} -> {:halt, {:error, reason}}
@@ -202,7 +203,7 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
 
   # Coinbase's share tokens sit at addresses of one form, so no other token
   # is asked anything.
-  defp issuers?(:coinbase, token, symbol, head, opts) do
+  defp issuers?(:base, token, symbol, head, opts) do
     if token =~ ~r/\A0xb20{20}[0-9a-f]{18}\z/,
       do: named?(token, symbol, head, opts),
       else: {:ok, false}
@@ -237,8 +238,8 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
 
   # A stock's symbol on its chain: Coinbase's carry a trailing `c`.
   defp symbol(%{chain_id: chain_id, ticker: ticker}) do
-    case Map.fetch!(@issuers, chain_id) do
-      :coinbase -> ticker <> "c"
+    case Map.fetch!(@chains, chain_id) do
+      :base -> ticker <> "c"
       :robinhood -> ticker
     end
   end

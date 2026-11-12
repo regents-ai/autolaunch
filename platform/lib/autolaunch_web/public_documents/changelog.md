@@ -8,6 +8,21 @@
 - On the portfolio a seller's amounts are kept apart: sold, premium paid, for sale, locked, exercised and to collect. To collect is only what the contract will send now.
 - The price beside a stock is labelled as a reference with its age, the suggested premium as a model, and the best live bid or listing on the same terms is shown with its size.
 
+## 12 November 2026: Forms
+- On both create pages, a field is checked when you leave it and when you send the form, not while you are typing.
+- A field that is too long now says how many characters to use.
+- On your Account page, an ENS name that cannot be connected says why under the name's own box, and the box is marked.
+- A button or field you reach with the keyboard shows a ring that follows its shape, and a field you cannot use yet is greyed.
+- On a phone, the tables on About and the agent guides show each row as a card, with every column's name above its value, instead of scrolling sideways.
+
+## 12 November 2026: Stock tokens
+- A stock token is now named by who issues it, the chain it is on and its own address, not by a ticker or a company's name alone. On Base they are Coinbase tokens; on Robinhood Chain, Robinhood tokens. They are tokens, not the company's shares.
+- Choosing a paired stock on the create page shows each token's own name, its issuer and chain, and its address, which you can copy or open on the chain's explorer. The link to the company's website is gone. The stock you chose shows the same way under the picker, in the summary and before you sign the launch.
+- The stock list names each token's issuer and chain, and a stock's own page gives its token's address with the copy and explorer buttons.
+- A Memestock token's page and its auction's page, on Base and on Robinhood Chain, list the paired stock with its issuer, chain and address among the launch's contracts.
+- The calls for sale on the home page say whose token the stock is and its chain, and a shared covered-calls link names the stock the same way.
+- The covered-calls guide for agents no longer mentions selling into a bid, which is not open yet. The launch-draft guide says a paired stock is set by its exact address.
+
 ## 12 November 2026: Product cards
 - The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
 - Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.

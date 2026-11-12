@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Lab
   alias Autolaunch.Stocks.LaunchActions
+  alias AutolaunchWeb.Components.StockIdentity
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, TokenDisplay}
   alias AutolaunchWeb.Live.Session
 
@@ -100,7 +101,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           <div>
             <dt>Auction currency</dt>
             <dd>
-              {@prepared.facts["stock_symbol"]}
+              {@prepared.facts["stock_symbol"]} · {StockIdentity.words(:base)}
               <Regent.Primitives.address
                 id={"#{@id}-stock"}
                 address={@prepared.facts["stock"]}

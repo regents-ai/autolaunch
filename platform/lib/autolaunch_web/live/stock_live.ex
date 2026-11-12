@@ -1,13 +1,15 @@
 defmodule AutolaunchWeb.StockLive do
   @moduledoc """
   One stock from the stock listing at `/stocks/<symbol>`: where it
-  stands for launches, its onchain token and Chainlink feed, its company and
+  stands for launches, its token with its issuer, chain and address
+  (`AutolaunchWeb.Components.StockIdentity`), its Chainlink feed, its company and
   market links, and its dated pool research, each pool with its venue,
   address and observed liquidity. A symbol the catalog does not hold is the
   site's 404.
   """
   use AutolaunchWeb, :live_view
 
+  import AutolaunchWeb.Components.StockIdentity, only: [stock_identity: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
   alias Autolaunch.Stocks.UpcomingCatalog
@@ -46,7 +48,16 @@ defmodule AutolaunchWeb.StockLive do
         <span>Sell calls on your {@stock["symbol"]} for a premium, or buy them.</span>
       </p>
       <dl class="upcoming-details__facts">
-        <.address label="Onchain token address" value={@stock["token_address"]} id="token" />
+        <dt>Token</dt>
+        <dd>
+          <.stock_identity
+            :if={@stock["token_address"]}
+            id="stock-token"
+            chain={@chain.chain}
+            address={@stock["token_address"]}
+          />
+          <span :if={!@stock["token_address"]}>Not verified</span>
+        </dd>
         <.address label="Chainlink feed address" value={@stock["feed_address"]} id="feed" />
         <dt>Feed verification</dt><dd>{feed_note(@stock)}</dd>
         <dt>Company URL</dt>

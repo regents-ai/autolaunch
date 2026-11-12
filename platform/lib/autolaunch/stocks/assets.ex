@@ -28,9 +28,18 @@ defmodule Autolaunch.Stocks.Assets do
 
   @base_chain_id 8453
   @cache :autolaunch_stock_list
+  @issuers [base: "Coinbase", robinhood: "Robinhood"]
 
   @doc "The cache each chain's saved stocks are kept in."
   def cache, do: @cache
+
+  @doc """
+  Whose stock tokens a launch chain's launchpad takes: every stock token on
+  Base is Coinbase's and every one on Robinhood Chain is Robinhood's. The one
+  place the site names a stock token's issuer.
+  """
+  @spec issuer(:base | :robinhood) :: String.t()
+  def issuer(chain), do: Keyword.fetch!(@issuers, chain)
 
   @doc "The chain id a draft's stock currency lives on, for each launch chain."
   def chain_id(:base), do: @base_chain_id
