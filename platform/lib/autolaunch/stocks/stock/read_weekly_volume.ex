@@ -11,9 +11,10 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   can reorder while it is read, so only a list that ends on its first page is
   known whole; a longer read counts the pools it saw and is stored as a floor.
 
-  A read that finds no dollar pool or no trade in the week, or any answer that
-  is refused or not in the expected shape, fails the action and stores
-  nothing; the trigger's next run tries again. Each read is bounded
+  A stock with no dollar pool, or no trade in its pools all week, traded
+  nothing there: its volume is stored as zero and it is read again the next
+  day. Any answer that is refused or not in the expected shape fails the
+  action and stores nothing; the trigger's next run tries again. Each read is bounded
   (`Autolaunch.Stocks.GeckoTerminal`), and one still going after the trigger's
   fifteen minutes is stopped and stores nothing.
   """
@@ -54,12 +55,8 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
              pools,
              {:ok, Decimal.new(0)},
              &add_pool(&1, &2, network, first, through)
-           ),
-         usd = Decimal.round(sum, 2),
-         # Pools that answer with no trade all week, or with less than half a
-         # cent, give no figure, not $0.00.
-         true <- Decimal.gt?(usd, 0) || {:error, :no_trade_in_week} do
-      {:ok, usd, complete?}
+           ) do
+      {:ok, Decimal.round(sum, 2), complete?}
     end
   end
 
@@ -85,9 +82,6 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
         error
     end
   end
-
-  # No dollar pool listed means no figure, not a week without trades.
-  defp listed([], _complete?), do: {:error, :no_dollar_pool}
 
   defp listed(pools, complete?),
     do: {:ok, Enum.uniq_by(pools, &get_in(&1, ["attributes", "address"])), complete?}

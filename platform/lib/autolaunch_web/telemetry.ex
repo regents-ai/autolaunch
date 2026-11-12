@@ -23,8 +23,10 @@ defmodule AutolaunchWeb.Telemetry do
       stop rising while its lag keeps its last value.
     * `[:autolaunch, :jobs, :oldest_unfinished]` — `age_ms` of the oldest
       available, running or retrying background job in each running `queue`,
-      0 when there is none, every ten seconds while background jobs run. A
-      paused queue keeps its jobs waiting on purpose, so it is not measured.
+      counted from when the job was due to run (its scheduled time, which a
+      retry moves to the next attempt), 0 when there is none or none is due
+      yet, every ten seconds while background jobs run. A paused queue keeps
+      its jobs waiting on purpose, so it is not measured.
     * `[:autolaunch, :rpc, :failure]` — `count` 1 for each chain request that
       got no answer, by `method`, `class`, `chain_id` and `scope`.
     * `[:autolaunch, :repo, :query]` — Ecto's own event per query, whose
@@ -414,7 +416,7 @@ defmodule AutolaunchWeb.Telemetry do
       from(j in Oban.Job,
         where: j.state in ["available", "executing", "retryable"],
         group_by: j.queue,
-        select: {j.queue, min(j.inserted_at)}
+        select: {j.queue, min(j.scheduled_at)}
       )
       # Oban's job table has no Ash resource; this only reads it.
       |> Autolaunch.Repo.all(prefix: prefix)
@@ -426,7 +428,8 @@ defmodule AutolaunchWeb.Telemetry do
       age_ms =
         case oldest[queue] do
           nil -> 0
-          inserted_at -> DateTime.diff(now, inserted_at, :millisecond)
+          # A job waiting for its next attempt is due later than now.
+          due_at -> max(DateTime.diff(now, due_at, :millisecond), 0)
         end
 
       :telemetry.execute([:autolaunch, :jobs, :oldest_unfinished], %{age_ms: age_ms}, %{

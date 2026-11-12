@@ -13,7 +13,9 @@ defmodule AutolaunchWeb.Components.TokenLinks do
   def chart, do: "https://dexscreener.com/base/#{RegentFacts.pool()}"
 
   # Both destinations are public Base mainnet. On a local-fork site they are
-  # named as such, because nothing they sell or show is the fork's REGENT.
+  # named as such, because nothing they sell or show is the fork's REGENT. The
+  # links carry their own ids: the top bar's REGENT menu, on the same page,
+  # already uses regent-buy and regent-chart.
   def regent_market_links(assigns) do
     assigns = assign(assigns, :local_lab?, Lab.test_chain?())
 
@@ -22,7 +24,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
       <a
         class="rg-button rg-button--secondary"
         href={buy()}
-        id="regent-buy"
+        id="regent-market-buy"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -31,7 +33,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
       <a
         class="rg-button rg-button--secondary"
         href={chart()}
-        id="regent-chart"
+        id="regent-market-chart"
         target="_blank"
         rel="noopener noreferrer"
       >
