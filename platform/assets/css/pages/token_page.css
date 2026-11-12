@@ -15,7 +15,9 @@
 .token-page__reading { min-height: 100svh; }
 @container shell-page (min-width: 60rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(21rem, 24rem); grid-template-areas: "overview side" "details side"; }
-  .token-page__side { position: sticky; top: var(--space-4); }
+  /* In a window too short to hold them, they scroll with the page instead,
+     so their lower part is never out of reach. */
+  @media (min-height: 56rem) { .token-page__side { position: sticky; top: var(--space-4); } }
 }
 
 /* The price, large, with its move since the pool opened, and the price in
