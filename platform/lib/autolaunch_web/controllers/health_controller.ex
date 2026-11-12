@@ -1,15 +1,19 @@
 defmodule AutolaunchWeb.HealthController do
   @moduledoc """
   Whether the site and its own database answer: `/healthz` in plain text for the
-  host's health check, `/api/v1/health` in JSON for the command line.
+  host's health check, `/api/v1/health` in JSON for the command line. The JSON
+  also says whether this release's migrations are all applied; pending ones
+  leave the answer at 200, so the host does not restart a site that is serving.
   """
   use AutolaunchWeb, :controller
+
+  alias Autolaunch.Health
 
   # A ready site names the commit it was built from, so a release check can see
   # which build is answering.
   def show(conn, _params) do
     {status, body} =
-      if database_ready?(),
+      if Health.database_ready?(),
         do: {:ok, "ok " <> Application.fetch_env!(:autolaunch, :source_commit)},
         else: {:service_unavailable, "unavailable"}
 
@@ -22,8 +26,8 @@ defmodule AutolaunchWeb.HealthController do
   def status(conn, _params) do
     conn = put_resp_header(conn, "cache-control", "no-store")
 
-    if database_ready?() do
-      json(conn, %{status: "ok"})
+    if Health.database_ready?() do
+      json(conn, %{status: "ok", migrations_applied: Health.migrations_applied?()})
     else
       conn
       |> put_status(:service_unavailable)
@@ -35,29 +39,5 @@ defmodule AutolaunchWeb.HealthController do
         }
       })
     end
-  end
-
-  # Validate a real product read without returning user rows. The timeout is
-  # below Fly's two-second health deadline, and no error/connection data leaves
-  # this endpoint. A running BEAM alone does not make the application ready.
-  # The prefix is the repository's own configured schema name, never request input.
-  # sobelow_skip ["SQL.Query"]
-  defp database_ready? do
-    case Ecto.Adapters.SQL.query(
-           Autolaunch.Repo,
-           "SELECT 1 FROM \"#{Autolaunch.Repo.default_prefix()}\".auctions LIMIT 0",
-           [],
-           timeout: 1_000,
-           log: false
-         ) do
-      {:ok, _result} -> true
-      {:error, _error} -> false
-    end
-  rescue
-    # A repository that is not running raises or exits instead of answering;
-    # the check still answers that the site is not ready.
-    _error -> false
-  catch
-    :exit, _reason -> false
   end
 end
