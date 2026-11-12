@@ -1,5 +1,5 @@
 {
-  "total": 217,
+  "total": 218,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2823,6 +2823,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
+    },
+    {
+      "id": 264,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_auction_retry_test.exs",
+      "line": 51,
+      "test_name": "an auction whose window was never read opens while Robinhood's clock is known",
+      "keep_because": "Review of the money-path fixes (12 Nov 2026): a Robinhood auction page drew its bid timeline from the auction's start and end blocks, and for an auction whose window was not read yet it crashed as soon as the site knew Robinhood's clock; two tests had cleared the clock to avoid it. The page opens and leaves the timeline out until the window is read. It fails if the page crashes or draws a timeline with no window.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a3999519f35b72d94367a860b758699429feb4e5730c501dface5eef7eeb3061"
     }
   ],
   "legacy_folders_to_remove": [
