@@ -16,8 +16,7 @@ defmodule Autolaunch.LaunchDraft.Validations.PartialFields do
     other_link_2: 256,
     other_link_3: 256,
     image: 256,
-    treasury: 42,
-    eoa_acknowledgement: 512
+    treasury: 42
   }
 
   # The creator's own words and links. The treasury fields keep their own

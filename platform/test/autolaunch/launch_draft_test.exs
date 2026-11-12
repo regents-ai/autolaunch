@@ -31,16 +31,11 @@ defmodule Autolaunch.LaunchDraftTest do
     assert {:ok, treasury_partial} =
              Autolaunch.autosave_launch_treasury(
                token_partial,
-               %{
-                 "treasury" => "0x123",
-                 "treasury_path" => "eoa",
-                 "eoa_acknowledgement" => "typing"
-               },
+               %{"treasury" => "0x123"},
                actor: actor
              )
 
     assert treasury_partial.treasury == "0x123"
-    assert treasury_partial.eoa_acknowledgement == "typing"
     refute LaunchDraft.treasury_complete?(treasury_partial)
 
     assert {:error, %Ash.Error.Forbidden{}} =

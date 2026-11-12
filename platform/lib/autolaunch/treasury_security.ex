@@ -60,15 +60,15 @@ defmodule Autolaunch.TreasurySecurity do
     end)
   end
 
-  @doc "A fresh report may replace the bound row only when every security fact is unchanged."
-  def revalidate_bound(report, requirement \\ :verified)
-
-  def revalidate_bound(%TreasurySecurityReport{} = bound, requirement) do
-    with :ok <- bound_allowed(bound, requirement),
-         true <-
+  @doc """
+  A verified report observed again now: the fresh report may replace the
+  bound row only when it still verifies and every security fact is unchanged.
+  """
+  def revalidate_bound(%TreasurySecurityReport{verification_state: :verified} = bound) do
+    with true <-
            TreasuryChainClient.canonical?(bound.source_block_number, bound.source_block_hash),
          {:ok, fresh} <- observe(bound.address, evidence_hashes(bound), %System{}),
-         :ok <- same_security_state(bound, fresh, requirement) do
+         :ok <- same_security_state(bound, fresh) do
       {:ok, fresh}
     else
       false -> {:error, :treasury_source_reorged}
@@ -76,7 +76,8 @@ defmodule Autolaunch.TreasurySecurity do
     end
   end
 
-  def revalidate_bound(_report, _requirement), do: {:error, :treasury_report_missing}
+  def revalidate_bound(%TreasurySecurityReport{}), do: {:error, :treasury_not_verified}
+  def revalidate_bound(_report), do: {:error, :treasury_report_missing}
 
   def fingerprint(address, observation) do
     canonical = [
@@ -486,15 +487,8 @@ defmodule Autolaunch.TreasurySecurity do
   defp authorized_actor(%System{}), do: :ok
   defp authorized_actor(_actor), do: {:error, :authentication_required}
 
-  defp bound_allowed(%{verification_state: :verified}, :verified), do: :ok
-  defp bound_allowed(_report, :verified), do: {:error, :treasury_not_verified}
-  defp bound_allowed(_report, :observed), do: :ok
-  defp bound_allowed(_report, _requirement), do: {:error, :treasury_requirement_invalid}
-
-  defp same_security_state(bound, fresh, requirement) do
-    verified? = requirement == :observed or fresh.verification_state == :verified
-
-    if verified? and fresh.classification == bound.classification and
+  defp same_security_state(bound, fresh) do
+    if fresh.verification_state == :verified and fresh.classification == bound.classification and
          fresh.configuration_fingerprint == bound.configuration_fingerprint do
       :ok
     else
