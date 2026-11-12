@@ -160,7 +160,7 @@ ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all", "--i
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
 
-scratch_roots = (b"reports/generated/", b"cache/", b"cache-fork/", b"out/", b"out-fork/", b"artifacts/", b"broadcast/")
+scratch_roots = (b"reports/generated/", b"cache/", b"out/", b"artifacts/", b"broadcast/")
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
     if not path:

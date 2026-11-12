@@ -5,16 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {StocksBindings} from "../../src/StocksBindings.sol";
-import {FixtureStockToken} from "../../src/fixtures/FixtureStockToken.sol";
 import {AerodromeStockRouteV2} from "../../src/routes/AerodromeStockRouteV2.sol";
 
-/// @notice The production route against Base itself: every admitted pool and feed binds, a real
-///         swap through the live AAPLc pool lands near the feed quote, and a purchase beyond the
-///         pool's depth is refused by a 95%-of-quote minimum and executed at a zero minimum. Runs
-///         only on a fork of Base mainnet (`--fork-url` to a Base RPC); the lab fork skips it.
-/// @dev The `0xb2…` stock tokens are `0xef` precompiles the EVM cannot run, so this suite installs
-///      `FixtureStockToken` at the stock address and refills the pool's stock balance. Pool
-///      liquidity, prices and USDC are real; the stock token's transfer policy is not exercised.
+/// @notice The production route on a copy of Base mainnet (the `base` profile): every admitted pool
+///         and feed binds, a real swap through the live AAPLc pool lands near the feed quote, and a
+///         purchase beyond the pool's depth is refused by a 95%-of-quote minimum and executed at a
+///         zero minimum. Pool liquidity, prices, USDC and the `0xb2…` stock tokens are the real
+///         ones: Foundry's Base network runs the tokens' `0xef` code.
 contract AerodromeStockRouteForkTest is Test {
     uint256 internal constant BASE_CHAIN_ID = 8453;
 
@@ -24,14 +21,13 @@ contract AerodromeStockRouteForkTest is Test {
 
     address internal alice = makeAddr("alice");
 
-    function setUp() public {
-        vm.skip(block.chainid != BASE_CHAIN_ID);
+    function setUp() public view {
+        assertEq(block.chainid, BASE_CHAIN_ID, "a copy of Base mainnet");
     }
 
     function test_every_admitted_pool_and_feed_binds_and_quotes() public {
         (address[10] memory stocks, address[10] memory pools, address[10] memory feeds) = _admitted();
         for (uint256 i = 0; i < 10; ++i) {
-            _installFixtureToken(stocks[i]);
             AerodromeStockRouteV2 route = new AerodromeStockRouteV2(stocks[i], pools[i], feeds[i]);
             assertEq(route.stockUnit(), 1e8);
             assertEq(route.feedUnit(), 1e8);
@@ -42,12 +38,14 @@ contract AerodromeStockRouteForkTest is Test {
         }
     }
 
+    /// @dev A hundred dollars: on 12 November 2026 a thousand bought 27% fewer shares than the feed
+    ///      quotes, because the live AAPLc pool holds little depth near its price.
     function test_live_swap_usdc_to_stock_lands_near_the_feed_quote() public {
         AerodromeStockRouteV2 route = _aaplRoute();
-        deal(StocksBindings.USDC, address(route), 1_000e6);
+        deal(StocksBindings.USDC, address(route), 100e6);
 
-        uint256 quoted = route.quoteExactIn(StocksBindings.USDC, AAPLC, 1_000e6);
-        uint256 amountOut = route.swapExactIn(StocksBindings.USDC, AAPLC, 1_000e6, 0, alice);
+        uint256 quoted = route.quoteExactIn(StocksBindings.USDC, AAPLC, 100e6);
+        uint256 amountOut = route.swapExactIn(StocksBindings.USDC, AAPLC, 100e6, 0, alice);
 
         assertEq(IERC20(AAPLC).balanceOf(alice), amountOut);
         assertApproxEqRel(amountOut, quoted, 0.01e18, "pool price off the feed by over 1%");
@@ -57,10 +55,12 @@ contract AerodromeStockRouteForkTest is Test {
 
     function test_live_swap_stock_to_usdc_lands_near_the_feed_quote() public {
         AerodromeStockRouteV2 route = _aaplRoute();
-        FixtureStockToken(AAPLC).mint(address(route), 1e8);
+        // A tenth of a share out of the pool's own balance; the swap pays it straight back in.
+        vm.prank(AAPLC_POOL);
+        IERC20(AAPLC).transfer(address(route), 1e7);
 
-        uint256 quoted = route.quoteExactIn(AAPLC, StocksBindings.USDC, 1e8);
-        uint256 amountOut = route.swapExactIn(AAPLC, StocksBindings.USDC, 1e8, 0, alice);
+        uint256 quoted = route.quoteExactIn(AAPLC, StocksBindings.USDC, 1e7);
+        uint256 amountOut = route.swapExactIn(AAPLC, StocksBindings.USDC, 1e7, 0, alice);
 
         assertEq(IERC20(StocksBindings.USDC).balanceOf(alice), amountOut);
         assertApproxEqRel(amountOut, quoted, 0.01e18, "pool price off the feed by over 1%");
@@ -95,14 +95,7 @@ contract AerodromeStockRouteForkTest is Test {
     }
 
     function _aaplRoute() internal returns (AerodromeStockRouteV2 route) {
-        _installFixtureToken(AAPLC);
         route = new AerodromeStockRouteV2(AAPLC, AAPLC_POOL, AAPLC_FEED);
-        // The pool's real stock balance vanished with the precompile; give it depth to pay out of.
-        FixtureStockToken(AAPLC).mint(AAPLC_POOL, 1_000_000e8);
-    }
-
-    function _installFixtureToken(address stock) internal {
-        vm.etch(stock, type(FixtureStockToken).runtimeCode);
     }
 
     function _assertRouteEmpty(AerodromeStockRouteV2 route) internal view {

@@ -19,9 +19,9 @@ offline = true
 ffi = false
 fs_permissions = []
 
-# `test/fork/` runs only under the `fork` profile against the local Base-fork lab, and
+# `test/base/` runs only under the `base` profile against a copy of Base mainnet, and
 # `test/sepolia/` only under the `sepolia` profile against the public Base Sepolia endpoint.
-no_match_path = "test/{fork,sepolia}/**"
+no_match_path = "test/{base,sepolia}/**"
 
 [profile.default.fuzz]
 runs = 64
@@ -34,15 +34,19 @@ runs = 16
 depth = 32
 fail_on_revert = true
 
-# The local Base-fork lab suite. Anvil owns the fork; Forge is only ever pointed at the
-# controller-created loopback node (`--fork-url http://127.0.0.1:PORT`).
-[profile.fork]
-test = "test/fork"
-out = "out-fork"
-cache_path = "cache-fork"
-match_path = "test/fork/**"
+# Version 3 on a copy of Base mainnet, which runs 0.2 s blocks since Denim: the real pinned CCA
+# factory, Permit2, pool pieces, USDC, staking and Base stock tokens. A stock token's one-byte `0xef`
+# code runs only on Foundry's Base network (1.8.6 or later). Read-only: the fork is local to Forge
+# and nothing is sent to the chain.
+[profile.base]
+match_path = "test/base/**"
 # Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
 no_match_path = "none/**"
+offline = false
+network = "base"
+# The public Base endpoint exists only in this profile, so the required gate's configuration
+# resolves no endpoint. Forge forks it at the latest block before the suite starts.
+eth_rpc_url = "https://mainnet.base.org"
 
 # A version 3 launch on Base Sepolia, which already runs 0.2 s blocks, through the real pinned CCA
 # factory. Read-only: the fork is local to Forge and nothing is sent to the chain.

@@ -28,7 +28,7 @@
     "libs": [
       "lib"
     ],
-    "no_match_path": "test/{fork,sepolia}/**",
+    "no_match_path": "test/{base,sepolia}/**",
     "remappings": [
       "forge-std/=lib/forge-std/src/",
       "solady/=lib/solady/src/",

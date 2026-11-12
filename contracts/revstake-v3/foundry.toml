@@ -25,8 +25,9 @@ fs_permissions = []
 # call by default, which spends a deployer nonce per call and breaks the fixtures' address predictions.
 isolate = false
 
-# `test/sepolia/` runs only under the `sepolia` profile against the public Base Sepolia endpoint.
-no_match_path = "test/sepolia/**"
+# `test/base/` runs only under the `base` profile against a copy of Base mainnet, and
+# `test/sepolia/` only under the `sepolia` profile against the public Base Sepolia endpoint.
+no_match_path = "test/{base,sepolia}/**"
 
 # The fuzz and invariant portfolio contracts/v1 runs, unchanged.
 [profile.default.fuzz]
@@ -41,6 +42,19 @@ depth = 128
 fail_on_revert = true
 max_assume_rejects = 65536
 shrink_run_limit = 5000
+
+# Version 3 on a copy of Base mainnet, which runs 0.2 s blocks since Denim: the real pinned CCA
+# factory, Permit2, pool pieces, REGENT and version 2's deployed implementations. Read-only: the
+# fork is local to Forge and nothing is sent to the chain.
+[profile.base]
+match_path = "test/base/**"
+# Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
+no_match_path = "none/**"
+offline = false
+network = "base"
+# The public Base endpoint exists only in this profile, so the required gate's configuration
+# resolves no endpoint. Forge forks it at the latest block before the suite starts.
+eth_rpc_url = "https://mainnet.base.org"
 
 # A version 3 launch on Base Sepolia, which already runs 0.2 s blocks, through the real pinned CCA
 # factory. Read-only: the fork is local to Forge and nothing is sent to the chain.
