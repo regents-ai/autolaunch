@@ -453,7 +453,7 @@ defmodule AutolaunchWeb.AuctionLive do
         :if={@account_control.kind == :signed_in && @my_positions == [] && !@positions_unread}
         class="bid-empty"
       >
-        You placed no bids on this auction from the wallet you signed in with.
+        You placed no bids on this auction from your wallets.
       </p>
       <p :if={@account_control.kind == :signed_in && @positions_unread} class="bid-empty">
         Your bids could not be read just now. Reload the page to try again.
@@ -803,12 +803,13 @@ defmodule AutolaunchWeb.AuctionLive do
     end)
   end
 
-  # The signed-in wallet's own positions on this auction, for settlement once
-  # bidding has ended. A read that fails says so rather than showing no bids.
+  # The positions on this auction of every wallet the signed-in account links,
+  # for settlement once bidding has ended. A read that fails says so rather
+  # than showing no bids.
   defp assign_positions(%{assigns: %{access_context: context, record_id: id}} = socket) do
     with actor when not is_nil(actor) <- human_actor(context),
          {:ok, positions} <-
-           Autolaunch.list_wallet_bid_positions(signed_in_wallet(context), actor: actor) do
+           Autolaunch.list_wallet_bid_positions(linked_wallets(context), actor: actor) do
       assign(socket,
         my_positions: Enum.filter(positions, &(&1.auction_id == id)),
         positions_unread: false

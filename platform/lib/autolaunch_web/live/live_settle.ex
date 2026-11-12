@@ -1,7 +1,8 @@
 defmodule AutolaunchWeb.LiveSettle do
   @moduledoc """
-  A list page's own Claim, Withdraw and Refund buttons: the signed-in wallet's
-  ended Base bids with money or tokens to take, one for each auction
+  A list page's own Claim, Withdraw and Refund buttons: the ended Base bids of
+  every wallet the signed-in account links with money or tokens to take, one
+  for each auction
   (`settle`, by auction id, with the few words on each button in
   `settle_labels`), and the settlement card a press opens in the page's one
   dialog (`trade`, as `%{position: bid}`).
@@ -13,7 +14,7 @@ defmodule AutolaunchWeb.LiveSettle do
     * "open_settlement" opens the pressed auction's bid, and "close_trade"
       closes it;
     * the bids are read again with the page's next reread of its listings
-      after one of the wallet's bids is written (`Autolaunch.Bid.subscribe_wallet/1`) or
+      after one of those wallets' bids is written (`Autolaunch.Bid.subscribe_wallet/1`) or
       an auction it has a bid to settle in changes, and at once when the open
       card verifies a step.
 
@@ -24,13 +25,17 @@ defmodule AutolaunchWeb.LiveSettle do
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1]
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [human_actor: 1, signed_in_wallet: 1]
+    only: [human_actor: 1, linked_wallets: 1]
 
   alias AutolaunchWeb.{BidSettlementComponent, LiveListings}
 
   def watch(socket) do
-    wallet = signed_in_wallet(socket.assigns.access_context)
-    if wallet && connected?(socket), do: Autolaunch.Bid.subscribe_wallet(wallet)
+    if connected?(socket),
+      do:
+        Enum.each(
+          linked_wallets(socket.assigns.access_context),
+          &Autolaunch.Bid.subscribe_wallet/1
+        )
 
     socket
     |> assign(:settle, %{})
@@ -91,7 +96,7 @@ defmodule AutolaunchWeb.LiveSettle do
 
     with %{} = actor <- human_actor(context),
          {:ok, positions} <-
-           Autolaunch.list_wallet_bids_to_settle(signed_in_wallet(context), actor: actor) do
+           Autolaunch.list_wallet_bids_to_settle(linked_wallets(context), actor: actor) do
       settle = Map.new(Enum.reverse(positions), &{&1.auction_id, &1})
 
       socket
