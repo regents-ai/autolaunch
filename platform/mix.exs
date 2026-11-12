@@ -218,9 +218,9 @@ defmodule Autolaunch.MixProject do
         # its action accepts, and the endpoint naming the public documents its
         # agent-access plug serves. Two more stand as they are: the share video
         # request naming its room action, and the router naming the errors admin
-        # page. Nothing else is permitted. The ceiling is thirty-two
+        # page. Nothing else is permitted. The ceiling is thirty-four
         # domain-to-resource edges (Accounts six, Autolaunch twenty-four,
-        # CoveredCalls one, Exposure one), thirty-nine resource-to-check edges,
+        # CoveredCalls one, Exposure three), forty-one resource-to-check edges,
         # the two steps edges, the one endpoint edge and those two, and it is
         # re-based per unit when a domain, resource or check module lands.
         "xref graph --label compile-connected --fail-above 80",

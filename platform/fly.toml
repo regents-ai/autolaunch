@@ -23,9 +23,7 @@ kill_timeout = "60s"
   AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT = "/app/deployment/covered-calls.json"
   AUTOLAUNCH_EXPOSURE = "true"
   AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT = "/app/deployment/exposure.json"
-  # The After-hours price recorder; its wallet's key is the Fly secret
-  # AUTOLAUNCH_EXPOSURE_RECORDER_KEY.
-  AUTOLAUNCH_EXPOSURE_RECORDER_ON = "true"
+  # AUTOLAUNCH_EXPOSURE_RECORDER_ON = "true" is added once the recorder wallet's key is saved as the Fly secret AUTOLAUNCH_EXPOSURE_RECORDER_KEY.
   X_OAUTH_CLIENT_ID = "cEh6LVFpQTZTMW5saHhEQ3JzTnE6MTpjaQ"
 
 # The deployment descriptions the contracts ceremony writes. Each carries the
