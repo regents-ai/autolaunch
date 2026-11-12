@@ -21,11 +21,14 @@
 }
 
 /* The price, large, with its move since the pool opened, and the price in
-   the currency under it. */
-.token-figures { display: grid; gap: 6px; min-width: 0; }
+   the currency under it. The number is never broken: a price too long for its
+   row at full size is set smaller, by its count of characters, until it fits.
+   Only a ticker of unusually wide letters can still move to a second line. */
+.token-figures { display: grid; gap: 6px; min-width: 0; container-type: inline-size; }
 .token-figures p { margin: 0; }
 .token-figures__price { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
-.token-figures__price strong { font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3rem); font-weight: 400; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-figures__price strong { font-size: min(clamp(2.25rem, 1.6rem + 2.4vw, 3rem), calc(100cqi / (var(--figure-length, 12) * .58))); font-weight: 400; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.token-figures__price .figure__value { white-space: nowrap; }
 .token-figures__move { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: .9375rem; font-variant-numeric: tabular-nums; }
 .token-figures__move--up { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
 .token-figures__move--down { color: var(--color-error); background: color-mix(in srgb, var(--color-error) 12%, transparent); }

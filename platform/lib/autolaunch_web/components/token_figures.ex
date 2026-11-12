@@ -25,7 +25,14 @@ defmodule AutolaunchWeb.Components.TokenFigures do
   attr :pool, AsyncResult, required: true, doc: "the token's pool as the page reads it"
 
   def token_figures(assigns) do
-    assigns = assign(assigns, rate: dollar_rate(assigns.rate), move: direction(assigns.pool))
+    rate = dollar_rate(assigns.rate)
+
+    assigns =
+      assign(assigns,
+        rate: rate,
+        move: direction(assigns.pool),
+        length: MarketCard.price_length(assigns.price, assigns.unit, rate)
+      )
 
     ~H"""
     <div
@@ -35,7 +42,7 @@ defmodule AutolaunchWeb.Components.TokenFigures do
       data-variant={Motion.standard("grid")}
     >
       <p class="token-figures__price">
-        <strong>
+        <strong style={@length && "--figure-length: #{@length}"}>
           <MarketCard.price_figure amount={@price} unit={@unit} rate={@rate} />
           <span :if={!@price}>No price yet</span>
         </strong>

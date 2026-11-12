@@ -887,6 +887,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   @doc """
+  How many characters `price_figure/1` shows for a price, for a page that
+  sizes the figure to the room it has; nil while there is no price.
+  """
+  def price_length(amount, unit, rate) do
+    case decimal(amount) do
+      nil -> nil
+      price -> price |> money(rate, unit) |> String.length()
+    end
+  end
+
+  @doc """
   Reads the dollar prices the auction figures use into `:rates`, in the
   background: REGENT's price and each chain's stock prices. A test network's
   coins carry no dollar value, so its prices stay unknown.
