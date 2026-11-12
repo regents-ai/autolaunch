@@ -35,22 +35,31 @@ defmodule Autolaunch.LabPositions do
       else: {:ok, []}
   end
 
-  # A bid the node would not answer for ends the pass's bid reads there: the
-  # bids already read are still written, and the rest are read on the next
-  # pass, so one unanswered call never holds back the auction's own figures.
+  # A node that stops answering ends the pass's bid reads there: the bids
+  # already read are still written, and the rest are read on the next pass. A
+  # bid whose answer is bad is skipped and read again on the next pass, so it
+  # never holds back the bids after it. Neither holds back the auction's own
+  # figures.
   defp readings(abi, positions, auction_address, market, block, opts) do
     Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
       case chain_bid(abi, auction_address, position, block, opts) do
         {:ok, bid} ->
           {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
 
-        {:error, reason} ->
+        {:error, :chain_unavailable} ->
           Logger.warning(
-            "Bid #{position.bid_id} not read (#{inspect(reason)}); " <>
+            "Bid #{position.bid_id} not read (chain_unavailable); " <>
               "#{length(positions) - length(readings)} bids wait for the next pass"
           )
 
           {:halt, {:ok, readings}}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Bid #{position.bid_id} not read (#{inspect(reason)}); skipped until the next pass"
+          )
+
+          {:cont, {:ok, readings}}
       end
     end)
   end

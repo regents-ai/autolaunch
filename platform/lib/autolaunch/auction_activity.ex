@@ -619,10 +619,10 @@ defmodule Autolaunch.AuctionActivity do
   # The totals are written only by a pass that reached the head. A pass still
   # behind leaves them as stored: blank while a rebuild catches up (only
   # `invalidate/1` blanks them), unchanged when a caught-up auction has merely
-  # waited longer than one pass's range. A pass with no dollar rate keeps the
-  # dollar total it had.
+  # waited longer than one pass's range. A pass with no dollar rate blanks the
+  # dollar total, so no list shows a new total beside an old dollar figure.
   defp volume(_total, _rate, false), do: %{}
-  defp volume(total, nil, true), do: %{bid_volume: total}
+  defp volume(total, nil, true), do: %{bid_volume: total, bid_volume_usd: nil}
 
   defp volume(total, rate, true),
     do: %{bid_volume: total, bid_volume_usd: Decimal.mult(total, rate)}
