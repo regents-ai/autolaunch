@@ -46,7 +46,7 @@
 .stock-gallery__empty { margin: 0; padding: var(--space-3) var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; text-align: center; }
 .stock-gallery__empty[hidden] { display: none; }
 
-.stock-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-width: 0; }
+.stock-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .stock-card[hidden] { display: none; }
 .stock-card:hover, .stock-card:has(input:focus-visible) { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
 .stock-card:has(input:checked) { background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
@@ -55,8 +55,9 @@
 .stock-card__choice .stock-logo { grid-row: 1 / span 2; }
 .stock-card__names { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
 .stock-card__volume { grid-column: 2; color: var(--color-fg-muted); font-family: var(--font-family-ui); font-size: .6875rem; }
-.stock-card__site { padding: 0 var(--space-2); overflow: hidden; color: var(--color-fg-muted); font-size: .6875rem; text-overflow: ellipsis; white-space: nowrap; max-width: 9rem; }
-.stock-card__site:hover { color: var(--color-fg); }
+/* Under the names, in line with them: the logo's width and its gap. */
+.stock-card__identity { padding: 0 var(--space-2) 6px calc(1.625rem + 2 * var(--space-2)); font-size: .75rem; }
+.stock-select__chosen { padding: 0 var(--space-3); }
 /* Logos sit on a white chip so dark marks read in dark mode too. */
 .stock-logo { display: inline-grid; flex: none; place-items: center; width: 1.625rem; height: 1.625rem; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: #fff; color: #111; font-family: var(--font-family-ui); font-size: .5625rem; }
 .stock-logo img { width: 72%; height: 72%; object-fit: contain; }

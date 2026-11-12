@@ -114,6 +114,33 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert html =~ "Review launch"
   end
 
+  test "the picker gives every stock's own address, and the chosen stock's under the button",
+       %{conn: conn, account: account} do
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/create")
+
+    for address <- [@aapl, @amzn] do
+      assert view
+             |> element("#stocks-terms-stock_address-identity-#{address}-full")
+             |> render() =~ address
+    end
+
+    refute has_element?(view, "#stocks-terms-stock_address-chosen")
+
+    view
+    |> form("#stocks-terms", stock_draft: %{stock_address: @amzn})
+    |> render_change()
+
+    assert view |> element("#stocks-terms-stock_address-chosen-full") |> render() =~ @amzn
+    # The summary beside the form names the same token by the same address.
+    assert view |> element("#memestock-summary-stock-full") |> render() =~ @amzn
+  end
+
   # STOCK_LIST_UNREAD_SAYS_SO: a stock list the database could not give
   # crashed /create into the site's "Something went wrong" page.
   test "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again", %{

@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   it": the launching wallet and the accounts its creator proved they own,
   which says who they are and nothing about the project's merits. "The launch
   itself": its contracts, its launch type, how its supply is split and where
-  its liquidity stands. Liquidity reads as deposited only once the launch is
+  its liquidity stands; a Memestock launch's paired stock is named with its
+  issuer, chain and address. Liquidity reads as deposited only once the launch is
   recorded as launched, and as locked only once the pool has been read from
   the chain. Shown on auction pages on both chains (`launch_trust/1`); a
   token's page shows the same creator and the launch's contracts
@@ -17,7 +18,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   alias Autolaunch.{Lab, LaunchChain}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.LaunchActions
-  alias AutolaunchWeb.Components.MarketCard
+  alias AutolaunchWeb.Components.{MarketCard, StockIdentity}
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
 
@@ -67,6 +68,18 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
                 id={"launch-trust-contract-#{index}"}
                 address={address}
                 chain={@address_chain}
+              />
+            </dd>
+          </div>
+          <div :if={paired_stock?(@auction)}>
+            <dt>Paired stock</dt>
+            <dd>
+              {@auction.quote_token_symbol}
+              <StockIdentity.stock_identity
+                id="launch-trust-stock"
+                chain={chain(@auction)}
+                address={@auction.quote_token_address}
+                explorer={@address_chain}
               />
             </dd>
           </div>
@@ -128,6 +141,18 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
               address={address}
               chain={@address_chain}
             />
+          </li>
+          <li :if={paired_stock?(@auction)}>
+            <span class="token-facts__label">Paired stock</span>
+            <span>
+              {@auction.quote_token_symbol}
+              <StockIdentity.stock_identity
+                id="token-facts-stock"
+                chain={chain(@auction)}
+                address={@auction.quote_token_address}
+                explorer={@address_chain}
+              />
+            </span>
           </li>
           <li :if={@pool}>
             <span class="token-facts__label">Pool</span>
@@ -231,6 +256,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   end
 
   defp chain(auction), do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
+
+  # A Memestock launch names the stock token it is priced and paid in.
+  defp paired_stock?(%{kind: :stocks, quote_token_address: address}), do: is_binary(address)
+  defp paired_stock?(_auction), do: false
 
   # The chain `Regent.Primitives.address` opens the launch's addresses on; a local
   # test chain has no explorer.

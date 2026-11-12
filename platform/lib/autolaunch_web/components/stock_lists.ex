@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Components.StockLists do
   use Phoenix.Component
 
   alias Autolaunch.CoveredCalls.Terms
+  alias AutolaunchWeb.Components.StockIdentity
   alias AutolaunchWeb.CoveredCallsFormat
 
   attr :book, :map, required: true, doc: "a covered-call market's book, from `Book.read/1`"
@@ -39,6 +40,7 @@ defmodule AutolaunchWeb.Components.StockLists do
                 <span class="market-list__label">
                   <span class="market-list__name">
                     <strong>{@symbol} call</strong>
+                    <small>{StockIdentity.words(:base)}</small>
                     <small>Strike {CoveredCallsFormat.usd(listing.strike_per_token)}</small>
                   </span>
                 </span>

@@ -553,7 +553,7 @@
           "field": "stock_address",
           "type": "string",
           "required": false,
-          "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
+          "description": "The paired stock token's exact contract address on the draft's chain: a Coinbase stock token on Base, a Robinhood stock token on Robinhood Chain. A ticker or a company's name does not identify one; each stock's page under /stocks gives its address."
         },
         {
           "field": "image",

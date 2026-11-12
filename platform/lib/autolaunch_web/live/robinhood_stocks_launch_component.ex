@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
+  alias AutolaunchWeb.Components.StockIdentity
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, Paths}
   alias AutolaunchWeb.Live.Session
 
@@ -106,7 +107,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           <div>
             <dt>Auction currency</dt>
             <dd>
-              {@prepared.facts["stock_symbol"]}
+              {@prepared.facts["stock_symbol"]} · {StockIdentity.words(:robinhood)}
               <Regent.Primitives.address
                 id={"#{@id}-stock"}
                 address={@prepared.facts["stock"]}

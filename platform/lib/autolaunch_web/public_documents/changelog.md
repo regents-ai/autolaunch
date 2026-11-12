@@ -1,5 +1,13 @@
 # Changelog
 
+## 12 November 2026: Stock tokens
+- A stock token is now named by who issues it, the chain it is on and its own address, not by a ticker or a company's name alone. On Base they are Coinbase tokens; on Robinhood Chain, Robinhood tokens. They are tokens, not the company's shares.
+- Choosing a paired stock on the create page shows each token's own name, its issuer and chain, and its address, which you can copy or open on the chain's explorer. The link to the company's website is gone. The stock you chose shows the same way under the picker, in the summary and before you sign the launch.
+- The stock list names each token's issuer and chain, and a stock's own page gives its token's address with the copy and explorer buttons.
+- A Memestock token's page and its auction's page, on Base and on Robinhood Chain, list the paired stock with its issuer, chain and address among the launch's contracts.
+- The calls for sale on the home page say whose token the stock is and its chain, and a shared covered-calls link names the stock the same way.
+- The covered-calls guide for agents no longer mentions selling into a bid, which is not open yet. The launch-draft guide says a paired stock is set by its exact address.
+
 ## 12 November 2026: Product cards
 - The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
 - Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.

@@ -6,7 +6,8 @@
 .upcoming-column > h3 { display: flex; justify-content: space-between; gap: var(--space-2); margin: 0; padding: var(--space-1) var(--space-2); background: var(--chain-color); color: var(--chain-ink); font-size: 1rem; line-height: 1.4; }
 .upcoming-column__stocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--space-1); margin: 0; padding: var(--space-2); list-style: none; }
 .upcoming-stock { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 var(--space-1); min-width: 0; padding: var(--space-1); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-bg); }
-.upcoming-stock > .stock-logo { grid-row: span 2; }
+.upcoming-stock > .stock-logo { grid-row: span 3; }
+.upcoming-stock > .stock-identity { grid-column: 2; font-size: .75rem; }
 .upcoming-column__none { margin: 0; padding: var(--space-2); color: var(--color-fg-muted); font-size: .875rem; }
 @media (max-width: 42rem) {
   .upcoming__columns { grid-template-columns: minmax(0, 1fr); }

@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   """
   use Phoenix.Component
 
-  alias AutolaunchWeb.Components.ShareDialog
+  alias AutolaunchWeb.Components.{ShareDialog, StockIdentity}
   alias AutolaunchWeb.{ShareCard, ShareVideo}
 
   attr :id, :string, required: true
@@ -58,7 +58,7 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   # The post names the product and links its page, as the page's own details do.
   defp message(:covered_calls, symbol) do
     meta = ShareCard.market_meta(:covered_calls, symbol)
-    "#{meta.title} (Base): $#{symbol}. #{meta.url}"
+    "#{meta.title}: #{StockIdentity.sentence(:base, symbol)}. #{meta.url}"
   end
 
   defp message(:exposure, series) do

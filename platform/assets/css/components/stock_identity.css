@@ -1,0 +1,5 @@
+/* A stock token's identity: its issuer and chain, then its address where one is shown. */
+.stock-identity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); min-width: 0; max-width: 100%; color: var(--color-fg-muted); font-size: .8125rem; vertical-align: middle; }
+.stock-identity__words { min-width: 0; }
+/* In the create page's summary, figures sit at the right edge; so does this. */
+.create-card__rows .stock-identity { justify-content: flex-end; }

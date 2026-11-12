@@ -1,9 +1,11 @@
 defmodule AutolaunchWeb.Components.StockSelect do
   @moduledoc """
-  The paired stock as a dropdown: the chosen stock's logo, ticker and name on a
-  button, and under it every stock the chain offers as a row with its logo,
-  company website and past week's trading volume. Each row is a radio choice,
-  so the choice saves with the form it names like any other field.
+  The paired stock as a dropdown: the chosen stock's logo, ticker and token
+  name on a button, with its issuer, chain and address under it, and every
+  stock the chain offers as a row with its logo, its token's own name, its
+  past week's trading volume and its issuer, chain and address
+  (`AutolaunchWeb.Components.StockIdentity`). Each row is a radio choice, so
+  the choice saves with the form it names like any other field.
 
   Search narrows the rows in the browser as it is typed. Sorting is the
   page's: it puts the rows in order, so keyboard and screen-reader order
@@ -13,7 +15,8 @@ defmodule AutolaunchWeb.Components.StockSelect do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.{Assets, Companies}
+  alias Autolaunch.Stocks.Assets
+  alias AutolaunchWeb.Components.StockIdentity
   alias AutolaunchWeb.UsdValue
   alias Phoenix.LiveView.JS
   alias RegentChain.Address
@@ -40,6 +43,11 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :id, :string, required: true
   attr :name, :string, required: true
   attr :value, :string, default: ""
+
+  attr :chain, :atom,
+    required: true,
+    values: [:base, :robinhood],
+    doc: "the chain the stocks are on"
 
   attr :stocks, :any,
     required: true,
@@ -100,12 +108,19 @@ defmodule AutolaunchWeb.Components.StockSelect do
         <%= if @selected do %>
           <.stock_logo stock={@selected} />
           <span class="stock-select__symbol">{@selected.symbol}</span>
-          <span class="stock-select__name">{@selected.company}</span>
+          <span class="stock-select__name">{@selected.name}</span>
         <% else %>
           <span class="stock-select__placeholder">Choose a stock</span>
         <% end %>
         <Regent.Icons.icon name="chevron-down" class="stock-select__chevron" />
       </button>
+      <StockIdentity.stock_identity
+        :if={@selected}
+        id={"#{@id}-chosen"}
+        class="stock-select__chosen"
+        chain={@chain}
+        address={@selected.address}
+      />
       <div
         id={"#{@id}-list"}
         class="stock-select__list stock-gallery"
@@ -162,19 +177,16 @@ defmodule AutolaunchWeb.Components.StockSelect do
                 <.stock_logo stock={stock} />
                 <span class="stock-card__names">
                   <span class="stock-select__symbol">{stock.symbol}</span>
-                  <span class="stock-select__name">{stock.company}</span>
+                  <span class="stock-select__name">{stock.name}</span>
                 </span>
                 <span :if={stock.volume} class="stock-card__volume">{volume_line(stock.volume)}</span>
               </label>
-              <a
-                :if={stock.website}
-                class="stock-card__site"
-                href={stock.website}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {URI.parse(stock.website).host |> String.replace_prefix("www.", "")}
-              </a>
+              <StockIdentity.stock_identity
+                id={"#{@id}-identity-#{String.downcase(stock.address)}"}
+                class="stock-card__identity"
+                chain={@chain}
+                address={stock.address}
+              />
             </div>
           </fieldset>
           <p
@@ -234,18 +246,13 @@ defmodule AutolaunchWeb.Components.StockSelect do
   # a stock offered before the site kept that record has none and sorts after
   # those that do.
   defp card(stock) do
-    ticker = Assets.ticker(stock.symbol)
-    company = company(stock)
-
     %{
       address: stock.address,
       symbol: stock.symbol,
-      ticker: ticker,
-      company: company,
-      website: Companies.website(ticker),
+      name: stock.name,
       volume: weekly_volume(stock),
       added_at: stock.offered_at,
-      search: String.downcase("#{stock.symbol} #{company} #{stock.search_text}")
+      search: String.downcase("#{stock.search_text} #{stock.address}")
     }
   end
 
@@ -309,18 +316,6 @@ defmodule AutolaunchWeb.Components.StockSelect do
       <span :if={!@logo}>{String.slice(@ticker, 0, 2)}</span>
     </span>
     """
-  end
-
-  # The name a stock is shown under: its token's own name, less what is not the
-  # company's name: Robinhood's network, in every name it lists, and the
-  # company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
-  defp company(stock) do
-    stock.name
-    |> String.replace_suffix(" • Robinhood Token", "")
-    |> String.replace(
-      ~r/,? (Inc|Incorporated|Corp|Corporation|Ltd|Limited|PLC|plc|LLC|N\.V|S\.A|AG)\.?\z/,
-      ""
-    )
   end
 
   defp toggle(id) do

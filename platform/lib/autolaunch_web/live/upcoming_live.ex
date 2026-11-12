@@ -1,8 +1,8 @@
 defmodule AutolaunchWeb.UpcomingLive do
   @moduledoc """
-  Stocks on Base and Robinhood, as a short list: each stock links to its own
-  page (`AutolaunchWeb.StockLive`) with its addresses, links and dated pool
-  research. The established Available to Pair list is preserved; new research
+  Stocks on Base and Robinhood, as a short list: each stock token is named with
+  its issuer and chain and links to its own page (`AutolaunchWeb.StockLive`)
+  with its addresses, links and dated pool research. The established Available to Pair list is preserved; new research
   remains in its preview sections and never changes launchpad admission.
 
   Above the lists, the stock products as the home page's cards: Memestock and
@@ -11,6 +11,7 @@ defmodule AutolaunchWeb.UpcomingLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.HomeProducts, only: [product_cards: 1]
+  import AutolaunchWeb.Components.StockIdentity, only: [stock_identity: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
   alias Autolaunch.Stocks.UpcomingCatalog
@@ -101,6 +102,7 @@ defmodule AutolaunchWeb.UpcomingLive do
             <.stock_logo stock={%{symbol: stock["symbol"]}} />
             <span class="stock-select__symbol">{stock["symbol"]}</span>
             <span class="stock-select__name">{stock["name"]}</span>
+            <.stock_identity :if={stock["token_address"]} chain={@chain.chain} />
           </.link>
         </li>
       </ul>
