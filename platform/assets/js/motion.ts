@@ -17,7 +17,7 @@ import {splitText} from "animejs"
 import {deny, nope, squish} from "./hooks/motion/press"
 import {CASCADE, GRIDS, HEADLINES, onFirstSight} from "./hooks/motion/reveals"
 import {CLIPPED_WORD, byPointer, lastInputByPointer, still, watchInput} from "./hooks/motion/shared"
-import {backdrop, drawer, menu, sheet} from "./hooks/motion/slides"
+import {backdrop, drawer, list, menu, settle, sheet, unlist} from "./hooks/motion/slides"
 
 // A menu's summary is its button; other summaries open disclosures in the
 // page's own flow and stay still. The theme switch turns its own cube, and the
@@ -77,20 +77,43 @@ export function press(event: MouseEvent) {
   if (shade) backdrop(shade)
 }
 
-// A dialog rises as a sheet and a header menu pops open. A page that redraws
-// an open one closes and reopens it within one moment, which reports it as
-// having been open all along, so it does not move again.
+// A dialog rises as a sheet, a header menu pops open and a dropdown's list
+// drops in, and leaves again when it closes. A page that redraws an open one
+// closes and reopens it within one moment, which reports it as having been open
+// all along, so it does not move again.
 function toggle(event: Event) {
-  if (!(event instanceof ToggleEvent) || event.oldState !== "closed" || event.newState !== "open") return
+  if (!(event instanceof ToggleEvent) || !(event.target instanceof HTMLElement)) return
   const {target} = event
-  if (!(target instanceof HTMLElement) || !lastInputByPointer() || still(target)) return
-
-  if (target instanceof HTMLDialogElement) sheet(target)
-  if (target instanceof HTMLDetailsElement) {
-    const panel = target.querySelector(":scope > [data-panel='menu']")
-    if (panel) menu(panel)
+  const moves = lastInputByPointer() && !still(target)
+  if (event.newState === "closed") {
+    if (moves) close(target)
+    return
   }
+  if (event.oldState !== "closed") return
+
+  if (moves) open(target)
+  else openStill(target)
 }
+
+function open(target: HTMLElement) {
+  if (target instanceof HTMLDialogElement) return sheet(target)
+  const panel = detailsPanel(target)
+  if (panel?.dataset.panel === "menu") return menu(panel)
+  if (panel?.dataset.panel === "list") return list(panel)
+}
+
+function openStill(target: HTMLElement) {
+  const panel = detailsPanel(target)
+  if (panel?.dataset.panel === "list") settle(panel)
+}
+
+function close(target: HTMLElement) {
+  const panel = detailsPanel(target)
+  if (panel?.dataset.panel === "list") unlist(panel)
+}
+
+const detailsPanel = (target: HTMLElement) =>
+  target instanceof HTMLDetailsElement ? target.querySelector<HTMLElement>(":scope > [data-panel]") : null
 
 // The words are joined back into plain text once they have risen.
 function rise(headline: HTMLElement) {
