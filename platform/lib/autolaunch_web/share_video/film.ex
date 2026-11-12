@@ -270,11 +270,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
             @field
           ),
       labels: %{
-        auction: [
-          text!("Clearing price", 26, @muted),
-          text!("Price", 26, @muted)
-        ],
-        trading: [text!("FDV", 26, @muted), text!("Price", 26, @muted)],
+        market: [text!("FDV", 26, @muted), text!("Price", 26, @muted)],
         staked: [text!("Staked", 26, @muted), text!("Earned", 26, @muted)]
       }
     }
@@ -460,7 +456,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         stake_layers(film, staked?) ++
         [box_text(tag_box, tag)] ++
         if(earned_box, do: [box_text(earned_box, earned_tag)], else: []) ++
-        stat_layers(film, price, earned, graduated?, staked?, index) ++
+        stat_layers(film, price, earned, staked?, index) ++
         countdown_layers(film, tip)
 
     flat(still, layers)
@@ -895,30 +891,27 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   end
 
   # The card's two figures as the line stands: a stake's own figures in
-  # gold, the FDV and price once trading, and through an auction its clearing
-  # price and price per token.
-  defp stat_layers(film, price, earned, graduated?, staked?, index) do
+  # gold, and otherwise the FDV and the price per token: the clearing price
+  # through an auction, the pool's once trading.
+  defp stat_layers(film, price, earned, staked?, index) do
     story = film.story
-    fdv = money(story, price * story.supply)
 
     rows =
-      cond do
-        staked? ->
-          counted = film.stake.staked * min((index - film.stake_frame) / 18, 1.0)
-          [staked, earned_label] = film.words.labels.staked
+      if staked? do
+        counted = film.stake.staked * min((index - film.stake_frame) / 18, 1.0)
+        [staked, earned_label] = film.words.labels.staked
 
-          [
-            {staked, "#{amount(counted)} #{story.token_symbol}", @gold},
-            {earned_label, "#{amount(earned)} #{story.earn_symbol}", @gold}
-          ]
+        [
+          {staked, "#{amount(counted)} #{story.token_symbol}", @gold},
+          {earned_label, "#{amount(earned)} #{story.earn_symbol}", @gold}
+        ]
+      else
+        [fdv_label, price_label] = film.words.labels.market
 
-        graduated? ->
-          [fdv_label, price_label] = film.words.labels.trading
-          [{fdv_label, fdv, @platinum}, {price_label, money(story, price), @platinum}]
-
-        true ->
-          [clearing, price_label] = film.words.labels.auction
-          [{clearing, fdv, @platinum}, {price_label, money(story, price), @platinum}]
+        [
+          {fdv_label, money(story, price * story.supply), @platinum},
+          {price_label, money(story, price), @platinum}
+        ]
       end
 
     rows
