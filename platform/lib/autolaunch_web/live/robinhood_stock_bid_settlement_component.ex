@@ -261,6 +261,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       id={@id}
       class="bid-settlement-row"
       phx-hook="OnchainSteps"
+      data-onchain-prepare
     >
       <p class="launch-wallet-settled" role="status" hidden={!@returned}>
         {copy(:failed_bid_returned)}
@@ -398,6 +399,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_event("onchain_active_wallet", params, socket),
     do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> offer()}
 
+  # A press made before the row has read its review: the settlement is
+  # prepared now for the wallet that pressed, and its first step handed back to
+  # send, as the Base card does.
+  def handle_event("prepare_and_send", %{"form" => _no_inputs}, socket) do
+    case prepared_now(socket) do
+      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
+        {:reply, %{review: review, send: first}, socket}
+
+      {:error, socket} ->
+        {:reply, %{}, socket}
+    end
+  end
+
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -484,6 +498,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       held?(assigns) -> socket
       assigns.prepared_for in [key, {:refused, key}] -> socket
       true -> start_prepare(socket, key)
+    end
+  end
+
+  defp prepared_now(%{assigns: %{review: %{}}} = socket), do: {:ok, socket}
+
+  defp prepared_now(socket) do
+    case settle_key(socket.assigns) do
+      nil ->
+        {:error, socket}
+
+      {signer, _bid_id, _exited, _filled} = key ->
+        request = request(socket.assigns)
+        result = StockBidSettlementActions.prepare(request, signer, OnchainSteps.opts(socket))
+        socket = reviewed(socket, key, result)
+        if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
   end
 
@@ -688,13 +717,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp reviewed_next(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
   # One button at a time: the first step the wallet has not sent from this
-  # review yet, or one that did not go through. While the settlement is being
-  # prepared the button names what the bid offers; one the auction refused
-  # has nothing to send. A sent step moves the button on at once; nothing
-  # waits for the network before the next press can reach the wallet.
+  # review yet, or one that did not go through. With no review on the row the
+  # button names what the bid offers, and a press prepares the settlement
+  # then (`prepare_and_send`). A sent step moves the button on at once;
+  # nothing waits for the network before the next press can reach the wallet.
   defp next_step(%{review: %{}}, steps, _key), do: reviewed_next(steps)
   defp next_step(_assigns, _steps, nil), do: nil
-  defp next_step(%{prepared_for: {:refused, key}}, _steps, key), do: nil
   defp next_step(assigns, _steps, _key), do: %{name: "settle", label: offer_label(assigns)}
 
   defp offer_label(%{
