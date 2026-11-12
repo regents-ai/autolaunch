@@ -167,5 +167,11 @@ defmodule AutolaunchWeb.Endpoint do
        when kind in ["auctions", "tokens"],
        do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
 
-  defp limit_rate(conn, _opts), do: conn
+  # A share video is queued to be made on the first request for each version
+  # of it, so every video address shares the API's budget too.
+  defp limit_rate(%Plug.Conn{path_info: path} = conn, _opts) do
+    if List.last(path) == "share.mp4",
+      do: RegentAgentAccess.RateLimit.call(conn, @rate_limit),
+      else: conn
+  end
 end

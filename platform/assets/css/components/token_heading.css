@@ -12,8 +12,6 @@
 .token-heading__tags .creator-label a { color: var(--color-fg); }
 .token-heading__links { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
 .token-heading__links .rg-button { min-height: 36px; padding-inline: 12px; font-size: .875rem; }
-.token-heading__copy { font-variant-numeric: tabular-nums; }
-.token-heading__copy .rg-copy__idle { display: inline-flex; align-items: center; gap: 6px; }
 .token-heading__link { display: inline-flex; align-items: center; gap: .45rem; }
 .token-heading__chart { display: inline-flex; }
 .token-heading__icon { width: 1.1em; height: 1.1em; flex: none; }

@@ -1,5 +1,5 @@
 {
-  "total": 176,
+  "total": 178,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2290,6 +2290,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "661fa1766afac4f468d644d0e851f186b532efe0e39f77c0706a9decca3a4173"
+    },
+    {
+      "id": 222,
+      "group": "Release checks",
+      "framework": "exunit",
+      "file": "test/autolaunch/health_test.exs",
+      "line": 19,
+      "test_name": "a database with every migration applied says so",
+      "keep_because": "Rollout of 12 Nov 2026 (pin, confirm window, pairing window, health field): the release check reads migrations_applied on the live site. The case fails if the answer stops saying whether this release's migrations are applied, or stops answering 200 while one is pending.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "69928241a0c7e8dbda19bb707e867828095e7812c8f302005cc82976267f30cb"
+    },
+    {
+      "id": 223,
+      "group": "Release checks",
+      "framework": "exunit",
+      "file": "test/autolaunch/health_test.exs",
+      "line": 24,
+      "test_name": "a migration the database has not recorded leaves the answer at 200 and says so",
+      "keep_because": "Rollout of 12 Nov 2026 (pin, confirm window, pairing window, health field): the release check reads migrations_applied on the live site. The case fails if the answer stops saying whether this release's migrations are applied, or stops answering 200 while one is pending.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "69928241a0c7e8dbda19bb707e867828095e7812c8f302005cc82976267f30cb"
     }
   ],
   "legacy_folders_to_remove": [

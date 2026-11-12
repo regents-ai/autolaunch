@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Autolaunch API
-  version: 2.0.0
+  version: 2.1.0
   description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
 paths:
@@ -912,9 +912,12 @@ components:
     Health:
       type: object
       additionalProperties: false
-      required: [status]
+      required: [status, migrations_applied]
       properties:
         status: {type: string, const: ok}
+        migrations_applied:
+          type: boolean
+          description: False when this release carries a migration the site's database has not applied.
     PublicDocument:
       type: object
       additionalProperties: false

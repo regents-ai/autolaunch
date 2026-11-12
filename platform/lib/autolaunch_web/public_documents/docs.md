@@ -19,7 +19,7 @@ Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an 
 - `POST /api/v1/auctions/{id}/bid-quote`: an estimate for a bid. It does not place a bid. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET /api/v1/tokens`: tokens whose auctions succeeded, newest first, each with its price and market cap in its own currency and in dollars, and what its auction raised.
 - `GET /api/v1/treasury-security/{address}`: the stored treasury report for a treasury address.
-- `GET /api/v1/health`: `{"status": "ok"}`, or `503` with `unavailable`. The same check as `/healthz`, which answers `ok`.
+- `GET /api/v1/health`: `{"status": "ok", "migrations_applied": true}`, or `503` with `unavailable`. `migrations_applied` is `false` while a release waits on a database change. The same check as `/healthz`, which answers `ok`.
 - `GET /api/v1/about` and `GET /api/v1/docs`: the About page and this page as JSON, `{"title", "markdown"}`.
 
 The full description, with every parameter and response, is at [{{origin}}/openapi.json]({{origin}}/openapi.json).

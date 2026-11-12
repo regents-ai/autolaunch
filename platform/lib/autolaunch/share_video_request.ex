@@ -12,15 +12,18 @@ defmodule Autolaunch.ShareVideoRequest do
   `share_videos` queue renders one at a time, so how many requests are still
   queued before a row is its place in line. A render that succeeds stores the
   video in the row and marks it ready; one that fails twice marks it failed. A
-  render cut off by a stopped machine is tried again once Lifeline hands its job
-  back; only a render cut off twice leaves its request queued with no job.
+  render is given five minutes, many times what one takes, so a render that
+  hangs is ended and the queue moves on. A render cut off by a stopped machine
+  is tried again once Lifeline hands its job back; only a render ended or cut
+  off twice leaves its request queued with no job.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes
-  at most 1000 videos in any 24 hours: every request in that time apart from
-  failed ones, counted inside a person's request's own write
-  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
-  are always made. A saved video is deleted once it is a day old, within the
+  at most 1000 of people's own videos in any 24 hours: every person's request
+  in that time apart from failed ones, counted inside a person's request's
+  own write (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's
+  own videos are always made and never counted, since anyone can ask for
+  them. A saved video is deleted once it is a day old, within the
   hour; the request it came from stays. Saved videos hold at most about 5 GB: past
   that, a video is still made but not saved (`saved` false), and once handed
   over its bytes are let go (`:hand_over`). No video is ever deleted early.
@@ -37,12 +40,14 @@ defmodule Autolaunch.ShareVideoRequest do
     triggers do
       # Every request queues its own job as it is written, so there is no sweep.
       # A render cut off by a stopped machine is handed back by Lifeline and
-      # made once more; one that fails twice marks its request failed.
+      # made once more; one that fails twice marks its request failed. Oban
+      # ends a render still running after five minutes.
       trigger :render do
         action :render
         where expr(state == :queued)
         queue :share_videos
         max_attempts 2
+        timeout :timer.minutes(5)
         on_error :fail
         lock_for_update? false
         scheduler_cron false
@@ -141,9 +146,13 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
     end
 
-    # Every video the site has made or is making in the last 24 hours.
+    # Every person's own video the site has made or is making in the last 24
+    # hours. A launch's own videos have no account and are not counted.
     read :made_today do
-      filter expr(state != :failed and inserted_at > ago(24, :hour))
+      filter expr(
+               not is_nil(human_account_id) and state != :failed and
+                 inserted_at > ago(24, :hour)
+             )
     end
 
     # Whether the made videos still held come to less than `bytes`.

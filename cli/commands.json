@@ -334,7 +334,7 @@
     },
     {
       "command": "agents whoami",
-      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Signed: the CLI signs it with your own agent key. Browser sign-in is not agent authority.",
       "operation_id": "agent_whoami",
       "method": "GET",
       "path": "/api/agents/v1/whoami",
@@ -343,7 +343,7 @@
     },
     {
       "command": "agents status",
-      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: the CLI signs it with your own agent key. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
       "operation_id": "agent_status",
       "method": "GET",
       "path": "/api/agents/v1/me",
@@ -352,7 +352,7 @@
     },
     {
       "command": "agents pair",
-      "description": "Redeem an owner pairing code with my chosen name. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Redeem an owner pairing code with my chosen name. Signed: the CLI signs it with your own agent key. Browser sign-in is not agent authority.",
       "operation_id": "agent_pair",
       "method": "POST",
       "path": "/api/agents/v1/pair",
@@ -381,7 +381,7 @@
     },
     {
       "command": "drafts revstake show",
-      "description": "Read my Revstake token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Revstake token draft. Signed: the CLI signs it with your own agent key. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_revstake_draft",
       "method": "GET",
       "path": "/api/agent/v1/drafts/revstake",
@@ -473,7 +473,7 @@
     },
     {
       "command": "drafts memestock show",
-      "description": "Read my Memestock token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Memestock token draft. Signed: the CLI signs it with your own agent key. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_memestock_draft",
       "method": "GET",
       "path": "/api/agent/v1/drafts/memestock",
@@ -565,7 +565,7 @@
     },
     {
       "command": "positions",
-      "description": "Read my bids and holdings, when the chain can be read. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my bids and holdings, when the chain can be read. Signed: the CLI signs it with your own agent key. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_my_positions",
       "method": "GET",
       "path": "/api/agent/v1/positions",
@@ -580,7 +580,7 @@
     },
     {
       "command": "account points",
-      "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: the CLI signs it with your own agent key.",
       "operation_id": "account_points",
       "method": "GET",
       "path": "/api/v1/account/points",

@@ -258,13 +258,14 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   # The past week is the seven whole UTC days up to yesterday. Each morning's
   # reads take a few hours, so until a stock's lands its count to the day
-  # before shows with that week named; an older count shows none.
+  # before shows with that week named; an older count shows none, and neither
+  # does a week in which nothing traded.
   defp weekly_volume(%{
          weekly_volume_usd: %Decimal{} = usd,
          weekly_volume_complete: complete?,
          weekly_volume_through: through
        }) do
-    if Date.diff(Date.utc_today(), through) <= 2,
+    if Decimal.gt?(usd, 0) and Date.diff(Date.utc_today(), through) <= 2,
       do: %{usd: usd, complete?: complete?, through: through}
   end
 

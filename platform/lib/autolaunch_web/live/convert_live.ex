@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.ConvertLive do
   @shown [filter: [auction: [hidden: false]]]
 
   @concurrency 4
-  @read_timeout 30_000
+  @read_timeout Application.compile_env!(:autolaunch, :convert_read_timeout)
 
   def mount(_params, _session, socket),
     do: {:ok, socket |> assign(AutolaunchWeb.PublicDocuments.page("/convert")) |> load(true)}
@@ -147,14 +147,14 @@ defmodule AutolaunchWeb.ConvertLive do
     rows =
       tokens
       |> Enum.filter(&match?(%{auction: %{kind: :stocks, state: :graduated}}, &1))
-      |> read_rows(fn token ->
+      |> read_rows(&Autolaunch.Pool.read(&1.auction), fn token, pool ->
         %{
           id: "convert-base-#{token.auction.id}",
           name: token.name,
           symbol: token.symbol,
           href: Paths.token(token.auction),
           launch: %{chain: :base, auction: token.auction},
-          pool: Autolaunch.Pool.read(token.auction)
+          pool: pool
         }
       end)
 
@@ -175,26 +175,34 @@ defmodule AutolaunchWeb.ConvertLive do
     rows =
       tokens
       |> Enum.filter(&RobinhoodLab.chain?(&1.auction.chain_id))
-      |> read_rows(fn token ->
+      |> read_rows(&RobinhoodPool.read(&1.auction), fn token, pool ->
         %{
           id: "convert-robinhood-#{token.auction.auction_address}",
           name: token.name,
           symbol: token.symbol,
           href: Paths.token(token.auction),
           launch: %{chain: :robinhood, auction: token.auction},
-          pool: RobinhoodPool.read(token.auction)
+          pool: pool
         }
       end)
 
     {:ok, %{robinhood: rows}}
   end
 
-  # Each launch's pool is its own read of the chain; the rows with the most
-  # waiting come first.
-  defp read_rows(records, row) do
-    records
-    |> Task.async_stream(row, max_concurrency: @concurrency, timeout: @read_timeout)
-    |> Enum.map(fn {:ok, read} -> read end)
+  # Each launch's pool is its own read of the chain, and one that takes too
+  # long is that launch's row unread; the rows with the most waiting come
+  # first.
+  defp read_rows(tokens, read, row) do
+    tokens
+    |> Task.async_stream(read,
+      max_concurrency: @concurrency,
+      timeout: @read_timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.zip_with(tokens, fn
+      {:ok, pool}, token -> row.(token, pool)
+      {:exit, :timeout}, token -> row.(token, {:error, :timeout})
+    end)
     |> Enum.sort_by(&waiting_amount/1, {:desc, Decimal})
   end
 

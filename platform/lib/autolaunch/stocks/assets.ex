@@ -148,9 +148,9 @@ defmodule Autolaunch.Stocks.Assets do
     end
   end
 
-  # Read in whichever process asks, so a page never waits on another's read
-  # and a failed read is the asker's own. Kept for no time, nothing is kept;
-  # a failed read is never kept.
+  # One read fills the list however many ask for it at once
+  # (`Cachex.fetch/4`); the others wait for that read and share its answer.
+  # Kept for no time, nothing is kept; a failed read is never kept.
   defp saved(chain_id) do
     case Application.fetch_env!(:autolaunch, :stock_list_kept_ms) do
       0 -> Autolaunch.launch_currency_stocks(chain_id)
@@ -159,15 +159,17 @@ defmodule Autolaunch.Stocks.Assets do
   end
 
   defp kept(chain_id, kept_ms) do
-    case Cachex.get!(@cache, chain_id) do
-      nil ->
-        with {:ok, stocks} <- Autolaunch.launch_currency_stocks(chain_id) do
-          Cachex.put!(@cache, chain_id, stocks, expire: kept_ms)
-          {:ok, stocks}
-        end
+    read = fn ->
+      case Autolaunch.launch_currency_stocks(chain_id) do
+        {:ok, stocks} -> {:commit, stocks, expire: kept_ms}
+        error -> {:ignore, error}
+      end
+    end
 
-      stocks ->
-        {:ok, stocks}
+    case Cachex.fetch(@cache, chain_id, read) do
+      {:ignore, error} -> error
+      {:error, _reason} = error -> error
+      {_kept_or_read, stocks} -> {:ok, stocks}
     end
   end
 end

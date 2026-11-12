@@ -42,6 +42,9 @@ defmodule AutolaunchWeb.ExposureAnswer do
     not_overdue: "The recording window for the next price is still open."
   }
 
+  @chain_unavailable {:service_unavailable,
+                      "Isolated Exposure to After-hours Stocks could not be read from the chain just now."}
+
   @refusals %{
     unknown_series:
       {:not_found,
@@ -59,9 +62,12 @@ defmodule AutolaunchWeb.ExposureAnswer do
     wrong_signer: {:forbidden, "That wallet is not one of this account's own wallets."},
     wallet_required: {:conflict, "This account has no wallet to act with."},
     authentication_required: {:unauthorized, "Nobody is signed in on this site in this browser."},
-    chain_unavailable:
-      {:service_unavailable,
-       "Isolated Exposure to After-hours Stocks could not be read from the chain just now."}
+    chain_unavailable: @chain_unavailable,
+    # The node answered something that is not Base or not a block: to an agent,
+    # the chain could not be read just now.
+    invalid_chain_response: @chain_unavailable,
+    invalid_block_header: @chain_unavailable,
+    wrong_chain: @chain_unavailable
   }
 
   @doc "Answers with `result`'s figures shaped by `shape`, or with the refusal it carries."

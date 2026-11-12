@@ -109,6 +109,8 @@ defmodule AutolaunchWeb.Components.XConnections do
           :if={@connected}
           type="button"
           data-x-disconnect-role={@role}
+          data-confirm={"Disconnect @#{@connected.username}? To connect it again you sign in to X."}
+          data-confirm-action="Disconnect"
           variant="secondary"
         >
           Disconnect

@@ -196,6 +196,8 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
             variant="secondary"
             data-disconnect-github
             data-github-subject={@github.subject}
+            data-confirm={"Disconnect #{@github.username}? To connect it again you sign in to GitHub."}
+            data-confirm-action="Disconnect"
           >
             Disconnect
           </Regent.Primitives.button>

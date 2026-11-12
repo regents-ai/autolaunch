@@ -11,7 +11,6 @@ defmodule AutolaunchWeb.BlogHTML do
       <Regent.Blog.gallery
         :if={@view == :index}
         posts={@posts}
-        site="Autolaunch"
         name="Blog"
         path="/blog"
       />

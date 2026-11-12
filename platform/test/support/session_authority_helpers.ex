@@ -11,8 +11,23 @@ defmodule AutolaunchWeb.SessionAuthorityHelpers do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
 
-  @doc "A test connection that reaches a connected mount the way a browser does."
-  def build_conn, do: connects_with_own_cookie(Phoenix.ConnTest.build_conn())
+  @doc """
+  A test connection that reaches a connected mount the way a browser does.
+
+  Each test's connections come from an address of its own, so the requests one
+  test sends never spend the minute's budget another test is counted against.
+  """
+  def build_conn do
+    connects_with_own_cookie(%{Phoenix.ConnTest.build_conn() | remote_ip: own_address()})
+  end
+
+  defp own_address do
+    with nil <- Process.get(__MODULE__) do
+      <<a, b, c>> = <<System.unique_integer([:positive])::24>>
+      Process.put(__MODULE__, {10, a, b, c})
+      {10, a, b, c}
+    end
+  end
 
   @doc """
   Puts `session` and the durable authority it names onto `conn`.

@@ -8,6 +8,32 @@
 - On the portfolio a seller's amounts are kept apart: sold, premium paid, for sale, locked, exercised and to collect. To collect is only what the contract will send now.
 - The price beside a stock is labelled as a reference with its age, the suggested premium as a model, and the best live bid or listing on the same terms is shown with its size.
 
+## 12 November 2026: Account
+- Disconnecting an X or GitHub account now asks first, in the site's own window, with Cancel ready first. Nothing changes until you press Disconnect there.
+- In the Pair New Agent window, the list of agents drops in and fades out with a short move. A press during the move still counts, and with reduced motion the list opens and closes at once.
+- The chosen agent's picture in the Pair New Agent window sits in a lower band, so the window is shorter.
+- The Blog page no longer shows the site's name above its title.
+- `GET /api/v1/health` also answers `migrations_applied`, which is `false` while a release waits on a database change.
+
+## 12 November 2026: Fixes
+- On a Robinhood auction's page, Retry now shows the auction once it can be read again. Before, the page could stop working after a first failed load.
+- Search lists its results when you type straight after the page reconnects, instead of the search window stopping.
+- A bid, withdraw or claim panel keeps working when the page reconnects while one of your transactions is on its way.
+- On the REGENT Fees page, a launch whose fees are slow to read says so on its own row, and the other launches still show. The amount you typed to convert stays when the page reads the launch again.
+- A share video that cannot be finished is stopped after five minutes, so the videos waiting behind it are made.
+- The 1000 videos a day are now only people's own videos. A launch's own video, which anyone can open, no longer uses them up. Asking for videos very often from one place is paused for up to a minute.
+- A launch's share picture that cannot be drawn right now asks the site showing it to try again.
+
+## 12 November 2026: Agent guides
+- The agent start pages no longer list a `person_not_here` answer under Troubleshooting. A pairing made on any Regent site works here, so this site never gives that answer.
+- A browser tool that gets no answer now tells the agent to read back whatever the tool changes before calling it again, whichever tool it was. Before, it always spoke of a draft.
+- The regents CLI command descriptions say the CLI signs each request with the agent's own key.
+
+## 12 November 2026: Token page
+- On a phone, a long market figure such as a price or the total supply is no longer split across two lines. A figure too long to sit beside its neighbour takes a line of its own.
+- The token's address in the heading now opens in full when pressed, with a copy button and an arrow that opens it on the chain's explorer, the same as every address in the Contracts list.
+- In a short window, the trade panel and Claim Rewards scroll with the page, so their lower part can always be reached. In a taller window they still stay in view beside the chart.
+
 ## 12 November 2026: Forms
 - On both create pages, a field is checked when you leave it and when you send the form, not while you are typing.
 - A field that is too long now says how many characters to use.

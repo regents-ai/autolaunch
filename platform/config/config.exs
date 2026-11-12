@@ -50,6 +50,11 @@ config :autolaunch, Oban,
     ]
   ],
   pruner: [max_age: {7, :days}],
+  # How long a stopping machine lets its running jobs finish. Fly gives a
+  # machine 60 seconds (`kill_timeout` in fly.toml) and open connections drain
+  # first, so this leaves them ten. A job still running after it is stopped and
+  # Lifeline offers it again.
+  shutdown_grace_period: :timer.seconds(50),
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
   # still running is never taken over; a finishing check orphaned by a stopped
@@ -200,6 +205,10 @@ config :autolaunch, Autolaunch.ChainRefresh,
 config :autolaunch, :stock_list_kept_ms, 60_000
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
+
+# How long, in milliseconds, one launch's fees may take to read on the REGENT
+# Fees page before its row shows as unread (AutolaunchWeb.ConvertLive).
+config :autolaunch, :convert_read_timeout, 30_000
 
 # How many bytes of made share videos the site saves; past it a video is still
 # made, handed over once and not saved (AutolaunchWeb.ShareVideo.Render).

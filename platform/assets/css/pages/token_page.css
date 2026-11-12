@@ -15,7 +15,9 @@
 .token-page__reading { min-height: 100svh; }
 @container shell-page (min-width: 60rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(21rem, 24rem); grid-template-areas: "overview side" "details side"; }
-  .token-page__side { position: sticky; top: var(--space-4); }
+  /* In a window too short to hold them, they scroll with the page instead,
+     so their lower part is never out of reach. */
+  @media (min-height: 56rem) { .token-page__side { position: sticky; top: var(--space-4); } }
 }
 
 /* The price, large, with its move since the pool opened, and the price in
@@ -38,12 +40,13 @@
 .token-page__chart .price-chart__facts dd { color: var(--color-fg); }
 @media (max-width: 40rem) { .token-page__chart .price-chart__line { height: 200px; } }
 
-/* The market figures, three to a row on a wide screen and two on a phone. */
-.token-market__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--hairline); }
-.token-market__stats > div { display: grid; align-content: start; gap: 4px; min-width: 0; padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
+/* The market figures, three to a row on a wide screen and two on a phone. A
+   figure is never broken: one too long to share its row takes a row to itself. */
+.token-market__stats { display: flex; flex-wrap: wrap; margin: 0; border-top: 1px solid var(--hairline); }
+.token-market__stats > div { flex: 1 1 calc(100% / 3); display: grid; align-content: start; gap: 4px; min-width: max-content; padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
 .token-market__stats dt { color: var(--color-fg-muted); font-size: .8125rem; }
-.token-market__stats dd { margin: 0; font-size: 1.125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-@media (max-width: 40rem) { .token-market__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.token-market__stats dd { margin: 0; font-size: 1.125rem; white-space: nowrap; }
+@media (max-width: 40rem) { .token-market__stats > div { flex-basis: 50%; } }
 
 /* The creator and the contracts as plain lists: a label and its value on
    each ruled row. */

@@ -53,6 +53,34 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
   # journeys, 28 Oct 2026).
   test "SETTLE_PRESS_BEFORE_REVIEW_SENDS: a settlement press with no review on the card is prepared and sent",
        %{conn: conn} = context do
+    {view, card} = card(conn, context)
+    render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
+
+    assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit", data: data}]}})
+    assert data == BuilderCode.append(exit_bid_data())
+  end
+
+  # A page that connected again can report a step sent from a review this
+  # server never built; the card follows no review for it and carries on.
+  test "a sent step the card holds no review for leaves the next press working",
+       %{conn: conn} = context do
+    {view, card} = card(conn, context)
+
+    render_hook(card, "step_sent", %{
+      "review_id" => "a-review-from-before",
+      "step" => "exit",
+      "transaction_hash" => "0x" <> String.duplicate("ab", 32)
+    })
+
+    render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
+
+    assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit", data: data}]}})
+    assert data == BuilderCode.append(exit_bid_data())
+  end
+
+  # The card of a failed auction's bid, opened by its signed-in owner with
+  # their wallet active.
+  defp card(conn, context) do
     Autolaunch.TestSupport.project_auction(
       address: Autolaunch.BidFixture.auction_address(),
       title: context.auction.title,
@@ -75,10 +103,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
 
     card = with_target(view, "#card")
     render_hook(card, "onchain_active_wallet", %{"address" => context.wallet})
-    render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
-
-    assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit", data: data}]}})
-    assert data == BuilderCode.append(exit_bid_data())
+    {view, card}
   end
 
   defp position!(%{auction: auction, wallet: wallet}) do
