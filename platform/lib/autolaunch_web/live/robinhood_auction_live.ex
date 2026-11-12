@@ -57,6 +57,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   def handle_event("retry", _params, socket),
     do: {:noreply, socket |> load_launch() |> load_snapshot(true)}
+
   def handle_event("retry_history", _params, socket), do: {:noreply, load_history(socket, false)}
 
   def handle_event("retry_snapshot", _params, socket),

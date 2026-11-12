@@ -509,7 +509,9 @@ defmodule AutolaunchWeb.BidComponent do
     socket = socket |> assign(prepared: prepared) |> OnchainSteps.put_review(review)
     # A sent step this server holds no review for follows none.
     followed =
-      for %{review: %{id: id}} <- Presses.shown(socket.assigns.presses), into: MapSet.new(), do: id
+      for %{review: %{id: id}} <- Presses.shown(socket.assigns.presses),
+          into: MapSet.new(),
+          do: id
 
     reviews =
       socket.assigns.reviews
