@@ -1,6 +1,7 @@
 import {readFileSync} from "node:fs"
 import type {Page} from "@playwright/test"
 import {Agent} from "./agent"
+import {receipt} from "./chain"
 import {expect, ready, type Sent} from "./person"
 
 export const AAPLC = "0xb200000000000000000000c2e324d24d7eecd1fb"
@@ -38,4 +39,23 @@ export async function launch(page: Page, sent: Sent[], agent: Agent, tag: string
   const open = launched.getByRole("link", {name: "Open the auction"})
   await expect(open).toBeVisible({timeout: 60_000})
   return {draft, hash: sent[before].hash, auction: (await open.getAttribute("href"))!}
+}
+
+/**
+ * Presses Finish on the ended auction's page `page` shows, then waits in turn for
+ * each thing that has to happen, so a failure names the one that lagged: the
+ * person's wallet is asked for the finish, the copy of Base mines it, and the
+ * site's own reading of the chain lists auction `id` as `finished`.
+ */
+export async function finishFromPage(page: Page, sent: Sent[], id: string, finished: "graduated" | "failed") {
+  const before = sent.length
+  await page.getByRole("button", {name: /^Finish/}).click()
+  await expect.poll(() => sent.length, {message: "the Finish press reaches the wallet", timeout: 30_000})
+    .toBeGreaterThan(before)
+  const mined = await receipt(sent[before].hash)
+  expect(mined.status, "the copy of Base mines the finish the wallet sent").toBe("0x1")
+  const state = async () =>
+    (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions/${id}`)).json()).data.state
+  await expect.poll(state, {message: "the site lists the auction the chain has finished", timeout: 120_000})
+    .toBe(finished)
 }

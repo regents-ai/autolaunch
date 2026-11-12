@@ -1,7 +1,7 @@
 import {encodeFunctionData, type Hex} from "viem"
 import {Agent} from "./support/agent"
 import {balanceOf, call, memestock, mineTo, mintStock} from "./support/chain"
-import {AAPLC, launch} from "./support/launch"
+import {AAPLC, finishFromPage, launch} from "./support/launch"
 import {pairWith, unpair} from "./support/pairing"
 import {expect, holdWallet, people, ready, signIn, test, type Sent} from "./support/person"
 
@@ -32,7 +32,9 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
   const agent = new Agent(`auction-${info.project.name}`)
   await pairWith(page, agent, `Auction ${info.project.name}`)
   const {draft, auction: path} = await launch(page, sent, agent, agent.address.slice(2, 6).toUpperCase())
-  const listed = (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json()).data[0]
+  // The search forgives a wrong letter, so it may also answer another journey's near-identical symbol.
+  const listed = (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json())
+    .data.find((found: any) => found.token_symbol === draft.symbol)
   const auction = listed.address as string
   expect(await state(listed.id)).toBe("created")
 
@@ -72,8 +74,7 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
   await mineTo(Number(await read(auction, "claimBlock")) + 200)
   await b.goto(path)
   await ready(b)
-  await b.getByRole("button", {name: /^Finish/}).click()
-  await expect.poll(() => state(listed.id), {timeout: 120_000}).toBe(graduates ? "graduated" : "failed")
+  await finishFromPage(b, bids, listed.id, graduates ? "graduated" : "failed")
 
   if (graduates) {
     // Person B claims the tokens they bought, from the auction's page.
