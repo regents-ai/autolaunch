@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   `{:covered_call_done, done}`: an action can take its own panel off the page
   (the last calls bought, a row's last collection).
 
-  The server builds every step (`Autolaunch.CoveredCalls.prepare_covered_call/3`,
+  The server builds every step (`Autolaunch.CoveredCalls.prepare_covered_call_steps/3`,
   the same action agents call) for the wallet that may act
   (`AutolaunchWeb.OnchainSteps`), and every press of the wallet button goes
   straight to the wallet. An approval is its own step; one the chain already
@@ -229,7 +229,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp balance(_symbol, _id, nil), do: nil
 
   defp balance(symbol, id, wallet) do
-    case CoveredCalls.covered_call_positions(symbol, %{wallet: wallet},
+    case CoveredCalls.read_covered_call_positions(symbol, %{wallet: wallet},
            actor: %Human{human_account_id: id}
          ) do
       {:ok, %{balance: balance}} -> balance
@@ -342,7 +342,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp prepare(assigns, request, signer) do
     actor = %Human{human_account_id: assigns.current_human_id}
 
-    case CoveredCalls.prepare_covered_call(
+    case CoveredCalls.prepare_covered_call_steps(
            assigns.symbol,
            assigns.kind,
            Map.put(request, :signer, signer),
@@ -650,9 +650,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
-      ["Exercise window", F.window(facts.expiry)],
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)],
       ["Total premium", F.usd(premium)],
-      ["You receive", "#{F.usd(premium - Terms.fee(premium))} if all sell, after the 1% fee"],
+      ["You receive", F.usd(premium - Terms.fee(premium))],
+      ["Fee", "1%"],
       ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
     ]
   end
@@ -662,7 +664,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Premium", F.usd_due(facts.premium)],
       ["Exercise cost", F.usd_due(facts.strike)],
-      ["Exercise window", F.window(facts.expiry)]
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)]
     ]
 
   defp facts(:exercise, facts, %{unit: unit, symbol: symbol}),
@@ -676,7 +679,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
-      ["Exercise window", F.window(facts.expiry)],
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)],
       ["You pay", F.usd_due(facts.escrow)]
     ]
 
@@ -685,7 +689,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["You receive", "#{F.usd(facts.receive)} now, after the 1% fee"],
       ["If exercised", F.usd(facts.strike)],
-      ["Exercise window", F.window(facts.expiry)]
+      ["Opens", F.expiry(facts.expiry)],
+      ["Closes", F.window_closes(facts.expiry)]
     ]
 
   defp facts(:raise_bid, facts, %{unit: unit, symbol: symbol}),
@@ -720,7 +725,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),
-    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd_due(facts.premium)}"]
+    do: ["Calls on #{F.tokens(facts.amount, unit)} #{symbol} for #{F.usd_due(facts.premium)}"]
 
   defp done_lines(:exercise, facts, %{unit: unit, symbol: symbol}),
     do: [

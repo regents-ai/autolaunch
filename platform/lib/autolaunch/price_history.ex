@@ -4,12 +4,15 @@ defmodule Autolaunch.PriceHistory do
   the chain's own logs each time a page asks.
 
   The PoolManager's `Initialize` log for the pool gives the opening price and
-  each `Swap` log the price the trade left behind. Every point is the block its
-  log landed in and the price in whole currency per whole token, and the last
-  known price is carried to the block the page read at, so the line runs up to
-  now. Beside the line come the lowest and highest price and the number of
-  trades, all taken before a long history is thinned to 400 evenly spaced
-  points, always keeping the first and the last.
+  each `Swap` log the price the trade left behind. The history holds two lines
+  of the same prices. `points` has one `[block, price]` pair per log, the last
+  price carried to the block the page read at, thinned to 400 evenly spaced
+  points that always keep the first and the last. `times` has 100 `[unix
+  seconds, price]` pairs evenly spaced from the first log's time to the read
+  block's time, each the price the last trade at or before it left, or nil
+  while the read block's time is still the first log's. Beside the
+  lines come the lowest and highest price and the number of trades, taken from
+  every log.
 
   The figures are floats: they draw the line and give the low and the high to
   a few digits, while every exact price a page states keeps coming from its
@@ -20,19 +23,26 @@ defmodule Autolaunch.PriceHistory do
   alias Autolaunch.LabAbi
 
   @max_points 400
+  @time_points 100
   @q96 Integer.pow(2, 96)
   @token_decimals 18
   @initialize "Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)"
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
 
   @type point :: [number()]
-  @type history :: %{points: [point()], low: float(), high: float(), trades: non_neg_integer()}
+  @type history :: %{
+          points: [point()],
+          times: [point()] | nil,
+          low: float(),
+          high: float(),
+          trades: non_neg_integer()
+        }
 
   @doc """
-  A pool's price after every trade from `from_block` to the pinned block:
-  `[block, price]` pairs for the line, the low, the high and the number of
-  trades. `pool` names the PoolManager, the pool id, which side the token is on
-  and the currency's decimals. A pool with no logs yet has no history.
+  A pool's price after every trade from `from_block` to the pinned block: the
+  line by trade, the line by time, the low, the high and the number of trades.
+  `pool` names the PoolManager, the pool id, which side the token is on and
+  the currency's decimals. A pool with no logs yet has no history.
   """
   @spec pool(map(), non_neg_integer(), Rpc.block(), keyword()) ::
           {:ok, history() | nil} | {:error, atom()}
@@ -40,19 +50,28 @@ defmodule Autolaunch.PriceHistory do
     topics = [[LabAbi.topic(@initialize), LabAbi.topic(@swap)], pool.pool_id]
 
     with {:ok, logs} <- Rpc.logs(pool.pool_manager, topics, from_block, block.number, opts),
-         {:ok, points} <-
-           points(logs, block, fn log, words ->
+         {:ok, moments} <-
+           moments(logs, block, fn log, words ->
              pool_price(sqrt_price(log, words), pool.token_is_currency0?, pool.currency_decimals)
            end) do
-      {:ok, history(points, Enum.count(logs, &(topic0(&1) == LabAbi.topic(@swap))))}
+      {:ok, history(moments, block, Enum.count(logs, &(topic0(&1) == LabAbi.topic(@swap))))}
     end
   end
 
-  defp history([], _trades), do: nil
+  defp history([], _block, _trades), do: nil
 
-  defp history(points, trades) do
-    {low, high} = points |> Enum.map(&List.last/1) |> Enum.min_max()
-    %{points: thin(points), low: low, high: high, trades: trades}
+  defp history(moments, block, trades) do
+    {low, high} = moments |> Enum.map(fn {_number, _at, price} -> price end) |> Enum.min_max()
+    {_number, _at, last} = List.last(moments)
+    points = Enum.map(moments, fn {number, _at, price} -> [number, price] end)
+
+    %{
+      points: thin(points ++ [[block.number, last]]),
+      times: times(moments, block.timestamp),
+      low: low,
+      high: high,
+      trades: trades
+    }
   end
 
   # `Initialize` carries the opening price in its fourth data word, `Swap` the
@@ -68,28 +87,48 @@ defmodule Autolaunch.PriceHistory do
     per_base_unit * :math.pow(10, @token_decimals - currency_decimals)
   end
 
-  # Each log's block and price, in chain order, then the last price carried to
-  # the pinned block. A removed log, or one past the pinned block, means the
-  # history moved under the read.
-  defp points([], _block, _price), do: {:ok, []}
-
-  defp points(logs, block, price) do
+  # Each log's block, time and price, in chain order. A removed log, one past
+  # the pinned block, or one without its block's time means the history moved
+  # under the read.
+  defp moments(logs, block, price) do
     Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, found} ->
-      with %{"removed" => false, "blockNumber" => "0x" <> number, "data" => "0x" <> data} <- log,
-           {number, ""} when number <= block.number <- Integer.parse(number, 16) do
-        {:cont, {:ok, [[number, price.(log, words(data))] | found]}}
+      with %{
+             "removed" => false,
+             "blockNumber" => "0x" <> number,
+             "blockTimestamp" => "0x" <> at,
+             "data" => "0x" <> data
+           } <- log,
+           {number, ""} when number <= block.number <- Integer.parse(number, 16),
+           {at, ""} <- Integer.parse(at, 16) do
+        {:cont, {:ok, [{number, at, price.(log, words(data))} | found]}}
       else
         _invalid -> {:halt, {:error, :invalid_chain_response}}
       end
     end)
     |> case do
-      {:ok, [[_number, last] | _rest] = found} ->
-        {:ok, Enum.reverse([[block.number, last] | found])}
-
-      error ->
-        error
+      {:ok, found} -> {:ok, Enum.reverse(found)}
+      error -> error
     end
   end
+
+  # The price at evenly spaced moments from the first log to `now`; none
+  # while no time has passed since it.
+  defp times([{_number, opened, _price} | _rest], now) when now <= opened, do: nil
+
+  defp times([{_number, opened, _price} | _rest] = moments, now) do
+    0..(@time_points - 1)
+    |> Enum.map(&(opened + div((now - opened) * &1, @time_points - 1)))
+    |> sample(moments, nil, [])
+  end
+
+  defp sample([], _moments, _price, found), do: Enum.reverse(found)
+
+  defp sample([at | _later] = moments_at, [{_number, time, price} | rest], _last, found)
+       when time <= at,
+       do: sample(moments_at, rest, price, found)
+
+  defp sample([at | later], moments, price, found),
+    do: sample(later, moments, price, [[at, price] | found])
 
   defp thin(points) when length(points) <= @max_points, do: points
 

@@ -61,7 +61,7 @@ ids.
 | Check your identity and pairing | `agents whoami` | `agent_whoami` |
 | Read your person's positions | `positions` | `autolaunch_my_positions` |
 | Read or fill in a launch draft | `drafts revstake show` / `save`, `drafts memestock show` / `save` | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` |
-| Read your person's account | `account balances`, `account credits-history`, `account points` | `account_balances`, `account_credits_history`, `account_points` |
+| Read your person's Points | `account points` | `account_points` |
 
 `agents status` (`agent_status`) checks in and records the time, which your person sees; it is
 not a passive identity check. Use `agents whoami` for that. A draft save needs a pairing and
@@ -107,7 +107,7 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 {{exposure}}
 ## Price movement without misleading comparisons
 
-A Revstake token read also carries `revenue_history`: each payment its splitter recognized,
+A Revstake token read also carries `revenue_history`: each payment the token's staking received,
 with amount, asset, day and transaction link. It is a record of what arrived, not a promise
 of what will. A token read can carry a stored price (`price_quote`, in quote-token units, with `price_usd`
 in dollars) and a nullable `price_updated_at`. Call it a stored observation, not a live quote; a missing time does not

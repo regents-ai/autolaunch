@@ -19,7 +19,10 @@ defmodule Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage do
          {:ok, color} <- ImageColor.dominant(bytes) do
       changeset
       |> Ash.Changeset.change_attribute(:byte_size, byte_size(bytes))
-      |> Ash.Changeset.change_attribute(:digest, sha256(bytes))
+      |> Ash.Changeset.change_attribute(
+        :digest,
+        :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)
+      )
       |> Ash.Changeset.change_attribute(:color, color)
     else
       {:error, :draft_unavailable} ->
@@ -63,6 +66,4 @@ defmodule Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage do
   end
 
   defp validate_filename(_value), do: {:error, :invalid_filename}
-
-  defp sha256(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 end

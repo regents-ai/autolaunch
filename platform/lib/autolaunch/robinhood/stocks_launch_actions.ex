@@ -20,89 +20,18 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   the receipt is the only source of the start and end blocks.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Lifecycle, Rpc}
-  alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
+  alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
-  alias Autolaunch.Stocks.{
-    Amounts,
-    Assets,
-    FeeSchedule,
-    LaunchActions,
-    LaunchDraft,
-    LaunchOperations
-  }
-
+  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchOperations}
   alias RegentChain.{Address, Review}
 
-  # Preset terms the review states back, from contracts/robinhood-v2/src/RobinhoodPreset.sol.
   @new_decimals 18
-  @start_lead_blocks 6_000
-  @auction_duration_blocks 864_000
-  @claim_delay_blocks 1_280
-  @migration_delay_blocks 2_560
-  @creator_vesting_blocks 25_920_000
-  @tick_divisor 100
-
-  @metadata [name: 64, symbol: 16, description: 512, image: 256]
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
-
-  @doc "The fixed terms every Robinhood Stocks launch uses, for the review page, in the ticker of the token it creates."
-  def terms(ticker) do
-    [
-      {"Launch fee", "None"},
-      {"Token decimals", Integer.to_string(@new_decimals)},
-      {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "497,500,000 #{ticker} (49.75%)"},
-      {"Pool reserve", "497,500,000 #{ticker} (49.75%)"},
-      {"Starting price", "The lowest the auction accepts"},
-      {"Minimum raise", "The whole sale at the fixed floor, rounded up"},
-      {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
-      {"Auction length", schedule_copy(@auction_duration_blocks)},
-      {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
-      {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
-      {"Creator allocation", "5,000,000 #{ticker} (0.5%)"},
-      {"Vesting",
-       "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
-      {"Treasury", "None"},
-      {"Pool pair", "#{ticker} and the stock it was launched against"}
-    ] ++
-      FeeSchedule.terms(:robinhood) ++
-      [
-        {"Unsold tokens",
-         "Rounding leftovers retired to the dead address; total supply stays unchanged"},
-        {"Pool liquidity",
-         "Opens at the auction's final price with a full-range position; any stock left over from rounding joins the protocol fee. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
-        {"If the minimum raise is not reached",
-         "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
-      ]
-  end
-
-  @doc "How long the schedule's parts take, as blocks with an estimated duration."
-  def schedule_copy(blocks),
-    do:
-      "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(:robinhood, blocks)}"
-
-  def start_lead_blocks, do: @start_lead_blocks
-  def auction_duration_blocks, do: @auction_duration_blocks
-
-  @doc """
-  The launch's fixed schedule in blocks, as `Autolaunch.Stocks.LaunchActions.schedule/1`
-  gives it for Robinhood: bidding opens `opens` after the launch, runs for
-  `length`, claims and the trading pool open `claim` and `pool` after bidding
-  ends, and the creator's tokens are released over `vesting` from the pool opening.
-  """
-  def schedule,
-    do: %{
-      opens: @start_lead_blocks,
-      length: @auction_duration_blocks,
-      claim: @claim_delay_blocks,
-      pool: @migration_delay_blocks,
-      vesting: @creator_vesting_blocks
-    }
 
   @doc """
   Reviews one saved Robinhood draft for `address`, one of the account's own
@@ -111,13 +40,13 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{actor: actor, signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, fields} <- launchable(draft),
+         {:ok, fields} <- LaunchActions.launchable(draft),
          {:ok, config} <- robinhood_lab(),
          {:ok, snapshot} <- snapshot(fields.stock),
-         {:ok, executable} <- executable(fields, snapshot),
+         {:ok, executable} <- LaunchActions.executable(snapshot),
          {:ok, _review} <- record_review(actor, signer, fields),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
   end
@@ -131,16 +60,10 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @spec current(map()) :: :current | :changed | :unread
   def current(%{facts: facts}) do
     case snapshot(facts["stock"]) do
-      {:ok, snapshot} -> if standing?(snapshot, facts), do: :current, else: :changed
+      {:ok, snapshot} -> if LaunchActions.standing?(snapshot, facts), do: :current, else: :changed
       {:error, _unread} -> :unread
     end
   end
-
-  defp standing?(%{paused: paused, admission: admission} = snapshot, facts),
-    do:
-      not paused and admission.admitted and snapshot.launchpad == facts["launchpad"] and
-        Integer.to_string(admission.decimals) == facts["stock_decimals"] and
-        admission.route == facts["route"]
 
   # The launch this review would carry out, kept so Robinhood discovery knows it
   # as this site's launch whether or not the browser reports it back.
@@ -149,11 +72,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       Autolaunch.record_robinhood_launch_review(
         %{
           chain_id: Lab.chain_id(),
-          signer: String.downcase(signer),
+          signer: signer,
           human_account_id: account_id,
           name: fields.name,
           symbol: fields.symbol,
-          stock: String.downcase(fields.stock),
+          stock: fields.stock,
           telegram: fields.telegram,
           discord: fields.discord,
           links: fields.links
@@ -179,8 +102,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   """
   @spec launches(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def launches(address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          rpc <- Lab.rpc_opts(config),
          {:ok, block} <- chain(Rpc.latest_block(rpc)),
@@ -190,58 +112,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     end
   end
 
-  @doc "Everything the launchpad requires of a saved draft, refused here rather than in a wallet."
-  def launchable(draft) do
-    with true <-
-           LaunchDraft.token_details_complete?(draft) || unavailable(:launch_metadata_incomplete),
-         true <-
-           Enum.all?(@metadata, fn {field, limit} ->
-             byte_size(Map.fetch!(draft, field)) <= limit
-           end) || unavailable(:launch_metadata_incomplete),
-         {:ok, asset} <-
-           Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
-         {:ok, stock} <- address(asset.address, :stock_invalid) do
-      {:ok,
-       %{
-         name: draft.name,
-         symbol: draft.symbol,
-         description: draft.description,
-         website: LaunchDraft.onchain_website(draft),
-         telegram: draft.telegram,
-         discord: draft.discord,
-         links: LaunchLinks.others(draft),
-         image: draft.image,
-         stock: stock,
-         stock_symbol: asset.symbol
-       }}
-    else
-      {:error, _reason} = error -> error
-    end
-  end
-
-  # Executable values
-
-  defp executable(_fields, snapshot) do
-    with :ok <- admitted(snapshot) do
-      floor = LaunchActions.floor_price_q96()
-
-      {:ok,
-       %{
-         floor_price_q96: floor,
-         tick_spacing_q96: div(floor, @tick_divisor),
-         required_stock_raised: LaunchActions.required_stock_raised(),
-         stock_decimals: snapshot.admission.decimals
-       }}
-    end
-  end
-
-  defp admitted(%{paused: true}), do: unavailable(:launches_paused)
-  defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
-  defp admitted(_snapshot), do: :ok
-
   # The review
 
   defp build(draft, fields, executable, signer, snapshot, config) do
+    schedule = LaunchActions.schedule(:robinhood)
+
     %{
       signer: signer,
       chain: Client.chain(config),
@@ -262,8 +137,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         "stock_symbol" => fields.stock_symbol,
         "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
         "stock_decimals" => Integer.to_string(executable.stock_decimals),
-        "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
-        "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
+        "start_lead_blocks" => Integer.to_string(schedule.opens),
+        "auction_duration_blocks" => Integer.to_string(schedule.length),
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
         "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
@@ -271,23 +146,29 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         "route" => snapshot.admission.route,
         "block_number" => snapshot.block.number,
         "block_hash" => snapshot.block.hash,
-        "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
+        "terms" =>
+          Enum.map(LaunchActions.terms(:robinhood, fields.symbol), fn {label, value} ->
+            [label, value]
+          end),
         "risk" => risk_copy()
       },
-      review: review(fields, executable)
+      review: review(fields, executable, schedule)
     }
   end
 
   # The plain facts the page shows before anything is signed.
-  defp review(fields, executable) do
+  defp review(fields, executable, schedule) do
     [
       ["Launch fee", "None"],
       [
         "Minimum raise",
         "#{RegentFormat.token_amount(LaunchActions.minimum_raise(), executable.stock_decimals)} #{fields.stock_symbol}"
       ],
-      ["Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"],
-      ["Auction length", schedule_copy(@auction_duration_blocks)],
+      [
+        "Bidding opens",
+        "#{LaunchActions.schedule_copy(:robinhood, schedule.opens)} after the launch is created"
+      ],
+      ["Auction length", LaunchActions.schedule_copy(:robinhood, schedule.length)],
       ["Starting price", starting_price(fields, executable)]
     ]
   end
@@ -466,10 +347,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   defp snapshot(stock), do: chain(StocksLaunchChainClient.snapshot(%{stock: stock}))
 
-  defp chain({:ok, value}), do: {:ok, value}
-  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
-  defp chain({:error, reason}), do: unavailable(reason)
-
   # Stored drafts
 
   defp owned_draft(draft_id, actor) do
@@ -479,64 +356,4 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {:error, _reason} -> unavailable(:launch_draft_unavailable)
     end
   end
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The wallet the page presents has to be one of the leased account's own
-  # wallets, read now.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address, :invalid_address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: own_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp own_wallet(%{wallet_addresses: wallets}, candidate) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
-  end
-
-  # Shared helpers
-
-  defp address(value, reason) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(reason)
-    end
-  end
-
-  defp refusable({:error, reason}), do: unavailable(reason)
-  defp refusable(result), do: result
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

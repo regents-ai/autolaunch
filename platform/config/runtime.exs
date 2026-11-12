@@ -6,11 +6,11 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
-# The Privy accounts that may give Credits, handle refunds and read the saved
-# errors at /admin/errors, comma separated.
+# The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENT_CREDITS_ADMINS") do
-  config :regent_credits,
-    admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  config :autolaunch, :admins, admins
+  config :regent_agents, admins: admins
 end
 
 # This site's own key for reading what paired agents have done from the sign-in
@@ -247,6 +247,62 @@ if finisher_on do
   config :autolaunch, Oban, queues: [auction_finishing: [limit: 1, paused: false]]
 end
 
+# The Claude connector, behind one switch (Autolaunch.OAuth.enabled?/0): its
+# sign-in under /oauth and /.well-known/oauth-*, a connected app's token at /mcp
+# (AutolaunchWeb.Plugs.McpAgent), Claude in the pairing box and the Claude guide
+# at /agents/claude, which /llms.txt, /agents.md and the sitemaps then name.
+# Unset leaves all of it off, and /mcp serves only agents signing with their own
+# wallet; anything but true stops the boot. Switch it on only after the
+# migrations have run. The connector's identities are held by the same sign-in
+# service, asked with this site's own key there.
+claude_connector? =
+  case System.get_env("AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED must be true or unset"
+  end
+
+hosted_signing_key = System.get_env("SIWA_HOSTED_SIGNING_KEY")
+
+if claude_connector? and
+     not (is_binary(hosted_signing_key) and
+            Regex.match?(~r/\A[A-Za-z0-9_-]{32,}\z/, hosted_signing_key)) do
+  raise "AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED is true, so SIWA_HOSTED_SIGNING_KEY must be " <>
+          "this site's hosted signing key from the sign-in service: 32 or more letters, " <>
+          "digits, - or _"
+end
+
+# The connector's sign-in answers at the site's own address and its MCP address
+# is under it: https://PHX_HOST in production, the endpoint's own address
+# elsewhere. Each code and token has these written on it as it is issued, and one
+# whose values differ from the running site's is refused.
+site_url =
+  if config_env() == :prod do
+    case String.trim(System.get_env("PHX_HOST", "")) do
+      "" -> nil
+      host -> "https://" <> host
+    end
+  else
+    url = Application.fetch_env!(:autolaunch, AutolaunchWeb.Endpoint)[:url]
+    URI.to_string(%URI{scheme: url[:scheme] || "http", host: url[:host], port: url[:port]})
+  end
+
+config :autolaunch, Autolaunch.OAuth,
+  enabled?: claude_connector?,
+  issuer: site_url,
+  resource: site_url && site_url <> "/mcp"
+
+config :regent_mcp_agents, :config,
+  enabled?: claude_connector?,
+  hosted_signer: [
+    base_url: Application.fetch_env!(:regent_agents, :siwa)[:url],
+    key: hosted_signing_key
+  ]
+
+# Claude is offered in the pairing box, and accepted by the pair request, only
+# while its connector is on.
+config :regent_agents, hosted_pairing: if(claude_connector?, do: [:claude], else: [])
+
 # ENS names and pictures are read from Ethereum mainnet through this endpoint:
 # each sign-in's lookup (Autolaunch.Accounts.EnsIdentity) and Connect ENS.
 if ethereum_read_rpc_url = System.get_env("ETHEREUM_READ_RPC_URL") do
@@ -259,13 +315,13 @@ if ethereum_read_rpc_url = System.get_env("ETHEREUM_READ_RPC_URL") do
   end
 end
 
-# The shared libraries read Base and Ethereum through the site's own nodes when it
-# has them (Autolaunch.Chain.NodeClient), the same ones its launch reads and ENS use.
+# The shared libraries read Base through the site's own node when it has one
+# (Autolaunch.Chain.NodeClient), the same one its launch reads use.
 if config_env() == :prod and not migrating? do
   config :autolaunch, :source_commit, System.fetch_env!("SOURCE_COMMIT")
 
   node_overrides =
-    for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}, {1, "ETHEREUM_READ_RPC_URL"}],
+    for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}],
         node_url = System.get_env(setting),
         into: %{},
         do: {chain_id, node_url}

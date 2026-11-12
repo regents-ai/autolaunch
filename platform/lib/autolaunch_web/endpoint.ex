@@ -62,16 +62,18 @@ defmodule AutolaunchWeb.Endpoint do
   # One budget per client address, shared by the health check, the browser's visit
   # reports, every /api address and the share pictures, answered or not. Every
   # answer says what is left of it; past it the answer is 429 with Retry-After.
-  # The auction list has a second, smaller budget of its own.
+  # The auction list has a second, smaller budget of its own, and the MCP address
+  # has its own.
   plug :limit_rate
 
   plug AutolaunchWeb.Prelaunch
 
-  # Before the parsers, so a body they refuse on an /api address is answered
-  # in JSON like every other API error.
+  # Before the parsers, so a body they refuse on an /api address or the MCP
+  # address is answered in JSON like every other API error.
   plug RegentAgentAccess.Plug,
     documents: &AutolaunchWeb.PublicDocuments.document/1,
-    guide: "/agents.md"
+    guide: "/agents.md",
+    json_prefixes: ["api", "mcp"]
 
   # After the error format is chosen, so a slash address is answered as any
   # address that names nothing.
@@ -155,6 +157,9 @@ defmodule AutolaunchWeb.Endpoint do
 
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
+
+  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
+    do: AutolaunchWeb.Plugs.McpAgent.limit_address(conn)
 
   # A share picture is drawn on the first request for each version of it, so
   # the pictures share the API's budget.

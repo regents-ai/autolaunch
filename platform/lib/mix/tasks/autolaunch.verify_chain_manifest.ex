@@ -181,8 +181,7 @@ defmodule Mix.Tasks.Autolaunch.VerifyChainManifest do
     )
   end
 
-  @doc false
-  def canonical_signature(%{"name" => name, "inputs" => inputs}) do
+  defp canonical_signature(%{"name" => name, "inputs" => inputs}) do
     types = Enum.map_join(inputs, ",", &canonical_abi_type/1)
     "#{name}(#{types})"
   end

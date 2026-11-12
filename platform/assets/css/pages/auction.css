@@ -5,25 +5,9 @@
 .bid-positions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; overflow-wrap: anywhere; }
 .bid-positions > li + li { padding-top: 10px; border-top: 1px solid var(--hairline); }
 
-/* The auction page: headline figures across the top, then the chart with the
-   bid form beside it (straight under it on narrow screens), then the bids,
-   the activity and the token. */
-.auction-headline { display: grid; gap: 12px; margin-block-end: 24px; }
-.auction-headline dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); gap: 16px; margin: 0; }
-.auction-headline__stat { min-width: 0; padding-inline-start: 16px; border-left: 1px solid var(--hairline); }
-.auction-headline__stat:first-child { padding-inline-start: 0; border-left: 0; }
-.auction-headline dt { color: var(--color-fg-muted); font-size: .875rem; }
-.auction-headline dd { display: grid; gap: 2px; margin: 4px 0 0; font-size: .875rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.auction-headline dd strong { font-size: 1.5rem; line-height: 1.2; }
-.auction-headline dd .usd-value { color: var(--color-success); font-size: .8125rem; }
-@media (max-width: 40rem) {
-  .auction-headline dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .auction-headline__stat { padding-inline-start: 0; border-left: 0; }
-  .auction-headline dd strong { font-size: 1.25rem; }
-}
-.auction-details-open { justify-self: end; padding: 4px 0; border: 0; background: none; color: var(--color-fg); font: inherit; cursor: pointer; }
-.auction-details-open:hover { text-decoration: underline; }
-.auction-details-open:focus-visible, .auction-tabs__tab:focus-visible, .auction-details-window__close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+/* The auction page: the chart with the bid form beside it (straight under it
+   on narrow screens), then the bids, the activity and the token. */
+.auction-tabs__tab:focus-visible, .auction-details-window__close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .auction-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: auto 1fr; align-items: start; gap: 32px; }
 .auction-layout__chart { grid-column: 1; grid-row: 1; display: grid; gap: 16px; min-width: 0; }
 .auction-layout__bid { grid-column: 2; grid-row: 1 / span 2; min-width: 0; }
@@ -142,6 +126,8 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-box__unit { flex: none; margin-inline-start: 6px; color: var(--color-fg-muted); font-size: .9375rem; }
 .bid-box__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
 .bid-box--receive .bid-box__figure { font-size: 1.25rem; }
+/* A row the chosen currency does not use keeps its room, so a switch never changes the form's height. */
+.bid-box--unused { visibility: hidden; }
 
 /* The currency paid in: a chip, with the switch between two above it. */
 .bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-size: .9375rem; white-space: nowrap; }
@@ -178,4 +164,6 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-placed p { margin: 0; }
 .bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
 .bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.bid-placed__actions > * { flex: 1 1 8rem; }
+/* Each button starts at its own label's width, so one that does not fit moves to the next
+   line whole rather than cutting its label short. */
+.bid-placed__actions > * { flex: 1 1 auto; }

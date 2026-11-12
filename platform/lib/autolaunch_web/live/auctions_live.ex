@@ -13,8 +13,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   import AutolaunchWeb.Components.AuctionStats
 
-  import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [creator_connections_for: 1, current_human_id: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   import AutolaunchWeb.Components.SwapModal, only: [settlement_modal: 1]
   alias Autolaunch.HomeMarket
@@ -26,19 +25,8 @@ defmodule AutolaunchWeb.AuctionsLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/auctions"))
-     |> assign(
-       options: nil,
-       trade: nil,
-       records: [],
-       creators: %{},
-       loading: true,
-       failed: false,
-       append: false,
-       next_cursor: nil,
-       has_more: false,
-       all: @all
-     )
-     |> LiveListings.subscribe()
+     |> assign(trade: nil, all: @all)
+     |> LiveListings.paged()
      |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
      |> LabMarket.assign_launches_catching_up()
@@ -48,10 +36,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   def handle_params(params, _uri, socket) do
     options = params |> Map.put("view", "auctions") |> HomeMarket.options()
-
-    if options == socket.assigns.options,
-      do: {:noreply, socket},
-      else: {:noreply, socket |> assign(options: options, pill: pill(options)) |> load(false)}
+    {:noreply, socket |> assign(:pill, pill(options)) |> LiveListings.filtered(options)}
   end
 
   def handle_event("search", params, socket),
@@ -67,56 +52,12 @@ defmodule AutolaunchWeb.AuctionsLive do
   end
 
   def handle_event("load-more", _params, %{assigns: %{loading: false, has_more: true}} = socket),
-    do: {:noreply, load(socket, true)}
+    do: {:noreply, LiveListings.load(socket, true)}
 
   def handle_event("load-more", _params, socket), do: {:noreply, socket}
 
-  def handle_event("retry", _params, socket), do: {:noreply, load(socket, socket.assigns.append)}
-
-  def handle_async(:auctions, {:ok, {:ok, page}}, socket) do
-    records =
-      if socket.assigns.append,
-        do: Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
-        else: page.records
-
-    creators =
-      if socket.assigns.append,
-        do: Map.merge(socket.assigns.creators, page.creators),
-        else: page.creators
-
-    {:noreply,
-     assign(socket,
-       records: records,
-       creators: creators,
-       next_cursor: page.next_cursor,
-       has_more: page.has_more,
-       loading: false,
-       failed: false
-     )}
-  end
-
-  def handle_async(:auctions, _failure, socket),
-    do: {:noreply, assign(socket, loading: false, failed: true)}
-
-  # A reread answers only for the list it was asked about, at the length it
-  # had then; a filter, search or "Load more" since brings its own records.
-  def handle_async(:auctions_reread, {:ok, {options, count, {:ok, page}}}, socket) do
-    if options == socket.assigns.options and count == length(socket.assigns.records) and
-         not socket.assigns.loading do
-      {:noreply,
-       assign(socket,
-         records: page.records,
-         creators: page.creators,
-         next_cursor: page.next_cursor,
-         has_more: page.has_more
-       )}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # A failed reread leaves the list the reader already has.
-  def handle_async(:auctions_reread, _failure, socket), do: {:noreply, socket}
+  def handle_event("retry", _params, socket),
+    do: {:noreply, LiveListings.load(socket, socket.assigns.append)}
 
   # The Robinhood notice follows whether the site could read Robinhood.
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
@@ -130,44 +71,12 @@ defmodule AutolaunchWeb.AuctionsLive do
     do: {:noreply, LiveListings.schedule(socket)}
 
   def handle_info(:reread_listings, socket),
-    do: {:noreply, socket |> LiveListings.taken() |> reread() |> assign_auction_stats()}
-
-  # Each list row names its creator by their connected accounts.
-  defp with_creators({:ok, page}),
-    do: {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
-
-  defp with_creators(failure), do: failure
+    do: {:noreply, socket |> LiveListings.reread() |> assign_auction_stats()}
 
   defp patch(socket, changes),
     do: push_patch(socket, to: list_path(socket.assigns.options, changes))
 
   defp list_path(options, changes), do: HomeMarket.path(options, changes, "/auctions")
-
-  defp load(socket, append?) do
-    options = socket.assigns.options
-    cursor = if append?, do: socket.assigns.next_cursor
-
-    socket
-    |> then(
-      &if(append?,
-        do: &1,
-        else: assign(&1, records: [], has_more: false, next_cursor: nil)
-      )
-    )
-    |> assign(loading: true, failed: false, append: append?)
-    |> start_async(:auctions, fn -> options |> HomeMarket.read(cursor) |> with_creators() end)
-  end
-
-  # The records loaded so far, read again in place, so every loaded page and
-  # the filters stay.
-  defp reread(socket) do
-    options = socket.assigns.options
-    count = length(socket.assigns.records)
-
-    start_async(socket, :auctions_reread, fn ->
-      {options, count, options |> HomeMarket.reread(count) |> with_creators()}
-    end)
-  end
 
   defp pill(options) do
     cond do

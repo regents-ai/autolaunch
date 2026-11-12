@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
   end
 
   defp settle(view) do
-    render_async(view, 2_000)
+    render_async(view)
     _ = render(view)
     GenServer.stop(view.pid)
     restore_reads_of(@authority)
@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
           {"/create", "stock_launch_drafts", {:agent_draft_saved, "memestock"}}
         ] do
       {view, session} = open(conn, path, account.id)
-      render_async(view, 2_000)
+      render_async(view)
       # As after a launch listed the draft: there is none until the page starts one.
       drop_drafts(table, account.id)
 
@@ -175,7 +175,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
     for {path, field} <- [{"/agent-business", :launch_image}, {"/create", :stocks_image}] do
       account = TestSupport.register_creator!()
       {view, session} = open(build_conn(), path, account.id)
-      render_async(view, 2_000)
+      render_async(view)
       picture = [%{name: "launch.png", content: @png, type: "image/png"}]
 
       # The connection is lost as the picture is saved.

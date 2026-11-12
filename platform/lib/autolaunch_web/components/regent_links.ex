@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
     ~H"""
     <div class="regent-header-links">
       <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
-        <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
+        <summary aria-label="$REGENT links"><.regent_icon /></summary>
         <div class="regent-token-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
           <nav class="regent-token-menu__content" aria-label="$REGENT">
             <Regent.Primitives.copy_button
@@ -90,7 +90,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
   end
 
   # Same icon geometry as the Regents homepage.
-  defp source_icon(%{kind: :regent} = assigns) do
+  defp regent_icon(assigns) do
     ~H"""
     <svg viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
       <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />

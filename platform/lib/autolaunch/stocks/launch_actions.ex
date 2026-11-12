@@ -17,11 +17,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
   the receipt is the only source of the start and end blocks.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
-  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
@@ -35,14 +34,15 @@ defmodule Autolaunch.Stocks.LaunchActions do
     LaunchOperations
   }
 
-  # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol.
+  # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol
+  # on Base and contracts/robinhood-v2/src/RobinhoodPreset.sol on Robinhood Chain,
+  # where blocks are the rollup clock's. Only the schedule differs.
   @new_decimals 18
   @auction_inventory 497_500_000 * Integer.pow(10, 18)
-  @start_lead_blocks 300
-  @auction_duration_blocks 43_200
-  @claim_delay_blocks 64
-  @migration_delay_blocks 128
-  @creator_vesting_blocks 1_296_000
+  @schedules %{
+    base: %{opens: 300, length: 43_200, claim: 64, pool: 128, vesting: 1_296_000},
+    robinhood: %{opens: 6_000, length: 864_000, claim: 1_280, pool: 2_560, vesting: 25_920_000}
+  }
   @tick_divisor 100
   # The auction's lowest floor, 2^32 + 1, rounded up to the next multiple of
   # the tick divisor so the bid tick spacing divides it exactly.
@@ -52,10 +52,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
+  @doc "The fixed terms every Memestock launch on `chain` uses, for the review page, in the ticker of the token it creates."
+  def terms(chain, ticker) do
+    schedule = schedule(chain)
 
-  @doc "The fixed terms every Stocks launch uses, for the review page, in the ticker of the token it creates."
-  def terms(ticker) do
     [
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
@@ -64,34 +64,31 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Pool reserve", "497,500,000 #{ticker} (49.75%)"},
       {"Starting price", "The lowest the auction accepts"},
       {"Minimum raise", "The whole sale at the fixed floor, rounded up"},
-      {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
-      {"Auction length", schedule_copy(@auction_duration_blocks)},
-      {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
-      {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
+      {"Bidding opens", "#{schedule_copy(chain, schedule.opens)} after the launch is created"},
+      {"Auction length", schedule_copy(chain, schedule.length)},
+      {"Claims open", "#{schedule_copy(chain, schedule.claim)} after the auction ends"},
+      {"Pool opens", "#{schedule_copy(chain, schedule.pool)} after the auction ends"},
       {"Creator allocation", "5,000,000 #{ticker} (0.5%)"},
       {"Vesting",
-       "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
+       "Released block by block over #{schedule_copy(chain, schedule.vesting)} from the pool opening; anyone can release it and it always goes to the creator"},
       {"Treasury", "None"},
       {"Pool pair", "#{ticker} and the stock it was launched against"}
     ] ++
-      FeeSchedule.terms(:base) ++
+      FeeSchedule.terms(chain) ++
       [
         {"Unsold tokens",
          "Rounding leftovers retired to the dead address; total supply stays unchanged"},
         {"Pool liquidity",
-         "Opens at the auction's final price with a full-range position; any stock left over from rounding joins the protocol fee. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
+         "Opens at the auction's final price as liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is locked as liquidity in #{ticker} alone, for prices above the opening token price. The fees the liquidity collects go to the token's staking"},
         {"If the minimum raise is not reached",
          "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
       ]
   end
 
-  @doc "How long the schedule's parts take, as blocks with an estimated duration."
-  def schedule_copy(blocks),
+  @doc "How long one of `chain`'s schedule parts takes, as blocks with an estimated duration."
+  def schedule_copy(chain, blocks),
     do:
-      "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(:base, blocks)}"
-
-  def start_lead_blocks, do: @start_lead_blocks
-  def auction_duration_blocks, do: @auction_duration_blocks
+      "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(chain, blocks)}"
 
   @doc """
   A Memestock launch's fixed schedule on `chain`, in blocks: bidding opens
@@ -100,18 +97,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   over `vesting` from the pool opening. Every duration the site states for a
   Memestock launch is worked out from these with `LaunchChain.time_estimate/2`.
   """
-  def schedule(:base),
-    do: %{
-      opens: @start_lead_blocks,
-      length: @auction_duration_blocks,
-      claim: @claim_delay_blocks,
-      pool: @migration_delay_blocks,
-      vesting: @creator_vesting_blocks
-    }
-
-  def schedule(:robinhood), do: RobinhoodLaunchActions.schedule()
-
-  def floor_price_q96, do: @floor_price_q96
+  def schedule(chain), do: Map.fetch!(@schedules, chain)
 
   @doc """
   What a launch opens at, in a stock of `stock_decimals`: the price of one
@@ -148,17 +134,13 @@ defmodule Autolaunch.Stocks.LaunchActions do
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         :ok <- LaunchOperations.signer_matches(account, signer),
+    with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- stocks_lab(),
          {:ok, snapshot} <- snapshot(fields),
-         {:ok, executable} <- executable(fields, snapshot, config),
+         {:ok, executable} <- executable(snapshot),
          review <- review(draft, fields, executable, signer, snapshot, config),
          {:ok, operation} <- open(lease, draft, signer, review) do
       {:ok, reviewed(operation)}
@@ -179,7 +161,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp standing?(%{paused: paused, admission: admission} = snapshot, facts),
+  @doc """
+  Whether a launchpad snapshot still stands behind a review's facts: launches
+  open, and the STOCK admitted on the same launchpad with the same decimals
+  and route.
+  """
+  def standing?(%{paused: paused, admission: admission} = snapshot, facts),
     do:
       not paused and admission.admitted and snapshot.launchpad == facts["launchpad"] and
         Integer.to_string(admission.decimals) == facts["stock_decimals"] and
@@ -217,10 +204,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc """
   Everything the chain will execute, from the preset and the admitted STOCK's
-  decimals. Exposed so the review page and its test can state exactly the
-  same numbers.
+  decimals, on either chain's launchpad. Exposed so the review page and its
+  test can state exactly the same numbers.
   """
-  def executable(_fields, snapshot, _config) do
+  def executable(snapshot) do
     with :ok <- admitted(snapshot) do
       {:ok,
        %{
@@ -258,8 +245,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "stock_symbol" => fields.stock_symbol,
         "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
         "stock_decimals" => Integer.to_string(executable.stock_decimals),
-        "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
-        "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
+        "start_lead_blocks" => Integer.to_string(@schedules.base.opens),
+        "auction_duration_blocks" => Integer.to_string(@schedules.base.length),
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
         "minimum_raise_units" => Rpc.format_units(minimum_raise(), executable.stock_decimals),
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
@@ -275,7 +262,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "route" => snapshot.admission.route,
         "block_number" => snapshot.block.number,
         "block_hash" => snapshot.block.hash,
-        "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
+        "terms" => Enum.map(terms(:base, fields.symbol), fn {label, value} -> [label, value] end),
         "risk" => risk_copy()
       }
     }
@@ -339,8 +326,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
          stock: stock,
          stock_symbol: asset.symbol
        }}
-    else
-      {:error, _reason} = error -> error
     end
   end
 
@@ -360,18 +345,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp snapshot(%{stock: stock}) do
-    case LabLaunchChainClient.snapshot(%{stock: stock}) do
-      {:ok, snapshot} -> {:ok, snapshot}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
+  defp snapshot(%{stock: stock}), do: chain(LabLaunchChainClient.snapshot(%{stock: stock}))
 
   # Saved reviews
 
   defp open(lease, draft, signer, review) do
-    transact(lease, fn account ->
+    LaunchOperations.transact(lease, fn account ->
       with :ok <- LaunchOperations.signer_matches(account, signer) do
         LaunchOperations.create(account, %{
           action_id: action_id(),
@@ -386,49 +365,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp action_id, do: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
 
-  defp transact(lease, callback), do: LaunchOperations.transact(lease, callback)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  # Shared helpers
-
-  defp normalize(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(:invalid_address)
-    end
-  end
-
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

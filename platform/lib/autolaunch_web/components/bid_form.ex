@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.Components.BidForm do
     fields = %{"amount" => form.amount, "fdv" => shown_fdv(form, max_price, supply, factor)}
 
     fields =
-      if form.pay_with in @dollars and form.pay_with != price_unit,
+      if converts?(form.pay_with, price_unit),
         do: Map.put(fields, "slippage_percent", form.slippage_percent),
         else: fields
 
@@ -230,7 +230,8 @@ defmodule AutolaunchWeb.Components.BidForm do
         fdv_in_price_unit: max_price && supply && times(max_price, supply),
         budget_rate: budget_rate,
         budget_usd?: form.amount != "" and budget_rate != :test_network,
-        outlook: outlook
+        outlook: outlook,
+        slippage: slippage(assigns.amount_unit, assigns.pay_with, assigns.price_unit)
       )
 
     ~H"""
@@ -359,14 +360,24 @@ defmodule AutolaunchWeb.Components.BidForm do
         </p>
       </div>
 
-      <div :if={@amount_unit in ["USDC", "USDG"] and @amount_unit != @price_unit} class="bid-box">
+      <div class="bid-box bid-box--receive" role="status">
+        <span class="bid-box__label">Receive</span>
+        <.expected outlook={@outlook} amount={@form.amount} token={@token_symbol} />
+      </div>
+
+      <div
+        :if={@slippage}
+        class={["bid-box", @slippage == :room && "bid-box--unused"]}
+        inert={@slippage == :room}
+      >
         <label class="bid-box__label" for={"#{@id}-slippage"}>Stock conversion slippage (%)</label>
         <input
           id={"#{@id}-slippage"}
           class="bid-box__figure"
-          name="slippage_percent"
+          name={@slippage == :shown && "slippage_percent"}
           value={@form.slippage_percent}
-          data-onchain-input="slippage_percent"
+          data-onchain-input={@slippage == :shown && "slippage_percent"}
+          disabled={@slippage == :room}
           inputmode="decimal"
           autocomplete="off"
           phx-debounce="400"
@@ -375,11 +386,6 @@ defmodule AutolaunchWeb.Components.BidForm do
         <p id={"#{@id}-slippage-help"} class="bid-box__note">
           5% by default. Enter 0–99.99%. A higher percentage accepts fewer stocks for your budget.
         </p>
-      </div>
-
-      <div class="bid-box bid-box--receive" role="status">
-        <span class="bid-box__label">Receive</span>
-        <.expected outlook={@outlook} amount={@form.amount} token={@token_symbol} />
       </div>
     </form>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MaxFdv">
@@ -413,6 +419,20 @@ defmodule AutolaunchWeb.Components.BidForm do
 
   defp outlook(ready, max_price, form, assigns),
     do: AuctionBook.outlook(budget(form.amount, assigns), max_price, ready)
+
+  # Slippage is asked for while the budget is a dollar currency the auction
+  # does not price in. Where another currency to switch to would ask for it,
+  # its box keeps its room, unseen and inert, after the rows in use, so a
+  # switch never changes the form's height; it then sends nothing.
+  defp slippage(amount_unit, pay_with, price_unit) do
+    cond do
+      converts?(amount_unit, price_unit) -> :shown
+      Enum.any?(pay_with, &converts?(&1, price_unit)) -> :room
+      true -> nil
+    end
+  end
+
+  defp converts?(unit, price_unit), do: unit in @dollars and unit != price_unit
 
   attr :outlook, :map, default: nil
   attr :amount, :string, required: true

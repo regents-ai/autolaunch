@@ -187,15 +187,26 @@ defmodule Autolaunch.Bid do
     end
   end
 
-  # A bid's standing is written only by `:project_lab`; its owner's open pages
-  # hear of each write (`Autolaunch.WalletBids`).
+  # A bid's standing is written only by `:project_lab`, and the bid itself is
+  # first recorded by `:record_from_chain`; its owner's open pages hear of each
+  # write (`subscribe_wallet/1`).
   pub_sub do
     module Phoenix.PubSub
     name Autolaunch.PubSub
     transform fn notification -> {:autolaunch_bid_changed, notification.data.bid_id} end
 
     publish :project_lab, ["wallet_bids", :owner_address]
+    publish :record_from_chain, ["wallet_bids", :owner_address]
   end
+
+  @doc """
+  Subscribes the calling process to the bids of one lowercase wallet address:
+  `{:autolaunch_bid_changed, bid_id}` arrives each time one of its bids'
+  standing is written, when its auction ends, when it is withdrawn and when its
+  tokens become claimable or are claimed.
+  """
+  def subscribe_wallet("0x" <> _ = wallet),
+    do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, "wallet_bids:" <> wallet)
 
   attributes do
     uuid_primary_key :id, public?: false

@@ -36,8 +36,16 @@ defmodule AutolaunchWeb.Prelaunch do
     end
   end
 
-  # Sign-in, sign-out and profile editing work before opening.
+  # Sign-in, sign-out, profile editing and connecting an app such as Claude
+  # (`AutolaunchWeb.OAuthController`) work before opening. So does the hosted MCP
+  # server's address, and anything but POST /mcp is refused there
+  # (`AutolaunchWeb.Plugs.McpAgent`). Its tools that read, or keep a connected
+  # app's identity and pairing, work in read-only mode; the one that prepares
+  # wallet steps (`prepare_covered_call`) is neither listed nor run while it is on,
+  # by its action's own policy (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`).
   defp account_path?(["auth" | _]), do: true
+  defp account_path?(["oauth" | _]), do: true
+  defp account_path?(["mcp" | _]), do: true
   defp account_path?(["api", "v1", "profile" | _]), do: true
   defp account_path?(_), do: false
 
@@ -45,13 +53,10 @@ defmodule AutolaunchWeb.Prelaunch do
   defp visit_report?("POST", ["visit-log"]), do: true
   defp visit_report?(_, _), do: false
 
-  # Pairing is account access; history is a private read despite its JSON body.
+  # Pairing is account access.
   # Metadata and all launch/wallet writes retain the prelaunch refusal, and so
   # does preparing covered-call steps, as preparing any wallet step on a page does.
   defp signed_account_request?("POST", ["api", "agents", "v1", "pair"]), do: true
-
-  defp signed_account_request?("POST", ["api", "agent", "v1", "account", "credits", "history"]),
-    do: true
 
   defp signed_account_request?(_, _), do: false
 

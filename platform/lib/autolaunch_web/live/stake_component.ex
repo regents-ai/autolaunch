@@ -38,7 +38,6 @@ defmodule AutolaunchWeb.StakeComponent do
   """
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
@@ -464,14 +463,16 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp review_assigns(assigns) do
+    steps = steps(assigns)
+
     %{
       id: "#{assigns.id}-review",
       open: !!assigns.review,
       title: assigns.review && title(assigns.prepared.kind),
       facts: (assigns.review && assigns.prepared.facts) || [],
-      steps: steps(assigns),
-      next_step: next_step(assigns),
-      reverted: reverted(assigns),
+      steps: steps,
+      next_step: next_step(assigns, steps),
+      reverted: reverted(steps, assigns.prepared),
       notice: assigns.press_note,
       target: assigns.myself,
       signer: assigns.review && assigns.review.signer,
@@ -482,16 +483,8 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket) do
-    active = OnchainSteps.active_wallet(params)
-
-    socket =
-      if active == socket.assigns.active,
-        do: socket,
-        else: assign(socket, active: active, press_note: nil)
-
-    {:noreply, followed(socket)}
-  end
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed()}
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
@@ -542,16 +535,8 @@ defmodule AutolaunchWeb.StakeComponent do
      )}
   end
 
-  def handle_event("step_failed", params, socket) do
-    case Presses.failed(params) do
-      {:ok, _name, reason} ->
-        AutolaunchWeb.Telemetry.wallet_failed(:stake, reason)
-        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
-
-      :error ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :stake, "this network")}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash) do
     if OnchainCalls.follows?(socket.assigns.batches, hash),
@@ -593,25 +578,11 @@ defmodule AutolaunchWeb.StakeComponent do
   def handle_async({:onchain_calls, calls_id}, result, socket),
     do: {:noreply, OnchainCalls.checked(socket, calls_id, result, &batch_confirmed/2)}
 
-  def handle_async({:batch_result, calls_id}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
+  def handle_async({:batch_result, calls_id}, result, socket),
+    do: {:noreply, batch_resulted(socket, calls_id, OnchainSteps.receipt_logs(result))}
 
-    {:noreply, batch_resulted(socket, calls_id, logs)}
-  end
-
-  def handle_async({:result, hash}, result, socket) do
-    logs =
-      case result do
-        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
-        _unread -> nil
-      end
-
-    {:noreply, resulted(socket, hash, logs)}
-  end
+  def handle_async({:result, hash}, result, socket),
+    do: {:noreply, resulted(socket, hash, OnchainSteps.receipt_logs(result))}
 
   defp reviewed(%{assigns: %{signer: nil}} = socket, _kind, params) do
     socket = entered(socket, params)
@@ -622,7 +593,7 @@ defmodule AutolaunchWeb.StakeComponent do
     socket = entered(socket, params)
     request = %{kind: kind, launch: socket.assigns.launch, amount: socket.assigns.amount}
 
-    case StakeActions.prepare(request, socket.assigns.signer, opts(socket)) do
+    case StakeActions.prepare(request, socket.assigns.signer, OnchainSteps.opts(socket)) do
       {:ok, prepared} ->
         review =
           Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
@@ -632,12 +603,14 @@ defmodule AutolaunchWeb.StakeComponent do
         |> OnchainSteps.put_review(review)
 
       {:error, error} ->
-        assign(socket, notice: copy(refusal(error)))
+        assign(socket, notice: copy(OnchainSteps.refusal(error)))
     end
   end
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
+
+  defp no_signer(assigns),
+    do: OnchainSteps.failure_note(assigns, "wallet_unavailable", "this network")
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -674,12 +647,12 @@ defmodule AutolaunchWeb.StakeComponent do
 
   # A step landed: every figure it touched is read again, and what it moved is
   # read from its receipt. An approval moves nothing to show.
-  defp confirmed(socket, %{hash: hash, name: name, review: review}) do
+  defp confirmed(socket, %{hash: hash, name: name} = entry) do
     socket = socket |> assign(read_for: nil) |> followed()
 
     if name == "token_approval",
       do: resulted(socket, hash, []),
-      else: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+      else: OnchainSteps.read_receipt(socket, entry)
   end
 
   # A batch from the open review landed: what each of its steps moved is read
@@ -785,19 +758,6 @@ defmodule AutolaunchWeb.StakeComponent do
     |> OnchainSteps.put_review(nil)
   end
 
-  defp failure_note(%{review: review} = assigns, reason) do
-    chain_name = if review, do: review.chain.name, else: "this network"
-    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
-  end
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
-
   defp action(%{read_only?: true}), do: :closed
   defp action(%{authenticated: false}), do: :sign_in
   defp action(_assigns), do: :act
@@ -847,9 +807,11 @@ defmodule AutolaunchWeb.StakeComponent do
     batch = OnchainCalls.newest(assigns.batches, review)
 
     Enum.map(review.steps, fn %{step: name} ->
-      entry = if batched?, do: batch, else: OnchainSteps.entry(presses, review, name)
-      state = if batched?, do: OnchainCalls.state(batch), else: step_state(entry)
-      %{name: name, label: step_label(name, prepared), state: state, entry: entry}
+      label = step_label(name, prepared)
+
+      if batched?,
+        do: %{name: name, label: label, state: OnchainCalls.state(batch), entry: batch},
+        else: OnchainSteps.step(presses, review, name, label)
     end)
   end
 
@@ -857,13 +819,10 @@ defmodule AutolaunchWeb.StakeComponent do
   # review yet, or one that did not go through. A sent step moves the button on
   # at once; nothing waits for the network before the next press can reach the
   # wallet. A batch has one button for every step, named by the last one.
-  defp next_step(%{review: %{}} = assigns) do
-    steps = steps(assigns)
+  defp next_step(assigns, steps) do
     pressable = if OnchainCalls.offered?(assigns), do: Enum.take(steps, -1), else: steps
     Enum.find(pressable, &(&1.state in [:ready, :reverted, :other]))
   end
-
-  defp next_step(_assigns), do: nil
 
   defp step_label("token_approval", prepared),
     do: "Approve #{prepared.context.token_symbol}"
@@ -877,20 +836,9 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("collect_new_only", _prepared), do: "Collect the one-sided fees"
   defp step_label("release", _prepared), do: "Confirm release"
 
-  defp step_state(nil), do: :ready
-
-  defp step_state(%{outcome: :pending} = entry),
-    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
-
-  defp step_state(%{outcome: :confirmed}), do: :done
-  defp step_state(%{outcome: :reverted}), do: :reverted
-  defp step_state(_not_this_step), do: :other
-
-  defp reverted(%{review: %{}, prepared: %{kind: kind}} = assigns) do
-    if Enum.any?(steps(assigns), &(&1.state == :reverted)), do: reverted_copy(kind)
+  defp reverted(steps, prepared) do
+    if Enum.any?(steps, &(&1.state == :reverted)), do: reverted_copy(prepared.kind)
   end
-
-  defp reverted(_assigns), do: nil
 
   defp reverted_copy(:stake),
     do:
@@ -911,14 +859,6 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
-
   attr :id, :string, required: true
   attr :open, :boolean, required: true, doc: "whether a review is on the page"
   attr :title, :string, default: nil
@@ -936,7 +876,9 @@ defmodule AutolaunchWeb.StakeComponent do
   @doc """
   The review panel over a staking part: the reviewed facts and the wallet
   steps, one button at a time. It stays in the page and is only hidden while
-  nothing is reviewed, so its wallet button is never replaced.
+  nothing is reviewed, so its wallet button is never replaced. Opening it
+  takes the focus, which the form under it gives up as it goes inert, and so
+  brings the whole review into view.
   """
   def stake_review(assigns) do
     ~H"""
@@ -944,9 +886,10 @@ defmodule AutolaunchWeb.StakeComponent do
       id={@id}
       class="token-swap__review"
       aria-labelledby={@id <> "-title"}
+      tabindex="-1"
       hidden={!@open}
     >
-      <header class="token-swap__review-head">
+      <header :if={@open} class="token-swap__review-head" phx-mounted={JS.focus(to: "#" <> @id)}>
         <h3 id={@id <> "-title"}>{@title}</h3>
         <Regent.Primitives.button
           type="button"
@@ -988,6 +931,7 @@ defmodule AutolaunchWeb.StakeComponent do
       </ol>
 
       <SwapForm.wallet_step
+        id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
         reverted={@reverted}

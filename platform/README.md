@@ -19,7 +19,9 @@ the contract gates and release configuration remain authoritative.
 
 The website defaults to a read-only preview before contract deployment. Explore,
 public records, search, filters and the public read APIs remain available. The
-existing bid-quote POST is a read-only calculation and remains available too.
+existing bid-quote POST is a read-only calculation and remains available too, and so
+are the hosted MCP server at `/mcp` (its tools read, and keep a connected app's identity
+and pairing) and the connector's sign-in under `/oauth`.
 
 - The Create button is shown disabled, titled "Available after contract deployment".
 - Creation, bids, payments, staking and account changes are disabled in the UI.
@@ -49,8 +51,8 @@ person (`Autolaunch.Accounts.HumanAccount`). `mix autolaunch.schema.create`
 creates the schema on a freshly created database (the `setup` and `test` aliases
 run it between creating the database and migrating), and the release's
 `/app/bin/migrate` creates it the same way, so a new database needs no separate
-initialisation. The shared account table and Regents' identity, agents, Credits
-and Points tables live in their own schemas; `mix autolaunch.shared.migrate`
+initialisation. The shared account table and Regents' identity, agents and
+Points tables live in their own schemas; `mix autolaunch.shared.migrate`
 installs them locally, and `mix db.setup` runs it before this site's own
 migrations, which point at the shared account table.
 
@@ -73,7 +75,7 @@ in one site independently. AshPostgres comes from Regent's copy of 2.15.2 with
 the upsert fix that keeps upserts in each site's own schema.
 
 Before deploying, `Autolaunch.Release.pending_migrations/0` must report no missing
-shared Agents, Credits or Points migrations. This release also needs Agents'
+shared Agents or Points migrations. This release also needs Agents'
 `20261014150000` migration. The release checks their ledgers and refuses missing
 prerequisites; it does not apply shared migrations. Publishing a dependency update
 does not enable Points earning.
@@ -278,15 +280,17 @@ verification and the remaining release checks.
 | `BASE_READ_RPC_URL` | Yes in production | The Base endpoint the site reads one canonical `safe` block through. |
 | `ETHEREUM_READ_RPC_URL` | Yes in production | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
-| `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
+| `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, of the site's admins: they read the saved errors at `/admin/errors` and may remove an agent's picture. Unset means nobody can. The variable keeps its name until its secret is renamed. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
+| `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED` | Optional | `true` switches on the Claude connector: its sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in the pairing box and the Claude guide at `/agents/claude`. Unset leaves all of it off, and `/mcp` serves only paired agents signing with their own wallet; any other value stops the boot. Off in production. |
+| `SIWA_HOSTED_SIGNING_KEY` | With the connector | This site's hosted signing key from the sign-in service, 32 or more letters, digits, `-` or `_`, which holds each connected app's identity. With the connector on and no valid key, the boot stops. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using
 `autolaunch-runtime`; wrong-cluster, wrong-database and administrative runtime logins
 fail before connecting. Serving and migration both refuse the PgBouncer endpoint, because
-transaction pooling keeps neither the site's listeners for shared Credits and agent
-changes nor the session-level advisory locks migrations take.
+transaction pooling keeps neither the site's listener for shared agent changes nor the
+session-level advisory locks migrations take.
 
 The serving connection uses the direct endpoint with Ecto's bounded client pool.
 TLS verifies both the certificate chain and hostname. Connections rotate after a
@@ -310,6 +314,36 @@ production they are served at `/metrics` on port 9091, which `fly.toml`'s `[metr
 section names for Fly's managed Prometheus. That port is not a Fly service, so it is
 reachable only over Fly's private network; the public site has no `/metrics` page.
 Fly Sentinel reads them from Prometheus under its site health set.
+
+## Hosted MCP and the Claude connector
+
+`POST /mcp` is the site's one hosted MCP server: `AshAi.Mcp.Router` behind
+`AutolaunchWeb.Plugs.McpAgent`, serving the tools `priv/capabilities.json` marks hosted
+(`AutolaunchWeb.Capabilities.hosted_tools/0`), each as its Ash action under its policies.
+Today that is `autolaunch_auction_counts` and, while covered calls are on, `covered_call_book`,
+`covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (the operations the
+covered-call routes run, their answers shaped once in `Autolaunch.CoveredCalls.Answer`) for a
+paired agent signing each call with its own wallet, and the connector's four identity tools for a
+connected app. McpAgent refuses a query
+string, another method or address, another site's page, a body that is not JSON and a batch
+before any credential is read; then exactly one credential is taken, and an agent no person
+paired is refused `agent_not_paired` as on every signed route. Every other browser tool keeps a
+reason in `priv/capabilities.json` until its operation becomes one action whose answer is the
+tool's.
+
+The Claude connector (`Autolaunch.OAuth`, Boruta through elixir-utils' `RegentOAuth`) adds the
+sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in
+the pairing box and `/agents/claude`, all behind `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`. Its
+tables, `oauth_*` in `autolaunch_app`, are added by migration `20261109231500`. Switching it on
+needs, in order: the migration run; `autolaunch` in the
+sign-in service's hosted signing list (elixir-utils' `RegentMCPAgents` knows it from 466ca10f);
+this site's `SIWA_HOSTED_SIGNING_KEY`; then the switch, which is a sign-in release.
+
+Requests to `/mcp` are counted before the body is read (`McpAgent.limit_address/1`): 120 a
+minute from each address for every request without a checked token. A connected app's token
+moves to its address's 600 a minute and its account's 120 only once `RegentOAuth` accepts it, so a
+token that isn't this site's stays in the 120 and, once those are spent, is refused before it is
+looked up.
 
 ## How often the site reads the chain
 

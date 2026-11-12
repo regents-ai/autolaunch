@@ -30,54 +30,11 @@ defmodule AutolaunchWeb.AccountLiveTest do
       |> connects_with(session)
       |> live("/account/agents")
 
-    render_async(view, 1_000)
+    render_async(view)
     agents = view |> element("#account-agents") |> render()
     assert agents =~ "Account Page Agent"
     assert agents =~ "Codex"
     assert has_element?(view, "#account-agents-agent-#{agent.id}-wallet")
-  end
-
-  # ACCOUNT_SHOWS_CREDITS_HISTORY: the shared Credits library names each history
-  # entry by `kind`, `amount` and `direction`; this page still read the earlier
-  # entry fields, so /account crashed and reloaded every second for everyone
-  # who had bought Credits (v180), and no case had any Credits history.
-  test "ACCOUNT_SHOWS_CREDITS_HISTORY", %{conn: conn} do
-    account = TestSupport.register_creator!()
-
-    # A paid purchase, recorded and credited as the chain check does once the
-    # payment lands; there is no chain in tests to check.
-    purchase =
-      RegentCredits.Purchase
-      |> Ash.Changeset.for_create(
-        :record,
-        %{
-          privy_user_id: account.privy_user_id,
-          wallet: String.downcase(account.wallet_address),
-          chain: :base,
-          amount: 5,
-          number: Ecto.UUID.generate(),
-          tx_hash: "0x" <> String.duplicate("cd", 32)
-        },
-        authorize?: false
-      )
-      |> Ash.create!()
-
-    RegentCredits.Purchase
-    |> Ash.ActionInput.for_action(:credit, %{id: purchase.id}, authorize?: false)
-    |> Ash.run_action!()
-
-    session = signed_in_session(account.id)
-
-    {:ok, view, _html} =
-      conn
-      |> Phoenix.ConnTest.init_test_session(session)
-      |> connects_with(session)
-      |> live("/account")
-
-    render_async(view, 1_000)
-    history = view |> element("#account-credits-history") |> render()
-    assert history =~ "Bought Credits"
-    assert history =~ "+5"
   end
 
   # PAIRING_CODE_KEPT_PER_AGENT: the pairing box held one code and made a new one
@@ -95,7 +52,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       |> connects_with(session)
       |> live("/account/agents")
 
-    render_async(view, 1_000)
+    render_async(view)
     box = form(view, "#shell-pairing-box")
     shown = fn -> pairing_code(view) end
 
@@ -177,17 +134,17 @@ defmodule AutolaunchWeb.AccountLiveTest do
     # The Agents page's Pair New Agent opens the same window; the page holds no
     # second box.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account/agents")
-    render_async(page, 1_000)
+    render_async(page)
     assert has_element?(page, ~s(#account-agents button[aria-controls="shell-pairing"]))
     assert length(Regex.scan(~r/class="rg-account__pair"/, render(page))) == 1
 
     # The Account page puts this site's own sections before the account card.
     {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
-    render_async(page, 1_000)
+    render_async(page)
     html = render(page)
-    {history, _} = :binary.match(html, ~s(id="account-credits-history"))
+    {connections, _} = :binary.match(html, ~s(id="account-connections"))
     {identity, _} = :binary.match(html, ~s(id="account-identity"))
-    assert history < identity
+    assert connections < identity
   end
 
   # The code in the message the box shows for the chosen agent.

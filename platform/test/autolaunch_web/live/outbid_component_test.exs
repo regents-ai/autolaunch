@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.OutbidComponentTest do
   @moduledoc """
-  "Your bids on this auction" offers what the bidder can do next with a bid
+  "Your bids" on an auction offers what the bidder can do next with a bid
   still in the auction: Add while it is buying, Raise once it is outbid. A bid
   that has left the auction shows its status and offers neither.
   """

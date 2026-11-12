@@ -59,27 +59,23 @@ defmodule Autolaunch.Chain.SubjectAbi do
   }
 
   # A selector or topic is only evidence if the derived ABI really declares the
-  # signature it came from. The check runs inline, against the decoded file
-  # alone, so proving it adds no compile-time dependency of its own.
-  for {path, functions, events} <- [
-        {@splitter_abi_path, @splitter_reads, %{}},
-        {@receiver_abi_path, Map.merge(@receiver_actions, @receiver_reads), @receiver_events}
-      ] do
-    abi = path |> File.read!() |> Jason.decode!()
+  # signature it came from.
+  @after_compile __MODULE__
 
-    for {kind, entries} <- [{"function", functions}, {"event", events}],
-        {_id, {signature, _selector}} <- entries do
-      declared? =
-        Enum.any?(abi, fn
-          %{"type" => ^kind, "name" => name, "inputs" => inputs} ->
-            "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+  @doc false
+  # sobelow_skip ["Traversal.FileModule"]
+  def __after_compile__(_env, _bytecode) do
+    splitter = @splitter_abi_path |> File.read!() |> Jason.decode!()
+    receiver = @receiver_abi_path |> File.read!() |> Jason.decode!()
 
-          _entry ->
-            false
-        end)
+    for {_id, {signature, _selector}} <- @splitter_reads,
+        do: Abi.declared!(splitter, "function", signature)
 
-      declared? || raise "derived C1 ABI #{Path.basename(path)} is missing #{signature}"
-    end
+    for {_id, {signature, _selector}} <- Map.merge(@receiver_actions, @receiver_reads),
+        do: Abi.declared!(receiver, "function", signature)
+
+    for {_id, {signature, _topic}} <- @receiver_events,
+        do: Abi.declared!(receiver, "event", signature)
   end
 
   @doc "The exact decimals of one bound asset. Never read generically from a token."
@@ -98,14 +94,17 @@ defmodule Autolaunch.Chain.SubjectAbi do
 
   @spec encode_pay(String.t(), non_neg_integer(), String.t()) :: String.t()
   def encode_pay(token, amount, payment_reference),
-    do: selector(:pay) <> address!(token) <> uint256!(amount) <> bytes32!(payment_reference)
+    do:
+      selector(:pay) <>
+        Abi.address_word(token) <> uint256!(amount) <> bytes32!(payment_reference)
 
   @spec encode_sweep(String.t()) :: String.t()
-  def encode_sweep(token), do: selector(:sweep) <> address!(token)
+  def encode_sweep(token), do: selector(:sweep) <> Abi.address_word(token)
 
   @doc "One admitted splitter or receiver read, with its address arguments."
   @spec encode_read(atom(), [String.t()]) :: String.t()
-  def encode_read(id, addresses), do: selector(id) <> Enum.map_join(addresses, &address!/1)
+  def encode_read(id, addresses),
+    do: selector(id) <> Enum.map_join(addresses, &Abi.address_word/1)
 
   # Events
 
@@ -120,7 +119,7 @@ defmodule Autolaunch.Chain.SubjectAbi do
           {:ok, %{gross: pos_integer(), note: String.t()}} | :error
   def payment_routed(logs, receiver, payment_reference, token) do
     with {:ok, {[reference_word, note_word, token_word], [gross, referral, net]}} <-
-           one(logs, :payment_routed, receiver, 3, 3),
+           Abi.one_event(logs, selector(:payment_routed), receiver, 3, 3),
          {:ok, ^token} <- Abi.word_address(token_word),
          true <- word_hex(reference_word) == String.downcase(payment_reference),
          true <- referral == 0 and net == gross and gross > 0 do
@@ -131,13 +130,6 @@ defmodule Autolaunch.Chain.SubjectAbi do
   end
 
   # Typed static words
-
-  defp address!(address) do
-    address
-    |> Abi.normalize_address!()
-    |> String.trim_leading("0x")
-    |> String.pad_leading(64, "0")
-  end
 
   defp uint256!(value) when is_integer(value) and value in 0..@uint256_max,
     do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
@@ -153,9 +145,6 @@ defmodule Autolaunch.Chain.SubjectAbi do
   defp bytes32!(_value), do: raise(ArgumentError, "bytes32 value is invalid")
 
   # Shared decoding
-
-  defp one(logs, id, emitter, indexed_count, data_words),
-    do: Abi.one_event(logs, selector(id), emitter, indexed_count, data_words)
 
   defp word_hex(value) when is_integer(value),
     do:

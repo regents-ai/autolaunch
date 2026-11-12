@@ -142,7 +142,7 @@ defmodule Autolaunch.Stocks.Stock do
         ticker =
           changeset
           |> Ash.Changeset.get_attribute(:symbol)
-          |> Autolaunch.Stocks.PriceFeeds.ticker()
+          |> Autolaunch.Stocks.Assets.ticker()
 
         Ash.Changeset.force_change_attribute(changeset, :search_words, starting_words(ticker))
       end

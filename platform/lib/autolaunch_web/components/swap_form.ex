@@ -10,6 +10,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
   alias Autolaunch.StoredImage
   alias Phoenix.LiveView.JS
 
+  @approvals ~w(approval permit2_approval stock_approval token_approval usdc_approval usdg_approval)
+
   attr :id, :string, required: true
   attr :sell_symbol, :string, required: true
   attr :buy_symbol, :string, required: true
@@ -379,6 +381,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </ol>
 
       <.wallet_step
+        id={@id <> "-sender"}
         next_step={@next_step}
         steps={@steps}
         reverted={@reverted}
@@ -452,6 +455,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   attr :next_step, :map, default: nil
   attr :steps, :list, required: true
+  attr :id, :string, required: true, doc: "the sending wallet's address takes it"
   attr :reverted, :string, default: nil
   attr :signer, :string, default: nil, doc: "the review's signer; nil before there is a review"
   attr :chain_name, :string, default: nil
@@ -472,14 +476,23 @@ defmodule AutolaunchWeb.Components.SwapForm do
   step, or with `bundle` every step in one request. It names the next step to
   send; once every step is sent it stays on the last one, and a press sends
   that step, or the whole batch, again.
+
+  An approval the button has moved on from stays on the page under it, the
+  same size, and a press on it sends that approval again. Once the approval is
+  confirmed it is grey with a green border, and still takes presses.
   """
   def wallet_step(assigns) do
-    assigns = assign(assigns, shown: pressable(assigns.next_step, assigns.steps))
+    shown = pressable(assigns.next_step, assigns.steps)
+
+    assigns =
+      assign(assigns, shown: shown, approvals: moved_on(assigns.steps, shown, assigns.bundle))
 
     ~H"""
     <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
     <p class="token-swap__review-from" hidden={!(@shown && @signer)}>
-      Sending from <code>{RegentFormat.short_address(@signer)}</code> on {@chain_name}
+      Sending from
+      <Regent.Primitives.address :if={@signer} id={@id} address={@signer} variant="compact" />
+      on {@chain_name}
     </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
     <Regent.Primitives.button
@@ -499,6 +512,23 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </span>
     </Regent.Primitives.button>
     <Regent.Primitives.button
+      :for={step <- @approvals}
+      id={"#{@id}-#{step.name}"}
+      type="button"
+      variant="secondary"
+      class="token-swap__submit token-swap__approval"
+      data-onchain-step={step.name}
+      data-state={step.state}
+      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+    >
+      <span class="token-swap__wallet-step-text" data-press-label>
+        <span class="token-swap__wallet-step-label">{step.label}</span>
+        <span class="token-swap__wallet-step-wait">
+          <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+        </span>
+      </span>
+    </Regent.Primitives.button>
+    <Regent.Primitives.button
       :for={step <- Enum.uniq_by(Enum.filter(@steps, &(&1.state == :stalled)), & &1.entry.hash)}
       type="button"
       variant="secondary"
@@ -512,14 +542,26 @@ defmodule AutolaunchWeb.Components.SwapForm do
     """
   end
 
-  @doc """
-  The step a review panel's wallet button sends: the next one, or, once
-  every step is sent, the last one again until every step is confirmed.
-  """
-  def pressable(nil, steps),
+  # The step a review panel's wallet button sends: the next one, or, once
+  # every step is sent, the last one again until every step is confirmed.
+  defp pressable(nil, steps),
     do: if(Enum.all?(steps, &(&1.state == :done)), do: nil, else: List.last(steps))
 
-  def pressable(next_step, _steps), do: next_step
+  defp pressable(next_step, _steps), do: next_step
+
+  # The approvals the button has moved on from: sent from this review, or
+  # already on the chain when it was built. A batch sends every step from its
+  # one button, so it has none.
+  defp moved_on(_steps, _shown, true), do: []
+
+  defp moved_on(steps, shown, false),
+    do:
+      Enum.filter(
+        steps,
+        &(&1 != shown and approval?(&1) and &1.state in [:sent, :stalled, :done])
+      )
+
+  defp approval?(%{name: name}), do: name in @approvals
 
   defp button_label(%{label: label}, nil), do: "#{label} again"
   defp button_label(%{label: label}, _next_step), do: label

@@ -1,17 +1,19 @@
 ## Covered calls
 
-Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. A buyer may instead post a standing bid for calls with a strike, a premium and a weekly expiry, its whole premium held by the contract; a seller who sells stock into it locks that stock as the bidder's calls and is paid the premium, less the 1% fee, at once. A new listing or bid takes one of the next four of these Fridays, leaving out any Friday the US stock market is shut or closes early. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/stock/covered-call]({{origin}}/stock/covered-call).
+Covered calls on Base stock tokens are open on this site. A seller locks stock tokens and lists calls on them with a strike, a minimum premium and a weekly expiry, always a Friday at 21:00 UTC. Anyone may buy them for the premium in USDC; 1% of each premium goes to REGENT staking. A buyer may instead post a standing bid for calls with a strike, a premium and a weekly expiry, its whole premium held by the contract; a seller who sells stock into it locks that stock as the bidder's calls and is paid the premium, less the 1% fee, at once. A new listing or bid takes one of the next four of these Fridays, leaving out any Friday the US stock market is shut or closes early. Premiums never count toward Points: anyone can buy their own listing or sell into their own bid for only the 1% fee. During the 24 hours after expiry, a holder may pay the strike in USDC and take the stock. People use them at [{{origin}}/stock/covered-call]({{origin}}/stock/covered-call).
 
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 
 A quote gives the reference price, the next four expiries with their exercise windows, and three suggested strikes above the reference price, each with a suggested premium. For the strike and premium you choose (the middle suggestion and its premium when you leave them out) and an `amount`, its `receipt` says what the listing pays if all of it is bought at once and all of it exercised: the premium, the 1% fee, what the seller keeps and the strike, each exactly what the contract counts, so it matches the steps you prepare for the same listing. Beside them, `net_premium_yield` is what the seller keeps as a share of the stock's worth for the term, and `term_days` is that term: the whole days to the expiry.
 
-| Action | WebMCP tool | HTTP |
-| --- | --- | --- |
-| Read a stock's listings and open bids | `autolaunch_covered_call_listings` | `GET {{origin}}/api/v1/covered-calls/{symbol}` |
-| Quote a listing | `autolaunch_covered_call_quote` | `POST {{origin}}/api/v1/covered-calls/{symbol}/quote` with `expiry`, and optionally `amount`, `strike_per_token` and `premium_per_token` |
-| Read your person's covered calls (signed, paired) | `autolaunch_my_covered_calls` | `GET {{origin}}/api/agent/v1/covered-calls/{symbol}/positions` |
-| Prepare a step: list, fill, cancel, exercise, claim, collect_strike, bid, raise_bid, cancel_bid, refund_bid or sell_to_bid (signed, paired) | `autolaunch_covered_call_prepare` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
+| Action | WebMCP tool | Hosted MCP tool | HTTP |
+| --- | --- | --- | --- |
+| Read a stock's listings and open bids | `autolaunch_covered_call_listings` | `covered_call_book` | `GET {{origin}}/api/v1/covered-calls/{symbol}` |
+| Quote a listing | `autolaunch_covered_call_quote` | `covered_call_quote` | `POST {{origin}}/api/v1/covered-calls/{symbol}/quote` with `expiry`, and optionally `amount`, `strike_per_token` and `premium_per_token` |
+| Read your person's covered calls (signed, paired) | `autolaunch_my_covered_calls` | `covered_call_positions` | `GET {{origin}}/api/agent/v1/covered-calls/{symbol}/positions` |
+| Prepare a step: list, fill, cancel, exercise, claim, collect_strike, bid, raise_bid, cancel_bid, refund_bid or sell_to_bid (signed, paired) | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `POST {{origin}}/api/agent/v1/covered-calls/{symbol}/steps` |
+
+The hosted MCP tools at `{{origin}}/mcp` take the same inputs, each under `input`, and give the HTTP answer's `data` as their result; a refusal is their error, with the same code and words. Every call there carries your own signature as a paired agent, or a connected app's token once it is paired; `covered_call_positions` and `prepare_covered_call` are for your person's own wallets only.
 
 Your person's covered calls also say how much of the stock their wallet holds (`balance`), the most it can list now: stock already listed is held by the contract. They list every bid their wallet made, with its `stage` (open, sold, cancelled or expired) and what a refund would send it now (`refundable`). A sale into a bid opens a listing like any other, so it shows as the seller's sold listing and the bidder's held calls.
 

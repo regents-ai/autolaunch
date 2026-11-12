@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.{Companies, PriceFeeds}
+  alias Autolaunch.Stocks.{Assets, Companies}
   alias AutolaunchWeb.UsdValue
   alias Phoenix.LiveView.JS
   alias RegentChain.Address
@@ -164,7 +164,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
                   <span class="stock-select__symbol">{stock.symbol}</span>
                   <span class="stock-select__name">{stock.company}</span>
                 </span>
-                <span class="stock-card__volume">{volume_line(stock.volume)}</span>
+                <span :if={stock.volume} class="stock-card__volume">{volume_line(stock.volume)}</span>
               </label>
               <a
                 :if={stock.website}
@@ -234,7 +234,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   # a stock offered before the site kept that record has none and sorts after
   # those that do.
   defp card(stock) do
-    ticker = PriceFeeds.ticker(stock.symbol)
+    ticker = Assets.ticker(stock.symbol)
     company = company(stock)
 
     %{
@@ -285,8 +285,6 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   # A floor, from a stock whose pools GeckoTerminal lists over more than one
   # page, reads as at least that much.
-  defp volume_line(nil), do: "Volume unavailable"
-
   defp volume_line(%{usd: usd, complete?: complete?, through: through}) do
     floor = if complete?, do: "", else: "+"
 
@@ -302,7 +300,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   @doc "A stock's logo on its round chip; its first letters when no logo is stored."
   def stock_logo(assigns) do
-    ticker = PriceFeeds.ticker(assigns.stock.symbol)
+    ticker = Assets.ticker(assigns.stock.symbol)
     assigns = assign(assigns, ticker: ticker, logo: Map.get(@logos, ticker))
 
     ~H"""
@@ -313,12 +311,10 @@ defmodule AutolaunchWeb.Components.StockSelect do
     """
   end
 
-  @doc """
-  The name a stock is shown under: its token's own name, less what is not the
-  company's name: Robinhood's network, in every name it lists, and the
-  company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
-  """
-  def company(stock) do
+  # The name a stock is shown under: its token's own name, less what is not the
+  # company's name: Robinhood's network, in every name it lists, and the
+  # company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
+  defp company(stock) do
     stock.name
     |> String.replace_suffix(" • Robinhood Token", "")
     |> String.replace(

@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   @moduledoc """
   The portfolio's covered calls: for each market, the calls the signed-in
   wallet sold, the calls it holds and the bids it made, each read now from the
-  contract (`Autolaunch.CoveredCalls.covered_call_positions/2`). Under each
+  contract (`Autolaunch.CoveredCalls.read_covered_call_positions/2`). Under each
   listing its parts, as far as they have gone: how much sold and how much is
   still for sale, then how much was exercised, the calls held, and the stock
   to collect. Under each bid how much was sold into it, the premium it still
@@ -161,7 +161,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   defp read_market(market, actor) do
-    case CoveredCalls.covered_call_positions(market.symbol, actor: actor) do
+    case CoveredCalls.read_covered_call_positions(market.symbol, actor: actor) do
       {:ok, positions} -> {market.symbol, {:ok, positions}}
       {:error, error} -> {market.symbol, {:error, CoveredCalls.reason(error)}}
     end
@@ -304,7 +304,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     <div :if={@rows == []} class="market-list__scroll market-list__empty">
       <h2>No covered calls yet</h2>
       <p>Calls you sell or buy on {@symbol} appear here.</p>
-      <.link navigate={~p"/stock/covered-call"} class="rg-button rg-button--secondary">Covered calls</.link>
+      <.link navigate={~p"/stock/covered-call"} class="rg-button rg-button--secondary">Trade calls</.link>
     </div>
     """
   end

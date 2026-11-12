@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
-    "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
+    "/account/points" => {"Points", "Your points and activity."},
     "/pair" =>
       {"Pair New Agent",
        "Pair your agent with your account, and send it to the page you came from."},
@@ -149,7 +149,8 @@ defmodule AutolaunchWeb.PublicDocuments do
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
     "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
-    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
+    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."},
+    "/unavailable" => {"Not available in your region", "This page isn’t offered where you are."}
   }
 
   # The fixed pages both sitemaps list.
@@ -530,8 +531,16 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp iso8601(nil), do: nil
   defp iso8601(at), do: DateTime.to_iso8601(at)
 
+  # The `{{claude_connector}}` line and its blank line become the Claude
+  # connector's paragraph only while it is on; `{{hosted_covered_calls}}` names
+  # the covered-call hosted tools only while the site offers covered calls;
+  # `{{hosted_mcp}}` says what the hosted MCP address serves, naming Claude's
+  # connector while it is on.
   defp markdown(name) do
     @sources[name]
+    |> String.replace("{{claude_connector}}\n\n", claude_connector(Autolaunch.OAuth.enabled?()))
+    |> String.replace("{{hosted_mcp}}", hosted_mcp(Autolaunch.OAuth.enabled?()))
+    |> String.replace("{{hosted_covered_calls}}", hosted_covered_calls())
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
@@ -588,6 +597,41 @@ defmodule AutolaunchWeb.PublicDocuments do
         do: @sitemap_pages ++ ["/stock/covered-call"],
         else: @sitemap_pages
       ) ++ AgentGuides.paths()
+
+  defp claude_connector(false), do: ""
+
+  defp claude_connector(true),
+    do:
+      "Claude doesn't use these steps: it pairs through Autolaunch's connector, with no " <>
+        "command line or key of its own. [Claude]({{origin}}/agents/claude) has the setup.\n\n"
+
+  defp hosted_mcp(connector?) do
+    "Autolaunch's hosted MCP endpoint is {{origin}}/mcp. Every call there carries a paired " <>
+      "agent's signature, as for a signed request: `autolaunch_auction_counts` reads how many " <>
+      "auctions are live and graduated, with the same answer as the browser tool and the API." <>
+      hosted_covered_calls() <>
+      " Reading without signing in is the browser tools and the API." <> connector(connector?)
+  end
+
+  # The covered-call hosted tools, named only while the site offers covered calls.
+  defp hosted_covered_calls do
+    if "covered_calls" in ToolManifest.features(),
+      do:
+        " While covered calls are open, `covered_call_book`, `covered_call_quote`, " <>
+          "`covered_call_positions` and `prepare_covered_call` do there what the covered-call " <>
+          "routes do, with the same answers and refusals; the steps only once launches are open.",
+      else: ""
+  end
+
+  defp connector(false), do: ""
+
+  defp connector(true),
+    do:
+      " It is also Claude's connector: the person adds it in Claude's settings, then signs " <>
+        "in here when Claude asks and allows it. Claude's tools there (`get_identity`, " <>
+        "`register_identity`, `pair_identity` and `check_in`) only keep an identity for the " <>
+        "connection, pair it with the person's account and check in. " <>
+        "[Claude]({{origin}}/agents/claude) has the setup."
 
   # The contract as the site offers it now: with every feature switched off it is
   # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths

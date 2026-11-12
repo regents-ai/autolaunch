@@ -67,8 +67,7 @@ const presses = new WeakMap<HTMLElement, number>()
  *
  * A root marked `data-refresh-funds` also asks the server to read its funds
  * again (`refresh_funds`) when the wallet changes, when the page comes back
- * into view, when the window holding it opens (`autolaunch:refresh-funds` on
- * the root) and after each press.
+ * into view and after each press.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -149,7 +148,6 @@ export const OnchainSteps: Hook = {
       this.refresh = () => push("refresh_funds", {})
       window.addEventListener("autolaunch:wallet-state", this.refresh)
       window.addEventListener("focus", this.refresh)
-      this.el.addEventListener("autolaunch:refresh-funds", this.refresh)
     }
 
     this.walletChanged()
@@ -163,7 +161,6 @@ export const OnchainSteps: Hook = {
     if (this.refresh) {
       window.removeEventListener("autolaunch:wallet-state", this.refresh)
       window.removeEventListener("focus", this.refresh)
-      this.el.removeEventListener("autolaunch:refresh-funds", this.refresh)
     }
   },
 }

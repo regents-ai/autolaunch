@@ -15,6 +15,10 @@ defmodule Autolaunch.Application do
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = RegentHttp.ErrorSaving.attach()
+    # The Claude connector stays off until its one switch turns it on
+    # (config/runtime.exs); these only check and store its settings.
+    :ok = RegentOAuth.configure(Autolaunch.OAuth)
+    :ok = RegentMCPAgents.configure!()
     :ok = AutolaunchWeb.VisitLog.Events.attach()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -54,9 +58,19 @@ defmodule Autolaunch.Application do
         id: Autolaunch.Agents.ActivityReading.cache()
       ),
       Autolaunch.Repo,
+      # The connector's sign-in store: the site's database with a small pool of
+      # its own, only while the connector is on.
+      if(RegentOAuth.enabled?(), do: RegentOAuth.Repo),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
-      # After the repository and PubSub: a Credits balance changed, or an agent
-      # paired or unpaired, on any Regent site reaches the pages showing it.
+      # The wallet of each connected app's own identity, kept once given.
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.Agents.HostedAddress.cache(),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {100_000, [], []})]},
+        id: Autolaunch.Agents.HostedAddress.cache()
+      ),
+      # After the repository and PubSub: an agent paired or unpaired on any
+      # Regent site reaches the pages showing it.
       Autolaunch.SharedChanges,
       # The figures every visitor sees alike, and their measurements. Before the
       # chain heads that keep them and the endpoint whose pages read them.
@@ -76,6 +90,7 @@ defmodule Autolaunch.Application do
       stock_admissions_child(),
       chain_reader_children(),
       Autolaunch.LaunchDiscovery.Count.children(),
+      points_board_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -112,17 +127,16 @@ defmodule Autolaunch.Application do
   end
 
   # Background jobs, which read the chain (`Autolaunch.ChainWatch`), finish ended
-  # auctions and check Credits purchases, run once launches are open, with the
-  # poller that measures how long their oldest job has waited. AshOban adds a
-  # sweep for every trigger in the site's domains and in Regent Credits, whose
-  # purchase checks run on this site's Oban.
+  # auctions, run once launches are open, with the poller that measures how long
+  # their oldest job has waited. AshOban adds a sweep for every trigger in the
+  # site's domains.
   defp autolaunch_jobs_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
       [
         {Oban,
          AshOban.config(
-           Application.fetch_env!(:autolaunch, :ash_domains) ++ [RegentCredits],
+           Application.fetch_env!(:autolaunch, :ash_domains),
            Application.fetch_env!(:autolaunch, Oban)
          )},
         AutolaunchWeb.Telemetry.jobs_poller()
@@ -139,6 +153,13 @@ defmodule Autolaunch.Application do
     if !Autolaunch.Prelaunch.read_only?() and
          Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
        do: Autolaunch.ChainHead.children() ++ Autolaunch.CoveredCalls.PriceLine.children()
+  end
+
+  # The Points board is read only where pages are served, so a task or a test
+  # never reads the database before it asks to.
+  defp points_board_child do
+    if Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
+      do: Autolaunch.Points.Board
   end
 
   # Tell Phoenix to update the endpoint configuration

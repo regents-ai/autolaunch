@@ -232,11 +232,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
   def creator_vesting_released_signature, do: @creator_vesting_released
   def stocks_launch_signature, do: "launch(#{@stocks_launch_params})"
   def stock_launch_created_signature, do: @stock_launch_created
-  def splitter_created_signature, do: @splitter_created
-  def stock_bid_placed_signature, do: @stock_bid_placed
   def bid_submitted_signature, do: @bid_submitted
-  def hook_fee_accrued_signature, do: @hook_fee_accrued
-  def creator_lane_settled_signature, do: @creator_lane_settled
   def staker_lane_settled_signature, do: @staker_lane_settled
   def fees_deposited_signature, do: @fees_deposited
   def claimed_signature, do: @claimed

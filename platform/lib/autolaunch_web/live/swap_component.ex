@@ -363,8 +363,10 @@ defmodule AutolaunchWeb.SwapComponent do
   defp built(socket, request, note) do
     case prepare(socket, request) do
       {:ok, prepared} ->
-        review =
-          Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
+        {steps, socket} =
+          OnchainSteps.with_approved(socket, approves(socket, request), prepared.steps)
+
+        review = Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, steps)
 
         socket =
           socket
@@ -382,12 +384,18 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
+  # What a swap's approvals allow: this wallet's amount of the side it sells,
+  # whatever the slippage.
+  defp approves(socket, %{launch: launch, direction: direction, amount: amount}),
+    do: {socket.assigns.signer, launch.chain, launch_key(launch), direction, amount}
+
   # The open swap built again for the amount and slippage it was reviewed
   # with, so its price limit, deadline and allowance window are current: once
   # it is ten minutes old, once an approval lands, and once a step reverts,
-  # when `note` says so beside the new button. While a step sent from it is on
-  # its way it stays, and a timer asks again later. One that can't be built
-  # again stays on the page with the reason beside it.
+  # when `note` says so beside the new button. An approval that landed stays
+  # in it, done. While a step sent from it is on its way it stays, and a timer
+  # asks again later. One that can't be built again stays on the page with the
+  # reason beside it.
   defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
     if OnchainSteps.pending?(presses, review) do
       OnchainSteps.refresh_later(socket)
@@ -482,12 +490,13 @@ defmodule AutolaunchWeb.SwapComponent do
   defp balanced(socket), do: assign(socket, balances: nil)
 
   # The swap landed: what it paid is read from its receipt. A landed approval
-  # builds the review again, so the swap it leads to carries a fresh deadline.
+  # builds the review again, so the swap it leads to carries a fresh deadline,
+  # and stays in it, done.
   defp confirmed(socket, %{name: "swap", hash: hash, review: review}),
     do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
 
-  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
-    do: rebuilt(socket, nil)
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
   defp confirmed(socket, _earlier_review), do: socket
 
@@ -600,10 +609,13 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp steps(%{review: nil}), do: []
 
-  defp steps(%{review: review, prepared: prepared, presses: presses}) do
+  # An approval kept from the review this one replaced is done, whatever a
+  # later press of it does.
+  defp steps(%{review: review, prepared: prepared, presses: presses} = assigns) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
+      state = if OnchainSteps.approved?(assigns, name), do: :done, else: step_state(entry)
+      %{name: name, label: step_label(name, prepared), state: state, entry: entry}
     end)
   end
 

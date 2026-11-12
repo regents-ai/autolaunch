@@ -291,7 +291,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   defp read_book(socket) do
     symbol = socket.assigns.market.symbol
-    start_async(socket, :book, fn -> CoveredCalls.covered_call_book(symbol) end)
+    start_async(socket, :book, fn -> CoveredCalls.read_covered_call_book(symbol) end)
   end
 
   # The open ticket's quote, Sell's or Bid's, for the ticket as it stands. The
@@ -379,14 +379,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp receipt(order, quote), do: if(answers?(quote, order), do: quote.receipt)
 
   # Under You receive: what the seller keeps as a share of the stock's worth,
-  # for the term to expiry.
+  # and the term to expiry it is kept over.
   defp lead(order, quote) do
     case receipt(order, quote) do
       nil ->
         nil
 
       %{net_premium_yield: share} ->
-        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% · #{days(quote.term_days)}"
+        "#{:erlang.float_to_binary(share * 100, decimals: 2)}% return in #{days(quote.term_days)}"
     end
   end
 

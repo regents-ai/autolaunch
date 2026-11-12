@@ -1,5 +1,97 @@
 # Changelog
 
+## 12 November 2026: Product cards
+- The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
+- Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.
+- The line drawings are gone. Where the moving panel cannot be drawn, the card shows a still picture of it.
+
+## 12 November 2026: Hosted MCP
+- Agents can now use Autolaunch through its MCP server at https://autolaunch.sh/mcp. A paired agent signs each call with its own wallet, as it does for every signed request, and can read how many auctions are live and graduated, the same figures the site shows.
+- While covered calls are open, a paired agent can also read a stock's listings, get a quote, read your covered calls and prepare the steps to list, buy, stop selling, exercise or collect. It gets the same figures and the same refusals as through the site's other agent tools, the steps are only ever for your own wallets, and your wallet still signs each one.
+- If you unpair an agent while it is reading or saving something for you, that request gives it nothing of yours.
+
+## 11 November 2026: Bid history
+- When the network answers late, an auction's bids, trades and totals stay as they were instead of emptying until the next read.
+- An auction's total in dollars is left blank while the dollar price cannot be read, instead of showing an older figure beside a newer total.
+- A settled bid keeps its status and amounts when its page checks its receipt again.
+- Auctions taken off the lists are no longer counted in the live and graduated totals.
+
+## 11 November 2026: Token page layout
+- A token's page opens with its picture, name, chain, launch type and creator across the top, with Share, its address, Uniswap Pool and View Chart beside them.
+- The price is shown large with its move since the pool opened, then the chart, then the market figures: market cap, price, change, total supply, trades and launch type.
+- The chart shows its line by Trades, one step per trade, or by Time, about 100 points spread evenly from the pool's opening to now.
+- The creator and the contracts are plain lists, each contract with a copy button and a link to the explorer. The trade panel and Claim Rewards stay in view beside them on a wide screen.
+
+## 11 November 2026: Confirmed approvals
+- On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
+- On the exposure panel, a confirmed approval now shows its green border too.
+
+## 11 November 2026: Auction page
+- The block a figure was read at and the blocks left until bidding ends sit under Exact, beside the exact price per token.
+- The price chart is titled Price, with one line under it saying what the line, the dashed line and the bars show.
+
+## 11 November 2026: Approve
+- Once you send an approval from a review, Approve stays under the next step's button, the same size, and pressing it asks your wallet again. When the approval is confirmed it turns grey with a green border.
+
+## 11 November 2026: Fee words
+- How it works, the about page, the agent guides, the Regent page, token pages, the launch forms, the launch terms and the swap review use the same plain names: the trading fee, the token's staking, liquidity at every price, liquidity in the token alone, the stock amount of every trade before fees, the pool fee and the REGENT stakers' fee. No figure changes.
+- The launch form and its terms describe the trading pool and its fees in plain words: liquidity at every price, liquidity in the token alone above the opening price, the token's staking, and the stock amount of every trade before fees. Stock left over from rounding is said to join the REGENT stakers' fee. No figure changes.
+- A covered-call listing's review shows what you receive and the 1% fee on separate lines, as the receipt does.
+
+## 11 November 2026: Lists
+- In the auction, token and call lists, a name sits over its ticker, so the figures beside it no longer cut the name to a letter or two.
+
+## 11 November 2026: Bid form
+- Switching what you pay with no longer changes the bid form's height: the slippage box, asked for only when a stock is bought with dollars, sits after Receive and keeps its room while it is not needed.
+
+## 11 November 2026: Covered calls name
+- The home page and the stock list call the product Covered calls, as its page and the menu do, and the home page's list of calls for sale is named Calls.
+
+## 11 November 2026: Portfolio
+- The line under the title is gone. When the figures were read shows as on Covered calls, with an icon that reads them again.
+- A token's name sits over its ticker and wraps, so a bid's buttons no longer cut it short. On a phone the token takes the first line of its row, with the amount and buttons under it.
+- With no covered calls yet, the button reads Trade calls.
+
+## 11 November 2026: Covered calls
+- Opening a review moves the focus to it, so the whole review comes into view with its wallet button. The same holds for Stake, Claim and the REGENT Fees conversion.
+- The review gives the exercise window as Opens and Closes, as the receipt does.
+- The share under You receive says it is a return, as in "0.05% return in 3 days".
+- The note after a purchase reads "Calls on 1 AMZNc for $0.140". Every such note now appears below the header, so it no longer covers your account button.
+
+## 11 November 2026: Launch form
+- The line above Review launch that said your wallet confirms the launch is gone; the review itself shows every value.
+- A stock with no trading volume to show leaves the line out instead of saying it is unavailable.
+
+## 11 November 2026: Addresses
+- Every address and transaction shown on auction pages, launch forms, settlement and payment panels, the bid list and the REGENT Fees page now shows in its short form, with a copy icon and an arrow that opens it on the chain's explorer. On a test network the arrow is left out.
+- The line above a wallet button names the sending wallet the same way, with its copy icon.
+- A launch review shows the treasury, and a stock launch's review its auction currency, in full, so you can check every character before your wallet confirms.
+
+## 11 November 2026: Auction titles
+- Auction page sections have short names: Bidding, Waiting bids, Bid lookup and Table.
+- The bid form is titled New bid, or Higher bid and Extra bid when you raise or add to a bid, and Bidding ended once the auction closes.
+- The price limit and the waiting-bids table no longer print each price with every one of its decimals.
+- Your bids on an auction are headed Your bids, and their full figures Bid details.
+
+## 11 November 2026: Placed bids
+- Once a bid is placed, the note says so and comes into view, wherever the bid form sits on the page.
+- The note links on to the auction and your portfolio, leaving out the page you are already on.
+- View portfolio is written in sentence case everywhere it appears.
+- On a phone, a button that does not fit beside the others moves to its own line instead of cutting its label short.
+
+## 11 November 2026: Not available in your region
+- Opening a page that isn’t offered where you are now shows that on an Autolaunch page, with the menu and sidebar, so you can carry on to the rest of the site.
+
+## 11 November 2026: Credits
+- Credits are gone. Buy Credits and the balance leave the header, the account menu and the Account page, which is now one column.
+- Agents no longer read Credits: the balances and Credits history reads are gone, with their browser tools.
+
+## 11 November 2026: Points
+- Your Points page is redrawn: your total with today and yesterday, the actions left with where to do each, and the leaderboard. Nothing earns until Points opens.
+- Someone with no name shows on the leaderboard by their wallet, which you can copy.
+- Points has its own page, so the Account page no longer shows it.
+- An agent reading your Points gets the same figures the page shows, with the leaderboard. The OpenAPI description moves to 2.0.0.
+
 ## 11 November 2026: Auction lengths
 - Pages and guides now give the real length of a Base auction since Base went to five blocks a second: about 2 hours for a Memestock and about 5 hours for a Revstake. A Base Memestock creator's tokens are released over about 3 days. Robinhood Chain's figures are unchanged.
 - The How it works share picture no longer names a length.

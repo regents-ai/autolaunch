@@ -19,7 +19,6 @@ defmodule Autolaunch.Release do
     Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
       :ok = require_shared_migrations!(repo)
       RegentAgents.Migrator.require_pairing_history!(repo)
-      RegentCredits.Migrator.require_pairing_grants!(repo)
       ensure_schema!(repo)
       Ecto.Migrator.run(repo, migrations_path(), :up, all: true, prefix: repo.default_prefix())
     end)
@@ -42,7 +41,7 @@ defmodule Autolaunch.Release do
     end)
   end
 
-  # The Agents, Credits and Points code this release carries reads tables and columns
+  # The Agents and Points code this release carries reads tables and columns
   # from every migration its pinned library ships, so each must already be in
   # that schema's own ledger. Every missing version is named at once.
   defp require_shared_migrations!(repo) do
@@ -59,7 +58,6 @@ defmodule Autolaunch.Release do
   defp unapplied_shared_migrations(repo) do
     for {app, schema} <- [
           regent_agents: "regent_agents",
-          regent_credits: "regent_credits",
           regent_points: "regent_points"
         ],
         {:down, version, _name} <-
@@ -82,8 +80,8 @@ defmodule Autolaunch.Release do
 
   Prints every migration the release carries that the database has not applied
   under `pending:`, every version the database has applied whose file the
-  release does not carry under `applied-without-file:`, and the shared Agents,
-  Credits and Points changes the release needs that their own ledgers do not hold under
+  release does not carry under `applied-without-file:`, and the shared Agents
+  and Points changes the release needs that their own ledgers do not hold under
   `shared-pending:` (each as schema and version; a deployment is refused while
   one is listed). Prints `none` when all three are empty. It applies nothing,
   creates nothing, and takes no migration lock.

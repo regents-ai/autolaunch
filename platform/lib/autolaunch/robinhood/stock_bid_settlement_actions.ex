@@ -23,8 +23,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   on the auction's own record.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{CcaSettlement, Client, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementChainClient}
@@ -32,7 +32,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   alias RegentChain.{Address, Review}
 
   @new_decimals 18
-  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc """
   Reviews the settlement of one bid from `address`, which must be a wallet the
@@ -42,8 +41,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(%{auction: auction, bid_id: bid_id}, address, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, bid_id} <- bid_id(bid_id),
@@ -222,64 +220,15 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
     end
   end
 
-  defp snapshot(auction, bid_id, signer) do
-    case StockBidSettlementChainClient.snapshot(%{
-           auction: auction,
-           bid_id: bid_id,
-           signer: signer
-         }) do
-      {:ok, snapshot} -> {:ok, snapshot}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
-  end
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The wallet has to be one the leased account links, read now: never a guess.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address, :invalid_address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: linked_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp linked_wallet(%{wallet_addresses: wallets}, candidate) when is_list(wallets) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
-  end
-
-  defp linked_wallet(_account, _candidate), do: unavailable(:wrong_signer)
+  defp snapshot(auction, bid_id, signer),
+    do:
+      chain(
+        StockBidSettlementChainClient.snapshot(%{
+          auction: auction,
+          bid_id: bid_id,
+          signer: signer
+        })
+      )
 
   # Shared helpers
 
@@ -289,6 +238,4 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
       :error -> unavailable(reason)
     end
   end
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

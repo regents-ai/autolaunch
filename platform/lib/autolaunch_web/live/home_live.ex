@@ -32,7 +32,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   # What the list shows: auctions, launched tokens, or the covered calls for
   # sale. Tokens choose a type below it.
-  @lists [auctions: "Auctions", tokens: "Tokens", options: "Options"]
+  @lists [auctions: "Auctions", tokens: "Tokens", options: "Calls"]
   @token_kinds [
     {"all", "All"},
     {"memestock", "Memestock"},
@@ -142,7 +142,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp read_book do
     with {:ok, %{markets: [market | _]}} <- CoveredCalls.Deployment.current(),
-         do: CoveredCalls.covered_call_book(market.symbol)
+         do: CoveredCalls.read_covered_call_book(market.symbol)
   end
 
   defp put_calls(socket, {:ok, book}),

@@ -25,8 +25,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, signer: signer, usdg_amount: usdg_amount, max_price_q96: max}) do
-    with {:ok, auction} <- Address.normalize(auction),
-         {:ok, config} <- Lab.current(),
+    with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          adapter <- Lab.address!(config, :bid_adapter),
          launchpad <- Lab.address!(config, :stocks_launchpad),

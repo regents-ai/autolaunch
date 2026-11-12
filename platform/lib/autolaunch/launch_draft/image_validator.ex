@@ -149,7 +149,9 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   # libvips performs the decoder-level proof that container parsing cannot:
   # the strict format-specific loader rejects damaged data and `avg/1` pulls
   # every pixel through the sequential pipeline. The pixel cap, checked before
-  # this, bounds how much it decodes.
+  # this, bounds how much it decodes. The native loader is handed a person's
+  # bytes, so anything it raises or throws is an invalid picture, never a
+  # failed upload.
   defp decodes_completely?(bytes, declared_type) do
     with {:ok, {image, _flags}} <- decode(bytes, declared_type),
          {:ok, _average} <- Vix.Vips.Operation.avg(image) do
@@ -246,6 +248,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp png_header(_data), do: :error
 
+  # `:zlib` raises on a corrupt stream and has no form that returns instead.
   defp valid_png_payload?(header, compressed) do
     stream = :zlib.open()
 

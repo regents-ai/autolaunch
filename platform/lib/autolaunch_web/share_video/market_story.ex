@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   alias Autolaunch.CoveredCalls
   alias Autolaunch.Exposure
   alias Autolaunch.PriceFeedHistory
-  alias Autolaunch.Stocks.PriceFeeds
+  alias Autolaunch.Stocks.Assets
   alias AutolaunchWeb.{ExposureFormat, PublicDocuments, UsdValue}
 
   @covered_calls_days 14
@@ -34,12 +34,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   @wad 1_000_000_000_000_000_000
 
   @type t :: map()
-
-  @doc "A covered-call market's (`:covered_calls`) or an Exposure series' (`:exposure`) story."
-  @spec read(:covered_calls | :exposure, String.t(), String.t() | nil) ::
-          {:ok, t()} | {:error, atom()}
-  def read(:covered_calls, symbol, wallet), do: covered_calls(symbol, wallet)
-  def read(:exposure, address, wallet), do: exposure(address, wallet)
 
   @doc "The line's price at `count` moments evenly through its time, oldest first."
   @spec samples(t(), pos_integer()) :: [float()]
@@ -59,9 +53,14 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     end)
   end
 
-  @doc "Covered calls on `symbol`'s market, with `wallet`'s own figures when one is given."
-  @spec covered_calls(String.t(), String.t() | nil) :: {:ok, t()} | {:error, atom()}
-  def covered_calls(symbol, wallet) do
+  @doc """
+  A covered-call market's (`:covered_calls`) or an Exposure series' (`:exposure`)
+  story, with `wallet`'s own figures when one is given. A wallet is lowercase,
+  as its request stores it.
+  """
+  @spec read(:covered_calls | :exposure, String.t(), String.t() | nil) ::
+          {:ok, t()} | {:error, atom()}
+  def read(:covered_calls, symbol, wallet) do
     with {:ok, config} <- CoveredCalls.Deployment.current(),
          {:ok, market} <- CoveredCalls.Deployment.market(symbol),
          {:ok, block, opts} <- CoveredCalls.Chain.latest(config.lab),
@@ -76,7 +75,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          title: title("/stock/covered-call"),
          badge: open_badge(length(open)),
          symbol: market.symbol,
-         ticker: PriceFeeds.ticker(market.symbol),
+         ticker: Assets.ticker(market.symbol),
          from: from,
          now: block.timestamp,
          line: line(history, from, block.timestamp),
@@ -88,9 +87,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     end
   end
 
-  @doc "One Isolated Exposure to After-hours Stocks series, with `wallet`'s own holdings when one is given."
-  @spec exposure(String.t(), String.t() | nil) :: {:ok, t()} | {:error, atom()}
-  def exposure(address, wallet) do
+  def read(:exposure, address, wallet) do
     with {:ok, config} <- Exposure.Deployment.current(),
          {:ok, address} <- Exposure.Deployment.series(address),
          {:ok, block, opts} <- Exposure.Chain.latest(config.lab),
@@ -104,7 +101,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          title: title("/stock/isolated-afters"),
          badge: status_badge(series.status),
          symbol: series.stock.symbol,
-         ticker: PriceFeeds.ticker(series.stock.symbol),
+         ticker: Assets.ticker(series.stock.symbol),
          from: from,
          now: block.timestamp,
          line: line(history, from, block.timestamp),
@@ -172,7 +169,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   # more. Calls held count only while they can still be used: a call left
   # after its exercise window has lapsed.
   defp covered_call_figures(market, book, _open, wallet, block, opts) do
-    wallet = String.downcase(wallet)
     usable = stage(book.listings, block.timestamp, [:open, :sold, :exercise])
 
     with {:ok, holdings} <- CoveredCalls.Chain.holdings(market, usable, wallet, block, opts) do
@@ -251,7 +247,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
        ]}
 
   defp exposure_figures(series, _history, wallet, block, opts) do
-    with {:ok, held} <- Exposure.Chain.holdings(series, String.downcase(wallet), block, opts) do
+    with {:ok, held} <- Exposure.Chain.holdings(series, wallet, block, opts) do
       decimals = series.stock.decimals
 
       {:ok,

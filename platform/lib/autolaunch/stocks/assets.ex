@@ -23,7 +23,7 @@ defmodule Autolaunch.Stocks.Assets do
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
-  alias Autolaunch.Stocks.{PriceFeeds, Stock}
+  alias Autolaunch.Stocks.Stock
   alias RegentChain.Address
 
   @base_chain_id 8453
@@ -75,8 +75,8 @@ defmodule Autolaunch.Stocks.Assets do
   @spec counterpart(:base | :robinhood, String.t()) :: {:ok, Stock.t()} | :error
   def counterpart(chain, address) when chain in [:base, :robinhood] and is_binary(address) do
     with %{symbol: symbol} <- Enum.find(all(chain), &Address.equal?(&1.address, address)),
-         ticker = PriceFeeds.ticker(symbol),
-         %{} = stock <- Enum.find(all(other(chain)), &(PriceFeeds.ticker(&1.symbol) == ticker)) do
+         ticker = ticker(symbol),
+         %{} = stock <- Enum.find(all(other(chain)), &(ticker(&1.symbol) == ticker)) do
       {:ok, stock}
     else
       nil -> :error
@@ -113,6 +113,12 @@ defmodule Autolaunch.Stocks.Assets do
   end
 
   def fetch(_chain_id, _address), do: {:error, :unsupported_stock}
+
+  @doc """
+  The exchange ticker behind a stock token symbol: the symbol without the Base
+  issuer's trailing `c`, so `AAPLc` and Robinhood's `AAPL` are the same company.
+  """
+  def ticker(symbol) when is_binary(symbol), do: String.replace_suffix(symbol, "c", "")
 
   @doc "Drops the stocks this server keeps, so its next reader sees what was just written."
   def changed, do: Cachex.clear!(@cache)

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.HomeListsTest do
   @moduledoc """
   The home page opens on its products, each card linking to its own page, then
-  one list chosen from Auctions, Tokens and Options. Tokens choose a type: All,
+  one list chosen from Auctions, Tokens and Calls. Tokens choose a type: All,
   Memestock or Revstake. A product switched off on the site has no card and no
   choice.
   """
@@ -11,9 +11,6 @@ defmodule AutolaunchWeb.HomeListsTest do
 
   alias Autolaunch.{CoveredCallsChain, ExposureChain, TestSupport}
 
-  # Reads run as async tasks; a loaded machine can take longer than LiveViewTest's 100 ms.
-  @async_ms 2_000
-
   test "with every product on, the three cards each link to their page", %{conn: conn} do
     CoveredCallsChain.install()
     ExposureChain.install()
@@ -22,7 +19,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     {:ok, view, _html} = live(conn, "/")
 
     for {id, title, path} <- [
-          {"calls", "Call Options", "/stock/covered-call"},
+          {"calls", "Covered calls", "/stock/covered-call"},
           {"memestock", "Memestock", "/create"},
           {"revstake", "Revstake", "/agent-business"}
         ] do
@@ -49,13 +46,13 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert has_element?(view, "#home-product-memestock")
     refute has_element?(view, "#home-lists a[data-tab=options]")
 
-    # An Options address on a site without them shows the auctions.
+    # A Calls address on a site without them shows the auctions.
     {:ok, view, _html} = live(conn, "/?view=options")
     assert has_element?(view, "#home-lists a[data-tab=auctions][aria-current=page]")
     assert has_element?(view, "#home-market")
   end
 
-  test "Options lists the calls still for sale, each opening its Buy panel", %{conn: conn} do
+  test "Calls lists the calls still for sale, each opening its Buy panel", %{conn: conn} do
     expiry = hd(Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now()))
     unit = CoveredCallsChain.unit()
 
@@ -68,7 +65,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     })
 
     {:ok, view, _html} = live(conn, "/?view=options")
-    html = render_async(view, @async_ms)
+    html = render_async(view)
 
     assert has_element?(view, "#home-lists a[data-tab=options][aria-current=page]")
     assert has_element?(view, "#home-call-1 a[href='/stock/covered-call?listing=1']", "Buy")
@@ -83,24 +80,24 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert conn |> get("/?view=options") |> html_response(200) =~ "Strike $260.00"
   end
 
-  test "Options with nothing for sale says so and offers selling", %{conn: conn} do
+  test "Calls with nothing for sale says so and offers selling", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, _html} = live(conn, "/?view=options")
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert has_element?(view, "#home-calls h2", "No listings")
     assert has_element?(view, "#home-calls a[href='/stock/covered-call']", "Sell calls")
   end
 
-  test "Options that cannot be read say so and read again on Try again", %{conn: conn} do
+  test "Calls that cannot be read say so and read again on Try again", %{conn: conn} do
     CoveredCallsChain.install(%{unreadable: true})
     {:ok, view, _html} = live(conn, "/?view=options")
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-calls", "Calls can't be shown right now.")
 
     CoveredCallsChain.put(%{unreadable: false})
     view |> element("#home-calls button", "Try again") |> render_click()
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-call-1")
   end
 
@@ -111,7 +108,7 @@ defmodule AutolaunchWeb.HomeListsTest do
 
     view |> element("#home-filters a", "Live") |> render_click()
     assert_patch(view, "/?sort=ending&state=active")
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, "#home-market", "Taking Bids")
     refute has_element?(view, "#home-market", "Done Before")
     assert has_element?(view, "#home-filters .home-filter__active")

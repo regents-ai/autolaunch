@@ -150,8 +150,25 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       "agent_set_fields" => ["treasury", "telegram", "other_link_1"]
     }
 
-    assigns = %{facts: facts}
-    html = rendered_to_string(~H"<AutolaunchWeb.LaunchSteps.token_rows facts={@facts} />")
+    review = %{
+      id: "review",
+      signer: @wallet,
+      chain: %{chain_id: 8453, name: "Base"},
+      steps: [%{step: "launch", data: "0x"}]
+    }
+
+    assigns = %{review: review, prepared: %{facts: facts}, presses: RegentChain.Presses.new()}
+
+    html =
+      rendered_to_string(~H"""
+      <AutolaunchWeb.LaunchSteps.review_panel
+        id="launch"
+        review={@review}
+        prepared={@prepared}
+        presses={@presses}
+        target="launch"
+      />
+      """)
 
     assert html =~ "Set by your agent"
     assert html =~ "Treasury address, Telegram, Link"

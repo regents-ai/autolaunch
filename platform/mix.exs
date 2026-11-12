@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "4e5279759859f9e35e070789fe6b7fcdb78c47c3"
+  @elixir_utils_ref "d89c69df697f81d2a56a43124eada843d1682303"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "768719f37773b27b4d6a4ec04781b3dc262df0ba"
+  @design_system_ref "d3845c6d9fe34b7131937bafa051e6e04c9b09dd"
 
   def project do
     [
@@ -81,12 +81,13 @@ defmodule Autolaunch.MixProject do
       {:ash_phoenix, "~> 2.3.25"},
       # ash_postgres main with #910 until a Hex release carries it: upserts use the
       # repo's prefix, which picks each site's schema on the shared database. It
-      # stands in for the Hex release that ash_money and ash_double_entry ask for.
+      # stands in for the copy of 2.15.2 the shared libraries pin.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
        ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
        override: true},
       {:ash_oban, "~> 0.10.0"},
+      {:ash_ai, "~> 1.5"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -104,10 +105,16 @@ defmodule Autolaunch.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/identity"},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
-      {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_agent_access,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access", override: true},
+      # regent_mcp_agents names regent_oauth, regent_agents and regent_agent_access
+      # by sibling paths; these pins replace them.
+      {:regent_oauth,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "oauth", override: true},
+      # The Claude connector's identity tools at /mcp (Autolaunch.Agents.Connection).
+      {:regent_mcp_agents, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "mcp_agents"},
       {:regent_agents,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
-      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       {:regent_format,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
@@ -212,17 +219,20 @@ defmodule Autolaunch.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Three kinds of compile-connected edge are permitted: a domain naming
+        # Four kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Two more stand as they are: the share video request naming its room
-        # action, and the router naming the errors admin page. Nothing else is
-        # permitted. The ceiling is thirty-six domain-to-resource edges (Accounts
-        # six, Autolaunch twenty-nine, Points one), forty-four resource-to-check
-        # edges, the one endpoint edge and those two, and it is re-based per unit
-        # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 85",
+        # More stand as they are: a generic action naming the module it runs (the
+        # share video request's room action, covered calls' and Exposure's
+        # steps), the router naming the errors admin page, and the router naming
+        # the hosted MCP server's input check (AshAi takes it only as a
+        # function). Nothing else is permitted. The ceiling is thirty-three
+        # domain-to-resource edges (Accounts six, Autolaunch twenty-four, Agents,
+        # CoveredCalls and Exposure one each), forty-two resource-to-check edges,
+        # the one endpoint edge, those three actions and those two router edges,
+        # and it is re-based per unit when a domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 81",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

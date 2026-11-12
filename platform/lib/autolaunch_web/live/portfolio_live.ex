@@ -209,7 +209,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         refreshing?: refreshing?,
         incomplete?: Enum.any?(reads, &assigns[&1].failed),
         updated_at:
-          if(complete? && !refreshing?,
+          if(complete?,
             do: assigns.read_at |> Map.take(reads) |> Map.values() |> Enum.min(DateTime)
           ),
         holdings: assigns.token_holdings.result || [],
@@ -223,26 +223,20 @@ defmodule AutolaunchWeb.PortfolioLive do
       <header class="portfolio__header">
         <div class="portfolio__intro">
           <h1>Portfolio</h1>
-          <p class="portfolio__hint">
-            Bids and tokens from the wallet you signed in with.
-            <span :if={@opens && @account_control.kind != :sign_in}>
-              Bidding and trading open {@opens}.
-            </span>
+          <p :if={@opens && @account_control.kind != :sign_in} class="portfolio__hint">
+            Bidding and trading open {@opens}.
           </p>
         </div>
         <div :if={@account_control.kind != :sign_in} class="portfolio__refresh">
-          <Regent.Primitives.button
-            id="portfolio-refresh"
-            variant="secondary"
+          <Regent.Primitives.last_read
+            id="portfolio-read"
+            at={@updated_at}
             phx-click="refresh"
-            phx-disable-with="Refreshing…"
             disabled={@refreshing?}
-          >
-            {if @refreshing?, do: "Refreshing…", else: "Refresh"}
-          </Regent.Primitives.button>
+            label="Read your portfolio again"
+          />
           <p class="portfolio__hint portfolio__updated" role="status">
-            <span :if={@refreshing?} class="visually-hidden">Refreshing.</span>
-            <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
+            <span :if={@refreshing?} class="visually-hidden">Reading again.</span>
             <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
           </p>
         </div>
@@ -579,7 +573,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     assigns =
       assign(assigns,
         listing: listing,
-        path: robinhood_path(position),
+        path: Paths.robinhood_bid_page(position),
         rate: listing && figure_rate(assigns.rates, listing),
         action: listing && robinhood_action(position)
       )
@@ -757,6 +751,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       :if={@auction}
       id={"portfolio-bid-#{@auction.id}"}
       auction={@auction}
+      page={:portfolio}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}
@@ -799,6 +794,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       auction={@listing}
       ended={@ended}
       stake_path={@stake_path}
+      page={:portfolio}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}
@@ -833,12 +829,6 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp opens do
     if Autolaunch.Prelaunch.read_only?(), do: "soon"
   end
-
-  # The page of an auction the bid is in: its token's once it has graduated.
-  defp robinhood_path(%{listing: %{hidden: true}}), do: nil
-  defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
-  defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
-  defp robinhood_path(_position), do: nil
 
   # What a Robinhood bid's auction admits now: its unspent money back once
   # the auction has settled, its tokens once they can be claimed, or, while

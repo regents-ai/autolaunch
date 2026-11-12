@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.OnchainSteps do
   import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
 
   alias Autolaunch.Accounts.SessionAuthority
+  alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias AutolaunchWeb.{ReadFailedError, ReadFailure}
   alias RegentChain.{Address, Outcome, Presses}
@@ -32,7 +33,15 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc "The assigns a wallet panel starts with."
   def init(socket),
-    do: assign(socket, presses: Presses.new(), review: nil, press_note: nil, active: nil)
+    do:
+      assign(socket,
+        presses: Presses.new(),
+        review: nil,
+        press_note: nil,
+        active: nil,
+        approved: [],
+        approves: nil
+      )
 
   @doc """
   Reads the signed-in account's wallets once for each session lease the panel
@@ -135,9 +144,49 @@ defmodule AutolaunchWeb.OnchainSteps do
   def active_wallet(_params), do: nil
 
   @doc """
+  Privy's active wallet as the page reported it (`onchain_active_wallet`): a
+  different one becomes the panel's `active` and clears the note beside the
+  buttons. The panel follows it from there.
+  """
+  def take_active(socket, params) do
+    active = active_wallet(params)
+
+    if active == socket.assigns.active,
+      do: socket,
+      else: assign(socket, active: active, press_note: nil)
+  end
+
+  @doc """
+  The options a panel's actions run with: the signed-in person as the actor
+  (`actor/1`) and the session lease the panel holds.
+  """
+  def opts(socket),
+    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
+
+  @doc "The signed-in person as an actor, or `nil` signed out."
+  def actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
+    do: %Human{human_account_id: id}
+
+  def actor(_socket), do: nil
+
+  @doc """
+  The reason an action refused, as a panel keys its words: the reason an
+  `Ash.Error.Invalid.Unavailable` names, a reason the action answered itself,
+  or `:unavailable` for anything else.
+  """
+  def refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
+  def refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
+  def refusal(reason) when is_atom(reason), do: reason
+  def refusal(_other), do: :unavailable
+
+  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
+  defp unavailable(_other), do: nil
+
+  @doc """
   Puts `review` (or none) on the page when it is not the one already there. A
   review is fixed once built, so a new signer, chain or figure is a new review,
-  and the page drops the old one as soon as this arrives.
+  and the page drops the old one as soon as this arrives. With none, no
+  approval is kept for the next one (`with_approved/3`).
   """
   def put_review(socket, review) do
     if review_id(review) == review_id(socket.assigns.review) do
@@ -150,8 +199,52 @@ defmodule AutolaunchWeb.OnchainSteps do
 
       socket
       |> assign(review: review, presses: presses)
+      |> then(&if review, do: &1, else: assign(&1, approved: [], approves: nil))
       |> push_event("onchain-steps:review", %{component_id: socket.assigns.id, review: review})
     end
+  end
+
+  @doc """
+  The steps of a new review, with the approvals that landed from the review it
+  replaces in front of them, and the socket that remembers which they are.
+  `approves` is the panel's own term for what its approvals allow (the
+  wallet, the spender's side and the amount): only a review that approves the
+  same keeps them. An approval the new steps carry again is left as built.
+
+  A kept approval sends the same transaction as before. It shows as done
+  (`approved?/2`) and a press on it still reaches the wallet, so Approve stays
+  on the page, grey with a green border, once the chain holds its allowance.
+  """
+  def with_approved(socket, approves, steps) do
+    %{approved: approved, approves: before} = socket.assigns
+    names = MapSet.new(steps, & &1.step)
+
+    kept =
+      if approves == before,
+        do: Enum.reject(approved, &MapSet.member?(names, &1.step)),
+        else: []
+
+    {kept ++ steps, assign(socket, approved: kept, approves: approves)}
+  end
+
+  @doc "Keeps the approval `entry` sent for the next review (`with_approved/3`), once it landed."
+  def approval_landed(%{assigns: %{approved: approved}} = socket, %{step: %{step: name} = step}) do
+    if approved?(socket.assigns, name),
+      do: socket,
+      else: assign(socket, approved: approved ++ [step])
+  end
+
+  @doc "Whether the step `name` is an approval kept from an earlier review, so it shows as done."
+  def approved?(%{approved: approved}, name), do: Enum.any?(approved, &(&1.step == name))
+
+  @doc """
+  The step a press sends when the server builds its review (`prepare_and_send`):
+  the first one the builder made, after any approval `with_approved/3` kept,
+  which the chain already holds.
+  """
+  def first_built(assigns, %{steps: steps}) do
+    %{step: name} = Enum.find(steps, &(not approved?(assigns, &1.step)))
+    name
   end
 
   @doc "The wallet sent a step; it is read from now on against the review it was sent from."
@@ -166,12 +259,48 @@ defmodule AutolaunchWeb.OnchainSteps do
   end
 
   @doc """
+  The wallet sent nothing, or may have sent something (the page's
+  `step_failed`): the reason is counted under `flow` and said beside the
+  buttons (`failure_note/3`, naming `network` while no review is on the page).
+  """
+  def failed(socket, params, flow, network) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        AutolaunchWeb.Telemetry.wallet_failed(flow, reason)
+        assign(socket, press_note: failure_note(socket.assigns, reason, network))
+
+      :error ->
+        socket
+    end
+  end
+
+  @doc """
   The newest press of step `name` of `review`, or `nil` when that step has not
   been sent from it. A panel reads a step's state from it and never waits on it.
   """
   def entry(presses, %{id: id}, name) do
     Enum.find(Presses.shown(presses), &(&1.name == name and match?(%{id: ^id}, &1.review)))
   end
+
+  @doc """
+  Step `name` of `review` as a panel lists it, under `label`: its newest press
+  (`entry/3`) and its state, `:ready` until it is sent, then `:sent`,
+  `:stalled`, `:done`, `:reverted`, or `:other` for a transaction that is not
+  the one this page prepared.
+  """
+  def step(presses, review, name, label) do
+    entry = entry(presses, review, name)
+    %{name: name, label: label, state: step_state(entry), entry: entry}
+  end
+
+  defp step_state(nil), do: :ready
+
+  defp step_state(%{outcome: :pending} = entry),
+    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
+
+  defp step_state(%{outcome: :confirmed}), do: :done
+  defp step_state(%{outcome: :reverted}), do: :reverted
+  defp step_state(_not_this_step), do: :other
 
   @doc """
   Whether the page is still reading a step sent from `review`. A step the page
@@ -253,6 +382,18 @@ defmodule AutolaunchWeb.OnchainSteps do
     socket
   end
 
+  @doc """
+  Reads the receipt of a step that landed, to say what it did; the answer
+  arrives as `handle_async({:result, hash}, result, socket)`, for
+  `receipt_logs/1`.
+  """
+  def read_receipt(socket, %{hash: hash, review: review}),
+    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+
+  @doc "A receipt's logs, from the answer of a receipt read, or `nil` when it could not be read."
+  def receipt_logs({:ok, {:ok, %{"logs" => logs}}}) when is_list(logs), do: logs
+  def receipt_logs(_unread), do: nil
+
   @doc "What to say when a press could not be prepared just now, so nothing was sent."
   def unsent_note, do: "That did not go through. Nothing was sent. Try again in a moment."
 
@@ -303,6 +444,13 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   def failure_note("send_unconfirmed", _linked, _active, _chain_name),
     do: "Your wallet may have sent this. Check your wallet activity."
+
+  @doc """
+  `failure_note/4` for a panel's assigns: the review on the page names the
+  network, or `network` while there is none.
+  """
+  def failure_note(%{review: review, linked: linked, active: active}, reason, network),
+    do: failure_note(reason, linked, active, if(review, do: review.chain.name, else: network))
 
   @doc """
   The note beside the buttons while the wallet app has open a wallet the

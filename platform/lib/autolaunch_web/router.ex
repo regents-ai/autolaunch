@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.Router do
     plug :protect_from_forgery
   end
 
-  # The saved errors: Credits admins only. Anyone else gets the not-found page under
+  # The saved errors: the site's admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (AutolaunchWeb.ErrorsAdmin).
   pipeline :errors_admin do
@@ -157,6 +157,74 @@ defmodule AutolaunchWeb.Router do
     get "/developers", PublicPagesController, :developers
   end
 
+  # The Claude connector's sign-in (Autolaunch.OAuth). API credentials never use
+  # cookies; consent uses the verified browser session and CSRF. The resource's
+  # metadata also answers under its /mcp path, where RFC 9728 places it. While
+  # the connector is off these answer not found, and the consent pages below
+  # are refused, so no app can connect.
+  scope "/", AutolaunchWeb do
+    pipe_through :api
+    get "/.well-known/oauth-protected-resource", OAuthController, :resource_metadata
+    get "/.well-known/oauth-protected-resource/mcp", OAuthController, :resource_metadata
+    get "/.well-known/oauth-authorization-server", OAuthController, :server_metadata
+    post "/oauth/register", OAuthController, :register, log: false
+    post "/oauth/token", OAuthController, :token, log: false
+    post "/oauth/revoke", OAuthController, :revoke, log: false
+  end
+
+  scope "/oauth", AutolaunchWeb do
+    pipe_through [:browser, :browser_session]
+    get "/authorize", OAuthController, :authorize, log: false
+    post "/authorize", OAuthController, :approve, log: false
+    get "/connections", OAuthController, :connections, log: false
+    post "/connections/revoke", OAuthController, :revoke_connection, log: false
+  end
+
+  # The hosted MCP server: AshAi runs the tools the capabilities list as hosted
+  # (`AutolaunchWeb.Capabilities.hosted_tools/0`), each as its Ash action with its
+  # policies. McpAgent admits the request first: POST /mcp alone, JSON, one call,
+  # no query string and no page from another site; then a paired agent signing
+  # with its wallet or an app connected with a Bearer token from the sign-in
+  # above, never neither. A connected app whose identity is paired calls as that
+  # agent. So AshAi's own origin check takes whatever McpAgent let through. A
+  # tool's input is checked as its action takes it, and refused with the code
+  # HTTP gives (`AutolaunchWeb.ToolErrors.check_input/3`). No session, cookie or
+  # CSRF token is read. Each account has its own budget here; the endpoint counts
+  # each address first. Nothing is kept between requests. Tool calls carry pairing
+  # codes, so nothing is logged. There is no `:accepts`: the endpoint already
+  # answers /mcp in JSON, so a GET for an event stream hears McpAgent's 405, not a
+  # 406.
+  pipeline :mcp do
+    plug AutolaunchWeb.Plugs.McpAgent
+  end
+
+  scope "/" do
+    pipe_through :mcp
+
+    forward "/mcp",
+            AshAi.Mcp.Router,
+            [
+              otp_app: :autolaunch,
+              tools: AutolaunchWeb.Capabilities.hosted_tools(),
+              mcp_name: "autolaunch",
+              instructions:
+                "Autolaunch, where agents and their people back long-term agents through fair token auctions. " <>
+                  "Every call is signed by a paired agent's own wallet, or carries the token of an app a person " <>
+                  "connected to their account here. autolaunch_auction_counts reads how many auctions are live " <>
+                  "and graduated; regents mcp signs each call for an agent. A connected app keeps one Regents " <>
+                  "identity: call register_identity, then get_identity. If it is not paired, call pair_identity " <>
+                  "with the one-use code your person gives you, your name and your harness, and call check_in so " <>
+                  "your person sees you are active. Once paired, you work here as that agent: its tools are yours " <>
+                  "as they are any paired agent's. Never ask for a password, a private key or a wallet signature.",
+              list_ttl_ms: 0,
+              read_ttl_ms: 0,
+              cache_scope: "private",
+              allowed_origins: &is_binary/1,
+              tool_argument_transformer: &AutolaunchWeb.ToolErrors.check_input/3
+            ],
+            log: false
+  end
+
   scope "/api/agents" do
     pipe_through :api
     forward "/v1", RegentAgents.HTTP
@@ -167,8 +235,12 @@ defmodule AutolaunchWeb.Router do
     get "/drafts/:kind", AgentAccountController, :draft
     patch "/drafts/:kind", AgentAccountController, :save_draft
     get "/positions", AgentAccountController, :positions
-    get "/account/balances", AgentAccountController, :balances
-    post "/account/credits/history", AgentAccountController, :history
+  end
+
+  # A paired agent's read of its person's Points, at the address every Regent
+  # site gives it.
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :api
     get "/account/points", AgentAccountController, :points
   end
 
@@ -321,7 +393,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :public_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/", HomeLive, :home
@@ -337,6 +408,7 @@ defmodule AutolaunchWeb.Router do
 
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
+    get "/unavailable", UnavailableController, :show
 
     get "/auth/x/callback", XOAuthController, :callback, log: false
 
@@ -344,7 +416,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/create", StocksCreateLive, :create
@@ -372,7 +443,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/stock/covered-call", CoveredCallsLive, :index
@@ -389,7 +459,6 @@ defmodule AutolaunchWeb.Router do
       on_mount: [
         {AutolaunchWeb.Showcase, :motion_lab},
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits},
         {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/animations", AnimationsLive, :index

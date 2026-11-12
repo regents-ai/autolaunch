@@ -1,9 +1,11 @@
 /**
  * A launch's price line, drawn with WebGPU from the points the page carries:
  * a soft fill in the image's colour under a round-capped line, and a dot on
- * the latest price. Loaded on demand by the PriceChart hook, so the
- * application entry never carries WebGPU. Drawn once, and again when the
- * points change, the chart changes size or the site switches theme.
+ * the latest price. The chart's "Trades / Time" choice picks the line, one
+ * point per trade or points evenly spread in time; each line is spread
+ * across by its first figure. Loaded on demand by the PriceChart hook, so the application
+ * entry never carries WebGPU. Drawn once, and again when the points or the
+ * choice change, the chart changes size or the site switches theme.
  *
  * Every segment is one instanced quad spawned from its index, with no vertex
  * buffers: the fill quad runs from the segment down to the chart's foot, and
@@ -110,7 +112,7 @@ function channels(css: string): Channels {
   return [0, 2, 4].map(at => Number.parseInt(hex.slice(at, at + 2), 16) / 255).concat(1) as Channels
 }
 
-// The page's [block or time, price] pairs, spread 0–1 across by the first
+// The line's [step or time, price] pairs, spread 0–1 across by the first
 // and 0–1 up by price with room above and below, the levels' prices counted
 // in the range; a flat price sits in the middle.
 function normalized(pairs: [number, number][], levels: number[]): (price: number) => number {
@@ -183,7 +185,8 @@ export async function paint(root: HTMLElement): Promise<Painter> {
   let shown = 1
   const visible = () => Math.max(2, Math.ceil(shown * count))
   const load = () => {
-    const pairs = JSON.parse(root.dataset.points!) as [number, number][]
+    const line = root.querySelector<HTMLInputElement>("input:checked")?.value === "times" ? "times" : "points"
+    const pairs = JSON.parse(root.dataset[line]!) as [number, number][]
     const shown = levels(root)
     const up = normalized(pairs, shown.map(({price}) => price))
     const first = pairs[0][0]

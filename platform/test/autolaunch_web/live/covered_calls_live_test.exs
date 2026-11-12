@@ -21,9 +21,6 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   alias AutolaunchWeb.CoveredCallsFormat, as: F
 
   @unit CoveredCallsChain.unit()
-  # Reads run as async tasks; a loaded machine can take longer than LiveViewTest's 100 ms.
-  @async_ms 2_000
-
   test "switched off, the page is not found and the stock page offers no covered calls",
        %{conn: conn} do
     {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/stock/covered-call") end)
@@ -42,7 +39,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     })
 
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
-    html = render_async(view, @async_ms)
+    html = render_async(view)
 
     assert has_element?(view, "#covered-call-1")
     refute has_element?(view, "#covered-call-2")
@@ -68,7 +65,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     CoveredCallsChain.install()
     line = "Available to eligible people outside the US."
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
-    html = render_async(view, @async_ms)
+    html = render_async(view)
     said = view |> element("h1 + #covered-calls-eligibility") |> render() |> words()
 
     assert said == line
@@ -87,7 +84,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "a listing's ticket opens from its address with its amount left to buy", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert has_element?(view, "#covered-call-buy-1-amount[value='6']")
     assert has_element?(view, "#covered-call-fill-1 button[data-account-target=sign-in]")
@@ -96,7 +93,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "with nothing for sale the Buy tab says so", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
-    assert render_async(view, @async_ms) =~ "No listings"
+    assert render_async(view) =~ "No listings"
   end
 
   test "selling opens by default on the next four Fridays; Buy counts the calls for sale",
@@ -296,7 +293,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     forget_line()
     put_line()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert plot(view, "covered-call-buy-1-price", "data-levels") == [260.0, 263.0]
     assert [_first, _second | _rest] = plot(view, "covered-call-buy-1-price", "data-points")
@@ -319,7 +316,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
        %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
-    render_async(view, @async_ms)
+    render_async(view)
 
     view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "2.5"})
     amount = 2 * @unit + div(@unit, 2)
@@ -380,12 +377,42 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-fill-1 [data-onchain-step=fill]", "Confirm purchase")
   end
 
+  test "a sent approval stays on the page and takes presses, and the purchase's button shows at once",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    {view, panel} = signed_in_panel(conn)
+
+    buy(view, "1")
+    assert_push_event(view, "onchain-steps:review", %{review: %{id: review_id}})
+
+    render_hook(panel, "step_sent", %{
+      "review_id" => review_id,
+      "step" => "usdc_approval",
+      "transaction_hash" => "0x" <> String.duplicate("a", 64)
+    })
+
+    # The wallet button names the purchase while the approval is on its way.
+    assert has_element?(view, "#covered-call-fill-1 [data-step=usdc_approval][data-state=sent]")
+
+    assert has_element?(
+             view,
+             "#covered-call-fill-1 .token-swap__wallet-step[data-onchain-step=fill]"
+           )
+
+    # Approve is still there for the hook to send again: it names its step, and
+    # nothing hides or disables it.
+    assert has_element?(
+             view,
+             "#covered-call-fill-1 .token-swap__approval[data-onchain-step=usdc_approval]:not([disabled]):not([hidden])"
+           )
+  end
+
   test "a purchase the wallet can't pay for is disabled with the reason", %{conn: conn} do
     CoveredCallsChain.install(%{usdc_balance: 1_000_000})
     {view, _panel} = signed_in_panel(conn)
 
     view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "2"})
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert has_element?(view, "#covered-call-fill-1-review[disabled]")
     assert has_element?(view, "#covered-call-fill-1-why", "Not enough USDC on Base")
@@ -424,7 +451,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     |> with_target("#portfolio-covered-calls-exercise-1")
     |> render_hook("onchain_active_wallet", %{"address" => account.wallet_address})
 
-    render_async(view, @async_ms)
+    render_async(view)
 
     assert has_element?(view, "#portfolio-covered-calls-held-1-held", "2 AMZNc")
     assert has_element?(view, "#portfolio-covered-calls-exercise-1-review[disabled]")
@@ -574,9 +601,9 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "a success toast offers View Portfolio", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
-    send(view.pid, {:covered_call_done, %{kind: :fill, lines: ["1 AMZNc of calls for $5.00"]}})
+    send(view.pid, {:covered_call_done, %{kind: :fill, lines: ["Calls on 1 AMZNc for $5.00"]}})
 
-    assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View Portfolio")
+    assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View portfolio")
   end
 
   test "the portfolio's own success toast leaves View Portfolio out", %{conn: conn} do
@@ -608,7 +635,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "a listing's address that isn't for sale says so", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?listing=7")
-    render_async(view, @async_ms)
+    render_async(view)
     assert has_element?(view, ".covered-calls__note[role=status]", "Listing 7 isn't for sale now")
   end
 
@@ -933,7 +960,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       |> render_hook("onchain_active_wallet", %{"address" => account.wallet_address})
     end
 
-    render_async(view, @async_ms)
+    render_async(view)
 
     view
     |> element("#portfolio-covered-calls-raise_bid-1-form")
@@ -964,8 +991,8 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   # The book's read starts the quote's: both are waited for.
   defp settled(view) do
-    render_async(view, @async_ms)
-    render_async(view, @async_ms)
+    render_async(view)
+    render_async(view)
   end
 
   # The amount typed on the Buy ticket, then its review pressed. The page hears
@@ -1024,7 +1051,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       |> connects_with(session)
       |> live("/portfolio")
 
-    render_async(view, @async_ms)
+    render_async(view)
     {view, account}
   end
 

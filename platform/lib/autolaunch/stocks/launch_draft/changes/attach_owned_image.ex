@@ -3,6 +3,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage do
   use Ash.Resource.Change
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.Stocks.LaunchDraftImageStorage
 
   @impl true
   def change(changeset, _opts, %{actor: %Human{human_account_id: owner_id} = actor}) do
@@ -12,8 +13,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage do
     case Autolaunch.get_my_stock_launch_draft_image_by_id(draft_id, image_id, actor: actor) do
       {:ok,
        %{id: ^image_id, human_account_id: ^owner_id, stock_launch_draft_id: ^draft_id} = image} ->
-        url =
-          AutolaunchWeb.Endpoint.url() <> "/stock-images/#{image.id}/#{image.digest}"
+        url = LaunchDraftImageStorage.public_url(image)
 
         if String.valid?(url) and byte_size(url) <= 256 do
           changeset

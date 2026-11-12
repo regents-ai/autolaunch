@@ -59,7 +59,6 @@ defmodule Autolaunch.HomeMarket do
 
   defp page(options, cursor, limit, unshown) do
     scope = {:home_market, Map.drop(options, [:display])}
-    resource = if options.view == "tokens", do: Token, else: Auction
 
     arguments = %{
       query: options.q,
@@ -70,29 +69,25 @@ defmodule Autolaunch.HomeMarket do
       github: options.github
     }
 
-    query =
-      if resource == Auction,
-        do:
-          Auction
-          |> Ash.Query.for_read(
-            :home_market,
-            Map.merge(arguments, %{view: "new", state: options.state, sort: options.sort}),
-            actor: nil
-          )
-          |> Ash.Query.load(:fdv)
-          |> Ash.Query.deselect(unshown),
-        else:
-          Token
-          |> Ash.Query.for_read(:home_market, arguments, actor: nil)
-          |> Ash.Query.load(:market_cap)
+    {query, kind} =
+      if options.view == "tokens" do
+        {Token
+         |> Ash.Query.for_read(:home_market, arguments, actor: nil)
+         |> Ash.Query.load(:market_cap), :token}
+      else
+        {Auction
+         |> Ash.Query.for_read(
+           :home_market,
+           Map.merge(arguments, %{view: "new", state: options.state, sort: options.sort}),
+           actor: nil
+         )
+         |> Ash.Query.load(:fdv)
+         |> Ash.Query.deselect(unshown), :auction}
+      end
 
     with {:ok, page_options} <- PublicPage.options(cursor, scope, limit),
          {:ok, page} <- Ash.read(query, page: page_options) do
-      {:ok,
-       Map.merge(PublicPage.metadata(page, scope), %{
-         records: page.results,
-         kind: if(resource == Token, do: :token, else: :auction)
-       })}
+      {:ok, Map.merge(PublicPage.metadata(page, scope), %{records: page.results, kind: kind})}
     end
   end
 

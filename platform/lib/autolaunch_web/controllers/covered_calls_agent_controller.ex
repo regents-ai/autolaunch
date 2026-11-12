@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.CoveredCallsAgentController do
 
   def positions(conn, %{"symbol" => symbol}) do
     actor = conn.assigns.actor
-    Answer.send(conn, CoveredCalls.covered_call_positions(symbol, actor: actor), :positions)
+    Answer.send(conn, CoveredCalls.covered_call_positions(symbol, actor: actor))
   end
 
   def prepare(conn, %{"symbol" => symbol}) do
@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.CoveredCallsAgentController do
       {:ok, input} ->
         kind = conn.body_params["kind"]
         result = CoveredCalls.prepare_covered_call(symbol, kind, input, actor: conn.assigns.actor)
-        Answer.send(conn, result, :prepare)
+        Answer.send(conn, result)
 
       :error ->
         Answer.refuse(conn, :invalid_request)

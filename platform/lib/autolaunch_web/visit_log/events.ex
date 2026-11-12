@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.VisitLog.Events do
 
   # The reasons the wallet hook reports (`Failure` in send_step.ts).
   @wallet_failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
-  @domain_apps [:autolaunch, :regent_identity, :regent_credits, :regent_agents, :regent_points]
+  @domain_apps [:autolaunch, :regent_identity, :regent_agents, :regent_points]
 
   @doc "Attaches every handler; called once at start."
   def attach,
@@ -53,8 +53,14 @@ defmodule AutolaunchWeb.VisitLog.Events do
   @doc false
   def handle([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _config) do
     unless quiet?(conn) do
+      # A signed route keeps its agent in the `actor` assign; the hosted MCP
+      # server hands it to Ash (`AutolaunchWeb.Plugs.McpAgent`).
       Logger.metadata(
-        actor: VisitLog.actor(conn.assigns[:actor] || conn.assigns[:current_human_account])
+        actor:
+          VisitLog.actor(
+            conn.assigns[:actor] || Ash.PlugHelpers.get_actor(conn) ||
+              conn.assigns[:current_human_account]
+          )
       )
 
       route = VisitLog.route(AutolaunchWeb.Router, conn.method, conn.request_path, conn.host)

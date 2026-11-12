@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.RegentLive do
     {"Autolaunch",
      [
        "Base Memestock’s 1% stock fee, converted to USDC",
-       "2% of recognized USDC revenue in launch splitters"
+       "The 2% of USDC revenue each token's staking sends to Regent"
      ]},
     {"Techtree", ["5% of paid artifact sales", "Paid agent training environments"]},
     {"Patchbay", ["10% of priority question payments"]}
@@ -27,10 +27,7 @@ defmodule AutolaunchWeb.RegentLive do
      |> assign(:local_lab?, Lab.test_chain?())
      |> assign(:revenue_sources, @revenue_sources)
      |> assign_async(:facts, fn ->
-       case RegentFacts.read() do
-         {:ok, facts} -> {:ok, %{facts: facts}}
-         {:error, reason} -> {:error, reason}
-       end
+       with {:ok, facts} <- RegentFacts.read(), do: {:ok, %{facts: facts}}
      end)
      |> assign_async(:base_lane, fn ->
        with {:ok, lane} <- MemestockLanes.base(), do: {:ok, %{base_lane: lane}}
@@ -175,7 +172,7 @@ defmodule AutolaunchWeb.RegentLive do
           </tbody>
         </table>
         <p>
-          Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood's protocol fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
+          Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. The 2% each token's staking sends to Regent also goes to the Safe when it is in launch tokens or paired tokens. Robinhood's REGENT stakers' fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
         </p>
       </section>
 
