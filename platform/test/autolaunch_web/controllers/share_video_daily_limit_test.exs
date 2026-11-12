@@ -1,4 +1,4 @@
-defmodule AutolaunchWeb.ShareVideoLimitTest do
+defmodule AutolaunchWeb.ShareVideoDailyLimitTest do
   @moduledoc """
   Once the site has made all of the day's videos, a signed-in person with no
   video saved who asks for their own is refused, and the refusal carries the
