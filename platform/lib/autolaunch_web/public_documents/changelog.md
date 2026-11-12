@@ -1,5 +1,12 @@
 # Changelog
 
+## 12 November 2026: Account
+- Disconnecting an X or GitHub account now asks first, in the site's own window, with Cancel ready first. Nothing changes until you press Disconnect there.
+- In the Pair New Agent window, the list of agents drops in and fades out with a short move. A press during the move still counts, and with reduced motion the list opens and closes at once.
+- The chosen agent's picture in the Pair New Agent window sits in a lower band, so the window is shorter.
+- The Blog page no longer shows the site's name above its title.
+- `GET /api/v1/health` also answers `migrations_applied`, which is `false` while a release waits on a database change.
+
 ## 12 November 2026: Agent guides
 - The agent start pages no longer list a `person_not_here` answer under Troubleshooting. A pairing made on any Regent site works here, so this site never gives that answer.
 - A browser tool that gets no answer now tells the agent to read back whatever the tool changes before calling it again, whichever tool it was. Before, it always spoke of a draft.
