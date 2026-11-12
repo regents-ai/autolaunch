@@ -1,5 +1,5 @@
 {
-  "total": 219,
+  "total": 220,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -14,7 +14,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/launch_draft_test.exs",
       "original_source_sha256": "823152e1b43565d158d7a991dde866a296f2894a56cd3367a662e645035dced7",
-      "source_sha256": "e7f3b397caa3600c2dc989a6b5a2267e5efd29df12ecd6e9fb97108493bed170"
+      "source_sha256": "02d8bbe0e627944028ea3eff3014c6575e54ae963f2320dc3fbd4bf4f7d79191"
     },
     {
       "id": 4,
@@ -372,13 +372,13 @@
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch/launch_draft_test.exs",
-      "line": 65,
+      "line": 60,
       "test_name": "a draft refuses hidden characters in a field, and a website must be a full link to launch",
       "keep_because": "A null byte in a draft field reached the database and failed the save with no field marked, and a website that was not a link passed launch review and would be written into the token (found 17 Oct 2026). The case fails if a hidden character is saved instead of marked on its field, if a description loses its line breaks, or if a non-link website counts as complete.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e7f3b397caa3600c2dc989a6b5a2267e5efd29df12ecd6e9fb97108493bed170"
+      "source_sha256": "02d8bbe0e627944028ea3eff3014c6575e54ae963f2320dc3fbd4bf4f7d79191"
     },
     {
       "id": 57,
@@ -1145,33 +1145,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+      "source_sha256": "1e662155786f53b582507130192d3794b535956459df680dbe87a5b6e04cf306"
     },
     {
       "id": 129,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch/agent_drafts_test.exs",
-      "line": 64,
-      "test_name": "the person's own edits leave the agent's list; their EOA acknowledgement is never the agent's",
-      "keep_because": "The person's edits take a field off the agent's list, an agent can never send the EOA acknowledgement, an agent's treasury change takes the person's acknowledgement back, and any other field or shape refuses the whole save.",
+      "line": 62,
+      "test_name": "the person's own edits leave the agent's list",
+      "keep_because": "The person's edits take a field off the agent's list, the agent's treasury stays on it until the person types their own, and any other field or shape refuses the whole save.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+      "source_sha256": "1e662155786f53b582507130192d3794b535956459df680dbe87a5b6e04cf306"
     },
     {
       "id": 130,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch/agent_drafts_test.exs",
-      "line": 123,
+      "line": 114,
       "test_name": "an agent fills a Memestock draft's chain and stock, and only a stock the chain lists",
       "keep_because": "A Memestock draft takes its chain and a listed stock from an agent, never an unlisted stock or a treasury.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+      "source_sha256": "1e662155786f53b582507130192d3794b535956459df680dbe87a5b6e04cf306"
     },
     {
       "id": 131,
@@ -1184,20 +1184,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "15749951e9b9724a1aeca30bb94a39d5fa327aefee2f482e01675e5cf8542dea"
     },
     {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 142,
+      "line": 137,
       "test_name": "the launch review names every agent-set field and shows the community links",
       "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "15749951e9b9724a1aeca30bb94a39d5fa327aefee2f482e01675e5cf8542dea"
     },
     {
       "id": 133,
@@ -1282,13 +1282,13 @@
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 109,
+      "line": 104,
       "test_name": "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
       "keep_because": "An agent can fill in a draft while the person has the create page open; the box naming what the agent set must show it then, on both create pages, so nothing an agent chose reaches a wallet step unseen. It fails when either page stops hearing of an agent's save.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "15749951e9b9724a1aeca30bb94a39d5fa327aefee2f482e01675e5cf8542dea"
     },
     {
       "id": 142,
@@ -1322,12 +1322,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_treasury_confirm_test.exs",
       "line": 27,
-      "test_name": "AGENT_TREASURY_NEEDS_TICK: an agent's Safe or smart contract treasury launches only after the person ticks it",
-      "keep_because": "A Safe or smart contract account a paired agent chose as the treasury receives all its treasury funds, so the launch review is refused until the person ticks it on the create page, and a tick for an address the agent has since changed confirms nothing. It fails when the review stops asking for the tick for either kind or a stale tick is accepted.",
+      "test_name": "AGENT_TREASURY_NEEDS_TICK: an agent's Safe treasury launches only after the person ticks it",
+      "keep_because": "A Safe a paired agent chose as the treasury receives all its treasury funds, so the launch review is refused until the person ticks it on the create page, and a tick for an address the agent has since changed confirms nothing. It fails when the review stops asking for the tick for a first or a changed Safe, or a stale tick is accepted.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a62aed1f9c3d50c490ee155327a1a9522f8a228a21e230098714b1d6b75c7476"
+      "source_sha256": "01532b595903c526592e4b4615ce9b17aef7ada38b980d472ac27a9f96e85c7b"
     },
     {
       "id": 146,
@@ -1600,46 +1600,46 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 168,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 114,
+      "line": 109,
       "test_name": "HELD_PAGE_MAKES_NO_DRAFT: a closed review or an agent's save starts no draft for a held account",
       "keep_because": "On both create pages a closed or finished launch review, and on /create an agent's saved draft, start no draft for an account whose sign-in ended and cannot be read: a first draft is made only under the lease read again now, and an agent's save is only read. It fails on each of the three while they created the draft directly.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 169,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 136,
+      "line": 131,
       "test_name": "WRITE_FAILURE_IS_NOT_A_SIGN_IN_READ: a write that fails under a lease raises as itself",
       "keep_because": "A write that raises inside SessionAuthority.transact_lease raises as itself and is not logged as a sign-in read. It fails while the whole transaction was rescued and turned into an error tuple.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 170,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 215,
+      "line": 210,
       "test_name": "a write behind a fresh check runs only for a lease that reads as current now",
       "keep_because": "Session.fresh/2, which the launch treasury check uses because it calls the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 171,
@@ -1672,26 +1672,26 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 153,
+      "line": 148,
       "test_name": "LEASE_WRITE_ON_A_CUT_CONNECTION_SAYS_TRY_AGAIN: a connection gone before the write begins is a try-again",
       "keep_because": "With the case's own connection really cut (pg_terminate_backend) before the write's transaction begins, Session.transact/2 answers sign_in_unread and ConnectEns.record_name/3 try_again, logged once as a lost sign-in lease. It fails while Repo.transaction's raise at the start crashed the page, the pairing, the tick, the ENS save and the launch review.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 174,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 174,
+      "line": 169,
       "test_name": "IMAGE_UPLOAD_HELD_SAYS_TRY_AGAIN_OR_SIGNS_OUT: a picture saved on a held page",
       "keep_because": "On both create pages a token picture whose save loses the sign-in's connection says to try again, not that the file is broken, and one whose sign-in has ended signs the page out. Upload progress reaches the page without its event recheck, so the save's own lease check answers. It fails while every refusal fell through to the broken-file note.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
+      "source_sha256": "e31d5e503957c064b71a057a8b363f55b4364286a813a77e47a37e2054534375"
     },
     {
       "id": 175,
@@ -1724,13 +1724,13 @@
       "group": "Agent drafts",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 70,
+      "line": 65,
       "test_name": "AGENT_SET_ADDRESS_IS_COPYABLE: an address the agent set can be copied whole and opened on Basescan",
       "keep_because": "The list of what an agent filled in printed its addresses as bare text, against the rule that every address can be copied whole and opened (found by the agent journeys, 27 Oct 2026). The case checks the agent's treasury copies whole and links Basescan. It fails on the bare text. It also checks a treasury saved part-way shows as written: drawn as an address it crashed the page (found by the adversarial review, 27 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "15749951e9b9724a1aeca30bb94a39d5fa327aefee2f482e01675e5cf8542dea"
     },
     {
       "id": 178,
@@ -2563,6 +2563,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "468c5bb320460c938109e3a65c891f3ba1c1d5a2fc5f767f582cf515e802dd97"
+    },
+    {
+      "id": 243,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/create_pages_test.exs",
+      "line": 38,
+      "test_name": "REVSTAKE_TREASURY_IS_A_SAFE: Revstake's card, the still-needed line and a treasury that takes only a Safe's address",
+      "keep_because": "Audit finding A4, founder's decision of 12 Nov 2026: a Revstake treasury is a 2-of-3 Safe, with no single key or other contract to choose. The treasury form takes only the Safe's address, offers Create a Safe, and the card says Safe. It fails if any other treasury choice comes back to the form.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4bc3c2b17eb1e3a4257735d2a7124307bcc1379112dd741de05a07dfa26fe3ce"
     },
     {
       "id": 244,

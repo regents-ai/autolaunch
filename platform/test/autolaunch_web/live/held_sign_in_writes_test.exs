@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
 
   @moduletag :capture_log
   @agent_wallet "0x" <> String.duplicate("ad", 20)
-  @contract "0x" <> String.duplicate("5c", 20)
+  @safe "0x" <> String.duplicate("5c", 20)
   @authority "session_authorities"
   @png File.read!("test/support/fixtures/launch-draft.png")
 
@@ -87,23 +87,18 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
 
     {:ok, agent, _account} = Agents.resolve(@agent_wallet)
 
-    {:ok, draft} =
-      AgentDrafts.save(
-        "revstake",
-        %{"treasury" => @contract, "treasury_path" => "contract"},
-        agent
-      )
+    {:ok, draft} = AgentDrafts.save("revstake", %{"treasury" => @safe}, agent)
 
     {view, session} = open(conn, "/agent-business", account.id)
-    assert view |> element("#launch-agent-treasury") |> render() =~ @contract
     render_async(view, 5_000)
     for child <- live_children(view), do: render_async(child, 5_000)
+    assert view |> element("#launch-agent-treasury") |> render() =~ @safe
 
     signed_out_unread(session)
 
     view
     |> element("#launch-agent-treasury")
-    |> render_change(%{"treasury" => @contract, "confirmed" => "true"})
+    |> render_change(%{"treasury" => @safe, "confirmed" => "true"})
 
     settle(view)
 

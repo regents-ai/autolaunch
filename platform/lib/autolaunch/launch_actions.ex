@@ -221,7 +221,6 @@ defmodule Autolaunch.LaunchActions do
       "links" => fields.links,
       "image" => fields.image,
       "treasury" => fields.treasury,
-      "treasury_path" => Atom.to_string(draft.treasury_path),
       "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
       "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => minimum_regent(snapshot.terms.required_regent_raised),
@@ -290,8 +289,8 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  # A smart contract account the creator's agent chose takes the creator's own
-  # confirmation before anything is sent there.
+  # A Safe the creator's agent chose takes the creator's own confirmation
+  # before anything is sent there.
   defp treasury_confirmed(draft) do
     if LaunchDraft.treasury_confirmation_needed?(draft),
       do: unavailable(:agent_treasury_unconfirmed),
@@ -426,51 +425,28 @@ defmodule Autolaunch.LaunchActions do
 
   defp review_treasury(draft) do
     if Lab.test_chain?() do
-      {:ok,
-       %{
-         "mode" => "local_lab",
-         "address" => draft.treasury,
-         "path" => Atom.to_string(draft.treasury_path)
-       }}
+      {:ok, %{"mode" => "local_lab", "address" => draft.treasury}}
     else
       production_treasury(draft)
     end
   end
 
+  # The treasury is a verified 2-of-3 Safe as Base reads it now, so the
+  # auction it launches takes bids.
   defp production_treasury(draft) do
     case Autolaunch.current_treasury_security(draft.treasury, actor: nil) do
       {:ok, nil} ->
         unavailable(:treasury_report_missing)
 
       {:ok, report} ->
-        with {:ok, report} <-
-               TreasurySecurity.revalidate_bound(report, treasury_requirement(draft)),
+        with {:ok, report} <- TreasurySecurity.revalidate_bound(report),
              :ok <- custody_address_matches(draft, report),
-             :ok <- custody_matches(draft, report),
              do: {:ok, report}
 
       _error ->
         unavailable(:treasury_report_missing)
     end
   end
-
-  defp treasury_requirement(%{treasury_path: :safe}), do: :verified
-  defp treasury_requirement(_advanced), do: :observed
-
-  defp custody_matches(%{treasury_path: :safe}, %{classification: :supported_safe}), do: :ok
-  defp custody_matches(%{treasury_path: :eoa}, %{classification: :eoa}), do: :ok
-
-  defp custody_matches(%{treasury_path: :contract}, %{classification: classification})
-       when classification in [
-              :delegated_eoa,
-              :unknown_contract,
-              :safe_1_of_1,
-              :split,
-              :unsupported
-            ],
-       do: :ok
-
-  defp custody_matches(_draft, _report), do: unavailable(:treasury_security_changed)
 
   defp custody_address_matches(%{treasury: address}, %{address: report_address}) do
     if Address.equal?(address, report_address),

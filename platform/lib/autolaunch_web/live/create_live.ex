@@ -106,21 +106,10 @@ defmodule AutolaunchWeb.CreateLive do
     param: "treasury",
     label: "Treasury address",
     kind: :text,
-    hint: nil,
+    hint: "A 2-of-3 Safe on Base.",
     placeholder: nil,
     optional: false
   }
-
-  @custody_options [
-    %{value: "safe", name: "Safe", sub: "2-of-3 Safe on Base", icon: "shield-check"},
-    %{
-      value: "contract",
-      name: "Contract",
-      sub: "Existing contract, never checked",
-      icon: "file-text"
-    },
-    %{value: "eoa", name: "Single key", sub: "One private key, highest risk", icon: "key-round"}
-  ]
 
   @terms [
     {"Total supply", "100 billion tokens"},
@@ -137,15 +126,12 @@ defmodule AutolaunchWeb.CreateLive do
 
   @sections %{
     "autosave_launch_token_details" => Enum.map(@token_detail_fields, & &1.param),
-    "autosave_launch_treasury" => ~w(treasury treasury_path eoa_acknowledgement)
+    "autosave_launch_treasury" => ~w(treasury)
   }
 
-  @stored_params Enum.map(@token_detail_fields, & &1.param) ++
-                   ["image", "treasury", "treasury_path", "eoa_acknowledgement"]
+  @stored_params Enum.map(@token_detail_fields, & &1.param) ++ ["image", "treasury"]
 
   @no_connections_acknowledgement "I realize my Revstake auction may not appear in the gallery or list, because reputation and social proof are important for raising initial funds for an agent"
-
-  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
   @actions %{
@@ -227,9 +213,9 @@ defmodule AutolaunchWeb.CreateLive do
       else: {:reply, %{taken: true}, restore(socket, values)}
   end
 
-  # The person ticked that the smart contract account their agent chose is
-  # where the launch's money goes. One the agent changed since this page
-  # showed it is not confirmed; the page shows the new one to check instead.
+  # The person ticked that the Safe their agent chose is where the launch's
+  # money goes. One the agent changed since this page showed it is not
+  # confirmed; the page shows the new one to check instead.
   # The tick is written under the page's lease read again now, so a page whose
   # sign-in could not be read, or has ended, confirms nothing.
   def handle_event(
@@ -289,7 +275,6 @@ defmodule AutolaunchWeb.CreateLive do
         missing:
           LaunchDraft.missing_token_details(draft || %{}) ++
             if(treasury_done?, do: [], else: [:treasury]),
-        custody: custody(assigns.draft_values["treasury_path"]),
         terms: @terms,
         marks: marks(assigns.draft_errors, assigns.draft_values),
         links_given?: Enum.any?(@link_params, &(assigns.draft_values[&1] != "")),
@@ -413,7 +398,6 @@ defmodule AutolaunchWeb.CreateLive do
                 phx-change="autosave_launch_treasury"
                 phx-submit="autosave_launch_treasury"
               >
-                <.custody_menu form_id="launch-treasury-details" path={@custody} />
                 <.draft_field
                   field={treasury_field()}
                   form_id="launch-treasury-details"
@@ -428,12 +412,14 @@ defmodule AutolaunchWeb.CreateLive do
                     {safe_line(@treasury_check)}
                   </p>
                 </.draft_field>
-                <.eoa_warning
-                  :if={@custody.value == "eoa"}
-                  form_id="launch-treasury-details"
-                  acknowledgement={@draft_values["eoa_acknowledgement"]}
-                  error={@draft_errors["eoa_acknowledgement"]}
-                />
+                <a
+                  href="https://app.safe.global/new-safe/create?chain=base"
+                  class="standalone-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Create a Safe
+                </a>
               </form>
             </.fold>
           </fieldset>
@@ -463,7 +449,7 @@ defmodule AutolaunchWeb.CreateLive do
               {MarketCard.money(@opening.fdv, regent_rate(@regent_rate), "REGENT")}
             </:row>
             <:row label="Raises in">REGENT</:row>
-            <:row label="Treasury">{@custody.name}</:row>
+            <:row label="Treasury">Safe</:row>
           </.summary_card>
 
           <div id="launch-transactions" class="create-page__launch">
@@ -823,7 +809,7 @@ defmodule AutolaunchWeb.CreateLive do
   defp assign_defaults(socket, actor) do
     assign(socket,
       launch_drafts: [],
-      draft_values: @stored_params |> Map.new(&{&1, ""}) |> Map.put("treasury_path", "safe"),
+      draft_values: Map.new(@stored_params, &{&1, ""}),
       draft_errors: %{},
       draft_notice: nil,
       image_notice: nil,
@@ -863,11 +849,11 @@ defmodule AutolaunchWeb.CreateLive do
   defp assign_ticker_taken(socket),
     do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
 
-  # The line beside the treasury box. On the Safe path a whole address is read
-  # on Base at the latest block, away from this process, and read again only
-  # once the address changes or the last read failed. An answer for an address
-  # the box no longer holds is dropped. The local test chain is a Base fork its
-  # launch review does not check either, so nothing is read there.
+  # The line beside the treasury box. A whole address is read on Base at the
+  # latest block, away from this process, and read again only once the
+  # address changes or the last read failed. An answer for an address the box
+  # no longer holds is dropped. The local test chain is a Base fork its launch
+  # review does not check either, so nothing is read there.
   defp check_treasury(socket) do
     case {safe_address(socket.assigns.draft_values), socket.assigns.treasury_check} do
       {nil, _check} ->
@@ -883,12 +869,10 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  defp safe_address(%{"treasury_path" => "safe", "treasury" => treasury}) do
+  defp safe_address(%{"treasury" => treasury}) do
     if LaunchDraft.treasury_address?(treasury) and not Lab.test_chain?(),
       do: String.downcase(treasury)
   end
-
-  defp safe_address(_values), do: nil
 
   defp safe_check(address) do
     case TreasurySecurity.safe_check(address) do
@@ -1018,12 +1002,12 @@ defmodule AutolaunchWeb.CreateLive do
   defp account(%{assigns: %{access_context: %{principal: {:human, account}}}}), do: account
   defp account(_socket), do: nil
 
-  # Whether the saved treasury step is done. A Safe treasury is done only once
-  # Base shows it is a 2-of-3 Safe; the local test chain is not read, as its
-  # launch review does not check the treasury either.
+  # Whether the saved treasury step is done: only once Base shows a 2-of-3
+  # Safe at the address. The local test chain is not read, as its launch
+  # review does not check the treasury either.
   defp treasury_ready?(draft, check) do
     LaunchDraft.treasury_complete?(draft) and
-      (draft.treasury_path != :safe or Lab.test_chain?() or safe_found?(draft.treasury, check))
+      (Lab.test_chain?() or safe_found?(draft.treasury, check))
   end
 
   defp safe_found?(treasury, %{address: address, state: :two_of_three_safe}),
@@ -1031,18 +1015,8 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp safe_found?(_treasury, _check), do: false
 
-  defp draft_values(draft) do
-    Map.new(@stored_params, fn param ->
-      value = Map.get(draft, String.to_existing_atom(param))
-
-      {param,
-       cond do
-         is_nil(value) -> ""
-         is_atom(value) -> Atom.to_string(value)
-         true -> value
-       end}
-    end)
-  end
+  defp draft_values(draft),
+    do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
   # REGENT's dollar price once it has been read; on a test network, and until
   # then, the card's figures stay in REGENT.
@@ -1057,103 +1031,11 @@ defmodule AutolaunchWeb.CreateLive do
   defp safe_line(%{state: :unread}), do: "Base could not be read just now"
   defp safe_line(_nothing_yet), do: nil
 
-  # The chosen treasury type; a draft that names none yet is a Safe.
-  defp custody(path) do
-    value = if path in [nil, ""], do: "safe", else: to_string(path)
-    Enum.find(@custody_options, &(&1.value == value))
-  end
-
-  attr :form_id, :string, required: true
-  attr :path, :map, required: true, doc: "the chosen treasury type"
-
-  defp custody_menu(assigns) do
-    assigns = assign(assigns, :options, @custody_options)
-
-    ~H"""
-    <.menu id={"#{@form_id}-custody"} label="Treasury type">
-      <:current>
-        <span class="create-menu__icon"><Regent.Icons.icon name={@path.icon} /></span>
-        <span class="create-menu__value">{@path.name}<small>{@path.sub}</small></span>
-      </:current>
-      <label :for={option <- @options} class="create-menu__option">
-        <input
-          type="radio"
-          name="launch_draft[treasury_path]"
-          value={option.value}
-          checked={option.value == @path.value}
-          class="visually-hidden"
-        />
-        <span class="create-menu__icon"><Regent.Icons.icon name={option.icon} /></span>
-        <span class="create-menu__name">{option.name}</span>
-        <span class="create-menu__sub">{option.sub}</span>
-        <Regent.Icons.icon name="check" class="create-menu__check" />
-      </label>
-    </.menu>
-    <a
-      :if={@path.value == "safe"}
-      href="https://app.safe.global/new-safe/create?chain=base"
-      class="standalone-link"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Create a Safe
-    </a>
-    """
-  end
-
-  attr :form_id, :string, required: true
-  attr :acknowledgement, :string, default: ""
-  attr :error, :string, default: nil
-
-  # A single-key treasury goes ahead only once its creator types the warning
-  # character for character.
-  defp eoa_warning(assigns) do
-    id = "#{assigns.form_id}-eoa-acknowledgement"
-
-    assigns =
-      assign(assigns,
-        id: id,
-        warning_copy: @eoa_acknowledgement,
-        acknowledged?: assigns.acknowledgement == @eoa_acknowledgement,
-        described_by:
-          Enum.join(Enum.filter(["#{id}-warning", assigns.error && "#{id}-error"], & &1), " ")
-      )
-
-    ~H"""
-    <div class="rg-field create-field autolaunch-custody-eoa">
-      <label for={@id}>Warning</label>
-      <p class="create-page__hint">Type this exactly to use a single key.</p>
-      <p id={"#{@id}-warning"} class="autolaunch-custody-warning">{@warning_copy}</p>
-      <textarea
-        id={@id}
-        name="launch_draft[eoa_acknowledgement]"
-        class={@acknowledged? && "autolaunch-custody-ack--matched"}
-        autocomplete="off"
-        aria-invalid={@error && "true"}
-        aria-describedby={@described_by}
-      >{@acknowledgement}</textarea>
-      <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
-        <Regent.Icons.icon name="check" /> Warning typed exactly. Risk acknowledged.
-      </p>
-      <p
-        :if={@error}
-        id={"#{@id}-error"}
-        class="autolaunch-draft-error"
-        role="alert"
-        phx-hook="MotionRefusal"
-        data-refused
-      >
-        {@error}
-      </p>
-    </div>
-    """
-  end
-
   attr :treasury, :string, required: true
 
-  # A Safe or smart contract account the creator's paired agent chose as the
-  # treasury goes ahead only once the creator ticks that it receives the
-  # treasury funds (`Autolaunch.LaunchDraft.treasury_confirmation_needed?/1`).
+  # A Safe the creator's paired agent chose as the treasury goes ahead only
+  # once the creator ticks that it receives the treasury funds
+  # (`Autolaunch.LaunchDraft.treasury_confirmation_needed?/1`).
   defp agent_treasury(assigns) do
     ~H"""
     <form id="launch-agent-treasury" class="agent-treasury" phx-change="confirm_agent_treasury">
