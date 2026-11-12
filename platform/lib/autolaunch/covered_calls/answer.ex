@@ -5,7 +5,9 @@ defmodule Autolaunch.CoveredCalls.Answer do
   `:positions_answer` and `:prepare_answer`): the HTTP routes send them as their
   `data`, and the hosted MCP tools as their result. The figures come unchanged
   from the readings: stock amounts in raw token units, prices and USDC in
-  micro-USDC (6 decimals), times in Unix seconds.
+  micro-USDC (6 decimals), times in Unix seconds. Each answer names the stock
+  its calls are on (`market`: symbol, issuer, chain and the exact addresses of
+  the stock and of its covered-calls contract).
 
   A step the chain's own state makes certain to fail is not a refusal: it is
   answered with `blocked` naming the reason, in code and words, beside the steps
@@ -13,7 +15,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
   """
 
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Refused, Terms}
+  alias Autolaunch.CoveredCalls.{Deployment, Refused, Terms}
 
   @blocked %{
     corporate_action:
@@ -46,8 +48,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
     {:ok,
      %{
        symbol: book.market.symbol,
-       contract: book.market.contract,
-       stock: book.market.stock,
+       market: Deployment.identity(book.market),
        block: book.block,
        now: book.now,
        read_at: book.read_at,
@@ -68,12 +69,13 @@ defmodule Autolaunch.CoveredCalls.Answer do
     {:ok,
      %{
        symbol: positions.book.market.symbol,
+       market: Deployment.identity(positions.book.market),
        wallet: positions.wallet,
        now: positions.now,
        read_at: positions.read_at,
        unit: positions.book.unit,
        sold: Enum.map(positions.sold, &listing(&1, positions.now)),
-       holdings: positions.holdings,
+       holdings: Enum.map(positions.holdings, &holding(&1, positions)),
        bids:
          Enum.map(
            positions.bids,
@@ -91,6 +93,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
      %{
        kind: prepared.kind,
        signer: prepared.signer,
+       market: prepared.market,
        chain: prepared.chain,
        steps: prepared.steps,
        approved: prepared.approved,
@@ -125,6 +128,19 @@ defmodule Autolaunch.CoveredCalls.Answer do
       available: Terms.available(listing),
       exercise_closes_at: listing.expiry + Terms.exercise_window(),
       strike_due: Terms.strike_due(listing)
+    })
+  end
+
+  # Calls held, with the terms a holder acts on: the strike to pay, and the
+  # one day they may be exercised in.
+  defp holding(%{listing_id: id} = holding, %{book: book, now: now}) do
+    listing = Enum.find(book.listings, &(&1.id == id))
+
+    Map.merge(holding, %{
+      strike_per_token: listing.strike_per_token,
+      expiry: listing.expiry,
+      exercise_closes_at: listing.expiry + Terms.exercise_window(),
+      stage: Terms.stage(listing, now)
     })
   end
 

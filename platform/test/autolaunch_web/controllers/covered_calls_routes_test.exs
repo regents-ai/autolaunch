@@ -224,8 +224,17 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
              "access-control-allow-origin"
            ) == ["*"]
 
-    assert %{"symbol" => "AMZNc", "contract" => @contract, "unit" => @token, "now" => @now} =
-             book["data"]
+    assert %{"symbol" => "AMZNc", "unit" => @token, "now" => @now} = book["data"]
+
+    # The stock is named by its issuer, its chain and its exact addresses.
+    assert book["data"]["market"] == %{
+             "symbol" => "AMZNc",
+             "issuer" => "Coinbase",
+             "chain" => "Base",
+             "chain_id" => 8453,
+             "stock" => @stock,
+             "contract" => @contract
+           }
 
     assert [listing] = book["data"]["listings"]
     assert listing["stage"] == "open"
@@ -335,6 +344,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     prepared = steps.(fill) |> json_response(200)
 
     assert %{"kind" => "fill", "signer" => ^wallet, "approved" => false} = prepared["data"]
+    assert %{"issuer" => "Coinbase", "stock" => @stock} = prepared["data"]["market"]
     assert prepared["data"]["blocked"]["code"] == "approve_first"
     assert [approve, buy] = prepared["data"]["steps"]
     assert approve["to"] == @usdc and buy["to"] == @contract
@@ -565,11 +575,20 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
     assert %{
              "wallet" => ^wallet,
-             "holdings" => [%{"listing_id" => 1, "held" => held}],
-             "balance" => balance
+             "holdings" => [%{"listing_id" => 1, "held" => held} = holding],
+             "balance" => balance,
+             "market" => %{"stock" => @stock, "contract" => @contract}
            } = mine["data"]
 
     assert held == 3 * @token
+
+    # Held calls carry what a holder acts on: the strike and the one day they
+    # can be exercised in.
+    assert %{"strike_per_token" => strike, "expiry" => opens, "exercise_closes_at" => closes} =
+             holding
+
+    assert strike > 0 and opens > @now and closes == opens + 86_400
+    assert holding["stage"] == "open"
     # The wallet's own stock, the most it can list now.
     assert balance == 7 * @token
   end

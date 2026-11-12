@@ -252,6 +252,35 @@ components:
       schema:
         type: string
   schemas:
+    CoveredCallMarket:
+      type: object
+      additionalProperties: false
+      description: The stock the calls are on, named by its issuer, its chain and its exact addresses.
+      required:
+      - symbol
+      - issuer
+      - chain
+      - chain_id
+      - stock
+      - contract
+      properties:
+        symbol:
+          type: string
+          description: The stock token's symbol as the site lists it, such as AMZNc.
+        issuer:
+          type: string
+          description: Who issues the stock token, such as Coinbase. The issuer can pause or seize it.
+        chain:
+          type: string
+          description: The chain's name, such as Base.
+        chain_id:
+          type: integer
+        stock:
+          type: string
+          description: The stock token's address on that chain.
+        contract:
+          type: string
+          description: The market's covered-calls contract on that chain.
     CoveredCallListing:
       type: object
       additionalProperties: false
@@ -313,8 +342,9 @@ components:
           - sold
           - exercise
           - closed
+          - stopped
           description: 'open: for sale; sold: nothing left before expiry; exercise: the 24 hours after
-            expiry; closed: after them.'
+            expiry; closed: after them; stopped: its seller stopped it before any was bought.'
     CoveredCallBid:
       type: object
       additionalProperties: false
@@ -439,8 +469,7 @@ components:
           additionalProperties: false
           required:
           - symbol
-          - contract
-          - stock
+          - market
           - block
           - now
           - read_at
@@ -453,12 +482,8 @@ components:
           properties:
             symbol:
               type: string
-            contract:
-              type: string
-              description: The market's covered-calls contract on Base.
-            stock:
-              type: string
-              description: The stock token on Base.
+            market:
+              $ref: '#/components/schemas/CoveredCallMarket'
             block:
               type: integer
             now:
@@ -609,6 +634,7 @@ components:
           additionalProperties: false
           required:
           - symbol
+          - market
           - unit
           - spot_per_token
           - price_updated_at
@@ -626,6 +652,8 @@ components:
           properties:
             symbol:
               type: string
+            market:
+              $ref: '#/components/schemas/CoveredCallMarket'
             unit:
               type: integer
               description: Raw units in one whole token.
@@ -688,6 +716,7 @@ components:
           additionalProperties: false
           required:
           - symbol
+          - market
           - wallet
           - now
           - read_at
@@ -699,6 +728,8 @@ components:
           properties:
             symbol:
               type: string
+            market:
+              $ref: '#/components/schemas/CoveredCallMarket'
             wallet:
               type: string
             now:
@@ -721,15 +752,39 @@ components:
                 - listing_id
                 - held
                 - claimable
+                - strike_per_token
+                - expiry
+                - exercise_closes_at
+                - stage
                 properties:
                   listing_id:
                     type: integer
                   held:
                     type: integer
-                    description: Raw stock units of calls the wallet may exercise.
+                    description: Raw stock units of calls the wallet holds. They can be exercised
+                      only from expiry until exercise_closes_at; after that they have ended and the
+                      premium is not returned.
                   claimable:
                     type: integer
                     description: Raw stock units the wallet may claim now.
+                  strike_per_token:
+                    type: integer
+                    description: Micro-USDC per whole token the holder pays to exercise.
+                  expiry:
+                    type: integer
+                    description: 'Unix seconds: when the exercise window opens, a Friday at 21:00 UTC.'
+                  exercise_closes_at:
+                    type: integer
+                    description: Unix seconds; exercise is refused from this moment on.
+                  stage:
+                    type: string
+                    enum:
+                    - open
+                    - sold
+                    - exercise
+                    - closed
+                    - stopped
+                    description: The listing's stage, as in the book.
             bids:
               type: array
               description: Every bid the wallet made, oldest first.
@@ -801,6 +856,7 @@ components:
           required:
           - kind
           - signer
+          - market
           - chain
           - steps
           - approved
@@ -824,6 +880,8 @@ components:
             signer:
               type: string
               description: The wallet the steps are for.
+            market:
+              $ref: '#/components/schemas/CoveredCallMarket'
             chain:
               type: object
               required:

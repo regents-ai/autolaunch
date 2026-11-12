@@ -15,18 +15,34 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   deployment (`Autolaunch.Lab`): the description must name its chain, and every
   read and step goes through its RPC doors. Off, the pages answer not found and
   no tool or route offers them.
+
+  Every stock here is one Coinbase issues on Base (`identity/1`): wherever a
+  transaction names a stock, it is named by its issuer, its chain and its
+  exact address, never by its symbol alone.
   """
 
   alias Autolaunch.Lab
   alias RegentChain.Address
 
   @market_keys ~w(contract feed stock symbol)
+  @issuer "Coinbase"
+  @chain "Base"
 
   @type market :: %{
           symbol: String.t(),
+          chain_id: pos_integer(),
           stock: String.t(),
           contract: String.t(),
           feed: String.t()
+        }
+
+  @type identity :: %{
+          symbol: String.t(),
+          issuer: String.t(),
+          chain: String.t(),
+          chain_id: pos_integer(),
+          stock: String.t(),
+          contract: String.t()
         }
 
   @doc "Whether this site offers covered calls."
@@ -61,6 +77,18 @@ defmodule Autolaunch.CoveredCalls.Deployment do
 
   def market(_symbol), do: {:error, :unknown_market}
 
+  @doc """
+  Which stock a market's calls are on, as every page and agent answer names
+  it: its symbol, who issues it, its chain, and the exact addresses of the
+  stock token and of the market's covered-calls contract.
+  """
+  @spec identity(market()) :: identity()
+  def identity(market) do
+    market
+    |> Map.take([:symbol, :chain_id, :stock, :contract])
+    |> Map.merge(%{issuer: @issuer, chain: @chain})
+  end
+
   def load!(path) do
     case load(path) do
       {:ok, config} -> config
@@ -77,7 +105,12 @@ defmodule Autolaunch.CoveredCalls.Deployment do
          when map_size(decoded) == 2 <- Jason.decode(body),
          {:ok, chain_id} <- Lab.chain_id(chain_id),
          {:ok, markets} <- markets(markets) do
-      {:ok, %{path: path, chain_id: chain_id, markets: markets}}
+      {:ok,
+       %{
+         path: path,
+         chain_id: chain_id,
+         markets: Enum.map(markets, &Map.put(&1, :chain_id, chain_id))
+       }}
     else
       false -> {:error, :absolute_path_required}
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}

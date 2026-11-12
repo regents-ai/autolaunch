@@ -4,6 +4,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
   agent read before listing, from the stock's Chainlink reference price in
   the shared book.
 
+    * the stock the calls are on (`market`, `Deployment.identity/1`)
     * the reference price per whole token and when the feed last updated it
     * the next expiries a new listing may take (`Terms.expiries/2`), each
       with its exercise window, and the chosen one's term in whole days
@@ -29,7 +30,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
   corporate action.
   """
 
-  alias Autolaunch.CoveredCalls.{Book, Terms}
+  alias Autolaunch.CoveredCalls.{Book, Deployment, Terms}
 
   @volatility 0.30
   @stale_s 4 * 86_400
@@ -60,6 +61,7 @@ defmodule Autolaunch.CoveredCalls.Quote do
       {:ok,
        %{
          symbol: symbol,
+         market: Deployment.identity(book.market),
          unit: book.unit,
          spot_per_token: spot,
          price_updated_at: book.price.updated_at,

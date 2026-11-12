@@ -50,6 +50,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
   @type prepared :: %{
           kind: atom(),
           chain: map(),
+          market: Deployment.identity(),
           steps: [map()],
           blocked: atom() | nil,
           facts: map()
@@ -62,7 +63,12 @@ defmodule Autolaunch.CoveredCalls.Steps do
          {:ok, market} <- Deployment.market(symbol),
          {:ok, block, opts} <- Chain.latest(config.lab),
          {:ok, built} <- build(kind, request, market, signer, block, opts) do
-      {:ok, Map.merge(built, %{kind: kind, chain: Client.chain(config.lab)})}
+      {:ok,
+       Map.merge(built, %{
+         kind: kind,
+         chain: Client.chain(config.lab),
+         market: Deployment.identity(market)
+       })}
     end
   end
 

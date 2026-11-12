@@ -117,7 +117,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
     "/stock/covered-call" =>
       {"Covered calls",
-       "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
+       "List covered calls on a Base stock token and be paid the premium when a buyer buys, or buy them, in USDC."},
     "/stock/isolated-afters" =>
       {"Isolated Exposure to After-hours Stocks",
        "Split a Base stock token into two for a week: one carries its moves while the market is closed, the other while it is open."},
@@ -585,8 +585,36 @@ defmodule AutolaunchWeb.PublicDocuments do
     """
   end
 
-  defp covered_calls,
-    do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
+  defp covered_calls do
+    if "covered_calls" in ToolManifest.features(),
+      do: String.replace(@covered_calls, "{{covered_call_markets}}", covered_call_markets()),
+      else: ""
+  end
+
+  # Each stock the site offers covered calls on, named by its issuer, its chain
+  # and its exact addresses; nothing while their description can't be read.
+  defp covered_call_markets do
+    case Autolaunch.CoveredCalls.Deployment.current() do
+      {:ok, %{markets: markets}} ->
+        rows =
+          Enum.map_join(markets, "\n", fn market ->
+            stock = Autolaunch.CoveredCalls.Deployment.identity(market)
+
+            "| #{stock.symbol} | #{stock.issuer} | #{stock.chain} (#{stock.chain_id}) | `#{stock.stock}` | `#{stock.contract}` |"
+          end)
+
+        """
+        | Stock | Issuer | Chain | Stock address | Contract address |
+        | --- | --- | --- | --- | --- |
+        #{rows}
+
+        The issuer can pause or seize the stock token.\
+        """
+
+      {:error, _unread} ->
+        ""
+    end
+  end
 
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
 
