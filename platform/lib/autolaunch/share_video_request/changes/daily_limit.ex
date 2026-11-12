@@ -1,13 +1,14 @@
 defmodule Autolaunch.ShareVideoRequest.Changes.DailyLimit do
   @moduledoc """
-  Holds the site to 1000 videos in any 24 hours.
+  Holds the site to 1000 of people's own videos in any 24 hours.
 
   A person's request is counted inside its own write, after a transaction lock
   every person's request takes, so they are written one after another however
-  many arrive at once: each counts every request committed before it. A
-  video already queued is that queued request, so asking for it again is
-  never held. A launch's own videos have no account and are always made,
-  though they count.
+  many arrive at once: each counts every person's request committed before
+  it. A video already queued is that queued request, so asking for it again
+  is never held. A launch's own videos have no account: they are always made
+  and never counted, so asking for them signed out takes nothing from what
+  people may make.
   """
   use Ash.Resource.Change
 

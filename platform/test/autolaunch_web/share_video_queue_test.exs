@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.ShareVideoQueueTest do
   @moduledoc """
   Share videos are asked for by many people at once, and by one person in
-  several tabs at once. The site still makes at most 1000 videos in a day,
-  each video is queued once however many ask for it together, and a person's
-  made video is kept and served until three hours have passed.
+  several tabs at once. The site still makes at most 1000 of people's own
+  videos in a day, a launch's own videos take none of them, each video is
+  queued once however many ask for it together, and a person's made video is
+  kept and served until three hours have passed.
 
   Each ask runs in its own process outside the sandbox
   (`Ecto.Adapters.SQL.Sandbox.unboxed_run/2`), so it writes and commits in its
@@ -25,6 +26,8 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
   @moduletag :capture_log
 
   @daily 1000
+  # The person the day's filler videos are made for.
+  @filler 999_999_999
 
   setup do
     # The site starts its jobs only once launches open. Each request queues
@@ -85,15 +88,14 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
                |> Enum.filter(&match?({:launch, _}, &1))
                |> Enum.all?(&match?({_launch, {:waiting, _}}, &1))
 
-        # As many people's videos as there was room for, when that many asked,
-        # less the launch's own when it took the room first: the cap refuses
-        # nothing it should let through. A person's tabs all get the same
+        # As many people's videos as there was room for, when that many asked:
+        # the cap refuses nothing it should let through, and the launch's own
+        # video takes none of the room. A person's tabs all get the same
         # answer.
-        {own, launch} = auction |> requests() |> Enum.split_with(& &1.human_account_id)
+        own = auction |> requests() |> Enum.filter(& &1.human_account_id)
         asked = asks |> Enum.reject(&(&1 == :launch)) |> Enum.uniq()
 
-        least = min(length(asked), max(room - length(launch), 0))
-        assert length(own) in least..min(length(asked), room)
+        assert length(own) == min(length(asked), room)
 
         for person <- asked do
           theirs = for {^person, answer} <- answers, uniq: true, do: elem(answer, 0)
@@ -140,6 +142,24 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
       made_but(auction, 0)
       assert ask.(person, later) == {:ok, "first video"}
       assert ask.(person + 1, now) == {:error, :daily_limit}
+    after
+      forget(auction)
+    end
+  end
+
+  test "LAUNCH_VIDEOS_TAKE_NO_ROOM: a launch's own videos count nothing against people's",
+       %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    try do
+      # Anyone, signed out, can ask for a launch's own video; a day's worth of
+      # them leaves a person's own video to be made.
+      launch_videos(auction, @daily)
+
+      assert {:waiting, _ahead} =
+               unboxed(fn -> ShareVideo.fetch(auction, :auction, wallet, person, now) end)
     after
       forget(auction)
     end
@@ -196,9 +216,10 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
         unboxed(fn ->
           Repo.all(
             from(r in "share_video_requests",
-              # The day's filler videos have no person; only the two saved ones count.
+              # The day's filler videos are left out; only the two saved ones count.
               where:
-                r.auction_id == type(^auction.id, :binary_id) and not is_nil(r.human_account_id),
+                r.auction_id == type(^auction.id, :binary_id) and
+                  not like(r.key, "%:filler:%"),
               select: {r.human_account_id, not is_nil(r.mp4)}
             )
           )
@@ -271,7 +292,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
-  # Fills the day's videos, all but `room`, with launch videos of `auction`'s.
+  # Fills the day's videos, all but `room`, with one person's videos of `auction`.
   defp made_but(auction, room) do
     made =
       unboxed(fn ->
@@ -281,8 +302,23 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
       end)
 
     rows =
-      for n <- 1..(@daily - room - made)//1,
-          do: row(auction, %{key: "#{auction.id}:filler:#{n}", state: "ready"})
+      for n <- 1..(@daily - room - made)//1 do
+        row(auction, %{
+          key: "#{auction.id}:filler:#{n}",
+          human_account_id: @filler,
+          wallet: "0x" <> String.duplicate("f", 40),
+          state: "ready"
+        })
+      end
+
+    unboxed(fn -> Repo.insert_all("share_video_requests", rows) end)
+  end
+
+  # `count` of `auction`'s own videos, asked for by nobody signed in.
+  defp launch_videos(auction, count) do
+    rows =
+      for n <- 1..count,
+          do: row(auction, %{key: "#{auction.id}:filler:launch:#{n}", state: "ready"})
 
     unboxed(fn -> Repo.insert_all("share_video_requests", rows) end)
   end
