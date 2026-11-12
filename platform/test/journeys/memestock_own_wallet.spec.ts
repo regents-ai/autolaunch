@@ -2,7 +2,7 @@ import {createWalletClient, defineChain, encodeFunctionData, http, parseAbi, typ
 import {privateKeyToAccount} from "viem/accounts"
 import {Agent} from "./support/agent"
 import {balanceOf, call, launchCreated, memestock, mineTo, mintStock, receipt, rpc, sendAs} from "./support/chain"
-import {AAPLC, draftFor} from "./support/launch"
+import {AAPLC, draftFor, finishFromPage} from "./support/launch"
 import {pairWith, unpair} from "./support/pairing"
 import {onSite} from "./support/site"
 import {expect, holdWallet, people, ready, signIn, test, type Sent} from "./support/person"
@@ -130,8 +130,7 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
   await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("ended")
   await b.goto(new URL(listing.url).pathname)
   await ready(b)
-  await b.getByRole("button", {name: /^Finish/}).click()
-  await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("graduated")
+  await finishFromPage(b, bids, listing.id, "graduated")
 
   // The creator allocation vests to the agent's wallet and to no one else: anyone may release it.
   await mineTo(Number(mined.blockNumber) + 100_000)

@@ -215,8 +215,12 @@ config :autolaunch, :convert_read_timeout, 30_000
 config :autolaunch, :share_video_saved_bytes, 5_000_000_000
 
 # How often one account's wallet figures may be read from the chain, each
-# window (Autolaunch.Limits).
-config :autolaunch, :limits, wallet_read: [limit: 30, window_seconds: 60]
+# window, and how often one viewer's presses of a page's own read buttons
+# (Check a bid, Read again, Refresh) may read it (Autolaunch.Limits). The two
+# are counted apart, so those presses never use up the wallet figures' reads.
+config :autolaunch, :limits,
+  wallet_read: [limit: 30, window_seconds: 60],
+  page_read: [limit: 30, window_seconds: 60]
 
 # The API and health check budgets key on the direct peer. Production turns on
 # Fly's client header.

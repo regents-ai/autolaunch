@@ -262,7 +262,7 @@ defmodule AutolaunchWeb.ShareCard do
       draw(face, %{
         badge: {countdown(auction, now), @blue},
         stats: [
-          {"Clearing price", money(auction.fdv, rate, auction), @platinum},
+          {"FDV", money(auction.fdv, rate, auction), @platinum},
           {"Price", money(clearing(auction), rate, auction), @platinum}
         ],
         creator: creator(auction),

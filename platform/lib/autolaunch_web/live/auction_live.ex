@@ -90,23 +90,37 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply, socket}
   end
 
+  # The bid lookup reads the chain, so each one spends one of the viewer's page
+  # reads; past them the lookup says the bid could not be read. Nothing here
+  # reaches a wallet.
   def handle_event("check_bid", %{"bid" => number}, socket) do
     id = socket.assigns.record_id
+    socket = assign(socket, :check_number, number)
 
-    {:noreply,
-     socket
-     |> assign(:check_number, number)
-     |> assign_async(
-       :checked_bid,
-       fn ->
-         with {:ok, bid_id} <- bid_number(number),
-              {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
-              {:ok, receipt} <- BidReceipt.base(auction, bid_id) do
-           {:ok, %{checked_bid: receipt}}
-         end
-       end,
-       reset: true
-     )}
+    case spend_page_read(socket) do
+      :ok ->
+        {:noreply,
+         assign_async(
+           socket,
+           :checked_bid,
+           fn ->
+             with {:ok, bid_id} <- bid_number(number),
+                  {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
+                  {:ok, receipt} <- BidReceipt.base(auction, bid_id) do
+               {:ok, %{checked_bid: receipt}}
+             end
+           end,
+           reset: true
+         )}
+
+      :limited ->
+        {:noreply,
+         assign(
+           socket,
+           :checked_bid,
+           AsyncResult.failed(AsyncResult.loading(), {:error, :limited})
+         )}
+    end
   end
 
   # The auction's reading has a new price ladder, schedule or stage; a new

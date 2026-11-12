@@ -64,12 +64,13 @@ defmodule Autolaunch.LaunchDiscovery do
       pagination keyset?: true, required?: false
     end
 
-    read :latest do
-      get? true
+    # The launches of one launchpad already recorded, for discovery to find the
+    # ones still missing.
+    read :recorded do
       argument :chain_id, :integer, allow_nil?: false
       argument :contract, :string, allow_nil?: false
       filter expr(chain_id == ^arg(:chain_id) and contract == ^arg(:contract))
-      prepare build(sort: [launch_id: :desc], limit: 1)
+      prepare build(select: [:launch_id])
     end
 
     # A launch read again finds it already recorded and changes nothing about

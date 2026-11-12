@@ -1,44 +1,62 @@
 defmodule Autolaunch.AuctionFinish.Discover do
   @moduledoc """
-  Records every launch created since the last run, on every configured
+  Records every launch the site has not recorded yet, on every configured
   launchpad, with its auction, migration block and state as the chain has them.
+
+  A launch that cannot be read or recorded is one warning line and is left
+  out: the launches after it, and the other launchpads, are still recorded. A
+  launchpad whose head or count cannot be read is left out the same way. The
+  run then fails naming each one, and the next run reads them again, since it
+  looks for every launch id up to the launchpad's count that has no record.
+
+  This only decides which launches the finisher knows of. What is sent to
+  finish one, and from which wallet, is `Autolaunch.AuctionFinish.Finish` and
+  `Autolaunch.AuctionFinish.Sender`.
   """
+
+  require Logger
 
   alias Autolaunch.Actors.System
   alias Autolaunch.AuctionFinish.Launchpads
   alias Autolaunch.Chain.Rpc
 
   def run(_input, _context) do
-    Enum.reduce_while(Launchpads.configured(), :ok, fn pad, :ok ->
-      case discover(pad) do
-        :ok -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    case Enum.flat_map(Launchpads.configured(), &discover/1) do
+      [] -> :ok
+      unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
+    end
   end
 
+  # What `pad` has that could not be recorded this run: launch ids, or the
+  # launchpad itself.
   defp discover(pad) do
     with {:ok, block} <- Rpc.latest_block(pad.opts),
          {:ok, last} <- Launchpads.last_launch_id(pad, block),
-         {:ok, known} <- known(pad),
-         do: record_new(pad, (known + 1)..last//1, block)
-  end
-
-  defp record_new(pad, launch_ids, block) do
-    Enum.reduce_while(launch_ids, :ok, fn launch_id, :ok ->
-      case record(pad, launch_id, block) do
-        {:ok, _finish} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
-  end
-
-  defp known(pad) do
-    case Autolaunch.latest_auction_finish(pad.chain_id, pad.contract, actor: %System{}) do
-      {:ok, nil} -> {:ok, 0}
-      {:ok, finish} -> {:ok, finish.launch_id}
-      {:error, reason} -> {:error, reason}
+         {:ok, recorded} <- recorded(pad) do
+      for launch_id <- 1..last//1,
+          launch_id not in recorded,
+          {:error, reason} <- [record(pad, launch_id, block)],
+          do: unrecorded(pad, launch_id, reason)
+    else
+      {:error, reason} -> [unrecorded(pad, :launchpad, reason)]
     end
+  end
+
+  defp unrecorded(pad, which, reason) do
+    Logger.warning(
+      "Auction finisher: #{pad.launchpad} #{name(which)} on chain #{pad.chain_id} not recorded: #{inspect(reason)}"
+    )
+
+    {pad.launchpad, pad.chain_id, which}
+  end
+
+  defp name(:launchpad), do: "launchpad"
+  defp name(launch_id), do: "launch #{launch_id}"
+
+  defp recorded(pad) do
+    with {:ok, finishes} <-
+           Autolaunch.recorded_auction_finishes(pad.chain_id, pad.contract, actor: %System{}),
+         do: {:ok, MapSet.new(finishes, & &1.launch_id)}
   end
 
   defp record(pad, launch_id, block) do

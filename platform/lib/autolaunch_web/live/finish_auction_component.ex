@@ -14,10 +14,13 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   The wallet that sends is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); any of the account's wallets may
   finish. The review is built as soon as the card knows that wallet, so the
-  button sends at once. The button is disabled only when the chain says the
-  finish would fail: before the migration block, or once the launch is
-  finished. Nothing is stored; the auction's reading job records the outcome
-  from the chain (`Autolaunch.AuctionMarket`) and the page follows it.
+  button sends at once; a press made before the card has read the launch reads
+  it for that press and sends the finish, as a settlement press does
+  (`AutolaunchWeb.BidSettlementComponent`). The button is disabled only when
+  the chain says the finish would fail: before the migration block, or once
+  the launch is finished. Nothing is stored; the auction's reading job records
+  the outcome from the chain (`Autolaunch.AuctionMarket`) and the page follows
+  it.
   """
 
   use AutolaunchWeb, :live_component
@@ -88,6 +91,7 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
       id={@id}
       class="finish-auction"
       phx-hook="OnchainSteps"
+      data-onchain-prepare
       aria-label="Finish this auction"
     >
       <h3>Finish this auction</h3>
@@ -119,6 +123,24 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   @impl true
   def handle_event("onchain_active_wallet", params, socket),
     do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed()}
+
+  # A press made before the card has read the launch, or after a read the
+  # chain did not answer: the launch is read now for the wallet that pressed
+  # and the finish handed back to send. A launch the chain says cannot be
+  # finished now sends nothing.
+  def handle_event("prepare_and_send", %{"form" => _no_inputs}, socket) do
+    socket = read_now(socket)
+
+    case socket.assigns do
+      %{review: %{} = review, launch: %{state: :running} = launch} ->
+        if waiting?(launch),
+          do: {:reply, %{}, socket},
+          else: {:reply, %{review: review, send: "finish"}, socket}
+
+      _no_review ->
+        {:reply, %{}, socket}
+    end
+  end
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
@@ -162,6 +184,16 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   end
 
   defp reread(socket, _entry), do: read(socket)
+
+  # The launch as the card holds it, or read for a press that came first.
+  defp read_now(%{assigns: %{launch: %{}}} = socket), do: socket
+
+  defp read_now(socket) do
+    case FinishActions.read(socket.assigns.auction) do
+      {:ok, launch} -> socket |> assign(launch: launch, unread: false) |> reviewed()
+      {:error, :chain_unavailable} -> assign(socket, unread: true)
+    end
+  end
 
   defp waiting?(%{state: :running, clock: clock, migration_block: migration_block}),
     do: clock < migration_block

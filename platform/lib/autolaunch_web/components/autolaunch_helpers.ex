@@ -173,6 +173,19 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   def current_human_id(%{principal: {:human, %{id: id}}}), do: id
   def current_human_id(_access_context), do: nil
 
+  @doc """
+  Spends one of the viewer's page reads, for a chain read the viewer asked a
+  page for by pressing: `:ok` or `:limited`. Signed in it is the account's
+  allowance, signed out the visitor's address's.
+  """
+  @spec spend_page_read(Phoenix.LiveView.Socket.t()) :: :ok | :limited
+  def spend_page_read(%{assigns: %{access_context: context, client_key: key}}) do
+    case current_human_id(context) do
+      nil -> Autolaunch.Limits.spend(:page_read, {:client, key})
+      id -> Autolaunch.Limits.spend(:page_read, {:human, id})
+    end
+  end
+
   defp ready_detail(record),
     do: %{status: :ready, record: record, creator_connections: creator_connections(record)}
 

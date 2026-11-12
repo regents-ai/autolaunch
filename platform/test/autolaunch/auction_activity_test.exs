@@ -38,12 +38,16 @@ defmodule Autolaunch.AuctionActivityTest do
   @q96 79_228_162_514_264_337_593_543_950_336
 
   # The stub answers every log filter alike; the chain answers only the auction's.
+  # The auction's code is there from the first block on.
   defmodule Transport do
     @moduledoc false
     alias Autolaunch.BaseRpcStub
 
     def post(url, options) do
       case options[:json] do
+        %{method: "eth_getCode"} ->
+          {:ok, %{status: 200, body: %{"result" => "0x01"}}}
+
         %{method: "eth_getLogs", params: [%{address: address}]} ->
           logs = if address == BaseRpcStub.state().auction, do: BaseRpcStub.state().logs, else: []
           {:ok, %{status: 200, body: %{"result" => logs}}}
@@ -196,6 +200,51 @@ defmodule Autolaunch.AuctionActivityTest do
     assert saved.bid_volume_usd == nil
   end
 
+  # AL-ROBINHOOD-DATES: an ended Robinhood auction's dates moved on every pass,
+  # because they were worked out from the newest block at ten blocks a second
+  # though both blocks were already made and carry their own times.
+  test "a Robinhood auction's blocks already made give its dates their own times" do
+    chain_id = 4_663
+    put_env(:autolaunch_robinhood_chain_id, chain_id)
+
+    put_env(
+      :autolaunch_robinhood_deployment,
+      Path.expand("../fixtures/robinhood-deployment.json", __DIR__)
+    )
+
+    install(chain_id)
+    ended = @head - 20
+
+    BaseRpcStub.put(%{logs: [], end_block: ended})
+    put_blocks(%{hex(ended) => block(ended, @bid_hash)})
+
+    auction =
+      Autolaunch.TestSupport.project_auction(
+        chain_id: chain_id,
+        kind: :stocks,
+        address: @auction,
+        state: :active
+      )
+
+    assert {:snooze, 300} = pass(auction)
+
+    # The row itself: the plain read of an auction leaves Robinhood's out.
+    saved = Repo.one!(from a in Auction, where: a.id == ^auction.id)
+    assert DateTime.to_unix(saved.opened_at) == @opened
+    assert DateTime.to_unix(saved.estimated_end_at) == @now - 20
+  end
+
+  defp put_env(key, value) do
+    previous = Application.get_env(:autolaunch, key)
+    Application.put_env(:autolaunch, key, value)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:autolaunch, key, previous),
+        else: Application.delete_env(:autolaunch, key)
+    end)
+  end
+
   defp first_pass do
     chain_id = Lab.current!().chain_id
     install(chain_id)
@@ -260,10 +309,12 @@ defmodule Autolaunch.AuctionActivityTest do
     })
   end
 
-  defp call(%{data: data}, _state) do
+  # Robinhood's contracts keep time by the rollup's block, here the head's.
+  defp call(%{data: data}, state) do
     cond do
       data == LabAbi.selector("startBlock()") -> BaseRpcStub.uint(@start_block)
-      data == LabAbi.selector("endBlock()") -> BaseRpcStub.uint(@end_block)
+      data == LabAbi.selector("endBlock()") -> BaseRpcStub.uint(state[:end_block] || @end_block)
+      data == LabAbi.selector("arbBlockNumber()") -> BaseRpcStub.uint(@head)
       data == LabAbi.selector("currencyRaised()") -> BaseRpcStub.uint(@atomic)
     end
   end

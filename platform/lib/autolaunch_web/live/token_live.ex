@@ -38,7 +38,15 @@ defmodule AutolaunchWeb.TokenLive do
   def handle_event("trade", %{"tab" => tab}, socket),
     do: {:noreply, assign(socket, :trade, TokenTrade.pick(tab, tabs(socket)))}
 
-  def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
+  # Read again, shown when the pool could not be read: each press spends one of
+  # the viewer's page reads, and past them the page stays as it is. Nothing
+  # here reaches a wallet.
+  def handle_event("reload_pool", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, load_pool(socket, false)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
   def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
 

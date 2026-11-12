@@ -8,6 +8,12 @@
 - On the portfolio a seller's amounts are kept apart: sold, premium paid, for sale, locked, exercised and to collect. To collect is only what the contract will send now.
 - The price beside a stock is labelled as a reference with its age, the suggested premium as a model, and the best live bid or listing on the same terms is shown with its size.
 
+## 12 November 2026: Repairs
+- A paired agent can now save a picture of up to 2 MB on its person's draft, as the agent guide says. Before, a save with any real picture was refused as too large.
+- An ended Robinhood auction's opening and closing dates stay the same on every visit. Before, they could shift by a little each time the site read the auction.
+- On an auction's share picture and video, the larger figure is now labelled FDV, which is what it is: the price times the whole supply. Price beside it is still the clearing price for one token.
+- Check on an auction's bid lookup, Read again on a token's pool and Refresh on the REGENT Fees page each read the chain up to 30 times a minute for one visitor. Past that, the page stays as it is until the minute is up. Bidding, swapping and every other wallet button are not counted.
+
 ## 12 November 2026: Account
 - Disconnecting an X or GitHub account now asks first, in the site's own window, with Cancel ready first. Nothing changes until you press Disconnect there.
 - In the Pair New Agent window, the list of agents drops in and fades out with a short move. A press during the move still counts, and with reduced motion the list opens and closes at once.
@@ -16,6 +22,8 @@
 - `GET /api/v1/health` also answers `migrations_applied`, which is `false` while a release waits on a database change.
 
 ## 12 November 2026: Fixes
+- On an ended auction's page, Finish auction now opens your wallet when pressed straight after the page loads. Before, a press in that first moment sent nothing.
+- A new launch is listed even when an earlier launch can't be read just then. Before, one launch that couldn't be read held back every launch after it.
 - On a Robinhood auction's page, Retry now shows the auction once it can be read again. Before, the page could stop working after a first failed load.
 - Search lists its results when you type straight after the page reconnects, instead of the search window stopping.
 - A bid, withdraw or claim panel keeps working when the page reconnects while one of your transactions is on its way.
