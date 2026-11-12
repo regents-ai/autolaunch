@@ -2,6 +2,8 @@
 
 ## 11 November 2026: Product cards
 - The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
+- Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.
+- The line drawings are gone. Where the moving panel cannot be drawn, the card shows a still picture of it.
 
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.
