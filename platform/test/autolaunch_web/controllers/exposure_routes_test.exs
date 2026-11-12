@@ -154,6 +154,40 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert unknown |> json_response(404) |> code() == "unknown_series"
   end
 
+  # A node that answers, but not as Base or not with a block or a figure.
+  defmodule OddNode do
+    def post(url, options) do
+      case {Application.fetch_env!(:autolaunch, :exposure_odd_node), options[:json]} do
+        {:wrong_chain, %{method: "eth_chainId"}} ->
+          answer("0x1")
+
+        {:invalid_block_header, %{method: "eth_getBlockByNumber"}} ->
+          answer(%{"number" => "0x20"})
+
+        {:invalid_chain_response, %{method: "eth_call"}} ->
+          answer("0x")
+
+        _other ->
+          ExposureChain.post(url, options)
+      end
+    end
+
+    defp answer(result), do: {:ok, %{status: 200, body: %{"result" => result}}}
+  end
+
+  test "a node that answers oddly is a chain that can't be read just now, never a server error" do
+    ExposureChain.install()
+    Application.put_env(:autolaunch, :autolaunch_lab_http_client, OddNode)
+    on_exit(fn -> Application.delete_env(:autolaunch, :exposure_odd_node) end)
+
+    for fault <- [:wrong_chain, :invalid_block_header, :invalid_chain_response] do
+      Application.put_env(:autolaunch, :exposure_odd_node, fault)
+
+      answer = build_conn() |> get("/api/v1/after-hour-stocks/#{@series}")
+      assert answer |> json_response(503) |> code() == Atom.to_string(fault)
+    end
+  end
+
   test "a series' terms are served as the exact bytes its fingerprint names" do
     ExposureChain.install()
 
