@@ -1,8 +1,8 @@
-.PHONY: help check check-platform check-browser check-required-fixes check-cli check-siwa-latest readiness
+.PHONY: help check check-platform check-browser check-scripts check-required-fixes check-cli check-siwa-latest readiness
 help:
-	@echo "Run make check for every gate, or check-platform, check-browser, check-required-fixes, check-cli or check-siwa-latest for one."
+	@echo "Run make check for every gate, or check-platform, check-browser, check-scripts, check-required-fixes, check-cli or check-siwa-latest for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
-check: check-platform check-required-fixes check-cli check-siwa-latest
+check: check-platform check-scripts check-required-fixes check-cli check-siwa-latest
 # The platform check (mix precommit) ends with the TypeScript check, the
 # TypeScript tests and the browser walk.
 check-platform:
@@ -11,6 +11,10 @@ check-platform:
 # desktop width. It starts its own server on its own database.
 check-browser:
 	cd platform && npm run test:browser
+# The deploy and rollback scripts' tests, on a fixture repository with stand-ins for
+# Fly and the site (scripts/tests/test_release.py). They reach no real app.
+check-scripts:
+	uv run --no-project python -B -m unittest discover -s scripts/tests -p 'test_release.py'
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
