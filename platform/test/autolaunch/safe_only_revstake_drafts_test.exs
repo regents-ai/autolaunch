@@ -1,10 +1,11 @@
 defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
   @moduledoc """
-  Every Revstake treasury is a Safe, so the migration of 12 Nov 2026 makes the
-  drafts and launch reviews stored before it canonical. It runs here over a row
-  in each shape they were stored in: a Safe, a single key and a contract
-  treasury, set by the person or by their agent, and launch reviews with and
-  without the agent's list.
+  Every Revstake treasury is a Safe, so the migrations of 12 Nov 2026 make the
+  drafts and launch reviews stored before it canonical, run the clean-up again
+  in the release after, and drop the treasury kind's columns. They run here, in
+  that order, over a row in each shape stored before: a Safe, a single key and
+  a contract treasury, set by the person or by their agent, and launch reviews
+  with and without the agent's list.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -22,10 +23,19 @@ defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
   @warning "I accept these problems, and wish to continue with EOA ownership of the token."
 
   setup_all do
-    [{migration, _bytecode}] =
-      Code.require_file("priv/repo/migrations/20261112173000_safe_only_revstake_drafts.exs")
+    [clean_up, sweep, drop] =
+      for {version, name} <- [
+            {20_261_112_173_000, "safe_only_revstake_drafts"},
+            {20_261_112_173_010, "sweep_safe_only_revstake_drafts"},
+            {20_261_112_173_021, "drop_launch_draft_treasury_kind"}
+          ] do
+        [{migration, _bytecode}] =
+          Code.require_file("priv/repo/migrations/#{version}_#{name}.exs")
 
-    %{migration: migration}
+        {version, migration}
+      end
+
+    %{clean_up: clean_up, sweep: sweep, drop: drop}
   end
 
   setup do
@@ -37,12 +47,14 @@ defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
   # SAFE_ONLY_STORED_DRAFTS: a draft or launch review whose agent's list named
   # the treasury kind crashed the create page once that kind was gone, and any
   # save to such a draft was refused (review of the money-path fixes, 12 Nov
-  # 2026). It fails if a stored draft's page does not open or take a Safe, if a
-  # review's list cannot be named, if a single key or contract treasury is
-  # kept, or if a second run changes anything.
+  # 2026). It fails if a stored draft's page does not open or take a Safe once
+  # the columns are dropped, if a review's list cannot be named, if a single key
+  # or contract treasury is kept, or if the second run changes anything.
   test "SAFE_ONLY_STORED_DRAFTS: drafts and reviews stored before every treasury was a Safe open and take a Safe, and a second run changes nothing",
-       %{conn: conn, migration: migration} do
-    migrate(migration)
+       %{conn: conn, clean_up: clean_up, sweep: sweep, drop: drop} do
+    # The columns as the release before the clean-up has them, then empty tables.
+    migrate(drop, :down)
+    migrate(clean_up, :up)
 
     drafts = %{
       agent_safe: old_draft!(@safe, "safe", nil, ~w(name treasury treasury_path)),
@@ -61,7 +73,7 @@ defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
 
     {before, _facts} = stored(drafts, reviews)
 
-    migrate(migration)
+    migrate(clean_up, :up)
     {after_drafts, after_reviews} = settled = stored(drafts, reviews)
 
     assert %{
@@ -81,10 +93,16 @@ defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
     assert after_reviews.agent_none == reviews.agent_none.review["facts"]
     assert after_reviews.before_agents == reviews.before_agents.review["facts"]
 
-    migrate(migration)
-    assert stored(drafts, reviews) == settled
+    # A machine of the release before the clean-up saves on while both run.
+    late = old_draft!(@contract, "contract", nil, ~w(treasury treasury_path))
 
-    for {_name, draft} <- drafts do
+    migrate(sweep, :up)
+    assert stored(drafts, reviews) == settled
+    assert %{treasury: nil, kind: "safe", warning: nil, agent_set: []} = row(late)
+
+    migrate(drop, :up)
+
+    for {_name, draft} <- Map.put(drafts, :late, late) do
       actor = %Human{human_account_id: draft.human_account_id}
       session = signed_in_session(draft.human_account_id)
 
@@ -102,15 +120,15 @@ defmodule Autolaunch.SafeOnlyRevstakeDraftsTest do
     end
   end
 
-  defp migrate(migration) do
+  defp migrate({version, migration}, direction) do
     Ecto.Migration.Runner.run(
       Repo,
       Repo.config(),
-      20_261_112_173_000,
+      version,
       migration,
       :forward,
-      :up,
-      :up,
+      direction,
+      direction,
       log: false,
       prefix: Repo.config()[:migration_default_prefix]
     )
