@@ -70,8 +70,9 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
   await mineTo(Number(await read(auction, "endBlock")))
   await expect.poll(() => state(listed.id), {timeout: 120_000}).toBe("ended")
 
-  // L8: from its migration block anyone may finish it, here Person B from the page.
-  await mineTo(Number(await read(auction, "claimBlock")) + 200)
+  // L8: from its migration block, 640 blocks after the claim block, anyone may finish it, here
+  // Person B from the page.
+  await mineTo(Number(await read(auction, "claimBlock")) + 840)
   await b.goto(path)
   await ready(b)
   await finishFromPage(b, bids, listed.id, graduates ? "graduated" : "failed")
