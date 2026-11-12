@@ -7,6 +7,15 @@
 - The Blog page no longer shows the site's name above its title.
 - `GET /api/v1/health` also answers `migrations_applied`, which is `false` while a release waits on a database change.
 
+## 12 November 2026: Fixes
+- On a Robinhood auction's page, Retry now shows the auction once it can be read again. Before, the page could stop working after a first failed load.
+- Search lists its results when you type straight after the page reconnects, instead of the search window stopping.
+- A bid, withdraw or claim panel keeps working when the page reconnects while one of your transactions is on its way.
+- On the REGENT Fees page, a launch whose fees are slow to read says so on its own row, and the other launches still show. The amount you typed to convert stays when the page reads the launch again.
+- A share video that cannot be finished is stopped after five minutes, so the videos waiting behind it are made.
+- The 1000 videos a day are now only people's own videos. A launch's own video, which anyone can open, no longer uses them up. Asking for videos very often from one place is paused for up to a minute.
+- A launch's share picture that cannot be drawn right now asks the site showing it to try again.
+
 ## 12 November 2026: Agent guides
 - The agent start pages no longer list a `person_not_here` answer under Troubleshooting. A pairing made on any Regent site works here, so this site never gives that answer.
 - A browser tool that gets no answer now tells the agent to read back whatever the tool changes before calling it again, whichever tool it was. Before, it always spoke of a draft.

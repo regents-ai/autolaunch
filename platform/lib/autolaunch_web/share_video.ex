@@ -24,10 +24,11 @@ defmodule AutolaunchWeb.ShareVideo do
   many ask, which queues it to be made one at a time
   (`AutolaunchWeb.ShareVideo.Render`), and answers how many videos are ahead
   of it; asking again answers the video once it is made. The site makes at
-  most 1000 videos in any 24 hours, however many requests arrive at once
-  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); past that a person
-  keeps their last video, one who has none is told so and offered the
-  launch's own, and a launch's own video is still made.
+  most 1000 of people's own videos in any 24 hours, however many requests
+  arrive at once (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); past
+  that a person keeps their last video, one who has none is told so and
+  offered the launch's own, and a launch's own video is still made and never
+  counted.
   """
   require Ash.Query
   require Logger

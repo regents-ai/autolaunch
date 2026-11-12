@@ -132,8 +132,12 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
   # Frames go to ffmpeg as raw RGB on its input, at low priority. A port
   # cannot close its input on its own, so `head` passes on exactly the
   # frames' bytes and then closes ffmpeg's input, and ffmpeg writes the file
-  # and exits. The highest memory the BEAM reached is kept for the
-  # measurement.
+  # and exits. An ffmpeg that stops early leaves frames unread; `cat` takes
+  # them, so the port never writes to a closed pipe, which would end this
+  # process, and ffmpeg's own status and words come back as the error. An
+  # ffmpeg that takes no more frames holds this process until its job's time
+  # limit ends it (`Autolaunch.ShareVideoRequest`). The highest memory the
+  # BEAM reached is kept for the measurement.
   defp encode(frame, path) do
     port =
       Port.open({:spawn_executable, System.find_executable("sh")}, [
@@ -141,13 +145,16 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
         :exit_status,
         :stderr_to_stdout,
         args:
-          ["-c", ~s|head -c "$0" \| nice -n 10 "$@"|, "#{@frames * @width * @height * 3}"] ++
-            ffmpeg(path)
+          [
+            "-c",
+            ~s|head -c "$0" \| { nice -n 10 "$@"; status=$?; cat > /dev/null; exit $status; }|,
+            "#{@frames * @width * @height * 3}"
+          ] ++ ffmpeg(path)
       ])
 
     peak =
       Enum.reduce(0..(@frames - 1), 0, fn index, peak ->
-        true = Port.command(port, index |> frame.() |> pixels())
+        Port.command(port, index |> frame.() |> pixels())
         max(peak, :erlang.memory(:total))
       end)
 

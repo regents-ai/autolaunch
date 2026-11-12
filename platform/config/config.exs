@@ -206,6 +206,10 @@ config :autolaunch, :stock_list_kept_ms, 60_000
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
+# How long, in milliseconds, one launch's fees may take to read on the REGENT
+# Fees page before its row shows as unread (AutolaunchWeb.ConvertLive).
+config :autolaunch, :convert_read_timeout, 30_000
+
 # How many bytes of made share videos the site saves; past it a video is still
 # made, handed over once and not saved (AutolaunchWeb.ShareVideo.Render).
 config :autolaunch, :share_video_saved_bytes, 5_000_000_000
