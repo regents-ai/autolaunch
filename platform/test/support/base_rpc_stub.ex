@@ -10,8 +10,6 @@ defmodule Autolaunch.BaseRpcStub do
   function (`aggregate/2`).
   """
 
-  @multicall Autolaunch.Chain.Multicall.address()
-
   @safe_hash "0x" <> String.duplicate("5a", 32)
   @receipt_block_hash "0x" <> String.duplicate("7b", 32)
 
@@ -164,10 +162,11 @@ defmodule Autolaunch.BaseRpcStub do
   defp result("eth_getTransactionByHash", [hash], state),
     do: state |> Map.get(:transactions, %{}) |> Map.get(hash)
 
-  defp result("eth_call", [%{to: @multicall, data: data}, _block], state),
-    do: aggregate(data, &state.calls.(%{to: &1, data: &2}, state))
-
-  defp result("eth_call", [call, _block], state), do: state.calls.(call, state)
+  defp result("eth_call", [call, _block], state) do
+    if call.to == Autolaunch.Chain.Multicall.address(),
+      do: aggregate(call.data, &state.calls.(%{to: &1, data: &2}, state)),
+      else: state.calls.(call, state)
+  end
 
   defp result("eth_getLogs", [_filter], state), do: Map.get(state, :logs, [])
 

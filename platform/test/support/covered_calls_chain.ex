@@ -24,7 +24,6 @@ defmodule Autolaunch.CoveredCallsChain do
   @contract "0x36d04f63c812dc945efd23eb7b6dcae1cdd08398"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   @feed "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
-  @multicall Autolaunch.Chain.Multicall.address()
   @unit 100_000_000
   # The latest block's time, a Wednesday.
   @now 0x6A000000
@@ -183,10 +182,13 @@ defmodule Autolaunch.CoveredCallsChain do
 
   # Multicall3's `aggregate3`: every read in the request answered as it would
   # be on its own.
-  defp call(_state, %{params: [%{to: @multicall, data: data}, _block]}),
-    do: {:ok, %{status: 200, body: %{"result" => BaseRpcStub.aggregate(data, &answer/2)}}}
-
   defp call(_state, %{params: [%{to: to, data: data}, _block]}) do
+    if to == Autolaunch.Chain.Multicall.address(),
+      do: {:ok, %{status: 200, body: %{"result" => BaseRpcStub.aggregate(data, &answer/2)}}},
+      else: single(to, data)
+  end
+
+  defp single(to, data) do
     case answer(String.downcase(to), data) do
       :reverted ->
         {:ok,
