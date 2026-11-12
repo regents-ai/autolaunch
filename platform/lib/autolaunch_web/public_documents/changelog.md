@@ -1,5 +1,10 @@
 # Changelog
 
+## 12 November 2026: Agent guides
+- The agent start pages no longer list a `person_not_here` answer under Troubleshooting. A pairing made on any Regent site works here, so this site never gives that answer.
+- A browser tool that gets no answer now tells the agent to read back whatever the tool changes before calling it again, whichever tool it was. Before, it always spoke of a draft.
+- The regents CLI command descriptions say the CLI signs each request with the agent's own key.
+
 ## 12 November 2026: Token page
 - On a phone, a long market figure such as a price or the total supply is no longer split across two lines. A figure too long to sit beside its neighbour takes a line of its own.
 - The token's address in the heading now opens in full when pressed, with a copy button and an arrow that opens it on the chain's explorer, the same as every address in the Contracts list.
