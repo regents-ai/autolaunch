@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   `{:covered_call_done, done}`: an action can take its own panel off the page
   (the last calls bought, a row's last collection).
 
-  The server builds every step (`Autolaunch.CoveredCalls.prepare_covered_call/3`,
+  The server builds every step (`Autolaunch.CoveredCalls.prepare_covered_call_steps/3`,
   the same action agents call) for the wallet that may act
   (`AutolaunchWeb.OnchainSteps`), and every press of the wallet button goes
   straight to the wallet. An approval is its own step; one the chain already
@@ -220,7 +220,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp balance(_symbol, _id, nil), do: nil
 
   defp balance(symbol, id, wallet) do
-    case CoveredCalls.covered_call_positions(symbol, %{wallet: wallet},
+    case CoveredCalls.read_covered_call_positions(symbol, %{wallet: wallet},
            actor: %Human{human_account_id: id}
          ) do
       {:ok, %{balance: balance}} -> balance
@@ -335,7 +335,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp prepare(assigns, request, signer) do
     actor = %Human{human_account_id: assigns.current_human_id}
 
-    case CoveredCalls.prepare_covered_call(
+    case CoveredCalls.prepare_covered_call_steps(
            assigns.symbol,
            assigns.kind,
            Map.put(request, :signer, signer),

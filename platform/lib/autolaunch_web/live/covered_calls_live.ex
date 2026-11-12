@@ -251,7 +251,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   defp read_book(socket) do
     symbol = socket.assigns.market.symbol
-    start_async(socket, :book, fn -> CoveredCalls.covered_call_book(symbol) end)
+    start_async(socket, :book, fn -> CoveredCalls.read_covered_call_book(symbol) end)
   end
 
   # The Sell ticket's quote, for the ticket as it stands. The latest read wins.

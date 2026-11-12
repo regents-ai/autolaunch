@@ -31,14 +31,14 @@ defmodule AutolaunchWeb.CoveredCallsController do
 
   def book(conn, %{"symbol" => symbol} = params) do
     if map_size(params) == 1,
-      do: Answer.send(conn, CoveredCalls.covered_call_book(symbol, actor: nil), :book),
+      do: Answer.send(conn, CoveredCalls.covered_call_book(symbol, actor: nil)),
       else: Answer.refuse(conn, :invalid_request)
   end
 
   def quote(conn, %{"symbol" => symbol}) do
     case Answer.quote_input(conn.body_params) do
       {:ok, input} ->
-        Answer.send(conn, CoveredCalls.covered_call_quote(symbol, input, actor: nil), :quote)
+        Answer.send(conn, CoveredCalls.covered_call_quote(symbol, input, actor: nil))
 
       :error ->
         Answer.refuse(conn, :invalid_request)
@@ -50,6 +50,6 @@ defmodule AutolaunchWeb.CoveredCallsController do
 
   def mine(%{assigns: %{current_human_account: account}} = conn, %{"symbol" => symbol}) do
     actor = %Human{human_account_id: account.id}
-    Answer.send(conn, CoveredCalls.covered_call_positions(symbol, actor: actor), :positions)
+    Answer.send(conn, CoveredCalls.covered_call_positions(symbol, actor: actor))
   end
 end

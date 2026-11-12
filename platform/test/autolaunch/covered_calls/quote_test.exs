@@ -171,7 +171,7 @@ defmodule Autolaunch.CoveredCalls.QuoteTest do
       assert {:ok, answer} = ask(%{amount: amount})
 
       assert {:ok, listed} =
-               CoveredCalls.prepare_covered_call(
+               CoveredCalls.prepare_covered_call_steps(
                  "AMZNc",
                  :list,
                  %{
@@ -200,7 +200,7 @@ defmodule Autolaunch.CoveredCalls.QuoteTest do
       })
 
       assert {:ok, bought} =
-               CoveredCalls.prepare_covered_call(
+               CoveredCalls.prepare_covered_call_steps(
                  "AMZNc",
                  :fill,
                  %{signer: context.wallet, listing_id: 1, amount: amount},

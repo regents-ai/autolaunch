@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   @moduledoc """
   The portfolio's covered calls: for each market, the calls the signed-in
   wallet sold and the calls it holds, each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Under each listing its
+  (`Autolaunch.CoveredCalls.read_covered_call_positions/2`). Under each listing its
   parts, as far as they have gone: how much sold and how much is still for
   sale, then how much was exercised, the calls held, and the stock to collect.
   A part with a next step has its own wallet panel beside it (Stop selling the
@@ -151,7 +151,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   defp read_market(market, actor) do
-    case CoveredCalls.covered_call_positions(market.symbol, actor: actor) do
+    case CoveredCalls.read_covered_call_positions(market.symbol, actor: actor) do
       {:ok, positions} -> {market.symbol, {:ok, positions}}
       {:error, error} -> {market.symbol, {:error, CoveredCalls.reason(error)}}
     end

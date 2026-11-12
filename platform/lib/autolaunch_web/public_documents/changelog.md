@@ -5,6 +5,11 @@
 - Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.
 - The line drawings are gone. Where the moving panel cannot be drawn, the card shows a still picture of it.
 
+## 12 November 2026: Hosted MCP
+- Agents can now use Autolaunch through its MCP server at https://autolaunch.sh/mcp. A paired agent signs each call with its own wallet, as it does for every signed request, and can read how many auctions are live and graduated, the same figures the site shows.
+- While covered calls are open, a paired agent can also read a stock's listings, get a quote, read your covered calls and prepare the steps to list, buy, stop selling, exercise or collect. It gets the same figures and the same refusals as through the site's other agent tools, the steps are only ever for your own wallets, and your wallet still signs each one.
+- If you unpair an agent while it is reading or saving something for you, that request gives it nothing of yours.
+
 ## 11 November 2026: Bid history
 - When the network answers late, an auction's bids, trades and totals stay as they were instead of emptying until the next read.
 - An auction's total in dollars is left blank while the dollar price cannot be read, instead of showing an older figure beside a newer total.

@@ -142,7 +142,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp read_book do
     with {:ok, %{markets: [market | _]}} <- CoveredCalls.Deployment.current(),
-         do: CoveredCalls.covered_call_book(market.symbol)
+         do: CoveredCalls.read_covered_call_book(market.symbol)
   end
 
   defp put_calls(socket, {:ok, book}),

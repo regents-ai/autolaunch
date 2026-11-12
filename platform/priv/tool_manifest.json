@@ -308,7 +308,7 @@
     {
       "name": "agent_whoami",
       "title": "Check my identity and pairing",
-      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -364,7 +364,7 @@
     {
       "name": "autolaunch_revstake_draft",
       "title": "Read my Revstake token draft",
-      "description": "Read my Revstake token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Revstake token draft. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -392,7 +392,7 @@
     {
       "name": "autolaunch_revstake_draft_save",
       "title": "Fill in my Revstake launch draft: details, picture and treasury",
-      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -484,7 +484,7 @@
     {
       "name": "autolaunch_memestock_draft",
       "title": "Read my Memestock token draft",
-      "description": "Read my Memestock token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Memestock token draft. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -512,7 +512,7 @@
     {
       "name": "autolaunch_memestock_draft_save",
       "title": "Fill in my Memestock launch draft: details, picture, chain and stock",
-      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -602,7 +602,7 @@
     {
       "name": "autolaunch_my_positions",
       "title": "Read my bids and holdings, when the chain can be read",
-      "description": "Read my bids and holdings, when the chain can be read. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my bids and holdings, when the chain can be read. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {},

@@ -53,8 +53,14 @@ defmodule AutolaunchWeb.VisitLog.Events do
   @doc false
   def handle([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _config) do
     unless quiet?(conn) do
+      # A signed route keeps its agent in the `actor` assign; the hosted MCP
+      # server hands it to Ash (`AutolaunchWeb.Plugs.McpAgent`).
       Logger.metadata(
-        actor: VisitLog.actor(conn.assigns[:actor] || conn.assigns[:current_human_account])
+        actor:
+          VisitLog.actor(
+            conn.assigns[:actor] || Ash.PlugHelpers.get_actor(conn) ||
+              conn.assigns[:current_human_account]
+          )
       )
 
       route = VisitLog.route(AutolaunchWeb.Router, conn.method, conn.request_path, conn.host)
