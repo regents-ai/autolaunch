@@ -57,8 +57,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <div>
           <dt>Type</dt><dd>{display_action(@view.classification)}</dd>
         </div>
-        <div>
-          <dt>Verification</dt><dd>Awaiting current chain confirmation</dd>
+        <div :if={@view.verification_state == "verified"}>
+          <dt>Verification</dt><dd>Verified at Base block {@view.source_block_number}</dd>
+        </div>
+        <div :if={@view.verification_state != "verified"}>
+          <dt>Verification</dt><dd>Not verified</dd>
         </div>
       </dl>
     </aside>
@@ -169,6 +172,18 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   end
 
   def signed_in_wallet(_access_context), do: nil
+
+  @doc "Every wallet the verified session's account links, lowercase; none when signed out."
+  def linked_wallets(%{principal: {:human, %{wallet_addresses: wallets}}}),
+    do:
+      for(
+        wallet <- wallets,
+        {:ok, address} <- [Address.normalize(wallet)],
+        uniq: true,
+        do: address
+      )
+
+  def linked_wallets(_access_context), do: []
 
   def current_human_id(%{principal: {:human, %{id: id}}}), do: id
   def current_human_id(_access_context), do: nil

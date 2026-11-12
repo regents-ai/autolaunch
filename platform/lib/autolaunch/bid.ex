@@ -60,22 +60,22 @@ defmodule Autolaunch.Bid do
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
-    # The bids of the one wallet the session signed in with. The policies below
-    # still admit only the account's verified wallets. Every write stores the
-    # owner's address in lowercase, so the per-wallet reads compare it as stored
-    # and use its index.
-    read :mine_by_wallet do
-      argument :wallet_address, :string, allow_nil?: false
-      filter expr(owner_address == ^arg(:wallet_address))
+    # The bids of the wallets named: a page names every wallet the account
+    # links. The policies below still admit only the account's verified
+    # wallets. Every write stores the owner's address in lowercase, so the
+    # per-wallet reads compare it as stored and use its index.
+    read :mine_by_wallets do
+      argument :wallet_addresses, {:array, :string}, allow_nil?: false
+      filter expr(owner_address in ^arg(:wallet_addresses))
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
-    # The one wallet's ended bids with money to take back or tokens to claim.
-    read :to_settle_by_wallet do
-      argument :wallet_address, :string, allow_nil?: false
+    # Those wallets' ended bids with money to take back or tokens to claim.
+    read :to_settle_by_wallets do
+      argument :wallet_addresses, {:array, :string}, allow_nil?: false
 
       filter expr(
-               owner_address == ^arg(:wallet_address) and
+               owner_address in ^arg(:wallet_addresses) and
                  status in [:returnable, :claimable]
              )
 
@@ -174,11 +174,11 @@ defmodule Autolaunch.Bid do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:mine, :mine_by_wallet, :to_settle_by_wallet, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :mine_by_wallet, :to_settle_by_wallet, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 

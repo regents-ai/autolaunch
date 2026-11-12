@@ -1,7 +1,8 @@
 defmodule AutolaunchWeb.PortfolioLive do
   @moduledoc """
-  The signed-in wallet's bids and tokens, in the auctions list's format. Only
-  the wallet the session signed in with is read, never the account's others.
+  The signed-in account's bids and tokens, in the auctions list's format: the
+  Base bids of every wallet the account links, and the tokens and Robinhood
+  bids of the wallet the session signed in with.
 
   Each bid is a list row: its token, what it put in, its maximum price, where
   it stands and its auction's time. Under it sit its buttons: the auction's
@@ -28,7 +29,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [human_actor: 1, current_human_id: 1, signed_in_wallet: 1]
+    only: [human_actor: 1, current_human_id: 1, linked_wallets: 1, signed_in_wallet: 1]
 
   import AutolaunchWeb.Components.MarketCard,
     only: [
@@ -311,7 +312,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           class="market-list__scroll market-list__empty"
         >
           <h2>No open bids</h2>
-          <p>Bids from the wallet you signed in with will appear here.</p>
+          <p>Your bids will appear here.</p>
           <.link navigate="/auctions" class="rg-button rg-button--secondary">Explore auctions</.link>
         </div>
 
@@ -949,12 +950,12 @@ defmodule AutolaunchWeb.PortfolioLive do
     )
   end
 
-  # The signed-in wallet's bids and tokens, while its session holds; the
-  # account's other wallets are not read. A session that has lapsed since the
-  # page opened shows nothing of it and opens the page again as the session
-  # now stands.
+  # The account's bids and tokens, while its session holds. A session that
+  # has lapsed since the page opened shows nothing of it and opens the page
+  # again as the session now stands.
   defp read_holdings(socket) do
-    actor = human_actor(socket.assigns.access_context)
+    context = socket.assigns.access_context
+    actor = human_actor(context)
 
     cond do
       is_nil(actor) ->
@@ -964,8 +965,9 @@ defmodule AutolaunchWeb.PortfolioLive do
         socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
 
       true ->
-        wallet = signed_in_wallet(socket.assigns.access_context)
-        socket |> read_bids(actor, wallet) |> read_chain(actor, wallet)
+        socket
+        |> read_bids(actor, linked_wallets(context))
+        |> read_chain(actor, signed_in_wallet(context))
     end
   end
 
@@ -976,8 +978,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp lapsed?(_assigns), do: true
 
-  defp read_bids(socket, actor, wallet) do
-    case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
+  defp read_bids(socket, actor, wallets) do
+    case Autolaunch.list_wallet_bid_positions(wallets, actor: actor) do
       {:ok, positions} -> socket |> read_ok(:bids, positions) |> read_books(positions)
       {:error, reason} -> read_failed(socket, :bids, reason)
     end

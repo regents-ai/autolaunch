@@ -4,9 +4,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   unspent stock the bid did not use, and the launch tokens it won.
 
   Once bidding has ended (`ended`), the auction's own answer decides what is
-  on screen: a button that sends the return and then the claim, or the
-  auction's reason nothing can be done yet. The settlement is prepared as soon
-  as the card knows the wallet that may act, so the button sends at once.
+  on screen: a button that sends the return and then the claim, with the
+  auction's reason beside it when nothing can be done yet. The settlement is
+  prepared as soon as the card knows the wallet that may act, so the button
+  sends at once. A reason the row holds was read at an earlier block, and the
+  row does not read the auction again while it waits, so the button stays: a
+  press asks the auction at the latest block, then sends or gives the reason
+  again.
 
   With `early`, the bid is an outbid one, or one sharing at the price, while
   bidding is still open. The auction is asked in the background when the
@@ -20,12 +24,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   recorded price.
 
   The wallet that acts is Privy's active wallet when the signed-in account
-  links it (`AutolaunchWeb.OnchainSteps`), and only the wallet that placed the
-  bid can settle it; a note names both while the wallet app has another one
-  open. Nothing is stored: the review lives on this page only, the browser
-  reports a hash and stops, and every outcome on screen is the server's own
-  read of that hash against the review it was sent from. A confirmed return or
-  claim asks the bid panel to read the wallet's bids again.
+  links it (`AutolaunchWeb.OnchainSteps`). It settles any bid one of the
+  account's wallets placed: the auction takes a return or a claim from any
+  sender and pays the wallet that placed the bid, which a note names while
+  another wallet is open. Nothing is stored: the review lives on this page
+  only, the browser reports a hash and stops, and every outcome on screen is
+  the server's own read of that hash against the review it was sent from. A
+  confirmed return or claim asks the bid panel to read the wallet's bids
+  again; one that did not go through is prepared again from the auction.
   """
 
   use AutolaunchWeb, :live_component
@@ -53,8 +59,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     session_lease_required: "Sign in again to continue.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
-    not_your_bid:
-      "This bid was placed from a different wallet. Switch to that wallet to settle it.",
+    not_your_bid: "This bid is not held by a wallet on your account.",
     bid_not_found: "The auction has no record of this bid.",
     chain_unavailable: "Robinhood could not be read just now. Try again in a moment.",
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
@@ -72,8 +77,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       "Your bid was returned in full. This launch did not raise enough, and there are no tokens to claim.",
     bid_needs_partial_exit_hints_unavailable:
       "This bid was only partly filled and the auction's records for it could not be traced. Try again in a moment.",
+    price_history_long:
+      "This auction's price history is long, and only part of it could be read just now. Press again to read on.",
     settlement_reverted: "The auction refused this right now."
   }
+
+  @early_history_long "This auction's price history is long, and only part of it could be read just now. Reload the page to read on."
 
   @generic "That did not go through. Try again in a moment."
 
@@ -101,7 +110,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
        status: nil,
        checking: false,
        checked_at: nil,
-       recorded: false
+       recorded: false,
+       carried_note: nil
      )}
   end
 
@@ -169,7 +179,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         next_step: early_next(assigns, steps),
         returning: returning(assigns.prepared),
         progress: early_progress(steps, assigns.settled),
-        other_wallet: other_wallet(assigns)
+        paid_to: payee(assigns)
       )
 
     ~H"""
@@ -219,13 +229,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         <p role="status" aria-live="polite" hidden={!@progress}>
           {@progress}
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <BidSettlementComponent.paid_to id={@id <> "-paid-to"} owner={@paid_to} chain="robinhood" />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @token_symbol)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -246,7 +255,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         steps: steps,
         next_step: next_step(assigns, steps, key),
         open: !!(key || assigns.review),
-        other_wallet: other_wallet(assigns),
+        paid_to: payee(assigns),
         progress: progress_copy(steps, assigns.settled, assigns.prepared, assigns.token_symbol),
         tickers: tickers(assigns.prepared, assigns.token_symbol),
         claimed: claimed(assigns.settled),
@@ -258,6 +267,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       id={@id}
       class="bid-settlement-row"
       phx-hook="OnchainSteps"
+      data-onchain-prepare
     >
       <p class="launch-wallet-settled" role="status" hidden={!@returned}>
         {copy(:failed_bid_returned)}
@@ -303,13 +313,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         >
           <TokenDisplay.marked text={@progress || ""} tickers={@tickers} />
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <BidSettlementComponent.paid_to id={@id <> "-paid-to"} owner={@paid_to} chain="robinhood" />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
           next_step={@next_step}
           steps={@steps}
-          reverted={reverted(@steps, @token_symbol)}
           signer={@review && @review.signer}
           chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
@@ -396,6 +405,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_event("onchain_active_wallet", params, socket),
     do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed() |> offer()}
 
+  # A press made before the row has read its review: the settlement is
+  # prepared now for the wallet that pressed, and its first step handed back to
+  # send, as the Base card does.
+  def handle_event("prepare_and_send", %{"form" => _no_inputs}, socket) do
+    case prepared_now(socket) do
+      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
+        {:reply, %{review: review, send: first}, socket}
+
+      {:error, socket} ->
+        {:reply, %{}, socket}
+    end
+  end
+
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -437,7 +459,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
       status == :refused ->
-        {:noreply, assign(socket, status: :refused, notice: copy(OnchainSteps.refusal(prepared)))}
+        {:noreply,
+         assign(socket,
+           status: :refused,
+           notice: refusal_copy(socket.assigns, OnchainSteps.refusal(prepared)),
+           carried_note: nil
+         )}
 
       held?(socket.assigns) ->
         {:noreply, assign(socket, status: status)}
@@ -459,7 +486,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
        )}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket),
     do: {:noreply, settled(socket, hash, OnchainSteps.receipt_logs(result))}
@@ -480,6 +507,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     end
   end
 
+  defp prepared_now(%{assigns: %{review: %{}}} = socket), do: {:ok, socket}
+
+  defp prepared_now(socket) do
+    case settle_key(socket.assigns) do
+      nil ->
+        {:error, socket}
+
+      {signer, _bid_id, _exited, _filled} = key ->
+        request = request(socket.assigns)
+        result = StockBidSettlementActions.prepare(request, signer, OnchainSteps.opts(socket))
+        socket = reviewed(socket, key, result)
+        if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
+    end
+  end
+
   defp start_prepare(socket, {signer, _bid_id, _exited, _filled} = key) do
     request = request(socket.assigns)
     opts = OnchainSteps.opts(socket)
@@ -491,11 +533,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     end)
   end
 
-  # Once bidding has ended, a bid of the wallet on screen that still has
-  # something to return or claim.
-  defp settle_key(%{early: false, ended: true, signer: signer, bid: bid} = assigns)
+  # Once bidding has ended, a bid that still has something to return or
+  # claim, settled from the wallet that may act.
+  defp settle_key(%{early: false, ended: true, signer: signer, bid: bid})
        when is_binary(signer) do
-    if owner?(assigns) and !settled_bid?(bid),
+    if !settled_bid?(bid),
       do: {signer, bid["bid_id"], bid["exited_block"], bid["tokens_filled_now"]}
   end
 
@@ -504,17 +546,25 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp request(%{auction: auction, bid: %{"bid_id" => bid_id}}),
     do: %{auction: auction, bid_id: bid_id}
 
+  # A review prepared again after a step did not go through carries the words
+  # about that step beside its button.
   defp reviewed(socket, key, {:ok, prepared}) do
     review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps)
 
     socket
-    |> assign(prepared_for: key, notice: nil, press_note: nil)
+    |> assign(prepared_for: key, notice: nil, press_note: socket.assigns.carried_note)
+    |> assign(carried_note: nil)
     |> put_review(review, prepared)
     |> refresh_later()
   end
 
   defp reviewed(socket, key, {:error, error}),
-    do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
+    do:
+      assign(socket,
+        prepared_for: {:refused, key},
+        notice: refusal_copy(socket.assigns, OnchainSteps.refusal(error)),
+        carried_note: nil
+      )
 
   # The review on the page, and what each review still followed was prepared
   # with, so an outcome is read against the settlement it belongs to.
@@ -584,24 +634,23 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp start_early(%{assigns: assigns} = socket) do
     %{bid: %{"owner" => owner}, signer: signer} = assigns
     request = request(assigns)
-    acting = if owner?(assigns), do: signer
     offered = if assigns.review, do: :record
     opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(checking: true)
     |> start_async(:early, fn ->
-      {signer, early_offer(Map.put(request, :owner, owner), acting, offered, opts)}
+      {signer, early_offer(Map.put(request, :owner, owner), signer, offered, opts)}
     end)
   end
 
   # Read-only until the stock can come back, now or after recording the
-  # price, and the bid's own wallet is active: only then is a review
+  # price, and a wallet that may act is open: only then is a review
   # prepared, and a review already offered for the same answer is kept.
-  defp early_offer(request, acting, offered, opts) do
+  defp early_offer(request, signer, offered, opts) do
     case StockBidSettlementActions.return_status(request) do
-      {:ok, status} when status in [:now, :record] and is_binary(acting) and status != offered ->
-        {status, StockBidSettlementActions.prepare(request, acting, opts)}
+      {:ok, status} when status in [:now, :record] and is_binary(signer) and status != offered ->
+        {status, StockBidSettlementActions.prepare(request, signer, opts)}
 
       {:ok, status} ->
         {status, nil}
@@ -611,7 +660,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     end
   end
 
-  defp offered(socket, _key, nil), do: socket
+  defp offered(socket, _key, nil), do: assign(socket, carried_note: nil)
 
   defp offered(socket, {status, signer}, result),
     do: reviewed(socket, {signer, socket.assigns.bid["bid_id"], status, nil}, result)
@@ -625,6 +674,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     do: socket |> assign(recorded: true, checked_at: nil) |> withdrawn() |> early_check()
 
   defp confirmed(socket, entry), do: OnchainSteps.read_receipt(socket, entry)
+
+  # A step of the open review that did not go through: the settlement is read
+  # again from the auction and prepared afresh (`OnchainSteps.rebuild_reverted/4`),
+  # and the new review, or the auction's reason nothing can be done now,
+  # replaces the one that failed.
+  defp step_reverted(socket, %{name: name} = entry) do
+    note = reverted_copy(name, socket.assigns.token_symbol)
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket
+      |> assign(carried_note: OnchainSteps.rebuilt_words(note), checked_at: nil)
+      |> withdrawn()
+      |> offer()
+    end)
+  end
 
   # What the step did, from its receipt, whichever of this page's reviews it
   # was sent from; the bid panel reads the wallet's bids again.
@@ -658,13 +722,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp reviewed_next(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
 
   # One button at a time: the first step the wallet has not sent from this
-  # review yet, or one that did not go through. While the settlement is being
-  # prepared the button names what the bid offers; one the auction refused
-  # has nothing to send. A sent step moves the button on at once; nothing
-  # waits for the network before the next press can reach the wallet.
+  # review yet, or one that did not go through. With no review on the row the
+  # button names what the bid offers, and a press prepares the settlement
+  # then (`prepare_and_send`). A sent step moves the button on at once;
+  # nothing waits for the network before the next press can reach the wallet.
   defp next_step(%{review: %{}}, steps, _key), do: reviewed_next(steps)
   defp next_step(_assigns, _steps, nil), do: nil
-  defp next_step(%{prepared_for: {:refused, key}}, _steps, key), do: nil
   defp next_step(assigns, _steps, _key), do: %{name: "settle", label: offer_label(assigns)}
 
   defp offer_label(%{
@@ -776,37 +839,22 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp settled_copy(_none, _prepared, _token_symbol), do: nil
 
-  defp reverted(steps, token_symbol) do
-    case Enum.find(steps, &(&1.state == :reverted)) do
-      %{name: "record"} ->
-        "Recording the price did not go through. Only the network fee was spent. Press again."
+  defp reverted_copy("record", _token_symbol),
+    do: "Recording the price did not go through. Only the network fee was spent."
 
-      %{name: "claim"} ->
-        "That claim did not go through, so no #{token_symbol} moved. Only the network fee was spent. Press again."
+  defp reverted_copy("claim", token_symbol),
+    do:
+      "That claim did not go through, so no #{token_symbol} moved. Only the network fee was spent."
 
-      %{} ->
-        "That did not go through, so nothing came back. Only the network fee was spent. Press again."
+  defp reverted_copy(_exit, _token_symbol),
+    do: "That did not go through, so nothing came back. Only the network fee was spent."
 
-      nil ->
-        nil
-    end
-  end
+  # Any wallet on the account settles the bid, and the auction pays the wallet
+  # that placed it; while another one is open, the row names that wallet.
+  defp payee(%{signer: signer, bid: %{"owner" => owner}}) when is_binary(signer),
+    do: if(Address.equal?(signer, owner), do: nil, else: owner)
 
-  # The bid's own wallet settles it; while another wallet on the account is
-  # active, the row says which one to switch to.
-  defp other_wallet(%{signer: signer, bid: %{"owner" => owner}} = assigns)
-       when is_binary(signer) do
-    if !owner?(assigns),
-      do:
-        "This bid was placed from #{RegentFormat.short_address(owner)}. Switch to that wallet in your wallet app to settle it."
-  end
-
-  defp other_wallet(_assigns), do: nil
-
-  defp owner?(%{signer: signer, bid: %{"owner" => owner}}) when is_binary(signer),
-    do: Address.equal?(signer, owner)
-
-  defp owner?(_assigns), do: false
+  defp payee(_assigns), do: nil
 
   # The one line under the bid, from the auction's answer; the minimum still
   # to raise is the auction's own minimum less what it has raised.
@@ -845,4 +893,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp tickers(_prepared, token_symbol), do: [token_symbol]
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  # A refusal in words. The early row has no button to press again; it asks
+  # the auction again when the page reads a new block.
+  defp refusal_copy(%{early: true}, :price_history_long), do: @early_history_long
+  defp refusal_copy(_assigns, reason), do: copy(reason)
 end

@@ -28,7 +28,7 @@ test("all five public commands match existing WebMCP requests and domain results
     ["autolaunch_treasury", {address}, ["treasury", "security", address]],
     ["autolaunch_bid_quote", {id, amount: " 12.12345678901234567890123456789 ", max_price: "0003.000"}, ["bids", "quote", "--auction", id, "--amount", " 12.12345678901234567890123456789 ", "--max-price", "0003.000"]],
   ];
-  const body = {pagination: {has_more: true, next_cursor: "cursor+/資料=="}, data: {id, summary: "資料🌳", amount: "12.12345678901234567890123456789", warnings: ["auction_not_biddable"], treasury_security: {classification: "supported_safe", verification_state: "awaiting_current_chain_confirmation", verification_reason: "projector_refresh_not_integrated"}}};
+  const body = {pagination: {has_more: true, next_cursor: "cursor+/資料=="}, data: {id, summary: "資料🌳", amount: "12.12345678901234567890123456789", warnings: ["auction_not_biddable"], treasury_security: {classification: "supported_safe", verification_state: "unverified", verification_reason: "outbound_evidence_missing"}}};
   for (const [name, input, args] of cases) {
     api.respond({status: 200, body});
     const browser = await registered.find(tool => tool.name === name).execute(input, {signal: new AbortController().signal});

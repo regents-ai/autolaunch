@@ -22,13 +22,8 @@ defmodule AutolaunchWeb.ExposureFormat do
     do: cents(div(micro * 100 + div(@usdc_unit, 2), @usdc_unit))
 
   @doc "A raw amount of a token with `decimals` decimals, without trailing zeros."
-  def tokens(raw, decimals) when is_integer(raw) and is_integer(decimals) do
-    raw
-    |> Decimal.new()
-    |> Decimal.div(Decimal.new(Integer.pow(10, decimals)))
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-  end
+  def tokens(raw, decimals) when is_integer(raw) and is_integer(decimals),
+    do: Autolaunch.Chain.Rpc.format_units(raw, decimals)
 
   @doc "A typed token amount as raw units, or nil when it is not a positive amount that fits."
   def parse_tokens(text, decimals) when is_binary(text) do

@@ -40,6 +40,8 @@ defmodule Autolaunch.BidActions do
   @q96 79_228_162_514_264_337_593_543_950_336
   @uint128_max Integer.pow(2, 128) - 1
   @uint256_max Integer.pow(2, 256) - 1
+  # Every token an auction on this site sells has eighteen decimals.
+  @token_decimals 18
 
   # A Permit2 allowance is granted for thirty minutes, and one that would
   # lapse within ten, the longest a review stays on the page before it is
@@ -75,7 +77,7 @@ defmodule Autolaunch.BidActions do
 
       estimated_tokens =
         if active? and Decimal.gt?(projected_price, 0),
-          do: Decimal.div(amount, projected_price),
+          do: tokens_at(amount, projected_price),
           else: Decimal.new(0)
 
       {:ok,
@@ -303,8 +305,7 @@ defmodule Autolaunch.BidActions do
            ),
          :ok <- usdc_affordable(usdc, usdc_amount),
          {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote, bps),
-         {:ok, minimum_units} <-
-           Autolaunch.Stocks.Amounts.format_units(min_stock_out, auction.quote_token_decimals),
+         minimum_units = Rpc.format_units(min_stock_out, auction.quote_token_decimals),
          {:ok, config} <- lab(StocksLab) do
       deadline = DateTime.to_unix(DateTime.utc_now()) + @usdc_deadline_seconds
 
@@ -649,6 +650,19 @@ defmodule Autolaunch.BidActions do
   end
 
   defp stored_price(_value), do: {:error, :price_unreadable}
+
+  # The tokens `amount` buys at `price`, rounded down to the token's last unit
+  # with whole numbers, so no digit of a long amount or price is rounded away.
+  defp tokens_at(%Decimal{coef: amount, exp: amount_exp}, %Decimal{coef: price, exp: price_exp}) do
+    shift = amount_exp + @token_decimals - price_exp
+
+    units =
+      if shift >= 0,
+        do: div(amount * Integer.pow(10, shift), price),
+        else: div(amount, price * Integer.pow(10, -shift))
+
+    Decimal.new(1, units, -@token_decimals)
+  end
 
   # Drops trailing zeros by hand: `Decimal.normalize/1` would round a stored
   # price to the context precision.
