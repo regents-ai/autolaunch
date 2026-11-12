@@ -48,7 +48,15 @@ defmodule AutolaunchWeb.TokenLive do
     end
   end
 
-  def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
+  # Refresh balances reads the pool again and has the trade parts read the
+  # wallet's figures again: each press spends one of the viewer's page reads,
+  # and past them the page stays as it is. Nothing here reaches a wallet.
+  def handle_event("refresh_balances", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, balances_read(socket)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
   # The staking part read the wallet's stake: Unstake is offered only while
   # there is one.

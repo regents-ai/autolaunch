@@ -1,9 +1,9 @@
 defmodule AutolaunchWeb.PageReadAllowanceTest do
   @moduledoc """
   A visitor's presses of a page's own read buttons (Check on the bid lookup,
-  Read again on a token's pool, Refresh on REGENT Fees) read the chain only
-  within the viewer's allowance: past it a press reads nothing, and the page
-  stays as it is.
+  Read again and Refresh balances on a token's pool, Refresh on REGENT Fees)
+  read the chain only within the viewer's allowance, on Base and Robinhood
+  alike: past it a press reads nothing, and the page stays as it is.
 
   The allowance here is two presses, the chain is a stand-in that answers
   every read as unavailable and tells the test of each one, and each test
@@ -18,6 +18,8 @@ defmodule AutolaunchWeb.PageReadAllowanceTest do
   alias AutolaunchWeb.Paths
 
   @moduletag :capture_log
+
+  @robinhood 4_663
 
   setup %{conn: conn} do
     limits = Application.fetch_env!(:autolaunch, :limits)
@@ -66,6 +68,48 @@ defmodule AutolaunchWeb.PageReadAllowanceTest do
     assert_allowance(view, fn -> render_submit(view, "check_bid", %{"bid" => "0"}) end)
   end
 
+  test "Refresh balances on a token's page reads its pool twice, then reads nothing",
+       %{conn: conn} do
+    auction = graduated("BALS", :agent)
+    {:ok, view, _html} = live(conn, Paths.token(auction))
+
+    assert_allowance(view, fn -> render_click(view, "refresh_balances") end)
+  end
+
+  describe "on Robinhood" do
+    setup do
+      put_env(:autolaunch_robinhood_chain_id, @robinhood)
+
+      put_env(
+        :autolaunch_robinhood_deployment,
+        Path.expand("../../fixtures/robinhood-deployment.json", __DIR__)
+      )
+    end
+
+    test "Read again on a token's pool reads it twice, then leaves the page as it is",
+         %{conn: conn} do
+      auction = graduated("RPOOL", :stocks, @robinhood)
+      {:ok, view, _html} = live(conn, Paths.token(auction))
+
+      assert_allowance(view, fn -> render_click(view, "reload_pool") end)
+    end
+
+    test "Refresh balances on a token's page reads its pool twice, then reads nothing",
+         %{conn: conn} do
+      auction = graduated("RBALS", :stocks, @robinhood)
+      {:ok, view, _html} = live(conn, Paths.token(auction))
+
+      assert_allowance(view, fn -> render_click(view, "refresh_balances") end)
+    end
+
+    test "the bid lookup reads a bid twice, then reads nothing", %{conn: conn} do
+      auction = graduated("RLOOK", :stocks, @robinhood)
+      {:ok, view, _html} = live(conn, Paths.auction(auction))
+
+      assert_allowance(view, fn -> render_submit(view, "check_bid", %{"bid" => "0"}) end)
+    end
+  end
+
   # Two presses each read the chain; the third reads nothing.
   defp assert_allowance(view, press) do
     render_async(view, 5_000)
@@ -91,10 +135,21 @@ defmodule AutolaunchWeb.PageReadAllowanceTest do
     end
   end
 
-  defp graduated(symbol, kind) do
+  defp put_env(key, value) do
+    previous = Application.get_env(:autolaunch, key)
+    Application.put_env(:autolaunch, key, value)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:autolaunch, key, previous),
+        else: Application.delete_env(:autolaunch, key)
+    end)
+  end
+
+  defp graduated(symbol, kind, chain_id \\ 8453) do
     stored =
       TestSupport.project_auction(
-        chain_id: 8453,
+        chain_id: chain_id,
         kind: kind,
         symbol: symbol,
         state: :graduated,
