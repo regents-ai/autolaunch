@@ -1,5 +1,10 @@
 # Changelog
 
+## 12 November 2026: Token page
+- On a phone, a long market figure such as a price or the total supply is no longer split across two lines. A figure too long to sit beside its neighbour takes a line of its own.
+- The token's address in the heading now opens in full when pressed, with a copy button and an arrow that opens it on the chain's explorer, the same as every address in the Contracts list.
+- In a short window, the trade panel and Claim Rewards scroll with the page, so their lower part can always be reached. In a taller window they still stay in view beside the chart.
+
 ## 12 November 2026: Forms
 - On both create pages, a field is checked when you leave it and when you send the form, not while you are typing.
 - A field that is too long now says how many characters to use.
