@@ -100,7 +100,9 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   await expect(page.locator(".bid-box__balance")).toBeVisible({timeout: 30_000})
   await fitsAndPresses(page, touch)
   const auctions = await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json()
-  expect(auctions.data.map((auction: any) => auction.token_symbol)).toEqual([draft.symbol])
+  // The search forgives a wrong letter, so it may also answer another journey's
+  // near-identical symbol; this launch is listed once.
+  expect(auctions.data.filter((auction: any) => auction.token_symbol === draft.symbol)).toHaveLength(1)
 
   // A launch made through the site's review is the person's: their account, and their wallet on its page.
   const row = JSON.parse(onSite("auction_row.exs", {
