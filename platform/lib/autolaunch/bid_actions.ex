@@ -300,7 +300,8 @@ defmodule Autolaunch.BidActions do
              LabBidChainClient.usdc_snapshot(%{
                stock: snapshot.currency,
                signer: signer,
-               usdc_amount: usdc_amount
+               usdc_amount: usdc_amount,
+               version: auction.contracts_version
              })
            ),
          :ok <- usdc_affordable(usdc, usdc_amount),

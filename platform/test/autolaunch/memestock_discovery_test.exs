@@ -19,8 +19,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     Lab,
     LabAbi,
     LaunchDiscovery,
-    LaunchReviews,
-    ThirdLaunchers
+    LaunchReviews
   }
 
   alias Autolaunch.Actors.{Human, System}
@@ -40,8 +39,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @hash "0x" <> String.duplicate("4d", 32)
   @data "0x" <> String.duplicate("ab", 36)
   @launch_id 1
-  # Bidding opens START_LEAD_BLOCKS after the block the launch was made in: 300
-  # on the second launchpad, 3,000 on the third.
+  # Bidding opens START_LEAD_BLOCKS after the block the launch was made in:
+  # 3,000 on the third launchpad, which new launches go to.
   @created_block 10
   @auction_blocks 1_000
   @floor 79_228_162_514_264_337_593_543_900
@@ -64,7 +63,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
       },
       launchpad: launchpad,
       launcher: @launcher,
-      start_block: @created_block + 300
+      start_block: @created_block + 3_000
     })
 
     start_supervised!(
@@ -343,18 +342,12 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{token_symbol: "EARLY", origin: :chain}] = auctions()
   end
 
-  @tag :tmp_dir
   test "a launch on the third launchpad is found by its own lead and listed on its version",
-       %{tmp_dir: dir} do
-    ThirdLaunchers.install(dir)
-    launchpad = StocksLab.address!(StocksLab.current!(), :launchpad)
+       %{launchpad: launchpad} do
     admit_stock()
 
     BaseRpcStub.put(%{
-      revstake: Lab.address!(Lab.current!(), :factory),
-      launchpad: launchpad,
       launcher: @stranger,
-      start_block: @created_block + 3_000,
       token: %{"name()" => "Third", "symbol()" => "THIRD", "tokenURI()" => token_uri(%{})}
     })
 

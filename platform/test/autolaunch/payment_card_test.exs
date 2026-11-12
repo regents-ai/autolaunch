@@ -82,12 +82,15 @@ defmodule Autolaunch.PaymentCardTest do
     {:ok, account: account, auction: auction, wallet: wallet}
   end
 
-  defp chain(wallet, overrides \\ %{}) do
+  # The strategy is that of the launch's own contracts version.
+  defp chain(wallet, auction, overrides \\ %{}) do
     usdc = String.downcase(Abi.usdc_address())
     regent = String.downcase(Abi.regent_address())
 
-    strategy =
-      Autolaunch.Lab.current!() |> Autolaunch.Lab.address!(:strategy) |> String.downcase()
+    {:ok, contracts} =
+      Autolaunch.Lab.contracts(Autolaunch.Lab.current!(), auction.contracts_version)
+
+    strategy = contracts |> Autolaunch.Lab.address!(:strategy) |> String.downcase()
 
     beneficiary = Map.get(overrides, :beneficiary, @treasury)
 
@@ -132,7 +135,7 @@ defmodule Autolaunch.PaymentCardTest do
 
   test "a Revstake launch's payment review comes from its own record and the real reader",
        %{account: account, auction: auction, wallet: wallet} do
-    Chain.install(chain(wallet))
+    Chain.install(chain(wallet, auction))
 
     assert {:ok, state} = SubjectWalletActions.wallet_state(auction.id, wallet)
     assert state.receiver.address == @receiver
@@ -156,7 +159,7 @@ defmodule Autolaunch.PaymentCardTest do
 
   test "a receiver whose money goes anywhere but the launch's treasury is refused",
        %{account: account, auction: auction, wallet: wallet} do
-    Chain.install(chain(wallet, %{beneficiary: "0x" <> String.duplicate("66", 20)}))
+    Chain.install(chain(wallet, auction, %{beneficiary: "0x" <> String.duplicate("66", 20)}))
 
     assert {:error, %{reason: :receiver_not_canonical}} =
              SubjectWalletActions.prepare(
@@ -170,7 +173,7 @@ defmodule Autolaunch.PaymentCardTest do
 
   test "a deployment on another network refuses a Base launch's payment review",
        %{account: account, auction: auction, wallet: wallet} do
-    Chain.install(chain(wallet))
+    Chain.install(chain(wallet, auction))
 
     description =
       Application.fetch_env!(:autolaunch, :autolaunch_base_deployment)

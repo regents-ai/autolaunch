@@ -3,7 +3,7 @@
 Stocks is a separate launch mode next to Agent: a new token (NEW) auctioned for one admitted Base
 stock token (STOCK) through the pinned CCA, then migrated into the official NEW/STOCK pool.
 Current terms are in [the Base v3 package](../../contracts/stocks-v3/README.md), which new Base
-launches use once the description names it, [the Base v2 package](../../contracts/stocks-v2/README.md)
+launches use since 12 November 2026, [the Base v2 package](../../contracts/stocks-v2/README.md)
 for the launches before it, and [the Robinhood v2 package](../../contracts/robinhood-v2/README.md):
 49.75% sold, 49.75%
 reserved for locked liquidity and 0.5% vested to the creator over 30 days from graduation.
@@ -130,12 +130,12 @@ written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerate
 `contracts/stocks/src/interfaces` with solc 0.8.26) and registered in
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
 
-The Base mainnet description also carries a section for each earlier launchpad that still has
-launches: `v1` for the first and `v2` for the second, each with `addresses` of exactly
-`launchpad`, `hook`, `locker` and `bid_adapter` and `abis` of exactly `launchpad`, `hook` and
-`locker` (`Autolaunch.Stocks.Lab`). With a `v2` section the top level is the third launchpad,
-which new launches use; without one it is the second. Each launch is read, claimed and finished
-through its own version's contracts, and its auction row records that version. The Stocks and
+The top level is the third launchpad, which new launches use. The description also carries a
+section for each earlier launchpad that still has launches: `v1` for the first and `v2` for the
+second, each with `addresses` of exactly `launchpad`, `hook`, `locker` and `bid_adapter` and
+`abis` of exactly `launchpad`, `hook` and `locker` (`Autolaunch.Stocks.Lab`). Each launch is
+read, bid on (USDC bids through its own version's bid adapter), claimed and finished through its
+own version's contracts, and its auction row records that version. The Stocks and
 Revstake descriptions switch together, since `agent_factory` has to be the Revstake description's
 top-level factory. `contracts/stocks-v3/bin/ceremony.py site-config --agent-factory <factory>`,
 run from `contracts/stocks-v3`, writes the file with both sections from the deployed manifests.

@@ -113,19 +113,21 @@ defmodule Autolaunch.LabBidChainClient do
   @doc """
   The USDC side of a Stocks bid: the wallet's USDC and its allowance to the bid
   adapter, and the admitted route's estimate of the STOCK `usdc_amount` buys.
+  The adapter and the launchpad that admits the stock are those of the
+  auction's own contracts `version`.
   """
-  def usdc_snapshot(%{stock: stock, signer: signer, usdc_amount: usdc_amount}) do
+  def usdc_snapshot(%{stock: stock, signer: signer, usdc_amount: usdc_amount, version: version}) do
     with {:ok, config} <- StocksLab.current(),
+         {:ok, %{bid_adapter: adapter, launchpad: launchpad, abis: abis}} <-
+           StocksLab.contracts(config, version),
          opts = StocksLab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
          usdc = StocksLab.address!(config, :usdc),
-         adapter = StocksLab.address!(config, :bid_adapter),
-         launchpad = StocksLab.address!(config, :launchpad),
          :ok <- LabRpc.ensure_contract(adapter, block, opts),
          {:ok, [admitted, _decimals, route_word]} <-
            Rpc.call_words(
              launchpad,
-             LabAbi.encode(StocksLab.abi!(config, :launchpad), "stockAdmission(address)", [stock]),
+             LabAbi.encode(abis["launchpad"], "stockAdmission(address)", [stock]),
              block,
              3,
              opts

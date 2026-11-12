@@ -41,9 +41,9 @@ defmodule Autolaunch.LaunchChainTest do
   end
 
   test "a new launch's schedule is that of the launchers the descriptions name" do
-    # The tests' descriptions name the second launchers, as today's do.
-    assert LaunchActions.schedule(:base) == LaunchActions.schedule(:base, :v2)
-    assert LaunchActions.release(:base) == "block by block over about 3 days"
-    assert RevstakeLaunchActions.schedule() == RevstakeLaunchActions.schedule(:v2)
+    # The tests' descriptions name the third launchers, as today's do.
+    assert LaunchActions.schedule(:base) == LaunchActions.schedule(:base, :v3)
+    assert LaunchActions.release(:base) == "steadily over 30 days"
+    assert RevstakeLaunchActions.schedule() == RevstakeLaunchActions.schedule(:v3)
   end
 end

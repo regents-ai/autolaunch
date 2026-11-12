@@ -558,8 +558,8 @@ defmodule Autolaunch.Auction do
     # first four Memestock launches (BITE, JollyB and AGI on Base, RDOG on
     # Robinhood) are `:v1`, on their original launchpad, hook and locker. A
     # Base launch is recorded with the version of the contracts that made it:
-    # `:v2`, or `:v3` once the Base descriptions name the contracts for Base's
-    # 0.2-second blocks. Robinhood's later launches are `:v2`.
+    # `:v2` until 12 November 2026, `:v3` since. Robinhood's later launches are
+    # `:v2`.
     attribute :contracts_version, :atom do
       allow_nil? false
       public? true

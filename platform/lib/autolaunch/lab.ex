@@ -13,12 +13,12 @@ defmodule Autolaunch.Lab do
   31337 is a test chain, a local lab's Base fork carrying test assets;
   `test_chain?/0` is what the lab-only features key off.
 
-  The top level names the Revstake factory, strategy, hook and LP locker new
-  launches go to. Once version 3 is the top level, a `v2` section names
-  version 2's four, with their ABIs, for the launches made on them; both
-  versions share the escrow, splitter and payment receiver implementations
-  and the UERC20 factory. A launch reads only the contracts of its own
-  version (`contracts/2`).
+  The top level names version 3's Revstake factory, strategy, hook and LP
+  locker, which new launches go to. A chain with launches on version 2 has a
+  `v2` section naming version 2's four, with their ABIs, for those launches;
+  both versions share the escrow, splitter and payment receiver
+  implementations and the UERC20 factory. A launch reads only the contracts
+  of its own version (`contracts/2`).
   """
 
   alias Autolaunch.LabRpcUrl
@@ -157,7 +157,7 @@ defmodule Autolaunch.Lab do
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
-         version: newest(v2),
+         version: :v3,
          addresses: addresses,
          abis: abis,
          v2: v2
@@ -237,10 +237,6 @@ defmodule Autolaunch.Lab do
   end
 
   defp exact_abis(_abis), do: {:error, :invalid_abis}
-
-  # The top level is version 3 once version 2 has a section of its own.
-  defp newest(nil), do: :v2
-  defp newest(%{}), do: :v3
 
   defp v2_section(nil), do: {:ok, nil}
 

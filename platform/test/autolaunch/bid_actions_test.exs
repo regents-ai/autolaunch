@@ -279,7 +279,9 @@ defmodule Autolaunch.BidActionsTest do
         "timestamp" => "0x6700"
       }
 
-    defp answer("eth_call", [%{data: data}, _block]) do
+    defp answer("eth_call", [%{to: to, data: data}, _block]) do
+      send(self(), {:eth_call, String.downcase(to), String.slice(data, 0, 10)})
+
       words = %{
         Autolaunch.LabAbi.selector("stockAdmission(address)") => [
           1,
@@ -339,6 +341,39 @@ defmodule Autolaunch.BidActionsTest do
     assert refusal(error) == :invalid_slippage
   end
 
+  test "a USDC bid on a Memestock goes through the bid adapter and launchpad of its own version",
+       %{wallet: wallet, opts: opts} do
+    install()
+    previous = Application.get_env(:autolaunch, :autolaunch_lab_http_client)
+    Application.put_env(:autolaunch, :autolaunch_lab_http_client, StockQuoteRpc)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:autolaunch, :autolaunch_lab_http_client, previous),
+        else: Application.delete_env(:autolaunch, :autolaunch_lab_http_client)
+    end)
+
+    admission = Autolaunch.LabAbi.selector("stockAdmission(address)")
+
+    # The fixture description's version 2 section and its top level, version 3.
+    for {address, version, launchpad, adapter} <- [
+          {"0x5555555555555555555555555555555555555555", :v2,
+           "0x0f8955a7f09ec713bb71c30e07b512ecee69a044",
+           "0x55565be42bacfab336ef1aefbd254b9cbb738688"},
+          {"0x6666666666666666666666666666666666666666", :v3,
+           "0x3000000000000000000000000000000000000011",
+           "0x3000000000000000000000000000000000000014"}
+        ] do
+      auction = memestock_auction!(address, launchpad, version)
+      request = %{auction_id: auction.id, amount: "10", max_price: "3", pay_with: "USDC"}
+
+      assert {:ok, prepared} = BidActions.prepare(request, wallet, opts)
+      assert %{to: ^adapter} = Enum.find(prepared.steps, &(&1.step == "usdc_bid"))
+      assert_received {:eth_call, ^launchpad, ^admission}
+      refute_received {:eth_call, _other_launchpad, ^admission}
+    end
+  end
+
   defp prepare(auction_id, wallet, amount, max_price, opts),
     do:
       BidActions.prepare(
@@ -347,8 +382,9 @@ defmodule Autolaunch.BidActionsTest do
         opts
       )
 
-  defp memestock_auction!(address, launchpad) do
+  defp memestock_auction!(address, launchpad, version \\ :v2) do
     %{
+      contracts_version: version,
       kind: :stocks,
       origin: :site,
       chain_id: 8453,

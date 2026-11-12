@@ -1,9 +1,9 @@
 defmodule Autolaunch.Stocks.Lab do
   @moduledoc """
-  The Base Stocks deployment description: `stocks-site-config.json` as
-  `contracts/stocks-v2/bin/local-stocks-lab.py deploy` writes it, and as the
-  contracts thread writes it for Base mainnet. `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT`
-  names the file.
+  The Base Stocks deployment description, as
+  `contracts/stocks-v3/bin/ceremony.py site-config` writes it for Base mainnet
+  and the agent journeys write it for their copy of Base.
+  `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` names the file.
 
   It extends the Base deployment (`Autolaunch.Lab`) and is refused unless it
   names the very Base description this site runs with, answers on the same
@@ -12,13 +12,12 @@ defmodule Autolaunch.Stocks.Lab do
   admits are not listed here: the site reads them from the chain
   (`Autolaunch.Stocks.Stock`).
 
-  The top level names the launchpad new launches go to. Launchpads that came
-  before it and still have launches keep their own sections, each naming that
-  launchpad, its hook, its locker and its bid adapter, with the first three's
-  ABIs: `v1` for the first (BITE, JollyB and AGI on Base) and `v2` for the
-  second. A launch reads only the contracts of its own version. The top level
-  is the third launchpad when a `v2` section names the second, and the second
-  otherwise.
+  The top level names the third launchpad, which new launches go to.
+  Launchpads that came before it and still have launches keep their own
+  sections, each naming that launchpad, its hook, its locker and its bid
+  adapter, with the first three's ABIs: `v1` for the first (BITE, JollyB and
+  AGI on Base) and `v2` for the second. A launch reads only the contracts of
+  its own version, its USDC bids included.
   """
 
   alias Autolaunch.{Lab, LabRpcUrl}
@@ -44,7 +43,7 @@ defmodule Autolaunch.Stocks.Lab do
           rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
-          version: :v2 | :v3,
+          version: :v3,
           addresses: %{required(String.t()) => String.t()},
           faucet: %{required(String.t()) => String.t()} | nil,
           abis: %{required(String.t()) => [map()]},
@@ -112,7 +111,7 @@ defmodule Autolaunch.Stocks.Lab do
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
-         version: newest(v2),
+         version: :v3,
          addresses: addresses,
          faucet: faucet,
          abis: abis,
@@ -228,10 +227,6 @@ defmodule Autolaunch.Stocks.Lab do
   end
 
   defp exact_faucet(_faucet), do: {:error, :invalid_faucet}
-
-  # The top level is the third launchpad once the second has a section of its own.
-  defp newest(nil), do: :v2
-  defp newest(%{}), do: :v3
 
   defp section(nil, _version), do: {:ok, nil}
 

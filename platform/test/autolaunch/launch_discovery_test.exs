@@ -27,9 +27,10 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   @stranger "0x9999999999999999999999999999999999999999"
   @other_wallet "0x2222222222222222222222222222222222222222"
   @launch_id 1
-  # Bidding opens START_DELAY_BLOCKS after the block the launch was made in.
-  @start_delay 300
-  @start_block 30_001_800
+  # Bidding opens START_DELAY_BLOCKS after the block the launch was made in:
+  # 3,000 on version 3's strategy, which new launches go to.
+  @start_delay 3_000
+  @start_block 30_004_500
 
   setup do
     LaunchFixture.install(
@@ -98,6 +99,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert [auction] = auctions()
     assert auction.creator_human_account_id == account.id
     assert auction.state == :created
+    assert auction.contracts_version == :v3
 
     assert %{state: :chain_verified, terminal_at: %DateTime{}} = reload(operation)
   end
