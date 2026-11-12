@@ -72,13 +72,16 @@ defmodule AutolaunchWeb.ConvertComponent do
     {:ok, followed(socket)}
   end
 
-  defp scoped(%{assigns: %{launch: launch, scope: launch}} = socket), do: socket
-
-  defp scoped(socket) do
-    socket
-    |> assign(scope: socket.assigns.launch, amount: "", floor: true, error: nil, notice: nil)
-    |> assign(done: nil)
-    |> closed()
+  # The form starts again only for another launch: a launch read again with
+  # new figures keeps what was typed, its notice and its open review.
+  defp scoped(%{assigns: %{launch: %{chain: chain, auction: %{id: id}}}} = socket) do
+    if socket.assigns.scope == {chain, id},
+      do: socket,
+      else:
+        socket
+        |> assign(scope: {chain, id}, amount: "", floor: true, error: nil, notice: nil)
+        |> assign(done: nil)
+        |> closed()
   end
 
   # The account as it reads now, before each event and background result
