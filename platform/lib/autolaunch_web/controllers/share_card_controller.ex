@@ -100,7 +100,7 @@ defmodule AutolaunchWeb.ShareCardController do
   @doc "A covered-call market's picture, for any market the site offers."
   def covered_calls(conn, %{"symbol" => symbol}) do
     symbol = covered_calls_market!(symbol)
-    market_card(conn, ShareCard.market_png(:covered_calls, symbol, DateTime.utc_now()))
+    send_card(conn, ShareCard.market_png(:covered_calls, symbol, DateTime.utc_now()))
   end
 
   @doc "A covered-call market's share video for everyone."
@@ -123,7 +123,7 @@ defmodule AutolaunchWeb.ShareCardController do
   @doc "An Isolated Exposure to After-hours Stocks series' picture, for any series the site offers."
   def exposure(conn, %{"series" => series}) do
     series = exposure_series!(series)
-    market_card(conn, ShareCard.market_png(:exposure, series, DateTime.utc_now()))
+    send_card(conn, ShareCard.market_png(:exposure, series, DateTime.utc_now()))
   end
 
   @doc "An Isolated Exposure to After-hours Stocks series' share video for everyone."
@@ -142,11 +142,6 @@ defmodule AutolaunchWeb.ShareCardController do
     series = exposure_series!(series)
     market_wallet_video(conn, :exposure, series, wallet)
   end
-
-  # A market's picture is drawn from the chain; one the chain cannot answer
-  # for is the site's try-again page.
-  defp market_card(conn, {:ok, _png} = drawn), do: send_card(conn, drawn)
-  defp market_card(_conn, {:error, _reason}), do: raise(UnavailableError)
 
   defp market_wallet_video(conn, kind, subject, wallet) do
     {wallet, account_id} = own_wallet!(conn, wallet)
@@ -253,7 +248,8 @@ defmodule AutolaunchWeb.ShareCardController do
 
   # The picture carries the time its figures were read, and its address
   # moves on when they can have changed (`ShareCard`), so sites may keep it
-  # for fifteen minutes.
+  # for fifteen minutes. A picture is drawn from the site's records and, for a
+  # market, the chain; one that cannot be drawn is the site's try-again page.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_card(conn, {:ok, png}) do
     conn
@@ -261,4 +257,6 @@ defmodule AutolaunchWeb.ShareCardController do
     |> put_resp_content_type("image/png", nil)
     |> send_resp(200, png)
   end
+
+  defp send_card(_conn, {:error, _reason}), do: raise(UnavailableError)
 end
