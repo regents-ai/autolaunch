@@ -11,7 +11,8 @@ defmodule AutolaunchWeb.ConvertLive do
 
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers,
+    only: [current_human_id: 1, spend_page_read: 1]
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -27,7 +28,15 @@ defmodule AutolaunchWeb.ConvertLive do
   def mount(_params, _session, socket),
     do: {:ok, socket |> assign(AutolaunchWeb.PublicDocuments.page("/convert")) |> load(true)}
 
-  def handle_event("reload", _params, socket), do: {:noreply, load(socket, false)}
+  # Refresh reads every launch's fees from both chains: each press spends one
+  # of the viewer's page reads, and past them the rows shown stay. Nothing
+  # here reaches a wallet.
+  def handle_event("reload", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, load(socket, false)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
   # A conversion confirmed, so every row is read again. The previous rows stay
   # on screen while the chains answer, so each row keeps its form and notice.
