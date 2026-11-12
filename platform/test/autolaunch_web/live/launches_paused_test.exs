@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.LaunchesPausedTest do
 
   alias Autolaunch.{BaseRpcStub, ChainHead, LabAbi, LaunchFixture, SharedReading}
 
-  @note "New launches are paused until the new version opens."
+  @note "New launches are paused right now."
 
   setup do
     previous = Application.get_env(:autolaunch, :prelaunch_read_only)

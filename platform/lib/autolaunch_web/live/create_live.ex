@@ -468,7 +468,7 @@ defmodule AutolaunchWeb.CreateLive do
 
           <div id="launch-transactions" class="create-page__launch">
             <p :if={@launches_paused?} class="create-page__notice" role="status">
-              New launches are paused until the new version opens.
+              New launches are paused right now.
             </p>
             <.agent_treasury
               :if={@launch_ready? && !@reviewing? && @confirm_treasury?}

@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     launch_preparation_unavailable: "Launching from your wallet is not open yet.",
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
-    launches_paused: "New launches are paused until the new version opens.",
+    launches_paused: "New launches are paused right now.",
     launch_treasury_refused:
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     strategy_not_bound:
