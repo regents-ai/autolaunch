@@ -94,45 +94,56 @@ defmodule Autolaunch.DiscoverySkipsTest do
   # `unanswered`.
   defp answer(%{to: to, data: data}, state) do
     selector = String.slice(data, 0, 10)
-    memestock? = to == state.memestock
 
-    words =
-      cond do
-        selector == LabAbi.selector("nextLaunchId()") ->
-          [BaseRpcStub.hex_word(if(memestock?, do: 2, else: 3))]
+    case if(to == state.memestock, do: memestock(selector), else: revstake(selector, data, state)) do
+      :unavailable -> :unavailable
+      words -> "0x" <> Enum.join(words)
+    end
+  end
 
-        selector == LabAbi.selector("launches(uint256)") and memestock? ->
-          List.duplicate(0, StocksLabAbi.launch_record_words())
-          |> List.replace_at(5, @start_block)
-          |> List.replace_at(8, @migration_block)
-          |> List.replace_at(9, @running)
-          |> Enum.map(&BaseRpcStub.hex_word/1)
-          |> List.replace_at(0, BaseRpcStub.address_word(@launcher))
-          |> List.replace_at(3, BaseRpcStub.address_word(auction(9)))
+  defp memestock(selector) do
+    if selector == LabAbi.selector("nextLaunchId()") do
+      [BaseRpcStub.hex_word(2)]
+    else
+      List.duplicate(0, StocksLabAbi.launch_record_words())
+      |> List.replace_at(5, @start_block)
+      |> List.replace_at(8, @migration_block)
+      |> List.replace_at(9, @running)
+      |> Enum.map(&BaseRpcStub.hex_word/1)
+      |> List.replace_at(0, BaseRpcStub.address_word(@launcher))
+      |> List.replace_at(3, BaseRpcStub.address_word(auction(9)))
+    end
+  end
 
-        selector == LabAbi.selector("launches(uint256)") ->
-          launch_id = data |> String.slice(10, 64) |> String.to_integer(16)
+  # The factory's count and launches, and the strategy's record of an auction.
+  defp revstake(selector, data, state) do
+    cond do
+      selector == LabAbi.selector("nextLaunchId()") ->
+        [BaseRpcStub.hex_word(3)]
 
-          if launch_id in state.unanswered,
-            do: :unavailable,
-            else:
-              Enum.map(
-                [@launcher, auction(7), auction(launch_id), auction(8), auction(6)],
-                &BaseRpcStub.address_word/1
-              )
+      selector == LabAbi.selector("launches(uint256)") ->
+        launch(data |> String.slice(10, 64) |> String.to_integer(16), state)
 
-        selector == LabAbi.selector("distribution(address)") ->
-          List.duplicate(0, LabAbi.distribution_words())
-          |> List.replace_at(0, @running)
-          |> List.replace_at(1, @start_block)
-          |> List.replace_at(4, @migration_block)
-          |> Enum.map(&BaseRpcStub.hex_word/1)
+      selector == LabAbi.selector("distribution(address)") ->
+        List.duplicate(0, LabAbi.distribution_words())
+        |> List.replace_at(0, @running)
+        |> List.replace_at(1, @start_block)
+        |> List.replace_at(4, @migration_block)
+        |> Enum.map(&BaseRpcStub.hex_word/1)
 
-        selector == LabAbi.selector("START_DELAY_BLOCKS()") ->
-          [BaseRpcStub.hex_word(300)]
-      end
+      selector == LabAbi.selector("START_DELAY_BLOCKS()") ->
+        [BaseRpcStub.hex_word(300)]
+    end
+  end
 
-    if is_list(words), do: "0x" <> Enum.join(words), else: words
+  defp launch(launch_id, state) do
+    if launch_id in state.unanswered,
+      do: :unavailable,
+      else:
+        Enum.map(
+          [@launcher, auction(7), auction(launch_id), auction(8), auction(6)],
+          &BaseRpcStub.address_word/1
+        )
   end
 
   defp auction(number), do: "0x" <> String.duplicate(Integer.to_string(number), 40)
