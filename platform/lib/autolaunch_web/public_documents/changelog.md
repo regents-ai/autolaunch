@@ -126,10 +126,12 @@
 - A press straight after Max, or after a balance, now sends that amount, on every form that has one.
 
 ## 11 November 2026: Bids
-- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants. Bids on the same terms sit together, the best for a seller first: the soonest expiry, then the lowest strike, then the highest premium.
-- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in.
-- Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or the whole bid when it is smaller.
-- The portfolio shows each of your bids: how much has sold, the premium still held, Raise and Stop while it is open, and Refund for what was not spent. Calls bought through a bid show with your other calls.
+- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants. Bids on the same terms sit together, the best for a seller first: the soonest expiry, then the most you end with per token at the reference price, which is the premium plus the strike, the strike counted no higher than that price.
+- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in. When a bid's strike and premium together are under the stock's price, its Risks line says so with both totals.
+- Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or all that is left.
+- The portfolio shows each of your bids: how much has sold, the premium not yet spent, Raise and Stop while it is open, and Refund for what was not spent. A bid you stopped with nothing sold leaves once its refund is taken. Calls bought through a bid show with your other calls.
+- Buy and Sell show the best 50 listings and the best 50 bids, with a line saying how many more are open. Agents get the same 50 with the full counts. A bid with less than one whole token left is no longer offered to sellers; its bidder still sees it on the portfolio.
+- A break-even is rounded up to the cent, as every amount you pay is.
 - New listings and bids no longer take a Friday when the US stock market is shut or closes early, such as Good Friday, Christmas or the day after Thanksgiving: Sell, Bid and the quote offer the next four other Fridays, to people and agents alike. Listings and bids already made keep their Friday.
 
 ## 9 November 2026: Create pages

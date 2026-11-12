@@ -222,10 +222,10 @@ Ash domain `Autolaunch.CoveredCalls`:
   allowances at the latest block, so every figure matches the chain after a reload, and no
   migration is needed. (A new table needs Sean's go before production; reading the contract
   avoids it.)
-- `Book` — each market's listings and bids, read once and shared by every visitor for five minutes and
+- `Book` — each market's open listings and open bids, read once and shared by every visitor for five minutes and
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
-  (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
-  on each, are read eight at a time, so weeks of listings stay quick to read.
+  (unless taken in the last ten seconds), as `RegentFacts` does. It holds the best fifty of each
+  with the count of all; how it stays bounded is under "Reading a book anyone can fill" below.
 - `Positions` — a wallet's listings, holdings, its own bids with what a refund would send it now
   (`refundable`), and the stock in the wallet (the most it can list now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
@@ -251,10 +251,10 @@ Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| A stock's listings and open bids | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| Quote a listing | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| My listings, holdings and bids | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
-| Prepare a step (list, fill, cancel, exercise, claim, collect strike, bid, raise_bid, cancel_bid, refund_bid, sell_to_bid) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| A stock's listings and open bids | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | `covered_call_book` | gap (regents-cli lane) |
+| Quote a listing | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | `covered_call_quote` | gap (regents-cli lane) |
+| My listings, holdings and bids | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | `covered_call_positions` | gap (regents-cli lane) |
+| Prepare a step (list, fill, cancel, exercise, claim, collect strike, bid, raise_bid, cancel_bid, refund_bid, sell_to_bid) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | `prepare_covered_call` | gap (regents-cli lane) |
 
 Off, every one of these routes answers as an unknown address and the site is byte for byte what it
 was before covered calls: `/openapi.json` is `contracts/api-contract.openapiv3.yaml` exactly,
@@ -279,6 +279,70 @@ root has one row per action.
 
 The agent's own key signs every step; the site prepares and never signs. CLI rows are gaps
 owned by the regents-cli lane until it adds them.
+
+### Reading a book anyone can fill
+
+Anyone with USDC can post bids, and anyone with the stock can list, so the site does not bound
+how many there are. What it does (12 November 2026):
+
+- **Many reads to a request.** Listings, bids and a wallet's place on them are read through
+  Multicall3 (`Autolaunch.Chain.Multicall`, `aggregate3` at
+  `0xcA11bde05977b3631167028862bE2a173976CA11`, the same address on Base and on a copy of it):
+  200 reads to one request at the block's own hash, eight requests at a time. Ten thousand
+  bids are 50 requests, not 10,000.
+- **Settled records are read once.** A bid can never change again once its expiry has passed with
+  nothing left to sell into and no refund due; a listing once its window has closed, the unsold
+  stock is back with the seller and every strike paid is collected (`Terms.settled?/2`). Before
+  its expiry a sold-out or stopped bid can still be raised, so it is not settled. `Book` keeps
+  settled records in an ETS table it owns, for as long as the site runs; the shared reading and a
+  wallet's positions both skip them.
+- **The reading runs in a task, not in the book process.** `Book` starts one task per market
+  under `Autolaunch.TaskSupervisor` and answers everyone waiting when it ends, so the process
+  that hands out readings never waits on the chain. A visitor waits at most fifteen seconds and
+  is then shown the page's "couldn't be read" state; the reading goes on and is kept. A task was
+  chosen over Cachex because a step that lands while a reading is being taken must stop that
+  reading from being kept (it may be from before the step), which a cache's fetch cannot do, and
+  because the settled table needs one owner.
+- **A wallet's positions ask only where it can have a place.** Calls to exercise are asked for on
+  listings some of which was bought, until four weeks after the window closes
+  (`Terms.lapsed_shown/0`), when lapsed calls leave the portfolio; stock to claim on listings the
+  wallet sold or some of which was exercised. The contract's events were not used: a sale into a
+  bid names no bidder in a topic, and the RPC's range limits for log searches are not known.
+- **Fifty of each, best first.** The reading holds the best fifty open listings and the best fifty
+  open bids, with the count of all (`listings_total`, `bids_total`); pages say "The best 50 of N"
+  and agents get the same fifty and the counts. A listing or bid outside them is not offered on
+  the site; a step for it can still be prepared by its id.
+- **Order.** Listings: the soonest expiry, then the lowest strike plus premium, then the oldest.
+  Bids: the soonest expiry, then the most a seller ends with per token at the reference price,
+  which is the premium plus the strike with the strike counted no higher than that price; then
+  the highest premium, the highest strike and the oldest. Plain strike plus premium was not
+  used: a bid with a strike far above the price and a premium of one micro-USDC costs nothing to
+  post and would sit above every real bid. With no reference price the order is by strike plus
+  premium.
+- **Dust.** A bid with less than one whole token left is not offered to sellers and not counted;
+  its bidder still sees it on the portfolio, to stop and refund it.
+
+What remains unbounded, and what it costs an attacker:
+
+- **Every unsettled listing and bid is read again** by each shared reading (at most once per
+  market per ten seconds, however many visitors) and by each portfolio view. A bid's expiry has
+  no upper limit in the contract, so a bid made to expire in a hundred years never settles. Such
+  a bid for one token at a premium of one micro-USDC costs its maker the transaction's gas and
+  one micro-USDC of escrow, which it can take back. A hundred thousand of them make every reading
+  500 requests in 63 rounds of eight. The site then reads slowly or shows "couldn't be read";
+  nothing is lost and the contract is untouched. The real fix is a list of open bids kept from
+  the contract's events, which needs a table and Sean's go.
+- **The first reading after a restart** reads every record once, settled ones included.
+- **Crowding the fifty.** To push real bids off the Sell list an attacker needs fifty bids for the
+  soonest expiry, each for at least one whole token and each paying at least the best real
+  premium, so it escrows real USDC that any seller can take. With fifty or more bids on the
+  soonest expiry, later expiries are not shown at all; the same holds for listings. "Best bid"
+  and "Lowest ask" consider only the fifty shown.
+- **Settled listings some of which was exercised** cost one `claimable` read per portfolio view
+  each, for good, since a holder may still have stock to claim. They grow only with real
+  exercises, each of which paid a full strike.
+- **Unmeasured.** How long Base's RPC takes for 200 reads in one request, and its rate limits
+  for eight at a time, have not been measured against the live provider.
 
 ## 6. Tests and evidence
 
@@ -349,5 +413,5 @@ owned by the regents-cli lane until it adds them.
 4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
-5. **Gaps.** Hosted MCP (`/mcp`) and the regents CLI for every covered-call action
+5. **Gaps.** The regents CLI for every covered-call action
    (`docs/agent-parity.md`).

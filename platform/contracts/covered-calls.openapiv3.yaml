@@ -6,9 +6,11 @@ paths:
     get:
       operationId: getCoveredCallBook
       summary: Read a stock's covered calls
-      description: Every covered-call listing on one Base stock token as its contract holds them at the
-        latest block, with each listing's stage and what is left to buy; every open bid, with what is left
-        to sell into it; the stock's multiplier and its reference price. Stock amounts are raw token units
+      description: The covered calls offered on one Base stock token as its contract holds them at the
+        latest block. The open listings with what is left to buy, the best for a buyer first, and the open
+        bids with what is left to sell into each, the best for a seller first; at most fifty of each, with
+        the count of all that are open (`listings_total`, `bids_total`); the stock's multiplier and its
+        reference price. Stock amounts are raw token units
         (`unit` is one whole token), prices micro-USDC per whole token, times Unix seconds. The reading is shared and may be up to five minutes old (`read_at`).
         Needs no account; the page tool autolaunch_covered_call_listings calls it.
       security: []
@@ -478,7 +480,9 @@ components:
           - multiplier_change_at
           - reference_price
           - listings
+          - listings_total
           - bids
+          - bids_total
           properties:
             symbol:
               type: string
@@ -520,13 +524,26 @@ components:
                     type: integer
             listings:
               type: array
+              maxItems: 50
+              description: The open listings, the best for a buyer first, which is the soonest expiry, then the
+                lowest strike plus premium, then the oldest. At most fifty.
               items:
                 $ref: '#/components/schemas/CoveredCallListing'
+            listings_total:
+              type: integer
+              description: How many listings are open in all.
             bids:
               type: array
-              description: The open bids, oldest first.
+              maxItems: 50
+              description: The open bids with at least one whole token left, the best for a seller first, which
+                is the soonest expiry, then the most a seller ends with per token at the reference price (the
+                premium plus the strike, the strike counted no higher than that price), then the highest
+                premium, the highest strike and the oldest. At most fifty.
               items:
                 $ref: '#/components/schemas/CoveredCallBid'
+            bids_total:
+              type: integer
+              description: How many such bids are open in all.
     CoveredCallQuoteRequest:
       type: object
       additionalProperties: false
