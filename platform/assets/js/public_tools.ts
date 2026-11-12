@@ -189,7 +189,7 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
         // is no agent signer or it says no; Refused carries the words for the agent.
         if (error instanceof Refused) return {ok: false, error: error.refusal}
         if (error instanceof TypeError && !signal.aborted) unsent(entry)
-        return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before calling the tool again."}}
+        return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "If this tool changes something, read it back before calling the tool again."}}
       } finally {
         release()
       }
