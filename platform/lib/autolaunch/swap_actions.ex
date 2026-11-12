@@ -19,8 +19,8 @@ defmodule Autolaunch.SwapActions do
   wallet signs; only today's quote is an estimate.
   """
 
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.Human
+  import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
   alias Autolaunch.Chain.{Abi, Client, Permit2Abi, Rpc}
   alias Autolaunch.{Lab, LabAbi, LabRpc, Pool}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -136,8 +136,7 @@ defmodule Autolaunch.SwapActions do
       )
       when direction in [:buy, :sell] do
     with {:ok, protection} <- protection(protection),
-         {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, actor, opts),
+         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, pool} <- pool(launch),
          {:ok, venue} <- venue(pool),
          trade <- trade(pool, direction),
@@ -180,12 +179,16 @@ defmodule Autolaunch.SwapActions do
   """
   @spec balances(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def balances(launch, address) do
-    with {:ok, holder} <- address(address),
+    with {:ok, holder} <- Address.normalize(address),
          {:ok, pool} <- pool(launch),
          {:ok, venue} <- venue(pool),
          {:ok, token} <- balance(pool.token, holder, pool.block, venue.rpc),
-         {:ok, currency} <- balance(pool.currency, holder, pool.block, venue.rpc),
-         do: {:ok, %{token: token, currency: currency}}
+         {:ok, currency} <- balance(pool.currency, holder, pool.block, venue.rpc) do
+      {:ok, %{token: token, currency: currency}}
+    else
+      :error -> unavailable(:invalid_address)
+      error -> error
+    end
   end
 
   defp balance(asset, holder, block, rpc) do
@@ -194,11 +197,13 @@ defmodule Autolaunch.SwapActions do
              Rpc.call_uint(asset.address, Abi.encode_erc20("balance_of", [holder]), block, rpc)
            ),
          do:
-           {:ok, %{atomic: atomic, decimals: asset.decimals, shown: held(atomic, asset.decimals)}}
+           {:ok,
+            %{
+              atomic: atomic,
+              decimals: asset.decimals,
+              shown: RegentFormat.token_amount(atomic, asset.decimals)
+            }}
   end
-
-  # A balance line, as every Regent page writes an amount.
-  defp held(atomic, decimals), do: RegentFormat.token_amount(atomic, decimals)
 
   @doc "A whole-percent share of a balance from `balances/2`, as the exact amount to type."
   @spec portion(%{atomic: non_neg_integer(), decimals: non_neg_integer()}, 1..100) :: String.t()
@@ -340,9 +345,9 @@ defmodule Autolaunch.SwapActions do
     token = trade.sell.address
     rpc = venue.rpc
 
-    with :ok <- chain(LabRpc.ensure_contract(venue.router, block, rpc)),
-         :ok <- chain(LabRpc.ensure_contract(venue.quoter, block, rpc)),
-         :ok <- chain(LabRpc.ensure_contract(venue.permit2, block, rpc)),
+    with :ok <- deployed(venue.router, block, rpc),
+         :ok <- deployed(venue.quoter, block, rpc),
+         :ok <- deployed(venue.permit2, block, rpc),
          {:ok, balance} <-
            chain(Rpc.call_uint(token, Abi.encode_erc20("balance_of", [signer]), block, rpc)),
          {:ok, token_allowance} <-
@@ -374,6 +379,13 @@ defmodule Autolaunch.SwapActions do
          quote: quote,
          block: block
        }}
+    end
+  end
+
+  defp deployed(address, block, rpc) do
+    case LabRpc.ensure_contract(address, block, rpc) do
+      :ok -> :ok
+      error -> chain(error)
     end
   end
 
@@ -560,64 +572,4 @@ defmodule Autolaunch.SwapActions do
 
   defp decoded({:ok, value}), do: {:ok, value}
   defp decoded(:error), do: unavailable(:invalid_chain_response)
-
-  defp chain(:ok), do: :ok
-  defp chain({:ok, value}), do: {:ok, value}
-  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
-  defp chain({:error, reason}), do: unavailable(reason)
-
-  # Session and wallet identity
-
-  defp human(opts) do
-    case Keyword.get(opts, :actor) do
-      %Human{} = actor -> {:ok, actor}
-      _anonymous -> unavailable(:authentication_required)
-    end
-  end
-
-  defp lease(opts) do
-    case Keyword.get(opts, :context) do
-      %{session_lease: %{lineage: lineage, account_id: account_id}}
-      when is_binary(lineage) and is_integer(account_id) ->
-        {:ok, %{lineage: lineage, account_id: account_id}}
-
-      _absent ->
-        unavailable(:session_lease_required)
-    end
-  end
-
-  # The page's active wallet has to be one the leased account links, read now:
-  # never a guess.
-  defp current_wallet(address, actor, opts) do
-    with {:ok, candidate} <- address(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         do: linked_wallet(account, candidate)
-  end
-
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      {:ok, nil} -> unavailable(:session_unavailable)
-      result -> result
-    end
-  end
-
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
-  defp linked_wallet(%{wallet_addresses: wallets}, candidate) when is_list(wallets) do
-    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
-      do: {:ok, candidate},
-      else: unavailable(:wrong_signer)
-  end
-
-  defp address(value) do
-    case Address.normalize(value) do
-      {:ok, address} -> {:ok, address}
-      :error -> unavailable(:invalid_address)
-    end
-  end
-
-  defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

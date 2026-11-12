@@ -44,15 +44,12 @@ defmodule Autolaunch.ChainHead do
   end
 
   defp configured do
-    [
-      {"base", match?({:ok, _config}, Lab.current()), Lab.test_chain?()},
-      {"stocks", match?({:ok, _config}, StocksLab.current()), Lab.test_chain?()},
-      {"robinhood", RobinhoodLab.configured?(), RobinhoodLab.test_chain?()}
-    ]
-    |> Enum.filter(fn {_feed, configured?, _lab?} -> configured? end)
-    |> Enum.map(fn {feed, _configured?, lab?} ->
-      {feed, if(lab?, do: @lab_every_ms, else: @mainnet_every_ms)}
-    end)
+    for {feed, true, lab?} <- [
+          {"base", match?({:ok, _config}, Lab.current()), Lab.test_chain?()},
+          {"stocks", match?({:ok, _config}, StocksLab.current()), Lab.test_chain?()},
+          {"robinhood", RobinhoodLab.configured?(), RobinhoodLab.test_chain?()}
+        ],
+        do: {feed, if(lab?, do: @lab_every_ms, else: @mainnet_every_ms)}
   end
 
   @doc "Where the newest block of deployment `feed` is held."

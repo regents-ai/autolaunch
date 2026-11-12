@@ -54,8 +54,12 @@ defmodule AutolaunchWeb.ShareVideo.Render do
 
   defp story(%{kind: :token} = request) do
     with {:ok, auction} <- auction(request),
-         {:ok, auction, token} <- found(Paths.find_token(auction.token_symbol, auction.path_tail)),
-         do: token_story(auction, token, request.wallet)
+         {:ok, auction, token} <- Paths.find_token(auction.token_symbol, auction.path_tail) do
+      Story.token(auction, token, request.wallet)
+    else
+      :error -> {:error, :not_found}
+      {:error, _reason} = error -> error
+    end
   end
 
   defp story(%{kind: :auction} = request) do
@@ -68,12 +72,6 @@ defmodule AutolaunchWeb.ShareVideo.Render do
       _unlisted -> {:error, :not_found}
     end
   end
-
-  defp found(:error), do: {:error, :not_found}
-  defp found(found), do: found
-
-  defp token_story(auction, token, nil), do: Story.token(auction, token)
-  defp token_story(auction, token, wallet), do: Story.wallet(auction, token, wallet)
 
   defp kind(%{kind: :token, wallet: nil}), do: :token
   defp kind(%{kind: :token}), do: :wallet

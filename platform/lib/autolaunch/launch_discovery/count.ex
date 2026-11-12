@@ -3,7 +3,7 @@ defmodule Autolaunch.LaunchDiscovery.Count do
   How many launches each Base launchpad has made at the latest block, against
   the highest launch id the site has recorded (`Autolaunch.LaunchDiscovery`),
   read once for every open page and held in `Autolaunch.SharedReading` under
-  `key/1`. The pages that list launches say they are catching up while a
+  `keys/0`. The pages that list launches say they are catching up while a
   launchpad has made a launch the site has not recorded, or while its count
   has not been read for more than 420 seconds (`catching_up?/0`): the
   `chain-events` skill's notice, for discovery by count.
@@ -28,10 +28,6 @@ defmodule Autolaunch.LaunchDiscovery.Count do
   @retry_ms 60_000
   @late_s 420
   @topic "launch_count"
-
-  @doc "Where the count of `launchpad` is held."
-  def key(launchpad) when launchpad in [:base_revstake, :base_memestock],
-    do: {:launch_count, Atom.to_string(launchpad)}
 
   @doc "The keys of every launchpad this site discovers launches on."
   def keys, do: Enum.map(Discover.launchpads(), &key(&1.launchpad))
@@ -120,6 +116,9 @@ defmodule Autolaunch.LaunchDiscovery.Count do
       _never_read -> true
     end
   end
+
+  # Where the count of `launchpad` is held.
+  defp key(launchpad), do: {:launch_count, Atom.to_string(launchpad)}
 
   defp now, do: System.monotonic_time(:millisecond)
 end

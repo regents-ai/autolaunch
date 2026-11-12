@@ -8,14 +8,9 @@ defmodule AutolaunchWeb.Components.PortfolioLink do
   use Phoenix.Component
   use AutolaunchWeb, :verified_routes
 
-  attr :class, :any, default: nil
-
   def portfolio_link(assigns) do
     ~H"""
-    <.link
-      navigate={~p"/portfolio"}
-      class={["rg-button rg-button--secondary toast-portfolio", @class]}
-    >
+    <.link navigate={~p"/portfolio"} class="rg-button rg-button--secondary toast-portfolio">
       <span class="rg-button__label">View portfolio</span>
     </.link>
     """

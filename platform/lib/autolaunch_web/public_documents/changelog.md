@@ -1,9 +1,21 @@
 # Changelog
 
-## 11 November 2026: Product cards
+## 12 November 2026: Product cards
 - The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
 - Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.
 - The line drawings are gone. Where the moving panel cannot be drawn, the card shows a still picture of it.
+
+## 11 November 2026: Bid history
+- When the network answers late, an auction's bids, trades and totals stay as they were instead of emptying until the next read.
+- An auction's total in dollars is left blank while the dollar price cannot be read, instead of showing an older figure beside a newer total.
+- A settled bid keeps its status and amounts when its page checks its receipt again.
+- Auctions taken off the lists are no longer counted in the live and graduated totals.
+
+## 11 November 2026: Token page layout
+- A token's page opens with its picture, name, chain, launch type and creator across the top, with Share, its address, Uniswap Pool and View Chart beside them.
+- The price is shown large with its move since the pool opened, then the chart, then the market figures: market cap, price, change, total supply, trades and launch type.
+- The chart shows its line by Trades, one step per trade, or by Time, about 100 points spread evenly from the pool's opening to now.
+- The creator and the contracts are plain lists, each contract with a copy button and a link to the explorer. The trade panel and Claim Rewards stay in view beside them on a wide screen.
 
 ## 11 November 2026: Confirmed approvals
 - On the bid, swap and stock bid panels, a confirmed approval stays beside the next step's button, grey with a green border, and pressing it asks your wallet again, as on Covered calls and Stake.

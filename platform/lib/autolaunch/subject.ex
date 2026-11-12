@@ -62,11 +62,6 @@ defmodule Autolaunch.Subject do
       ]
     end
 
-    update :set_buyback_router do
-      require_atomic? false
-      accept [:revenue_router_address]
-    end
-
     update :set_canonical_receiver do
       require_atomic? false
       accept [:canonical_receiver_address]
@@ -78,15 +73,7 @@ defmodule Autolaunch.Subject do
       authorize_if always()
     end
 
-    policy action(:project_lab) do
-      authorize_if Autolaunch.Checks.SystemActor
-    end
-
-    policy action(:set_buyback_router) do
-      authorize_if Autolaunch.Checks.SystemActor
-    end
-
-    policy action(:set_canonical_receiver) do
+    policy action([:project_lab, :set_canonical_receiver]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end

@@ -27,10 +27,7 @@ defmodule AutolaunchWeb.RegentLive do
      |> assign(:local_lab?, Lab.test_chain?())
      |> assign(:revenue_sources, @revenue_sources)
      |> assign_async(:facts, fn ->
-       case RegentFacts.read() do
-         {:ok, facts} -> {:ok, %{facts: facts}}
-         {:error, reason} -> {:error, reason}
-       end
+       with {:ok, facts} <- RegentFacts.read(), do: {:ok, %{facts: facts}}
      end)
      |> assign_async(:base_lane, fn ->
        with {:ok, lane} <- MemestockLanes.base(), do: {:ok, %{base_lane: lane}}

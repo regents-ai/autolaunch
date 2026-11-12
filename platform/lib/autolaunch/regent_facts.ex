@@ -384,6 +384,7 @@ defmodule Autolaunch.RegentFacts do
       _unavailable -> :unavailable
     end
   rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
     _error -> :unavailable
   end
 

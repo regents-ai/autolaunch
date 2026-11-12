@@ -24,24 +24,17 @@ defmodule Autolaunch.LaunchDraft.Changes.ConfirmAgentTreasury do
            Autolaunch.get_my_launch_draft_for_update(changeset.data.id, actor: actor),
          true <- LaunchDraft.treasury_confirmation_needed?(draft),
          true <- Address.equal?(draft.treasury, shown) do
-      confirm(%{changeset | data: draft}, draft)
-    else
-      _changed -> changed(changeset)
-    end
-  end
-
-  defp confirm(changeset, draft),
-    do:
       Ash.Changeset.force_change_attribute(
-        changeset,
+        %{changeset | data: draft},
         :agent_set_fields,
         draft.agent_set_fields -- [:treasury, :treasury_path]
       )
-
-  defp changed(changeset),
-    do:
-      Ash.Changeset.add_error(
-        changeset,
-        InvalidArgument.exception(field: :treasury, message: "treasury_changed")
-      )
+    else
+      _changed ->
+        Ash.Changeset.add_error(
+          changeset,
+          InvalidArgument.exception(field: :treasury, message: "treasury_changed")
+        )
+    end
+  end
 end

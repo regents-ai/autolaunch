@@ -68,27 +68,20 @@ defmodule Autolaunch.Chain.LaunchAbi do
     raise "the launch terms drifted from the declared strategy reads"
 
   # A selector or topic is only evidence if the derived ABI really declares the
-  # signature it came from. The check runs inline, against the decoded file
-  # alone, so proving it adds no compile-time dependency of its own.
-  for {path, functions, events} <- [
-        {@factory_abi_path, %{}, @factory_events},
-        {@strategy_abi_path, @strategy_functions, %{}}
-      ] do
-    abi = path |> File.read!() |> Jason.decode!()
+  # signature it came from.
+  @after_compile __MODULE__
 
-    for {kind, entries} <- [{"function", functions}, {"event", events}],
-        {_id, {signature, _selector}} <- entries do
-      declared? =
-        Enum.any?(abi, fn
-          %{"type" => ^kind, "name" => name, "inputs" => inputs} ->
-            "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+  @doc false
+  # sobelow_skip ["Traversal.FileModule"]
+  def __after_compile__(_env, _bytecode) do
+    factory = @factory_abi_path |> File.read!() |> Jason.decode!()
+    strategy = @strategy_abi_path |> File.read!() |> Jason.decode!()
 
-          _entry ->
-            false
-        end)
+    for {_id, {signature, _topic}} <- @factory_events,
+        do: Abi.declared!(factory, "event", signature)
 
-      declared? || raise "launch ABI #{Path.basename(path)} is missing #{signature}"
-    end
+    for {_id, {signature, _selector}} <- @strategy_functions,
+        do: Abi.declared!(strategy, "function", signature)
   end
 
   @doc "The exact selector of one admitted read, or the `topic0` of one admitted event."

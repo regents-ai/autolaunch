@@ -75,120 +75,39 @@ defmodule Autolaunch.AuctionMarket.Read do
   `market` and, on Base, its `page`, read with the ladder its last reading
   holds. A Base page that could not be read is `:unread`.
   """
-  def snapshot(%{venue: :agent, config: config, opts: opts}, %{block: block}, auction, ladder) do
+  def snapshot(%{venue: venue, config: config, opts: opts}, %{block: block}, auction, ladder)
+      when venue in [:agent, :stocks] do
     address = auction.auction_address
+    abi = Map.fetch!(config.abis, "auction")
+    {price, decimals} = units(venue, auction)
 
-    with :ok <- LabRpc.ensure_contract(address, block, opts),
-         {:ok, start_block} <- lab_uint(config, address, "startBlock()", block, opts),
-         {:ok, end_block} <- lab_uint(config, address, "endBlock()", block, opts),
-         {:ok, claim_block} <- lab_uint(config, address, "claimBlock()", block, opts),
-         {:ok, minimum_reached} <- lab_bool(config, address, "isGraduated()", block, opts),
-         {:ok, clearing} <- lab_uint(config, address, "clearingPrice()", block, opts),
-         {:ok, raised} <- lab_uint(config, address, "currencyRaised()", block, opts),
-         {:ok, remaining} <- lab_uint(config, address, "remainingSupply()", block, opts),
-         {:ok, terms} <- AuctionTerms.read(auction, &Lab.format_price/1, block, opts),
-         {:ok, distribution} <-
-           LabRpc.words(
-             config,
-             :strategy,
-             "distribution(address)",
-             [address],
-             LabAbi.distribution_words(),
-             block,
-             opts
-           ),
-         {:ok, price_quote} <- Pool.agent_price_quote(config, distribution, block, opts),
-         %{lifecycle: lifecycle} = LabAbi.distribution(distribution),
-         state = MarketState.observed(lifecycle, block.number, start_block, end_block),
-         {:ok, positions} <-
-           positions(Lab.abi!(config, :auction), auction, end_block, claim_block, block, opts),
-         {:ok, page} <- page(auction, state, config, block, opts, ladder) do
-      raised = Rpc.format_units(raised, @token_decimals)
-
-      {:ok,
-       %{
-         block: block,
-         state: state,
-         current_clearing_price: Lab.format_price(clearing),
-         minimum_reached: minimum_reached,
-         currency_raised: raised,
-         terms: terms,
-         positions: positions,
-         price_quote: price_quote,
-         market: %{
-           start_block: start_block,
-           end_block: end_block,
-           claim_block: claim_block,
-           currency_raised: raised,
-           remaining_supply: Rpc.format_units(remaining, @token_decimals),
-           price_quote: price_quote
-         },
-         page: page
-       }}
-    end
-  end
-
-  def snapshot(%{venue: :stocks, config: config, opts: opts}, %{block: block}, auction, ladder) do
-    address = auction.auction_address
-    decimals = auction.quote_token_decimals
-    price = &Amounts.format_cca_price(&1, decimals, @token_decimals)
-
-    with {:ok, contracts} <- StocksLab.contracts(config, auction.contracts_version),
+    with {:ok, launchpad} <- launchpad(venue, config, auction),
          :ok <- LabRpc.ensure_contract(address, block, opts),
-         {:ok, start_block} <- stocks_uint(config, address, "startBlock()", block, opts),
-         {:ok, end_block} <- stocks_uint(config, address, "endBlock()", block, opts),
-         {:ok, claim_block} <- stocks_uint(config, address, "claimBlock()", block, opts),
-         {:ok, minimum_reached} <- stocks_bool(config, address, "isGraduated()", block, opts),
-         {:ok, clearing} <- stocks_uint(config, address, "clearingPrice()", block, opts),
-         {:ok, raised} <- stocks_uint(config, address, "currencyRaised()", block, opts),
-         {:ok, remaining} <- stocks_uint(config, address, "remainingSupply()", block, opts),
+         {:ok, figures} <- figures(abi, address, block, opts),
          {:ok, terms} <- AuctionTerms.read(auction, price, block, opts),
-         {:ok, launch_id} <-
-           Rpc.call_uint(
-             contracts.launchpad,
-             LabAbi.encode(contracts.abis["launchpad"], "launchIdOfAuction(address)", [address]),
-             block,
-             opts
-           ),
-         {:ok, words} <-
-           Rpc.call_words(
-             contracts.launchpad,
-             LabAbi.encode(contracts.abis["launchpad"], "launches(uint256)", [launch_id]),
-             block,
-             contracts.record_words,
-             opts
-           ),
-         record = StocksLabAbi.record(contracts, words),
-         {:ok, price_quote} <- Pool.stocks_price_quote(config, record, decimals, block, opts),
-         state = MarketState.observed(record.lifecycle, block.number, start_block, end_block),
-         {:ok, positions} <-
-           positions(
-             StocksLab.abi!(config, :auction),
-             auction,
-             end_block,
-             claim_block,
-             block,
-             opts
-           ),
+         {:ok, lifecycle, price_quote} <- launch(launchpad, config, auction, block, opts),
+         state =
+           MarketState.observed(lifecycle, block.number, figures.start_block, figures.end_block),
+         {:ok, positions} <- positions(abi, auction, figures, block, opts),
          {:ok, page} <- page(auction, state, config, block, opts, ladder) do
-      raised = Rpc.format_units(raised, decimals)
+      raised = Rpc.format_units(figures.raised, decimals)
 
       {:ok,
        %{
          block: block,
          state: state,
-         current_clearing_price: price.(clearing),
-         minimum_reached: minimum_reached,
+         current_clearing_price: price.(figures.clearing),
+         minimum_reached: figures.minimum_reached,
          currency_raised: raised,
          terms: terms,
          positions: positions,
          price_quote: price_quote,
          market: %{
-           start_block: start_block,
-           end_block: end_block,
-           claim_block: claim_block,
+           start_block: figures.start_block,
+           end_block: figures.end_block,
+           claim_block: figures.claim_block,
            currency_raised: raised,
-           remaining_supply: Rpc.format_units(remaining, @token_decimals),
+           remaining_supply: Rpc.format_units(figures.remaining, @token_decimals),
            price_quote: price_quote
          },
          page: page
@@ -252,14 +171,14 @@ defmodule Autolaunch.AuctionMarket.Read do
 
   # After the end block, every site position of this auction is read back from
   # the auction's own `bids(bidId)` so its status follows the contract.
-  defp positions(abi, auction, end_block, claim_block, block, opts) do
+  defp positions(abi, auction, %{end_block: end_block} = figures, block, opts) do
     if block.number >= end_block do
       with {:ok, rows} <- LabPositions.positions(auction.id) do
         LabPositions.read(
           abi,
           rows,
           auction.auction_address,
-          %{end_block: end_block, claim_block: claim_block},
+          Map.take(figures, [:end_block, :claim_block]),
           block,
           opts
         )
@@ -290,27 +209,83 @@ defmodule Autolaunch.AuctionMarket.Read do
     end
   end
 
-  defp lab_uint(config, address, signature, block, opts),
-    do: LabRpc.call_uint(config, address, "auction", signature, [], block, opts)
+  # The auction's own schedule and figures, the same contract on either Base
+  # launchpad.
+  defp figures(abi, address, block, opts) do
+    uint = &Rpc.call_uint(address, LabAbi.encode(abi, &1, []), block, opts)
 
-  defp lab_bool(config, address, signature, block, opts),
-    do: Rpc.call_bool(address, LabAbi.encode(config.abis["auction"], signature, []), block, opts)
+    with {:ok, start_block} <- uint.("startBlock()"),
+         {:ok, end_block} <- uint.("endBlock()"),
+         {:ok, claim_block} <- uint.("claimBlock()"),
+         {:ok, minimum_reached} <-
+           Rpc.call_bool(address, LabAbi.encode(abi, "isGraduated()", []), block, opts),
+         {:ok, clearing} <- uint.("clearingPrice()"),
+         {:ok, raised} <- uint.("currencyRaised()"),
+         {:ok, remaining} <- uint.("remainingSupply()") do
+      {:ok,
+       %{
+         start_block: start_block,
+         end_block: end_block,
+         claim_block: claim_block,
+         minimum_reached: minimum_reached,
+         clearing: clearing,
+         raised: raised,
+         remaining: remaining
+       }}
+    end
+  end
 
-  defp stocks_uint(config, address, signature, block, opts),
-    do:
-      Rpc.call_uint(
-        address,
-        LabAbi.encode(StocksLab.abi!(config, :auction), signature, []),
-        block,
-        opts
-      )
+  # How a Base auction's prices and amount raised are written: a Revstake
+  # auction raises REGENT; a Memestock one its own quote token.
+  defp units(:agent, _auction), do: {&Lab.format_price/1, @token_decimals}
 
-  defp stocks_bool(config, address, signature, block, opts),
-    do:
-      Rpc.call_bool(
-        address,
-        LabAbi.encode(StocksLab.abi!(config, :auction), signature, []),
-        block,
-        opts
-      )
+  defp units(:stocks, %{quote_token_decimals: decimals}),
+    do: {&Amounts.format_cca_price(&1, decimals, @token_decimals), decimals}
+
+  # The contract holding the launch: the Revstake strategy, or the Memestock
+  # launchpad of the auction's own contracts version.
+  defp launchpad(:agent, _config, _auction), do: {:ok, :strategy}
+
+  defp launchpad(:stocks, config, auction),
+    do: StocksLab.contracts(config, auction.contracts_version)
+
+  # The launch's lifecycle and its token's pool price.
+  defp launch(:strategy, config, auction, block, opts) do
+    with {:ok, distribution} <-
+           LabRpc.words(
+             config,
+             :strategy,
+             "distribution(address)",
+             [auction.auction_address],
+             LabAbi.distribution_words(),
+             block,
+             opts
+           ),
+         {:ok, price_quote} <- Pool.agent_price_quote(config, distribution, block, opts),
+         do: {:ok, LabAbi.distribution(distribution).lifecycle, price_quote}
+  end
+
+  defp launch(contracts, config, auction, block, opts) do
+    launchpad_abi = contracts.abis["launchpad"]
+
+    with {:ok, launch_id} <-
+           Rpc.call_uint(
+             contracts.launchpad,
+             LabAbi.encode(launchpad_abi, "launchIdOfAuction(address)", [auction.auction_address]),
+             block,
+             opts
+           ),
+         {:ok, words} <-
+           Rpc.call_words(
+             contracts.launchpad,
+             LabAbi.encode(launchpad_abi, "launches(uint256)", [launch_id]),
+             block,
+             contracts.record_words,
+             opts
+           ),
+         record = StocksLabAbi.record(contracts, words),
+         {:ok, price_quote} <-
+           Pool.stocks_price_quote(config, record, auction.quote_token_decimals, block, opts),
+         do: {:ok, record.lifecycle, price_quote}
+  end
 end

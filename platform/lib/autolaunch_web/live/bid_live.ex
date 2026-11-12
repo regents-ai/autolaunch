@@ -99,6 +99,9 @@ defmodule AutolaunchWeb.BidLive do
   def handle_async(:robinhood, {:ok, result}, socket),
     do: {:noreply, socket |> shown(result) |> read_queued()}
 
+  def handle_async(:robinhood, {:exit, reason}, socket),
+    do: {:noreply, socket |> shown({:error, reason}) |> read_queued()}
+
   def handle_async(:book, {:ok, {:ok, book}}, socket),
     do: {:noreply, assign(socket, :book, AsyncResult.ok(socket.assigns.book, book))}
 
@@ -107,11 +110,6 @@ defmodule AutolaunchWeb.BidLive do
 
   def handle_async(:book, {:exit, reason}, socket),
     do: {:noreply, assign(socket, :book, AsyncResult.failed(socket.assigns.book, reason))}
-
-  def handle_async(:robinhood, {:exit, reason}, socket),
-    do:
-      {:noreply,
-       socket |> assign(:bid, AsyncResult.failed(socket.assigns.bid, reason)) |> read_queued()}
 
   def render(assigns) do
     assigns =
@@ -619,7 +617,7 @@ defmodule AutolaunchWeb.BidLive do
          symbol: position.symbol,
          unit: position.stock_symbol,
          image: position.image,
-         path: robinhood_path(position),
+         path: Paths.robinhood_bid_page(position),
          put_in: Decimal.new(position.committed, max_digits: :infinity),
          max_price: Decimal.new(position.max_price, max_digits: :infinity),
          done:
@@ -634,11 +632,6 @@ defmodule AutolaunchWeb.BidLive do
   # Which of a withdraw and a claim the bid has had, by its own standing.
   defp done(exited?, claimed?),
     do: for({kind, true} <- [exit: exited?, claim: claimed?], do: kind)
-
-  defp robinhood_path(%{listing: %{hidden: true}}), do: nil
-  defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
-  defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
-  defp robinhood_path(_position), do: nil
 
   # The bid's own transaction and its withdraws and claims, as the chain
   # watcher recorded them for its auction.

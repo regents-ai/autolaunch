@@ -21,13 +21,12 @@ defmodule Autolaunch.LaunchChainClient do
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
   @callback verify(map(), String.t()) :: {:ok, outcome()} | {:error, atom()}
 
-  def module do
-    case Application.fetch_env(:autolaunch, :autolaunch_launch_chain_client) do
-      {:ok, module} ->
-        module
-
-      :error ->
+  @doc "The Base reads (`Autolaunch.LabLaunchChainClient`), or the answers a test installed."
+  def module,
+    do:
+      Application.get_env(
+        :autolaunch,
+        :autolaunch_launch_chain_client,
         Autolaunch.LabLaunchChainClient
-    end
-  end
+      )
 end

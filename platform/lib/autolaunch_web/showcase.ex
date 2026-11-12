@@ -7,9 +7,6 @@ defmodule AutolaunchWeb.Showcase do
   request the gate refuses answers the site's own 404; a connected mount it
   refuses goes to the home page.
   """
-  @doc "The showcase setting."
-  def mode, do: Application.fetch_env!(:autolaunch, :showcase)
-
   @doc "The router's gate: the request goes on, or answers the site's 404."
   def admit(conn, :motion_lab) do
     mode() == :public or raise AutolaunchWeb.NotFoundError
@@ -21,4 +18,6 @@ defmodule AutolaunchWeb.Showcase do
       do: {:cont, socket},
       else: {:halt, Phoenix.LiveView.redirect(socket, to: "/")}
   end
+
+  defp mode, do: Application.fetch_env!(:autolaunch, :showcase)
 end

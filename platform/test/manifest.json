@@ -1,5 +1,5 @@
 {
-  "total": 164,
+  "total": 176,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -138,7 +138,7 @@
       "group": "Receipt evidence and durable settlement",
       "framework": "exunit",
       "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 117,
+      "line": 145,
       "test_name": "a later invalid resource refuses and rolls the whole launch projection back",
       "keep_because": "A failed multi-record launch projection rolls back instead of leaving partial financial records.",
       "generated_case": null,
@@ -1036,12 +1036,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/token_page_first_screen_test.exs",
       "line": 16,
-      "test_name": "the price, market cap, change and creator come before the chart and the trade widget",
-      "keep_because": "A token page opens on its figures and creator before the trade widget, in page order, so a phone shows them first, and never says the chart is unavailable. It fails if the widget moves ahead of the figures or the old button text returns.",
+      "test_name": "the creator, price and market figures come before the trade widget",
+      "keep_because": "A token page opens on its creator, price and market figures before the trade widget, in page order, so a phone shows them first, and never says the chart is unavailable. It fails if the widget moves ahead of the figures or the old button text returns.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1cad7e8782739be4c7e4e3a7a11da7172dc65de7fe0e6bd2a0815bc13716b825"
+      "source_sha256": "7a5e0ee0e7e358a7f540db04cea9421021e33c6bfd04d10ed8b2188525cfb1c6"
     },
     {
       "id": 121,
@@ -1184,7 +1184,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
+      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
     },
     {
       "id": 132,
@@ -1197,7 +1197,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
+      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
     },
     {
       "id": 133,
@@ -1288,7 +1288,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
+      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
     },
     {
       "id": 142,
@@ -1730,7 +1730,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
+      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
     },
     {
       "id": 178,
@@ -1821,7 +1821,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ee49b41c2b0e181c9e5444f4c79fd52e815bc9e900c715e2aa2b68fc7b3da295"
+      "source_sha256": "28f9ccdf1608e1ea02fc04670600820ca472e60f7766950044e6fe9387f3294c"
     },
     {
       "id": 185,
@@ -2134,6 +2134,162 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "1ff461cbc2494a06b21e9ec5692659e6748a09de26de6acb9cc06c63601ff1e9"
+    },
+    {
+      "id": 210,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/components/price_chart_test.exs",
+      "line": 53,
+      "test_name": "a pool read again keeps its line and shows no placeholder",
+      "keep_because": "After every trade the token page reads its pool again; the reading placeholder once showed above the live chart until the read came back, pushing the page down. The case fails if a read again shows the placeholder or drops the line.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d2d8893671e24c48906d8955feeb0857ddf50288e181fed336da8997caca223e"
+    },
+    {
+      "id": 211,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch/price_history_test.exs",
+      "line": 79,
+      "test_name": "read in the same second the pool opened, there is a line by trade and none by time",
+      "keep_because": "A line by time read before any time has passed puts all 100 points at one spot, so the chart drew only a dot; it is left out until time passes and the chart offers no Time choice. The case fails if a read in the opening second gives a line by time.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "96490fc7aa5abaf867806ce6a3bb7d601c362b910ced7bc51d257e7f83351ff2"
+    },
+    {
+      "id": 212,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/launch_operations_test.exs",
+      "line": 21,
+      "test_name": "binds to a wallet the leased account links and refuses anything else, in order",
+      "keep_because": "Every wallet review (Revstake launches, bids, settlements, swaps, Stocks and Robinhood) binds to the signed-in account's own wallet through one shared check. A missing person, a malformed address, a missing lease, another account's actor or an unlinked wallet is refused, in that order, with the same reasons the pages show and naming the record the action reviews.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "07496d6bf41b847c3ef4bd650d4722b1efe52878d60a189f0861d123ce8a2f73"
+    },
+    {
+      "id": 213,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_activity_test.exs",
+      "line": 118,
+      "test_name": "a node answering behind the saved cursor waits and keeps the saved history",
+      "keep_because": "A node whose head is behind the saved cursor is a lagging node, not a reorg; it once deleted an auction's whole saved bid history and rebuilt it from the first block. The case fails if such a pass clears the cursor, the bids or the price points instead of waiting a minute.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "28cad07e4401cabb59b2239e2549d26e7161073e8bb4eed6b8d9844851ac50a3"
+    },
+    {
+      "id": 214,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_activity_test.exs",
+      "line": 134,
+      "test_name": "a different block at the saved cursor still clears the history to rebuild it",
+      "keep_because": "A real reorg, a different block at the last block read, must still clear the auction's derived history and rebuild it. The case fails if a changed block at the cursor leaves the old bids or cursor in place.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "28cad07e4401cabb59b2239e2549d26e7161073e8bb4eed6b8d9844851ac50a3"
+    },
+    {
+      "id": 215,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_activity_test.exs",
+      "line": 149,
+      "test_name": "a pass that has not reached the head leaves the totals as stored",
+      "keep_because": "A pass still catching up once wrote the bid totals blank and back every ten minutes for a finished auction, waking every list page twice. The case fails if a pass that stops short of the head changes the stored token or dollar bid total.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "28cad07e4401cabb59b2239e2549d26e7161073e8bb4eed6b8d9844851ac50a3"
+    },
+    {
+      "id": 216,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_activity_test.exs",
+      "line": 166,
+      "test_name": "a pass that reached the head with no dollar rate blanks the dollar total",
+      "keep_because": "A caught-up pass with no dollar price for the auction's currency kept the old dollar total beside a new token total, so the lists showed figures that disagree. The case fails if that pass keeps the old dollar total or does not write the new token total.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "28cad07e4401cabb59b2239e2549d26e7161073e8bb4eed6b8d9844851ac50a3"
+    },
+    {
+      "id": 217,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_positions_test.exs",
+      "line": 18,
+      "test_name": "a returned or claimed bid is not read from the chain again",
+      "keep_because": "A returned or claimed bid never changes on chain again, so the ended-auction pass does not read it again. The case fails if a finished bid is among the positions read, or an unfinished one is left out.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c56237e698c9c3fa4f0baa7a21ca39d2d25ec9821e23d5842bf0c4af98430c9a"
+    },
+    {
+      "id": 218,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_positions_test.exs",
+      "line": 35,
+      "test_name": "a bid whose answer is bad is skipped and the bids after it are still read",
+      "keep_because": "One bid whose answer is malformed once stopped every later bid of the auction from being read, on every pass. The case fails if a bad answer for one bid stops the bids after it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c56237e698c9c3fa4f0baa7a21ca39d2d25ec9821e23d5842bf0c4af98430c9a"
+    },
+    {
+      "id": 219,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_positions_test.exs",
+      "line": 46,
+      "test_name": "a node that stops answering ends the bid reads, keeping those already read",
+      "keep_because": "When the node stops answering, the pass stops asking and keeps the bids it already read for writing. The case fails if the pass goes on asking after the node stopped answering, or drops the readings it had.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c56237e698c9c3fa4f0baa7a21ca39d2d25ec9821e23d5842bf0c4af98430c9a"
+    },
+    {
+      "id": 220,
+      "group": "Receipt evidence and durable settlement",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_projection_test.exs",
+      "line": 66,
+      "test_name": "a bid receipt checked again after the bid settled leaves its standing and amounts",
+      "keep_because": "The page's bid receipt once wrote the bid back to active with blank settlement amounts when checked after the bid had been exited and claimed. The case fails if a repeated receipt changes a settled bid's status, times or amounts.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "702bc5b6e4a2b95d0394816f4b2884f8c6029ac15f7628ba68a7f840eb747676"
+    },
+    {
+      "id": 221,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_stats_test.exs",
+      "line": 7,
+      "test_name": "an auction an operator hid is in no count, as it is in no list",
+      "keep_because": "The public live and graduated counts must match the public lists, which leave out auctions an operator hid. The case fails if a hidden auction is counted.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "661fa1766afac4f468d644d0e851f186b532efe0e39f77c0706a9decca3a4173"
     }
   ],
   "legacy_folders_to_remove": [

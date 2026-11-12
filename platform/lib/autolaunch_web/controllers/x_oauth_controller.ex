@@ -9,33 +9,21 @@ defmodule AutolaunchWeb.XOAuthController do
     case XOAuth.begin(claim(conn), role, params) do
       {:ok, payload} -> conn |> no_store() |> json(payload)
       {:error, :x_oauth_disabled} -> error(conn, :service_unavailable, "x_oauth_disabled")
-      {:error, :invalid_role} -> error(conn, :unprocessable_entity, "invalid_role")
-      {:error, :invalid_intent} -> error(conn, :unprocessable_entity, "invalid_intent")
-      {:error, :stale_intent} -> error(conn, :conflict, "stale_intent")
-      {:error, :stale_authority} -> error(conn, :conflict, "stale_authority")
-      {:error, _reason} -> error(conn, :bad_gateway, "x_oauth_unavailable")
+      {:error, reason} -> refused(conn, reason, :bad_gateway, "x_oauth_unavailable")
     end
   end
 
   def delete(conn, %{"role" => role} = params) do
     case XOAuth.disconnect(claim(conn), role, params) do
       {:ok, payload} -> conn |> no_store() |> json(Map.put(payload, :ok, true))
-      {:error, :invalid_role} -> error(conn, :unprocessable_entity, "invalid_role")
-      {:error, :invalid_intent} -> error(conn, :unprocessable_entity, "invalid_intent")
-      {:error, :stale_intent} -> error(conn, :conflict, "stale_intent")
-      {:error, :stale_authority} -> error(conn, :conflict, "stale_authority")
-      {:error, _reason} -> error(conn, :unprocessable_entity, "disconnect_failed")
+      {:error, reason} -> refused(conn, reason, :unprocessable_entity, "disconnect_failed")
     end
   end
 
   def cancel(conn, %{"role" => role} = params) do
     case XOAuth.cancel(claim(conn), role, params) do
       {:ok, payload} -> conn |> no_store() |> json(Map.put(payload, :ok, true))
-      {:error, :invalid_role} -> error(conn, :unprocessable_entity, "invalid_role")
-      {:error, :invalid_intent} -> error(conn, :unprocessable_entity, "invalid_intent")
-      {:error, :stale_intent} -> error(conn, :conflict, "stale_intent")
-      {:error, :stale_authority} -> error(conn, :conflict, "stale_authority")
-      {:error, _reason} -> error(conn, :unprocessable_entity, "cancel_failed")
+      {:error, reason} -> refused(conn, reason, :unprocessable_entity, "cancel_failed")
     end
   end
 
@@ -61,6 +49,16 @@ defmodule AutolaunchWeb.XOAuthController do
       generation: result.generation
     )
   end
+
+  # The refusals every X request shares; any other reason answers with the
+  # request's own `status` and `code`.
+  defp refused(conn, reason, _status, _code) when reason in [:invalid_role, :invalid_intent],
+    do: error(conn, :unprocessable_entity, Atom.to_string(reason))
+
+  defp refused(conn, reason, _status, _code) when reason in [:stale_intent, :stale_authority],
+    do: error(conn, :conflict, Atom.to_string(reason))
+
+  defp refused(conn, _reason, status, code), do: error(conn, status, code)
 
   defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()
 

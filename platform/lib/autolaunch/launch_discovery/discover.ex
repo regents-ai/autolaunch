@@ -129,21 +129,20 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
 
   defp created(%{launchpad: :base_revstake} = pad, launch_id, block) do
     with {:ok, [launcher, _subject, auction | _rest]} <-
-           words(pad.contract, pad.abi, "launches(uint256)", [launch_id], 5, block, pad),
+           Launchpads.words(pad, :contract, "launches(uint256)", [launch_id], 5, block),
          {:ok, launcher} <- address(launcher),
          {:ok, auction} <- address(auction),
          {:ok, distribution} <-
-           words(
-             pad.strategy,
-             pad.strategy_abi,
+           Launchpads.words(
+             pad,
+             :strategy,
              "distribution(address)",
              [auction],
              LabAbi.distribution_words(),
-             block,
-             pad
+             block
            ),
          {:ok, [delay]} <-
-           words(pad.strategy, pad.strategy_abi, "START_DELAY_BLOCKS()", [], 1, block, pad) do
+           Launchpads.words(pad, :strategy, "START_DELAY_BLOCKS()", [], 1, block) do
       start_block = LabAbi.distribution(distribution).start_block
       {:ok, %{launcher: launcher, auction: auction, created_block: start_block - delay}}
     end
@@ -151,14 +150,13 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
 
   defp created(%{launchpad: :base_memestock} = pad, launch_id, block) do
     with {:ok, [launcher, _token, _stock, auction, _splitter, start_block | _rest]} <-
-           words(
-             pad.contract,
-             pad.abi,
+           Launchpads.words(
+             pad,
+             :contract,
              "launches(uint256)",
              [launch_id],
              StocksLabAbi.launch_record_words(),
-             block,
-             pad
+             block
            ),
          {:ok, launcher} <- address(launcher),
          {:ok, auction} <- address(auction) do
@@ -191,9 +189,6 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
 
   defp launch_created(%{launchpad: :base_memestock}),
     do: Abi.topic0(StocksLabAbi.launch_created_signature())
-
-  defp words(to, abi, signature, arguments, count, block, pad),
-    do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, pad.opts)
 
   defp address(word) do
     case Abi.word_address(word) do

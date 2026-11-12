@@ -13,7 +13,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, Paths}
   alias AutolaunchWeb.Live.Session
@@ -47,7 +46,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
        |> assign(launches: [], listed_for: nil)}
 
   # The review on the page, checked against the chain again once it is ten
-  # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
+  # minutes old (`AutolaunchWeb.LaunchSteps.refreshed/4`).
   @impl true
   def update(%{refresh_review: review_id}, socket),
     do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
@@ -70,8 +69,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
-
     ~H"""
     <section
       id={@id}
@@ -86,118 +83,69 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       />
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
-        <p class="launch-wallet-from" hidden={!@signer}>
-          Launching from
-          <Regent.Primitives.address
-            :if={@signer}
-            id={"#{@id}-launcher"}
-            address={@signer}
-            variant="compact"
-          />
-        </p>
-        <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
-        <Regent.Primitives.button
-          class="launch-wallet-primary"
-          type="button"
-          phx-click="review_launch"
-          phx-target={@myself}
-        >
-          Review launch
-        </Regent.Primitives.button>
-      </div>
+      <LaunchSteps.review_button
+        id={@id}
+        hidden={!!@review or !!@launched}
+        signer={@signer}
+        mismatch={@mismatch}
+        target={@myself}
+      />
 
-      <%!-- The review stays in the page and is only hidden, so its wallet
-           button is never replaced while a person presses it. --%>
-      <section
-        id={"#{@id}-review"}
-        class="launch-wallet-review"
-        aria-label="Launch review"
-        hidden={!@review}
+      <LaunchSteps.review_panel
+        id={@id}
+        review={@review}
+        prepared={@prepared}
+        presses={@presses}
+        chain={explorer_chain()}
+        network={@review && "#{@review.chain.name} · chain #{@review.chain.chain_id}"}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@myself}
       >
-        <%= if @review do %>
-          <h4>Review this launch</h4>
+        <:rows>
+          <div>
+            <dt>Auction currency</dt>
+            <dd>
+              {@prepared.facts["stock_symbol"]}
+              <Regent.Primitives.address
+                id={"#{@id}-stock"}
+                address={@prepared.facts["stock"]}
+                variant="full"
+                chain={LaunchSteps.address_chain(explorer_chain())}
+              />
+            </dd>
+          </div>
+          <div :for={[label, value] <- @prepared.review}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        </:rows>
+        <Regent.Primitives.disclosure
+          id={"#{@id}-terms"}
+          summary="Fixed terms"
+          class="launch-wallet-details"
+        >
           <dl>
-            <div>
-              <dt>Token</dt>
-              <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
-            </div>
-            <LaunchSteps.token_rows facts={@prepared.facts} />
-            <div>
-              <dt>Auction currency</dt>
-              <dd>
-                {@prepared.facts["stock_symbol"]}
-                <Regent.Primitives.address
-                  id={"#{@id}-stock"}
-                  address={@prepared.facts["stock"]}
-                  variant="full"
-                  chain={LaunchSteps.address_chain(explorer_chain())}
-                />
-              </dd>
-            </div>
-            <div :for={[label, value] <- @prepared.review}>
+            <div :for={[label, value] <- @prepared.facts["terms"]}>
               <dt>{label}</dt>
               <dd>{value}</dd>
             </div>
-            <div>
-              <dt>Wallet</dt>
-              <dd>
-                <Regent.Primitives.address
-                  id={"#{@id}-signer"}
-                  address={@review.signer}
-                  chain={LaunchSteps.address_chain(explorer_chain())}
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>Network</dt>
-              <dd>{@review.chain.name} · chain {@review.chain.chain_id}</dd>
-            </div>
-            <div>
-              <dt>Transactions</dt>
-              <dd>One transaction</dd>
+          </dl>
+        </Regent.Primitives.disclosure>
+
+        <Regent.Primitives.disclosure
+          id={"#{@id}-exact-values"}
+          summary="Exact values"
+          class="launch-wallet-details"
+        >
+          <dl>
+            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
+              <dt>{label}</dt>
+              <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
-
-          <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
-
-          <Regent.Primitives.disclosure
-            id={"#{@id}-terms"}
-            summary="Fixed terms"
-            class="launch-wallet-details"
-          >
-            <dl>
-              <div :for={[label, value] <- @prepared.facts["terms"]}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            </dl>
-          </Regent.Primitives.disclosure>
-
-          <Regent.Primitives.disclosure
-            id={"#{@id}-exact-values"}
-            summary="Exact values"
-            class="launch-wallet-details"
-          >
-            <dl>
-              <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
-                <dt>{label}</dt>
-                <dd class="launch-wallet-mono">{value}</dd>
-              </div>
-            </dl>
-          </Regent.Primitives.disclosure>
-        <% end %>
-
-        <LaunchSteps.progress
-          id={"#{@id}-progress"}
-          steps={@steps}
-          review={@review}
-          chain={explorer_chain()}
-          mismatch={@mismatch}
-          press_note={@press_note}
-          target={@myself}
-        />
-      </section>
+        </Regent.Primitives.disclosure>
+      </LaunchSteps.review_panel>
 
       <section :if={@launches != []} class="launch-wallet-settled" aria-label="Your launches">
         <h4>Your Robinhood launches</h4>
@@ -229,7 +177,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", params, socket),
-    do: {:noreply, LaunchSteps.failed(socket, params, :robinhood_launch)}
+    do: {:noreply, OnchainSteps.failed(socket, params, :robinhood_launch, nil)}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
@@ -270,9 +218,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   def handle_async(:launches, _unread, socket), do: {:noreply, socket}
 
   defp prepare(socket, signer) do
-    case StocksLaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
+    case StocksLaunchActions.prepare(socket.assigns.draft.id, signer, OnchainSteps.opts(socket)) do
       {:ok, prepared} -> {:ok, prepared}
-      {:error, error} -> {:error, Map.get(@copy, refusal(error), @generic)}
+      {:error, error} -> {:error, Map.get(@copy, OnchainSteps.refusal(error), @generic)}
     end
   end
 
@@ -302,7 +250,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     if is_nil(wallet) or wallet == socket.assigns.listed_for do
       socket
     else
-      opts = opts(socket)
+      opts = OnchainSteps.opts(socket)
 
       socket
       |> assign(listed_for: wallet)
@@ -318,14 +266,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     do: Enum.map(launches, &Map.put(&1, "page", Paths.robinhood_auction_page(&1["auction"])))
 
   defp current(_socket), do: &StocksLaunchActions.current/1
-
-  defp opts(socket),
-    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
 
   defp lifecycle("active"), do: "Active"
   defp lifecycle("graduated"), do: "Graduated"
@@ -346,12 +286,4 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       {"Calldata digest", LaunchSteps.digest(review)}
     ]
   end
-
-  defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
-  defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp refusal(reason) when is_atom(reason), do: reason
-  defp refusal(_other), do: :unavailable
-
-  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
-  defp unavailable(_other), do: nil
 end

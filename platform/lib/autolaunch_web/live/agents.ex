@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Live.Agents do
   unpaired on any Regent site (`RegentAgents.topic/1`, which
   `RegentAgents.Listener` feeds), as the template's shell does, on every LiveView
   page, so a code on screen gives way to the agent that used it. The Agents page
-  reads its agents again (`AutolaunchWeb.AccountAgentsLive.agents_changed/1`), and
+  reads its agents again (`AutolaunchWeb.AccountAgentsLive.read_agents/1`), and
   the pairing link's page updates its own box.
 
   It runs after the session hook, so it listens for the account the mount
@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.Live.Agents do
 
     case socket.view do
       AccountAgentsLive ->
-        AccountAgentsLive.agents_changed(socket)
+        AccountAgentsLive.read_agents(socket)
 
       PairLive ->
         send_update(PairingBox, id: "pair-pairing-box", agents_changed: true)

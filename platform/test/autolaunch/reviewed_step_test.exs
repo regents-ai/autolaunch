@@ -46,6 +46,7 @@ defmodule Autolaunch.ReviewedStepTest do
 
   test "a sent launch is the review's with the suffix kept, dropped or rewritten" do
     BaseRpcStub.install(:wallet_http_client, fn _call, _state -> "0x" end)
+    {:ok, safe} = Rpc.safe_block()
 
     for input <- [BuilderCode.append(@call), @call, @call <> @other_suffix] do
       BaseRpcStub.put(%{
@@ -61,8 +62,8 @@ defmodule Autolaunch.ReviewedStepTest do
         }
       })
 
-      assert Rpc.submission_status(@hash, @signer, @launchpad, BuilderCode.append(@call)) ==
-               {:ok, :success}
+      assert Rpc.canonical_outcome(@hash, @signer, @launchpad, BuilderCode.append(@call), safe) ==
+               {:ok, {:success, []}}
     end
 
     BaseRpcStub.put(%{
@@ -77,7 +78,7 @@ defmodule Autolaunch.ReviewedStepTest do
       }
     })
 
-    assert Rpc.submission_status(@hash, @signer, @launchpad, BuilderCode.append(@call)) ==
+    assert Rpc.canonical_outcome(@hash, @signer, @launchpad, BuilderCode.append(@call), safe) ==
              {:error, :transaction_mismatch}
   end
 end

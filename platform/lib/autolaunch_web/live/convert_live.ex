@@ -146,7 +146,7 @@ defmodule AutolaunchWeb.ConvertLive do
   defp base_rows(tokens) do
     rows =
       tokens
-      |> Enum.filter(&graduated_memestock?/1)
+      |> Enum.filter(&match?(%{auction: %{kind: :stocks, state: :graduated}}, &1))
       |> read_rows(fn token ->
         %{
           id: "convert-base-#{token.auction.id}",
@@ -160,9 +160,6 @@ defmodule AutolaunchWeb.ConvertLive do
 
     {:ok, %{base: rows}}
   end
-
-  defp graduated_memestock?(%{auction: %{kind: :stocks, state: :graduated}}), do: true
-  defp graduated_memestock?(_token), do: false
 
   defp robinhood_rows do
     if RobinhoodLab.configured?(),
