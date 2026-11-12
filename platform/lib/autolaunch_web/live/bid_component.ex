@@ -507,7 +507,9 @@ defmodule AutolaunchWeb.BidComponent do
   # with, so an outcome is read against the bid it belongs to.
   defp put_review(socket, review, prepared) do
     socket = socket |> assign(prepared: prepared) |> OnchainSteps.put_review(review)
-    followed = MapSet.new(Presses.shown(socket.assigns.presses), & &1.review.id)
+    # A sent step this server holds no review for follows none.
+    followed =
+      for %{review: %{id: id}} <- Presses.shown(socket.assigns.presses), into: MapSet.new(), do: id
 
     reviews =
       socket.assigns.reviews
