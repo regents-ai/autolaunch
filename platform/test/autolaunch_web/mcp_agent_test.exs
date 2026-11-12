@@ -304,6 +304,26 @@ defmodule AutolaunchWeb.McpAgentTest do
     assert List.last(statuses) == 429
   end
 
+  test "a token on a body that cannot be read spends the same 120", %{from: from} do
+    statuses =
+      for _ <- 1..121 do
+        try do
+          conn(:post, "/mcp", "{")
+          |> Map.put(:remote_ip, from)
+          |> Map.put(:host, "www.example.com")
+          |> put_req_header("content-type", "application/json")
+          |> put_req_header("authorization", "Bearer not-a-token")
+          |> @endpoint.call([])
+          |> Map.fetch!(:status)
+        rescue
+          unread in Plug.Parsers.ParseError -> Plug.Exception.status(unread)
+        end
+      end
+
+    assert Enum.take(statuses, 120) |> Enum.uniq() == [400]
+    assert List.last(statuses) == 429
+  end
+
   test "a signed route's answer is replaced when the pairing ends while the request runs", %{
     from: from
   } do

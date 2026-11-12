@@ -17,8 +17,10 @@ defmodule Autolaunch.Agents.HostedAddress do
   @doc "The wallet of the identity the connection's app keeps for its account here."
   @spec read(map()) :: {:ok, String.t()} | {:error, :unavailable}
   def read(%{subject: subject, client_id: client} = principal) do
-    {_kind, answer} = Cachex.fetch(@cache, {subject, client}, fn _key -> ask(principal) end)
-    answer
+    case Cachex.fetch(@cache, {subject, client}, fn _key -> ask(principal) end) do
+      {:error, _raised} -> {:error, :unavailable}
+      {_kind, answer} -> answer
+    end
   end
 
   # Two calls that miss at once share one ask (Cachex.fetch).

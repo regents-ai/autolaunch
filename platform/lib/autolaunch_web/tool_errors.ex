@@ -59,6 +59,8 @@ defmodule AutolaunchWeb.ToolErrors do
   defp json_type?(Ash.Type.Integer, value), do: is_integer(value)
   defp json_type?(Ash.Type.String, value), do: is_binary(value)
   defp json_type?(Ash.Type.Atom, value), do: is_binary(value)
+  # Any other type is the action's own cast to refuse.
+  defp json_type?(_type, _value), do: true
 
   defp refused(covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],

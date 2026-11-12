@@ -105,14 +105,20 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   def init(opts), do: opts
 
   @doc """
-  Counts the request against its address before the body is read. One with a
-  token waits for the token's check, unless its address has spent its 120.
+  Counts the request against its address before the body is read. While the
+  connector is on, one with a token waits for the token's check, unless its
+  address has spent its 120.
   """
   def limit_address(conn) do
-    if get_req_header(conn, "authorization") == [] or spent?(conn, @address),
-      do: RateLimit.call(conn, @address),
-      else: conn
+    if waits_for_token?(conn) and not spent?(conn, @address),
+      do: conn,
+      else: RateLimit.call(conn, @address)
   end
+
+  # Only the connector issues tokens, so with it off every request is counted
+  # at the endpoint, whatever headers it carries.
+  defp waits_for_token?(conn),
+    do: Autolaunch.OAuth.enabled?() and get_req_header(conn, "authorization") != []
 
   defp spent?(conn, %{policy: policy, limit: limit, window: window, key: key}),
     do: RequestRateLimiter.spent?({policy, key.(conn)}, limit, window)
@@ -269,10 +275,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   defp refuse(conn, mode, code) when is_binary(code), do: refuse(conn, mode, &refusal(&1, code))
 
   defp refuse(conn, mode, refusal) do
-    conn =
-      if get_req_header(conn, "authorization") == [],
-        do: conn,
-        else: RateLimit.call(conn, @address)
+    conn = if waits_for_token?(conn), do: RateLimit.call(conn, @address), else: conn
 
     if conn.halted, do: counted(conn, mode), else: conn |> refusal.() |> counted(mode)
   end
