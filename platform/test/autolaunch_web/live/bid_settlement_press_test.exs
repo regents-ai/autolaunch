@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     partial = LabAbi.selector("exitPartiallyFilledBid(uint256,uint64,uint64)") <> word(@bid_id)
     install(exit: %{signature: "exitPartiallyFilledBid(uint256,uint64,uint64)", data: partial})
     reverted(card, context.wallet, review, step)
-    render_async(view)
+    settle_reads(view)
 
     assert render(view) =~
              "That did not go through, so nothing came back. Only the network fee was spent. This review now uses the latest figures: press again to send it."
@@ -119,15 +119,20 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     # Anyone may return a bid to its owner; the auction now has it returned.
     install(exit: {:refused, :already_exited})
     reverted(card, context.wallet, review, step)
-    render_async(view)
-
-    html = render(view)
+    html = settle_reads(view)
 
     assert html =~
              "That did not go through, so nothing came back. Only the network fee was spent."
 
     assert html =~ "This bid has no tokens to claim."
     assert_push_event(view, "onchain-steps:review", %{review: nil})
+  end
+
+  # The receipt read finds the step reverted and starts the auction read; the
+  # first wait covers the one, the second the other.
+  defp settle_reads(view) do
+    render_async(view)
+    render_async(view)
   end
 
   # The step is sent from `review`, and Base reads it back as reverted.

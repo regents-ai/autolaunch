@@ -352,9 +352,12 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     read_all()
     rows = robinhood_rows()
 
-    # Whatever an earlier case left, so each change below is one this case made.
+    # Whatever an earlier case left, so each change below is one this case made;
+    # and none of it is left for a later case, whose Robinhood pages would
+    # otherwise keep this case's clock.
     key = ChainHead.key("robinhood")
     SharedReading.delete(key)
+    on_exit(fn -> SharedReading.delete(key) end)
     SharedReading.subscribe(key)
     head = start_supervised!({ChainHead, {"robinhood", 60_000}})
     assert_receive {:shared_reading, ^key}
