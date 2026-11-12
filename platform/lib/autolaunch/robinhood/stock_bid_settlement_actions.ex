@@ -19,8 +19,9 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   the exit is reviewed on its own against the price it stored.
 
   Every call binds to a wallet the account the session lease names links,
-  read inside the lease at call time, and the bid must belong to that wallet
-  on the auction's own record.
+  read inside the lease at call time, and the bid must belong to one of that
+  account's wallets on the auction's own record. The auction takes a return
+  or a claim from any sender and pays the wallet that placed the bid.
   """
 
   import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
@@ -35,18 +36,20 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   @doc """
   Reviews the settlement of one bid from `address`, which must be a wallet the
-  signed-in account links and the bid's owner: the chain, the steps, what they
-  return and the context `result/3` reads a receipt against. Refused, with the
-  auction's own reason, when nothing can be done for the bid right now.
+  signed-in account links, of a bid one of the account's wallets placed: the
+  chain, the steps, what they return and the context `result/3` reads a
+  receipt against. Refused, with the auction's own reason, when nothing can be
+  done for the bid right now.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(%{auction: auction, bid_id: bid_id}, address, opts) do
-    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+    with {:ok, %{account: account, signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, bid_id} <- bid_id(bid_id),
          {:ok, snapshot} <- snapshot(auction, bid_id, signer),
-         :ok <- owned(snapshot, signer),
+         :ok <- owned(snapshot, account),
          {:ok, asset} <- listed_stock(snapshot.stock),
          {:ok, steps} <- eligible_steps(snapshot) do
       {:ok,
@@ -57,7 +60,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
          context: %{
            auction: snapshot.auction,
            onchain_bid_id: snapshot.bid.id,
-           signer: signer,
+           owner: snapshot.bid.owner,
            stock_decimals: snapshot.stock_decimals
          }
        }}
@@ -78,7 +81,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
              logs,
              context.auction,
              context.onchain_bid_id,
-             context.signer
+             context.owner
            ) do
       %{
         "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, @new_decimals),
@@ -97,7 +100,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
              logs,
              context.auction,
              context.onchain_bid_id,
-             context.signer
+             context.owner
            ) do
       %{"tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, @new_decimals)}
     else
@@ -138,8 +141,11 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   defp bid_id(_value), do: unavailable(:bid_not_found)
 
-  defp owned(%{bid: %{owner: owner}}, signer) do
-    if Address.equal?(owner, signer), do: :ok, else: unavailable(:not_your_bid)
+  # The auction's own record of the bid names one of the account's wallets.
+  defp owned(%{bid: %{owner: owner}}, %{wallet_addresses: wallets}) do
+    if Enum.any?(wallets, &Address.equal?(&1, owner)),
+      do: :ok,
+      else: unavailable(:not_your_bid)
   end
 
   defp listed_stock(stock) do

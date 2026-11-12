@@ -28,7 +28,8 @@ defmodule Autolaunch.Chain.CcaSettlement do
   snapshot, when a bid's unspent money can come back.
 
   `exited/5` and `claimed/5` decode `BidExited` and `TokensClaimed` from a
-  canonical receipt's logs and check the owner is the reviewed signer.
+  canonical receipt's logs and check they name the bid's owner, the wallet the
+  auction pays whoever sent the step.
   """
 
   alias Autolaunch.Chain.{Abi, CcaLists, Rpc}
@@ -215,12 +216,12 @@ defmodule Autolaunch.Chain.CcaSettlement do
   """
   @spec exited([map()], [map()], String.t(), non_neg_integer(), String.t()) ::
           {:ok, map()} | :unverified | {:error, atom()}
-  def exited(abi, logs, auction, bid_id, signer) do
+  def exited(abi, logs, auction, bid_id, owner) do
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          {:ok, {[^bid_id, owner_word], [tokens_filled, refunded]}} <-
            LabAbi.event_words(abi, @bid_exited, logs, auction),
-         {:ok, owner} <- Abi.word_address(owner_word),
-         true <- Address.equal?(owner, signer) do
+         {:ok, logged} <- Abi.word_address(owner_word),
+         true <- Address.equal?(logged, owner) do
       {:ok, %{tokens_filled: tokens_filled, currency_refunded: refunded, block: block}}
     else
       false -> :unverified
@@ -236,12 +237,12 @@ defmodule Autolaunch.Chain.CcaSettlement do
   """
   @spec claimed([map()], [map()], String.t(), non_neg_integer(), String.t()) ::
           {:ok, map()} | :unverified | {:error, atom()}
-  def claimed(abi, logs, auction, bid_id, signer) do
+  def claimed(abi, logs, auction, bid_id, owner) do
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          {:ok, {[^bid_id, owner_word], [tokens]}} <-
            LabAbi.event_words(abi, @tokens_claimed, logs, auction),
-         {:ok, owner} <- Abi.word_address(owner_word),
-         true <- Address.equal?(owner, signer) do
+         {:ok, logged} <- Abi.word_address(owner_word),
+         true <- Address.equal?(logged, owner) do
       {:ok, %{tokens_claimed: tokens, block: block}}
     else
       false -> :unverified

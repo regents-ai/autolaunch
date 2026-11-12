@@ -40,8 +40,11 @@ defmodule Autolaunch.BidSettlementActions do
 
   @doc """
   Reviews one settlement from `address`, which must be a wallet the signed-in
-  account links and the bid's owner: the chain, the steps, what they return
-  and the context `result/3` reads a receipt against.
+  account links, of a bid the account holds: the chain, the steps, what they
+  return and the context `result/3` reads a receipt against. The auction takes
+  a return or a claim from any sender and pays the wallet that placed the bid,
+  so `address` may be any of the account's wallets; the auction's own record
+  has to name the stored position's owner.
 
   The steps are only those the auction would accept right now: the exit that
   returns unspent currency and records the fill, then the claim of the launch
@@ -54,10 +57,9 @@ defmodule Autolaunch.BidSettlementActions do
     with {:ok, %{actor: actor, signer: signer}} <-
            LaunchOperations.signed_in_wallet(address, opts, Bid),
          {:ok, position} <- owned_position(bid_position_id, actor),
-         :ok <- owner(position.owner_address, signer),
          {:ok, bid_id} <- onchain_bid_id(position),
          {:ok, snapshot} <- snapshot(position.auction_address, bid_id, signer),
-         :ok <- owner(snapshot.bid.owner, signer),
+         :ok <- owner(snapshot.bid.owner, position.owner_address),
          {:ok, steps} <- eligible_steps(snapshot),
          {:ok, config} <- lab() do
       auction = position.auction
@@ -71,7 +73,7 @@ defmodule Autolaunch.BidSettlementActions do
            bid_id: position.bid_id,
            auction_address: snapshot.auction,
            onchain_bid_id: snapshot.bid.id,
-           signer: signer,
+           owner: snapshot.bid.owner,
            currency_decimals: auction.quote_token_decimals,
            claim_next?: Enum.any?(steps, &(&1.name == "claim"))
          }
@@ -93,7 +95,7 @@ defmodule Autolaunch.BidSettlementActions do
              logs,
              context.auction_address,
              context.onchain_bid_id,
-             context.signer
+             context.owner
            ) do
       %{
         "tokens_filled" => Integer.to_string(exit.tokens_filled),
@@ -115,7 +117,7 @@ defmodule Autolaunch.BidSettlementActions do
              logs,
              context.auction_address,
              context.onchain_bid_id,
-             context.signer
+             context.owner
            ) do
       %{
         "tokens_claimed" => Integer.to_string(claim.tokens_claimed),
@@ -228,10 +230,9 @@ defmodule Autolaunch.BidSettlementActions do
 
   defp onchain_bid_id(_position), do: unavailable(:position_not_on_chain)
 
-  # The stored position and the auction's own record of the bid both have to
-  # name the signer as the owner.
-  defp owner(owner, signer) do
-    if Address.equal?(owner, signer), do: :ok, else: unavailable(:not_your_bid)
+  # The auction's own record of the bid has to name the stored position's owner.
+  defp owner(on_chain, stored) do
+    if Address.equal?(on_chain, stored), do: :ok, else: unavailable(:not_your_bid)
   end
 
   # Chain snapshot

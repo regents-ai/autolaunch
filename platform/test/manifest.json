@@ -1,5 +1,5 @@
 {
-  "total": 212,
+  "total": 215,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2595,65 +2595,65 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
-      "line": 44,
+      "line": 57,
       "test_name": "the home list offers the return of a bid from a second linked wallet",
       "keep_because": "Audit finding A7 (12 Nov 2026): lists read only the signed-in wallet's bids, so a bid from another linked wallet had no Withdraw or Claim. It fails if the home list leaves out a linked wallet's bid.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b72d62f4ee65476aed09b4748b07eb0341d89e85a496b696d0a7cf2d1662f778"
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
     },
     {
       "id": 247,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
-      "line": 54,
-      "test_name": "its card names the bid's wallet and, from the signed-in one, says to switch",
-      "keep_because": "The card a press opens names the wallet that holds the bid and, while another wallet is open, says to switch to it; its button stays. It fails if the card hides the bid's wallet or takes the button away.",
+      "line": 69,
+      "test_name": "its card is prepared for the wallet that is open, and names the wallet it pays",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026), rule 11: the auction takes a return or a claim from any sender and pays the bid's owner, yet the card asked the person to switch wallets. The card prepares the step for the wallet that is open and names the bid's own wallet as the one paid. It fails if the press is blocked for another of the account's wallets, or the paid wallet is not named.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b72d62f4ee65476aed09b4748b07eb0341d89e85a496b696d0a7cf2d1662f778"
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
     },
     {
       "id": 248,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
-      "line": 78,
+      "line": 97,
       "test_name": "the portfolio lists it with its button",
       "keep_because": "The portfolio lists a linked wallet's bid with its button. It fails if the portfolio reads only the signed-in wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b72d62f4ee65476aed09b4748b07eb0341d89e85a496b696d0a7cf2d1662f778"
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
     },
     {
       "id": 249,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
-      "line": 172,
+      "line": 174,
       "test_name": "a press with no review on the row is prepared and sent",
       "keep_because": "Audit finding A12 (12 Nov 2026): a Robinhood withdraw or claim pressed before its review arrived sent nothing. The row now prepares the settlement for the pressing wallet and hands back its first step. It fails without the row's prepare_and_send.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dcca023b6f62b8b3fdb9afcb69a71b56dd4099c313c9f5ba660762802a9ca82a"
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
     },
     {
       "id": 250,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
-      "line": 181,
+      "line": 183,
       "test_name": "a settlement Robinhood could not read keeps its button, and the next press asks again",
       "keep_because": "After a read Robinhood could not answer, the row kept no button, so a later press could not ask again. The button stays and the next press reads the auction again. It fails if the button disappears or the press sends nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dcca023b6f62b8b3fdb9afcb69a71b56dd4099c313c9f5ba660762802a9ca82a"
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
     },
     {
       "id": 251,
@@ -2758,6 +2758,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+    },
+    {
+      "id": 259,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
+      "line": 108,
+      "test_name": "another account's bid is never listed, and its settlement is refused",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): the lists read every wallet an account links, and nothing proved they stop there. A bid of another account's wallet is on neither the home list nor the portfolio, and preparing its settlement from any of the account's wallets is refused. It fails if another account's bid is shown or can be settled.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
+    },
+    {
+      "id": 260,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/bid_settlement_actions_test.exs",
+      "line": 118,
+      "test_name": "a bid of another wallet the account links is prepared for the open one and read for its own",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): a Base bid's return is prepared for any wallet the account links, and its receipt is read against the bid's own wallet, which the auction pays. It fails if only the bid's wallet may prepare it, or a receipt naming another owner counts.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9651be83d029cea7f130c391a59619f1d2e4ea5dda71b5a4f50fc710a110f1be"
+    },
+    {
+      "id": 261,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
+      "line": 200,
+      "test_name": "a bid of another wallet the account links is prepared for the open one, which the row names",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): on Robinhood too the auction pays the bid's owner whoever sends, so the row prepares the return for the open wallet and names the bid's own wallet, while an account that does not link the bid's wallet is refused. It fails if the press is blocked for another of the account's wallets, or another account can prepare it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
     }
   ],
   "legacy_folders_to_remove": [

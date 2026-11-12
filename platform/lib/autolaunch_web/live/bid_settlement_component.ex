@@ -19,8 +19,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   recorded price.
 
   The wallet that acts is Privy's active wallet when the signed-in account
-  links it (`AutolaunchWeb.OnchainSteps`), and only the wallet that placed the
-  bid can settle it; a note names both while the wallet app has another one
+  links it (`AutolaunchWeb.OnchainSteps`). It settles any bid the account
+  holds: the auction takes a return or a claim from any sender and pays the
+  wallet that placed the bid, which a note names while another wallet is
   open. Nothing is stored while a settlement is on its way: the review lives on
   this page only, the browser reports a hash and stops, and every outcome on
   screen is the server's own read of that hash against the review it was sent
@@ -46,8 +47,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     session_lease_required: "Sign in again to continue.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
-    not_your_bid:
-      "This bid was placed from a different wallet. Switch to that wallet to settle it.",
+    not_your_bid: "This bid is not held by a wallet on your account.",
     position_not_on_chain: "This bid has no on-chain record to settle.",
     bid_not_found: "The auction has no record of this bid.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
@@ -161,7 +161,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         line: line(assigns.status, auction),
         steps: steps,
         next_step: early_next(assigns, steps),
-        other_wallet: other_wallet(assigns)
+        paid_to: payee(assigns)
       )
 
     ~H"""
@@ -214,7 +214,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             tickers={tickers(@auction)}
           />
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <.paid_to id={@id <> "-paid-to"} owner={@paid_to} />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
@@ -244,7 +244,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         rate: assigns.usd_rate.result,
         steps: steps,
         next_step: next_step(assigns, steps, action),
-        other_wallet: other_wallet(assigns),
+        paid_to: payee(assigns),
         claimed: claimed(assigns.settled, assigns.position)
       )
 
@@ -380,7 +380,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             tickers={tickers(@auction)}
           />
         </p>
-        <p role="status" hidden={!@other_wallet}>{@other_wallet}</p>
+        <.paid_to id={@id <> "-paid-to"} owner={@paid_to} />
         <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
         <SwapForm.wallet_step
           id={@id <> "-sender"}
@@ -452,6 +452,30 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         </div>
       <% end %>
     </dl>
+    """
+  end
+
+  attr :id, :string, required: true
+
+  attr :owner, :string,
+    default: nil,
+    doc: "the wallet that placed the bid, when another one is open"
+
+  attr :chain, :string, default: "base"
+
+  @doc """
+  The line naming where a settlement pays out, shown while a wallet other than
+  the one that placed the bid is open: the auction pays that wallet, whoever
+  sends.
+  """
+  def paid_to(assigns) do
+    ~H"""
+    <p role="status" hidden={!@owner}>
+      <%= if @owner do %>
+        This bid pays out to
+        <Regent.Primitives.address id={@id} address={@owner} chain={@chain} variant="compact" />, the wallet that placed it.
+      <% end %>
+    </p>
     """
   end
 
@@ -580,10 +604,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     end)
   end
 
-  defp settle_key(%{authenticated: true, signer: signer, position: position} = assigns)
+  defp settle_key(%{authenticated: true, signer: signer, position: position})
        when is_binary(signer) do
-    if owner?(assigns) and action(position, position.auction),
-      do: {signer, position.id, position.status}
+    if action(position, position.auction), do: {signer, position.id, position.status}
   end
 
   defp settle_key(_assigns), do: nil
@@ -675,22 +698,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp start_early(%{assigns: assigns} = socket) do
     %{position: position, signer: signer} = assigns
-    owner = if owner?(assigns), do: signer
     offered = if assigns.review, do: :record
     opts = OnchainSteps.opts(socket)
 
     socket
     |> assign(checking: true)
-    |> start_async(:early, fn -> {signer, early_offer(position, owner, offered, opts)} end)
+    |> start_async(:early, fn -> {signer, early_offer(position, signer, offered, opts)} end)
   end
 
   # Read-only until the money can come back, now or after recording the
-  # price, and the bid's own wallet is active: only then is a review
+  # price, and a wallet that may act is open: only then is a review
   # prepared, and a review already offered for the same answer is kept.
-  defp early_offer(position, owner, offered, opts) do
+  defp early_offer(position, signer, offered, opts) do
     case BidSettlementActions.return_status(position) do
-      {:ok, status} when status in [:now, :record] and is_binary(owner) and status != offered ->
-        {status, BidSettlementActions.prepare(position.id, owner, opts)}
+      {:ok, status} when status in [:now, :record] and is_binary(signer) and status != offered ->
+        {status, BidSettlementActions.prepare(position.id, signer, opts)}
 
       {:ok, status} ->
         {status, nil}
@@ -876,20 +898,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp reverted_copy(_exit, _auction),
     do: "That did not go through, so nothing came back. Only the network fee was spent."
 
-  # The bid's own wallet settles it; while another wallet on the account is
-  # active, the card says which one to switch to.
-  defp other_wallet(%{signer: signer, position: position} = assigns) when is_binary(signer) do
-    if !owner?(assigns),
-      do:
-        "This bid was placed from #{RegentFormat.short_address(position.owner_address)}. Switch to that wallet in your wallet app to settle it."
-  end
+  # Any wallet on the account settles the bid, and the auction pays the wallet
+  # that placed it; while another one is open, the card names that wallet.
+  defp payee(%{signer: signer, position: %{owner_address: owner}}) when is_binary(signer),
+    do: if(Address.equal?(signer, owner), do: nil, else: owner)
 
-  defp other_wallet(_assigns), do: nil
-
-  defp owner?(%{signer: signer, position: %{owner_address: owner}}) when is_binary(signer),
-    do: Address.equal?(signer, owner)
-
-  defp owner?(_assigns), do: false
+  defp payee(_assigns), do: nil
 
   # The line under the bid, from the auction's answer; the minimum still to
   # raise is the auction's own minimum less what it has raised.

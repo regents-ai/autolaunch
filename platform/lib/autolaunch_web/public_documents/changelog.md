@@ -2,7 +2,7 @@
 
 ## 12 November 2026: Wallet
 - Withdraw, Claim and a new bid now work in a busy auction, however many bids came before yours. Before, an auction with a long history of bids could leave a bid the site could neither return, claim nor place.
-- Your bids from every wallet linked to your account now show on Base auctions, in the lists and in your portfolio, each with its Withdraw or Claim. The panel names the wallet that holds the bid, and that wallet signs. Before, only the wallet you signed in with was shown.
+- Your bids from every wallet linked to your account now show on Base auctions, in the lists and in your portfolio, each with its Withdraw or Claim. Whichever of your wallets is open can press it, and the money goes to the wallet that placed the bid, which the panel names. Before, only the wallet you signed in with was shown.
 - On Robinhood, Withdraw and Claim open your wallet on the first press, even while the auction is still being read or after a step that did not go through. Before, such a press sent nothing, and after a failed read the button could disappear.
 - When a withdraw, claim, convert, stake, covered call or payment does not go through, the panel says so beside its button and gets the next try ready from the chain as it is now. Before, the next press sent the same transaction again.
 - While a page has lost its connection, a press in a wallet panel still opens your wallet with what the panel showed. Once the page is back, each wallet panel gets ready again for the wallet you have open. Before, a panel kept what it had before the drop.

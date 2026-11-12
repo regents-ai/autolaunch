@@ -18,6 +18,8 @@ defmodule AutolaunchWeb.RobinhoodBidSettlementPressTest do
   @chain_id 4_663
   @stock "0x2000000000000000000000000000000000000002"
   @bid_id 7
+  @open "0x7777777777777777777777777777777777777777"
+  @other "0x8888888888888888888888888888888888888888"
 
   setup :bidder
 
@@ -193,19 +195,56 @@ defmodule AutolaunchWeb.RobinhoodBidSettlementPressTest do
     assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit"}]}})
   end
 
-  defp row(conn, context) do
-    session = signed_in_session(context.account.id)
+  # The auction takes a return from any sender and pays the bid's owner, yet
+  # only the bid's own wallet could prepare it (review of A7, 12 Nov 2026).
+  test "a bid of another wallet the account links is prepared for the open one, which the row names",
+       %{conn: conn, wallet: holder} do
+    put_env(:autolaunch_lab_http_client, Robinhood)
+    unique = Elixir.System.unique_integer([:positive])
+
+    account =
+      Autolaunch.Accounts.register_verified!("did:privy:open-#{unique}", @open, [@open, holder],
+        actor: %System{}
+      )
+
+    {view, row} = row(conn, account, holder, @open)
+    render_hook(row, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
+
+    assert_reply(view, %{send: "exit", review: %{signer: @open, steps: [%{step: "exit"}]}})
+    assert has_element?(view, "#row-paid-to-full", holder)
+
+    # An account that does not link the bid's wallet cannot prepare it.
+    stranger =
+      Autolaunch.Accounts.register_verified!("did:privy:other-#{unique}", @other, [@other],
+        actor: %System{}
+      )
+
+    opts = [
+      actor: %Autolaunch.Actors.Human{human_account_id: stranger.id},
+      context: %{session_lease: AutolaunchWeb.SessionAuthorityHelpers.current_lease(stranger.id)}
+    ]
+
+    assert {:error, %Ash.Error.Invalid.Unavailable{reason: :not_your_bid}} =
+             Autolaunch.Robinhood.StockBidSettlementActions.prepare(
+               %{auction: "0x3000000000000000000000000000000000000003", bid_id: "7"},
+               @other,
+               opts
+             )
+  end
+
+  defp row(conn, context), do: row(conn, context.account, context.wallet, context.wallet)
+
+  defp row(conn, account, owner, active) do
+    session = signed_in_session(account.id)
 
     {:ok, view, _html} =
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live_isolated(__MODULE__.Row,
-        session: %{"account_id" => context.account.id, "owner" => context.wallet}
-      )
+      |> live_isolated(__MODULE__.Row, session: %{"account_id" => account.id, "owner" => owner})
 
     row = with_target(view, "#row")
-    render_hook(row, "onchain_active_wallet", %{"address" => context.wallet})
+    render_hook(row, "onchain_active_wallet", %{"address" => active})
     {view, row}
   end
 

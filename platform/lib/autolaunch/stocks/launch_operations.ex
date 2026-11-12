@@ -22,13 +22,15 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   @type lease :: %{lineage: String.t(), account_id: integer()}
 
   @doc """
-  The signed-in person and the wallet their action binds to: `address` has to
-  be one of the wallets the account the session lease names links, read inside
-  the lease now, never a guess. A refusal names `resource`, the record the
-  action reviews.
+  The signed-in person, their account and the wallet their action binds to:
+  `address` has to be one of the wallets the account the session lease names
+  links, read inside the lease now, never a guess. A refusal names `resource`,
+  the record the action reviews.
   """
   @spec signed_in_wallet(term(), keyword(), module()) ::
-          {:ok, %{actor: Human.t(), signer: String.t(), lease: lease()}} | {:error, term()}
+          {:ok,
+           %{actor: Human.t(), account: Ash.Resource.record(), signer: String.t(), lease: lease()}}
+          | {:error, term()}
   def signed_in_wallet(address, opts, resource \\ LaunchOperation) do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- address(address),
@@ -36,7 +38,7 @@ defmodule Autolaunch.Stocks.LaunchOperations do
          {:ok, account} <- leased(lease),
          :ok <- same_account(actor, account),
          :ok <- linked(account, signer) do
-      {:ok, %{actor: actor, signer: signer, lease: lease}}
+      {:ok, %{actor: actor, account: account, signer: signer, lease: lease}}
     else
       {:refused, reason} -> refusal(resource, reason)
       unread -> unread
