@@ -16,9 +16,8 @@ defmodule Autolaunch.Chain.CcaSettlement do
   its own event, whose amounts the review states, or reverts with the auction's
   own error, which becomes the reason code. A bid whose maximum price is not
   strictly above the final clearing price needs `exitPartiallyFilledBid` with
-  checkpoint hints; those are derived by a bounded walk over the auction's
-  stored `checkpoints` and simulated the same way, and refused when the walk
-  cannot find them.
+  checkpoint hints; those are found in the auction's stored `checkpoints`
+  (`Autolaunch.Chain.CcaLists.crossing/3`) and simulated the same way.
 
   While bidding is still open, a graduated auction whose clearing price is
   above a bid's maximum returns that bid's unspent money early through
@@ -32,13 +31,11 @@ defmodule Autolaunch.Chain.CcaSettlement do
   canonical receipt's logs and check the owner is the reviewed signer.
   """
 
-  alias Autolaunch.Chain.Abi
+  alias Autolaunch.Chain.{Abi, CcaLists, Rpc}
 
   alias Autolaunch.{LabAbi, LabRpc}
   alias RegentChain.Address
 
-  @max_checkpoint_walk 256
-  @max_block_number Integer.pow(2, 64) - 1
   @q96 79_228_162_514_264_337_593_543_950_336
   @simulate_timeout 15_000
   @bid_record_words 7
@@ -294,7 +291,11 @@ defmodule Autolaunch.Chain.CcaSettlement do
        })}
     else
       {:error, reason}
-      when reason in [:bid_needs_partial_exit_hints_unavailable, :price_not_recorded] ->
+      when reason in [
+             :bid_needs_partial_exit_hints_unavailable,
+             :price_history_long,
+             :price_not_recorded
+           ] ->
         {:ok, Map.put(base, :exit, {:refused, reason})}
 
       {:error, reason} ->
@@ -302,58 +303,55 @@ defmodule Autolaunch.Chain.CcaSettlement do
     end
   end
 
-  # `final_block` is the end block once bidding has ended, when the settlement
-  # itself writes the final checkpoint; while bidding is open it is `nil` and
-  # only a stored checkpoint above the maximum can be the outbid block: until
-  # one is stored, the current price is not recorded yet.
-  defp checkpoint_hints(venue, auction, bid, %{
-         clearing_price: clearing_price,
-         final_block: final_block
-       }) do
-    with {:ok, last_full, outbid} <-
-           walk_checkpoints(venue, auction, bid.start_block, bid.max_price_q96, nil, 0),
-         {:ok, outbid_block} <- outbid_block(outbid, clearing_price, bid, final_block) do
+  # The last fully filled checkpoint is the last one priced below the bid's
+  # maximum.
+  defp checkpoint_hints(venue, auction, bid, terms) do
+    max = bid.max_price_q96
+
+    with {:ok, next_bid_id} <-
+           Rpc.call_uint(auction, LabAbi.selector("nextBidId()"), venue.block, venue.opts),
+         reads = checkpoint_reads(venue, auction, next_bid_id - 1),
+         {:ok, {last_full, _following}} <-
+           CcaLists.crossing(%{reads | key: {reads.key, max, :filled}}, bid, &(&1 < max)),
+         {:ok, outbid_block} <- outbid_block(reads, bid, terms) do
       {:ok, %{last_fully_filled_block: last_full, outbid_block: outbid_block}}
     end
   end
 
-  defp outbid_block(_outbid, price, %{max_price_q96: price}, _final_block), do: {:ok, 0}
-  defp outbid_block(outbid, _price, _bid, _final_block) when is_integer(outbid), do: {:ok, outbid}
+  # None when the final price equals the maximum. Otherwise the first stored
+  # checkpoint priced above it, or the final one: once bidding has ended
+  # (`final_block` is the end block) the settlement itself writes it; while
+  # bidding is open (`final_block` is `nil`) the current price is not
+  # recorded yet.
+  defp outbid_block(_reads, %{max_price_q96: price}, %{clearing_price: price}), do: {:ok, 0}
 
-  defp outbid_block(:final, _price, _bid, nil), do: {:error, :price_not_recorded}
-
-  defp outbid_block(:final, _price, _bid, final_block), do: {:ok, final_block}
-
-  # Follows `checkpoints(block).next` from the bid's own start checkpoint. The
-  # walk returns the last block whose clearing price is below the maximum and
-  # the first stored block whose price is above it, or `:final` when only the
-  # checkpoint the settlement itself writes at the end block crosses it.
-  defp walk_checkpoints(_venue, _auction, _current, _max, _last, @max_checkpoint_walk),
-    do: {:error, :bid_needs_partial_exit_hints_unavailable}
-
-  defp walk_checkpoints(venue, auction, current, max_price, last_full, hops) do
-    with {:ok, [price, _raised, _mps_per_price, _mps, _prev, next]} <-
-           call_words(venue, auction, "checkpoints(uint64)", [current], 6) do
-      # A checkpoint below the maximum is itself the last fully filled one so far.
-      last_full = if price < max_price, do: current, else: last_full
-
-      case hop(price, max_price, current, next, last_full) do
-        {:done, outbid} -> {:ok, last_full, outbid}
-        :continue -> walk_checkpoints(venue, auction, next, max_price, last_full, hops + 1)
-        :error -> {:error, :bid_needs_partial_exit_hints_unavailable}
-      end
+  defp outbid_block(reads, %{max_price_q96: max} = bid, %{final_block: final_block}) do
+    case CcaLists.crossing(%{reads | key: {reads.key, max, :outbid}}, bid, &(&1 <= max)) do
+      {:ok, {_last, :final}} when is_nil(final_block) -> {:error, :price_not_recorded}
+      {:ok, {_last, :final}} -> {:ok, final_block}
+      {:ok, {_last, outbid}} -> {:ok, outbid}
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  # Where one stored checkpoint leaves the walk. A price above the maximum
-  # ends it with this block as the outbid block; the last stored checkpoint
-  # ends it at the final one the settlement writes; anything else follows
-  # `next`. A walk that has not yet passed a checkpoint below the maximum has
-  # no hints to give.
-  defp hop(_price, _max_price, _current, _next, nil), do: :error
-  defp hop(price, max_price, current, _next, _last) when price > max_price, do: {:done, current}
-  defp hop(_price, _max_price, _current, @max_block_number, _last), do: {:done, :final}
-  defp hop(_price, _max_price, _current, _next, _last), do: :continue
+  # The auction's bids and checkpoints at the venue's block, for
+  # `CcaLists.crossing/3`.
+  defp checkpoint_reads(venue, auction, last_bid) do
+    %{
+      bid_start: fn id ->
+        with {:ok, [start | _rest]} <-
+               call_words(venue, auction, "bids(uint256)", [id], @bid_record_words),
+             do: {:ok, start}
+      end,
+      checkpoint: fn block ->
+        with {:ok, [price, _raised, _mps_per_price, _mps, _prev, next]} <-
+               call_words(venue, auction, "checkpoints(uint64)", [block], 6),
+             do: {:ok, %{price: price, next: next}}
+      end,
+      last_bid: last_bid,
+      key: {:erlang.phash2(venue.rpc_url), auction}
+    }
+  end
 
   defp exit_step(signature, data, hints, event) do
     %{

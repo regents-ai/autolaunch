@@ -59,6 +59,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     bid_not_exited: "Return this bid before claiming its tokens.",
     bid_needs_partial_exit_hints_unavailable:
       "This bid was only partly filled and the auction's records for it could not be traced. Try again in a moment.",
+    price_history_long:
+      "This auction's price history is long, and only part of it could be read just now. Press again to read on.",
     settlement_reverted: "The auction refused this right now."
   }
 

@@ -72,6 +72,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       "Your bid was returned in full. This launch did not raise enough, and there are no tokens to claim.",
     bid_needs_partial_exit_hints_unavailable:
       "This bid was only partly filled and the auction's records for it could not be traced. Try again in a moment.",
+    price_history_long:
+      "This auction's price history is long, and only part of it could be read just now. Press again to read on.",
     settlement_reverted: "The auction refused this right now."
   }
 

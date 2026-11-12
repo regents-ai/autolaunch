@@ -9,7 +9,8 @@ defmodule Autolaunch.LabBidChainClient do
 
   `snapshot/1` answers the whole reviewed question at once: the auction's own
   currency, the wallet's balance of it, both allowances that stand between it
-  and the auction, and the bounded predecessor tick the canonical call needs.
+  and the auction, and a tick below the bid's price for the canonical call
+  (`Autolaunch.Chain.CcaLists.tick_hint/4`).
   There is no partial answer: a review is derived from one snapshot or from none.
 
   A test answers both callbacks itself, installed under
@@ -17,15 +18,12 @@ defmodule Autolaunch.LabBidChainClient do
   """
 
   alias Autolaunch.{BidPrice, Lab, LabAbi, LabRpc}
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, CcaLists, Rpc}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
 
   @callback balances(map()) :: {:ok, map()} | {:error, atom()}
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
-
-  @max_tick_walk 256
-  @max_uint256 Integer.pow(2, 256) - 1
 
   def balances(%{auction: auction, signer: signer, usdc: usdc?}) do
     with {:ok, held} <- currency_balance(auction, signer),
@@ -231,29 +229,18 @@ defmodule Autolaunch.LabBidChainClient do
     end
   end
 
+  # A tick the auction holds below the aligned price (`CcaLists.tick_hint/4`).
   defp predecessor(config, auction, max_price, block, opts) do
+    read_next = fn price ->
+      with {:ok, [next, _demand]} <-
+             call_words(config, auction, "ticks(uint256)", [price], 2, block, opts),
+           do: {:ok, next}
+    end
+
     with {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
-         true <- floor < max_price do
-      walk_ticks(config, auction, floor, max_price, block, opts, 0)
-    else
-      false -> {:error, :bid_preparation_unavailable}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp walk_ticks(_config, _auction, _current, _max_price, _block, _opts, @max_tick_walk),
-    do: {:error, :bid_preparation_unavailable}
-
-  defp walk_ticks(config, auction, current, max_price, block, opts, hops) do
-    with {:ok, [next, _demand]} <-
-           call_words(config, auction, "ticks(uint256)", [current], 2, block, opts) do
-      cond do
-        next == @max_uint256 -> {:ok, current}
-        next >= max_price -> {:ok, current}
-        next > current -> walk_ticks(config, auction, next, max_price, block, opts, hops + 1)
-        true -> {:error, :bid_preparation_unavailable}
-      end
-    end
+         {:ok, next_active} <-
+           Rpc.call_uint(auction, LabAbi.selector("nextActiveTickPrice()"), block, opts),
+         do: CcaLists.tick_hint(read_next, floor, next_active, max_price)
   end
 
   defp call_address(config, address, signature, arguments, block, opts) do
