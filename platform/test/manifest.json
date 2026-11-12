@@ -1,5 +1,5 @@
 {
-  "total": 220,
+  "total": 221,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2862,6 +2862,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
+    },
+    {
+      "id": 266,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch/safe_only_revstake_drafts_test.exs",
+      "line": 43,
+      "test_name": "SAFE_ONLY_STORED_DRAFTS: drafts and reviews stored before every treasury was a Safe open and take a Safe, and a second run changes nothing",
+      "keep_because": "Review of the money-path fixes (12 Nov 2026): once every Revstake treasury was a Safe, a stored draft or launch review whose agent's list named the treasury kind crashed the create page, and any save to such a draft was refused. The migration of 12 Nov makes stored rows canonical. It fails if a stored draft's page does not open or take a Safe, if a review's list cannot be named, if a single key or contract treasury is kept, if a draft's saved time moves, or if a second run changes anything.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "077da8198258547e9047adba4080e1243d7361ea7b509b703b8160194bf1e9b0"
     }
   ],
   "legacy_folders_to_remove": [

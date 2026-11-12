@@ -315,21 +315,6 @@ defmodule Autolaunch.LaunchDraft do
     attribute :image, :string, public?: true
     attribute :treasury, :string, public?: true
 
-    # The treasury kind a draft once chose and a private key's typed warning.
-    # Every treasury is a Safe now, so nothing reads or writes either; they
-    # stay only until a migration drops their columns.
-    attribute :treasury_path, :atom do
-      allow_nil? false
-      public? true
-      default :safe
-      constraints one_of: [:safe, :eoa, :contract]
-    end
-
-    attribute :eoa_acknowledgement, :string do
-      public? true
-      constraints max_length: 512, trim?: false
-    end
-
     # The fields a paired agent set and the creator has not changed since.
     attribute :agent_set_fields, {:array, :atom} do
       allow_nil? false
