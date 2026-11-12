@@ -90,6 +90,23 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
              })
   end
 
+  test "a listing is not prepared for a contract that answers nothing", context do
+    request = %{
+      amount: 2 * @unit,
+      strike_per_token: 260_000_000,
+      premium_per_token: 4_000_000,
+      expiry: @expiry
+    }
+
+    chain(%{allowance: 2 * @unit})
+    assert {:ok, %{blocked: nil}} = prepare(context, :list, request)
+
+    chain(%{allowance: 2 * @unit, silent: true})
+
+    assert {:error, %{errors: [%CoveredCalls.Refused{reason: :invalid_chain_response}]}} =
+             prepare(context, :list, request)
+  end
+
   test "a listing is blocked by too little stock or a corporate action before the window closes",
        context do
     request = %{

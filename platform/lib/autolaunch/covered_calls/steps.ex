@@ -79,6 +79,9 @@ defmodule Autolaunch.CoveredCalls.Steps do
          {:ok, strike} <- positive(request[:strike_per_token]),
          {:ok, premium} <- positive(request[:premium_per_token]),
          {:ok, expiry} <- expiry(request[:expiry], block),
+         # A listing is prepared only on a covered-calls contract that answers:
+         # an address that says nothing of its own unit gets no approval and no step.
+         {:ok, _unit} <- Chain.unit(market, block, opts),
          {:ok, effective_at} <- Chain.effective_at(market, block, opts),
          {:ok, stock} <- Chain.funds(market.stock, signer, market.contract, block, opts) do
       blocked =
