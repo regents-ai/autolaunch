@@ -570,7 +570,8 @@ defmodule AutolaunchWeb.CreateLive do
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
 
-  # A new Base block: the factory may have paused or reopened new launches.
+  # The site read a new Base block: the factory may have paused or reopened
+  # new launches.
   def handle_info({:shared_reading, {:chain_head, "base"}}, socket),
     do: {:noreply, read_launches_paused(socket)}
 
@@ -801,10 +802,12 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  # Base's own answer, read as the page connects and again with each new Base
-  # block (`Autolaunch.ChainHead`): while the factory has new launches paused,
-  # the launch button stays greyed with the reason beside it, and it comes back
-  # with the first read that finds them open.
+  # Base's own answer, read as the page connects and again each time the site
+  # reads a new Base block (`Autolaunch.ChainHead`: every five minutes on
+  # mainnet, every second on a lab, and within ten seconds of an on-chain press
+  # landing on Base): while the factory has new launches paused, the launch
+  # button stays greyed with the reason beside it, and it comes back with the
+  # first read that finds them open.
   defp watch_launches_paused(socket) do
     if connected?(socket) do
       SharedReading.subscribe(ChainHead.key("base"))

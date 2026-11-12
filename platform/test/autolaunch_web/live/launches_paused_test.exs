@@ -3,8 +3,8 @@ defmodule AutolaunchWeb.LaunchesPausedTest do
   Base's launchers stop taking new launches before Base's faster blocks
   (Sean, 30 Oct 2026, "1. a"). The create page says so from the chain's own
   `launchesPaused()`, so nobody fills in a launch Base is certain to refuse,
-  and reads it again with each new block, so the button comes back once
-  launches reopen.
+  and reads it again each time the site reads a new block (every five minutes
+  on mainnet), so the button comes back once launches reopen.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.LaunchesPausedTest do
 
   # A13: the pause was read once as the page opened, so a button it greyed
   # stayed greyed after launches reopened (money-path audit, 12 Nov 2026).
-  test "the Revstake create page reads the pause again with each new Base block",
+  test "the Revstake create page reads the pause again each time the site reads a new Base block",
        %{conn: conn} do
     LaunchFixture.install(paused: true)
     {:ok, view, _html} = live(conn, "/agent-business")
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.LaunchesPausedTest do
     assert render_async(view) =~ @note
   end
 
-  test "the Memestock create page reads the launchpad's pause again with each new block",
+  test "the Memestock create page reads the launchpad's pause again each time the site reads a new block",
        %{conn: conn} do
     BaseRpcStub.install(:autolaunch_lab_http_client, &launchpad/2)
 

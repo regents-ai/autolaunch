@@ -142,10 +142,12 @@ defmodule AutolaunchWeb.StocksCreateLive do
     )
   end
 
-  # Base's own answer, read as the page connects and again with each new block
-  # of the Memestock deployment (`Autolaunch.ChainHead`): while the launchpad
-  # has new launches paused, the launch button stays greyed with the reason
-  # beside it, and it comes back with the first read that finds them open.
+  # Base's own answer, read as the page connects and again each time the site
+  # reads a new block of the Memestock deployment (`Autolaunch.ChainHead`:
+  # every five minutes on mainnet, every second on a lab, and within ten
+  # seconds of an on-chain press landing on Base): while the launchpad has new
+  # launches paused, the launch button stays greyed with the reason beside it,
+  # and it comes back with the first read that finds them open.
   defp watch_launches_paused(socket) do
     if connected?(socket) do
       SharedReading.subscribe(ChainHead.key("stocks"))
@@ -267,7 +269,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
 
-  # A new block: the launchpad may have paused or reopened new launches.
+  # The site read a new block: the launchpad may have paused or reopened new
+  # launches.
   def handle_info({:shared_reading, {:chain_head, "stocks"}}, socket),
     do: {:noreply, read_launches_paused(socket)}
 

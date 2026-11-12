@@ -2570,12 +2570,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/launches_paused_test.exs",
       "line": 40,
-      "test_name": "the Revstake create page reads the pause again with each new Base block",
-      "keep_because": "Audit finding A13 (12 Nov 2026): the create page read whether launches were paused once, as it connected, so a disabled launch button stayed disabled after launches reopened. Each new Base block reads the factory again; the button and its line follow the latest read both ways. It fails if the page keeps its first reading.",
+      "test_name": "the Revstake create page reads the pause again each time the site reads a new Base block",
+      "keep_because": "Audit finding A13 (12 Nov 2026): the create page read whether launches were paused once, as it connected, so a disabled launch button stayed disabled after launches reopened. Each time the site's shared reader reads a new Base block (every five minutes on mainnet, every second on a lab, and soon after an on-chain press lands), the page reads the factory again; the button and its line follow the latest read both ways. It fails if the page keeps its first reading.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b6d2231ba97b00f543ac4ba9edea7070cb8b1685e6f0874f0dc7ac6242472bc7"
+      "source_sha256": "cee7bbbb90cb6a88ee2b2f7e21f2c55497d0149b85dff31d53ddafaecd958b9b"
     },
     {
       "id": 245,
@@ -2583,12 +2583,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/launches_paused_test.exs",
       "line": 55,
-      "test_name": "the Memestock create page reads the launchpad's pause again with each new block",
-      "keep_because": "The same for Memestock: each new block on the stocks feed reads the launchpad's launchesPaused() at the latest block, and the button comes back as soon as launches reopen. It fails if the page keeps its first reading.",
+      "test_name": "the Memestock create page reads the launchpad's pause again each time the site reads a new block",
+      "keep_because": "The same for Memestock: each time the site reads a new block on the stocks feed (every five minutes on mainnet), the page reads the launchpad's launchesPaused() at the latest block, and the button comes back with the first read that finds launches open. It fails if the page keeps its first reading.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b6d2231ba97b00f543ac4ba9edea7070cb8b1685e6f0874f0dc7ac6242472bc7"
+      "source_sha256": "cee7bbbb90cb6a88ee2b2f7e21f2c55497d0149b85dff31d53ddafaecd958b9b"
     },
     {
       "id": 246,
