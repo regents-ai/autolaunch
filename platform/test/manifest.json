@@ -157,7 +157,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 40,
@@ -170,7 +170,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 41,
@@ -183,7 +183,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 42,
@@ -196,7 +196,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 43,
@@ -209,7 +209,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 44,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 45,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 53,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 54,
@@ -1860,7 +1860,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 188,
@@ -2686,26 +2686,26 @@
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 306,
-      "test_name": "asks the server that took over for its review and sends that one",
-      "keep_because": "Audit finding A3 (12 Nov 2026): after the page lost and regained its connection, the wallet step piece kept the review the gone server held, so a press sent a transaction no server followed. Once the connection drops the review is let go, and a press asks the server that took over for its own review and sends that one. It fails if the old review is sent.",
+      "line": 316,
+      "test_name": "sends the review the page holds while the connection is down, and before the server that took over answers",
+      "keep_because": "Audit finding A3 and its review (12 Nov 2026), rule 11: a press always reaches the wallet, and a duplicate or reverted transaction is an accepted outcome. While the connection is down, and after it is back until the new server's review arrives, a press sends the review the page holds. It fails if such a press sends nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 254,
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 322,
-      "test_name": "sends the review the server pushes as it rejoins without asking again",
-      "keep_because": "A review the new server pushes as the page rejoins is the one a press sends, without asking again. It fails if the pushed review is ignored or the old one is sent.",
+      "line": 332,
+      "test_name": "asks the server that took over for a fresh review as the page rejoins, and sends the one it pushes",
+      "keep_because": "Audit finding A3 (12 Nov 2026): as the page rejoins, the server that took over hears the wallet Privy has active and pushes a fresh review, which a press then sends. It fails if the rejoin does not ask, or the fresh review is ignored.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d540213cbd51798023bd5e40533c47b888a9bb42812faec236c7099026a39d5"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 255,

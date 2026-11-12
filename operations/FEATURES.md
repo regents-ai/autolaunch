@@ -62,10 +62,11 @@ presses in a row both reach the wallet while the first is still there", "sends n
 wallet other than the reviewed signer", "sends nothing while the wallet is on another chain",
 "sends nothing when Privy changes the active wallet part-way", "reports a declined request and
 a step the review does not have", and for batches "hands wallet_sendCalls exactly the reviewed
-calls, atomically, after the chain read". After the page's connection drops and comes back, a
-press sends only a review from the server that took over: "asks the server that took over for
-its review and sends that one", "sends the review the server pushes as it rejoins without asking
-again". A step that did not go through has its panel's review built again from the chain:
+calls, atomically, after the chain read". A press while the page's connection is down, or
+before the server that took over answers, still reaches the wallet with the review the page holds,
+and the rejoin asks that server for a fresh one: "sends the review the page holds while the
+connection is down, and before the server that took over answers", "asks the server that took
+over for a fresh review as the page rejoins, and sends the one it pushes". A step that did not go through has its panel's review built again from the chain:
 `autolaunch_web/onchain_steps_rebuild_test.exs` (every case). Every amount a review shows is the
 exact raw amount: `autolaunch/stocks/amounts_test.exs` › "a shown amount reads back as the exact
 raw amount", › "the largest uint256 amounts are shown digit for digit". What each action builds:

@@ -155,16 +155,10 @@ export const OnchainSteps: Hook = {
     this.refresh?.()
   },
 
-  // A dropped connection ends the server that built the held review, and the
-  // one that takes over knows nothing of it. The review is let go, so a press
-  // from here asks the new server for one (`prepare_and_send`) where the card
-  // prepares on press, and a review the new server pushes as it rejoins is
-  // the one sent.
-  disconnected(this: OnchainStepsHook) {
-    this.review = undefined
-  },
-
-  // The new server hears the wallet Privy has active, and prepares for it.
+  // The held review stays through a dropped connection, so a press while the
+  // page is away, or before the server that takes over answers, still reaches
+  // the wallet with it. That server hears the wallet Privy has active and
+  // pushes a fresh review, which replaces the held one.
   reconnected(this: OnchainStepsHook) {
     this.walletChanged?.()
     this.refresh?.()

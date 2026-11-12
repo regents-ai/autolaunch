@@ -245,10 +245,10 @@ describe("a press with no review yet asks the server for one when the card prepa
   })
 })
 
-// A3: after the connection dropped and came back, a press sent the review the
-// page still held, which the server that took over had never built (money-path
-// audit, 12 Nov 2026).
-describe("a press after the connection comes back sends a review the server holds", () => {
+// A3 and rule 11: a press while the connection is down still reaches the
+// wallet with the review the page holds, and the server that takes over is
+// asked for a fresh one (money-path audit and its review, 12 Nov 2026).
+describe("a press while the connection is down still reaches the wallet", () => {
   const fresh: Review = {
     ...review,
     id: "review-2",
@@ -256,10 +256,12 @@ describe("a press after the connection comes back sends a review the server hold
   }
 
   // The hook on a card that prepares on press, mounted; `answer` is the
-  // server's reply to `prepare_and_send`.
+  // server's reply to `prepare_and_send`. While the connection is down,
+  // LiveView answers every push as refused, as it does in the browser.
   function mountedCard(answer: Review) {
     let clicked: (event: Event) => void = () => {}
     let reviewed: (payload: unknown) => void = () => {}
+    let connected = true
     const el = {
       id: "card",
       hasAttribute: (name: string) => name === "data-onchain-prepare",
@@ -267,9 +269,10 @@ describe("a press after the connection comes back sends a review the server hold
       querySelectorAll: () => [],
       querySelector: () => null,
     }
-    const pushEventTo = vi.fn(async (_target: unknown, event: string) =>
-      event === "prepare_and_send" ? [{status: "fulfilled", value: {reply: {review: answer, send: "bid"}}}] : [],
-    )
+    const pushEventTo = vi.fn(async (_target: unknown, event: string) => {
+      if (!connected) return [{status: "rejected", reason: new Error("unable to push hook event. LiveView not connected")}]
+      return event === "prepare_and_send" ? [{status: "fulfilled", value: {reply: {review: answer, send: "bid"}}}] : []
+    })
     const hook = {
       el,
       pushEventTo,
@@ -282,11 +285,18 @@ describe("a press after the connection comes back sends a review the server hold
     const pressBid = () => clicked({target} as unknown as Event)
     const push = (sent: Review | null) => reviewed({component_id: "card", review: sent})
     const asked = () => pushEventTo.mock.calls.filter(([, event]) => event === "prepare_and_send").length
+    const heardWallet = () => pushEventTo.mock.calls.filter(([, event]) => event === "onchain_active_wallet").length
     // LiveView calls these on a hook that has them, as the connection drops and rejoins.
-    const dropped = () => OnchainSteps.disconnected?.call(hook)
-    const rejoined = () => OnchainSteps.reconnected?.call(hook)
+    const dropped = () => {
+      connected = false
+      OnchainSteps.disconnected?.call(hook)
+    }
+    const rejoined = () => {
+      connected = true
+      OnchainSteps.reconnected?.call(hook)
+    }
 
-    return {pressBid, push, asked, dropped, rejoined, pushEventTo}
+    return {pressBid, push, asked, heardWallet, dropped, rejoined}
   }
 
   beforeEach(() => {
@@ -303,31 +313,33 @@ describe("a press after the connection comes back sends a review the server hold
       .filter(([call]) => call.method === "eth_sendTransaction")
       .map(([call]) => (call.params as [{data: string}])[0].data)
 
-  it("asks the server that took over for its review and sends that one", async () => {
+  it("sends the review the page holds while the connection is down, and before the server that took over answers", async () => {
     const provider = wallet()
     activate(provider)
     const card = mountedCard(fresh)
     card.push(review)
 
     card.dropped()
+    card.pressBid()
+    await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c8728ff"]))
+
     card.rejoined()
     card.pressBid()
-
-    await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c872801"]))
-    expect(card.asked()).toBe(1)
-    // The server that took over hears the wallet Privy has active.
-    expect(card.pushEventTo.mock.calls.filter(([, event]) => event === "onchain_active_wallet")).toHaveLength(2)
+    await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c8728ff", "0xa52c8728ff"]))
+    expect(card.asked()).toBe(0)
   })
 
-  it("sends the review the server pushes as it rejoins without asking again", async () => {
+  it("asks the server that took over for a fresh review as the page rejoins, and sends the one it pushes", async () => {
     const provider = wallet()
     activate(provider)
     const card = mountedCard(review)
     card.push(review)
 
     card.dropped()
-    card.push(fresh)
     card.rejoined()
+    // The server that took over hears the wallet Privy has active, and answers with its review.
+    expect(card.heardWallet()).toBe(2)
+    card.push(fresh)
     card.pressBid()
 
     await vi.waitFor(() => expect(sentData(provider)).toEqual(["0xa52c872801"]))
