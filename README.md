@@ -20,7 +20,7 @@ Revstake launches run on Base.
 **Memestock** tokens are memecoins paired with a tokenised stock, such as Tesla or Apple. Bids are
 paid in that stock. Nobody keeps what the auction raises: every unit goes into the token's locked
 trading pool, apart from a rounding remainder routed to the protocol fee lane. The creator receives
-0.5% of the token supply over 30 days and 0.3% of the stock side of trades. There is no team treasury. Memestock
+0.5% of the token supply over about 3 days on Base or about 30 days on Robinhood Chain, and 0.3% of the stock side of trades. There is no team treasury. Memestock
 launches run on Base and on Robinhood Chain.
 
 | | Revstake | Memestock |
@@ -30,10 +30,10 @@ launches run on Base and on Robinhood Chain.
 | Total supply | 100 billion | 1 billion |
 | Sold in the auction | 20% | 49.75% |
 | Reserved for the trading pool | Up to 10% | 49.75% |
-| Everything else | 70%, plus unpaired reserve and rounding leftovers, vests to the treasury over 365 days from graduation | 0.5% vests to the creator over 30 days from graduation; remaining rounding leftovers are retired |
+| Everything else | 70%, plus unpaired reserve and rounding leftovers, vests to the treasury over 365 days from graduation | 0.5% vests to the creator from graduation, over about 3 days on Base or about 30 days on Robinhood Chain; remaining rounding leftovers are retired |
 | Where the raise goes | Up to half funds the locked pool; at least half goes to the treasury | All funds the locked pool, apart from rounding dust credited to the protocol fee lane |
-| Bidding opens | about 10 minutes after launch | about 10 minutes after launch |
-| Bidding lasts | about 48 hours | about 24 hours |
+| Bidding opens | about 1 minute after launch | about 1 minute after launch on Base, about 10 minutes on Robinhood Chain |
+| Bidding lasts | about 5 hours | about 2 hours on Base, about 24 hours on Robinhood Chain |
 
 Launching is free apart from the network fee.
 
