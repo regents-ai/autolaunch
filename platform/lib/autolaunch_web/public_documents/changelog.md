@@ -1,5 +1,13 @@
 # Changelog
 
+## 12 November 2026: Call terms
+- Every covered-call ticket, review and portfolio table now names the stock by its issuer, its chain and its exact address, not by its symbol alone. Agents get the same in every answer.
+- Selling says in plain sight that the premium is paid to your wallet only when a buyer buys, that stock under sold calls is locked until the exercise window closes, that its price can fall meanwhile, and that any gain above the strike goes to the buyer.
+- Buying says that you must exercise yourself inside the window, that calls not exercised by its close end with the premium not returned, and what each part costs, with the break-even. A bid says its premium is held by the contract and may never be filled.
+- Exercise windows are shown with their opening and closing times and the time zone everywhere, and a holder whose window is open or near is told when it closes.
+- On the portfolio a seller's amounts are kept apart: sold, premium paid, for sale, locked, exercised and to collect. To collect is only what the contract will send now.
+- The price beside a stock is labelled as a reference with its age, the suggested premium as a model, and the best live bid or listing on the same terms is shown with its size.
+
 ## 12 November 2026: Product cards
 - The product cards on the home page and the stock list are taller and dark in both themes. Each has a larger moving panel, the product's name, one line saying what it is for, a sentence under it, and its link at the foot.
 - Each card has its own colour. Its panel is drawn in that colour and its name is in that colour too. With a mouse, the panel follows your pointer.
