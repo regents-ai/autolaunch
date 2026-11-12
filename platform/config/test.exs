@@ -51,6 +51,10 @@ config :autolaunch,
   autolaunch_base_deployment_id: "fixture",
   autolaunch_base_chain_id: 8453
 
+# A launch's fees that cannot be read are an unread row on the REGENT Fees page
+# after a third of a second, so the case that waits for one stays short.
+config :autolaunch, :convert_read_timeout, 300
+
 # We don't run a server during test. A local browser test server asks for one
 # by setting AUTOLAUNCH_BROWSER_TEST.
 config :autolaunch, AutolaunchWeb.Endpoint,
