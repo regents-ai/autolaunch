@@ -217,6 +217,10 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     assert shipped[:autolaunch][:share_video_saved_bytes] == 5_000_000_000
   end
 
+  test "RENDER_HAS_A_TIME_LIMIT: Oban ends a render still running after five minutes" do
+    assert ShareVideoRequest.Workers.Render.timeout(%Oban.Job{}) == :timer.minutes(5)
+  end
+
   test "a video made but not yet handed over counts toward the saved space", %{now: now} do
     auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
     person = 1_000_000_000 + :rand.uniform(1_000_000_000)

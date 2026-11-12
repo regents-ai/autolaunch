@@ -12,8 +12,10 @@ defmodule Autolaunch.ShareVideoRequest do
   `share_videos` queue renders one at a time, so how many requests are still
   queued before a row is its place in line. A render that succeeds stores the
   video in the row and marks it ready; one that fails twice marks it failed. A
-  render cut off by a stopped machine is tried again once Lifeline hands its job
-  back; only a render cut off twice leaves its request queued with no job.
+  render is given five minutes, many times what one takes, so a render that
+  hangs is ended and the queue moves on. A render cut off by a stopped machine
+  is tried again once Lifeline hands its job back; only a render ended or cut
+  off twice leaves its request queued with no job.
 
   A video is queued once: a request for a video already queued is that queued
   row, however many ask at once (the `:queued_key` identity). The site makes
@@ -37,12 +39,14 @@ defmodule Autolaunch.ShareVideoRequest do
     triggers do
       # Every request queues its own job as it is written, so there is no sweep.
       # A render cut off by a stopped machine is handed back by Lifeline and
-      # made once more; one that fails twice marks its request failed.
+      # made once more; one that fails twice marks its request failed. Oban
+      # ends a render still running after five minutes.
       trigger :render do
         action :render
         where expr(state == :queued)
         queue :share_videos
         max_attempts 2
+        timeout :timer.minutes(5)
         on_error :fail
         lock_for_update? false
         scheduler_cron false
