@@ -8,7 +8,7 @@
 - While a page has lost its connection, a press in a wallet panel still opens your wallet with what the panel showed. Once the page is back, each wallet panel gets ready again for the wallet you have open. Before, a panel kept what it had before the drop.
 - Every amount in a wallet review is shown to its last digit, however large. Before, a very large amount could be rounded.
 - The create pages check again every five minutes whether new launches are paused, so the launch button comes back within five minutes of launches reopening. Before, a page kept what it read when it opened.
-- An auction's treasury says whether its Safe is verified, and at which Base block. The launch panel shows a verified Safe as verified. Before, every treasury said it was waiting for a check, and the launch panel could say no launch could be prepared for a Safe that was fine. `GET /api/v1/treasury-security/{address}` answers `verification_state` as `verified` or `unverified`, with its `verification_reason`.
+- An auction's treasury says whether its Safe is verified, and at which Base block. The launch panel shows a verified Safe as verified. Before, every treasury said it was waiting for a check, and the launch panel could say no launch could be prepared for a Safe that was fine. `GET /api/v1/treasury-security/{address}` answers `verification_state` as `verified` or `unverified`, with its `verification_reason`; a report stored before 9 November can give `configuration_changed` as its reason.
 
 ## 12 November 2026: Polish
 - The large price at the top of a token's page stays on one line. A very long price, such as $0.00000000000000180, is set smaller until it fits, on a phone as on a wide screen. Before, it could split in the middle of the number.

@@ -10,7 +10,12 @@ defmodule AutolaunchWeb.TreasuryStateTest do
   import Phoenix.LiveViewTest
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.{LaunchFixture, TestAutolaunchTreasuryChainClient}
+
+  alias Autolaunch.{
+    LaunchFixture,
+    TestAutolaunchTreasuryChainClient,
+    TreasurySecurityReport
+  }
 
   @safe "0x9999999999999999999999999999999999999999"
   @four_owners [
@@ -57,6 +62,53 @@ defmodule AutolaunchWeb.TreasuryStateTest do
              |> Map.get("data")
   end
 
+  # Reports written before 9 Nov can carry "configuration_changed", which the
+  # published list of reasons left out (review of A14, 12 Nov 2026).
+  test "a report stored before 9 Nov answers a reason the published contract lists",
+       %{conn: conn} do
+    report = TestAutolaunchTreasuryChainClient.seed_verified!(@safe)
+
+    TreasurySecurityReport
+    |> Ash.Changeset.for_create(
+      :record_observation,
+      report
+      |> Map.take([
+        :address,
+        :chain_id,
+        :classification,
+        :safe_version,
+        :safe_singleton,
+        :owner_addresses,
+        :owner_count,
+        :threshold,
+        :modules,
+        :guard,
+        :fallback_handler,
+        :configuration_fingerprint,
+        :source_block_hash,
+        :observed_at,
+        :usdc_evidence,
+        :regent_evidence,
+        :outbound_evidence
+      ])
+      |> Map.merge(%{
+        source_block_number: report.source_block_number + 1,
+        verification_state: :unverified,
+        verification_reason: "configuration_changed"
+      }),
+      actor: %System{}
+    )
+    |> Ash.create!()
+
+    assert %{"verification_reason" => "configuration_changed" = reason} =
+             conn
+             |> get("/api/v1/treasury-security/#{@safe}")
+             |> json_response(200)
+             |> Map.get("data")
+
+    assert reason in published_reasons()
+  end
+
   test "the launch card shows a verified Safe as verified", %{conn: conn} do
     LaunchFixture.install()
     setup = LaunchFixture.actor()
@@ -88,5 +140,20 @@ defmodule AutolaunchWeb.TreasuryStateTest do
         "I realize my Revstake auction may not appear in the gallery or list, because reputation and social proof are important for raising initial funds for an agent"
     })
     |> render_submit()
+  end
+
+  # The reasons the served API contract lists for a treasury answer.
+  defp published_reasons do
+    "../../../contracts/api-contract.openapiv3.yaml"
+    |> Path.expand(__DIR__)
+    |> YamlElixir.read_from_file!()
+    |> get_in([
+      "components",
+      "schemas",
+      "TreasurySecurity",
+      "properties",
+      "verification_reason",
+      "enum"
+    ])
   end
 end

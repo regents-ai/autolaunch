@@ -1,5 +1,5 @@
 {
-  "total": 216,
+  "total": 217,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2660,26 +2660,26 @@
       "group": "Public API",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/treasury_state_test.exs",
-      "line": 31,
+      "line": 36,
       "test_name": "the public answer gives the stored report's own verification",
       "keep_because": "Audit finding A14 (12 Nov 2026): the treasury answer gave every report a fixed awaiting state. It now gives the stored report's own verification_state and verification_reason, verified for a 2-of-3 Safe and unverified with its reason otherwise. It fails if the answer stops following the stored report.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f805b080b053a4f20552a09ef611fa338d3d76d9a423886828f0b46d88e51518"
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
     },
     {
       "id": 252,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/treasury_state_test.exs",
-      "line": 60,
+      "line": 112,
       "test_name": "the launch card shows a verified Safe as verified",
       "keep_because": "The launch card said no launch could be prepared for any report not made in that visit, even a verified Safe. It now shows a stored verified report as verified. It fails if a verified Safe is shown as unverified.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f805b080b053a4f20552a09ef611fa338d3d76d9a423886828f0b46d88e51518"
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
     },
     {
       "id": 253,
@@ -2810,6 +2810,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 263,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/treasury_state_test.exs",
+      "line": 67,
+      "test_name": "a report stored before 9 Nov answers a reason the published contract lists",
+      "keep_because": "Review of audit finding A14 (12 Nov 2026): treasury reports written before 9 Nov can carry the reason configuration_changed, which the published API contract left out, so a client checking the list would refuse such an answer. The served contract lists it. It fails if the public answer can give a reason the contract does not list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
     }
   ],
   "legacy_folders_to_remove": [
