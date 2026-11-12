@@ -1,5 +1,14 @@
 # Changelog
 
+## 12 November 2026: Fixes
+- On a Robinhood auction's page, Retry now shows the auction once it can be read again. Before, the page could stop working after a first failed load.
+- Search lists its results when you type straight after the page reconnects, instead of the search window stopping.
+- A bid, withdraw or claim panel keeps working when the page reconnects while one of your transactions is on its way.
+- On the REGENT Fees page, a launch whose fees are slow to read says so on its own row, and the other launches still show. The amount you typed to convert stays when the page reads the launch again.
+- A share video that cannot be finished is stopped after five minutes, so the videos waiting behind it are made.
+- The 1000 videos a day are now only people's own videos. A launch's own video, which anyone can open, no longer uses them up. Asking for videos very often from one place is paused for up to a minute.
+- A launch's share picture that cannot be drawn right now asks the site showing it to try again.
+
 ## 12 November 2026: Token page
 - On a phone, a long market figure such as a price or the total supply is no longer split across two lines. A figure too long to sit beside its neighbour takes a line of its own.
 - The token's address in the heading now opens in full when pressed, with a copy button and an arrow that opens it on the chain's explorer, the same as every address in the Contracts list.
