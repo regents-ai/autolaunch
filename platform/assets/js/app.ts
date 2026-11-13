@@ -33,7 +33,7 @@ import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {mountMotion} from "./motion"
 import {MotionCascade, MotionTabs} from "./hooks/motion/reveals"
-import {MotionCount, MotionRefusal, MotionStep, MotionTick} from "./hooks/motion/moments"
+import {MotionCount, MotionList, MotionRefusal, MotionStep, MotionTick} from "./hooks/motion/moments"
 import {MotionPanels} from "./hooks/motion/slides"
 import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
@@ -71,6 +71,7 @@ const hooks = {
   Toast,
   MotionCascade,
   MotionCount,
+  MotionList,
   MotionPanels,
   MotionRefusal,
   MotionStep,

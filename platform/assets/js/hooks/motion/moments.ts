@@ -45,7 +45,8 @@ type ListHook = {el: HTMLElement; scope?: Scope}
  * `data-layout-id` on the list and on every item, names the items in
  * `data-children` and the version in `data-variant`. An item that is leaving
  * is hidden for a moment before the server drops it, so it can fade out while
- * its neighbours close the gap.
+ * its neighbours close the gap. A list that changed while the connection was
+ * away simply shows its new order when it comes back.
  */
 export const listHook = (layouts: Record<string, () => LayoutAnimationParams>): Hook => ({
   mounted(this: ListHook) {
@@ -63,7 +64,7 @@ export const listHook = (layouts: Record<string, () => LayoutAnimationParams>): 
   },
 
   updated(this: ListHook) {
-    if (!still(this.el)) this.scope?.methods.move()
+    if (watched(this.el) && !still(this.el)) this.scope?.methods.move()
   },
 
   destroyed(this: ListHook) {
