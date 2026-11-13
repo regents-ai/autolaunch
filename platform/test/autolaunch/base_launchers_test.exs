@@ -44,7 +44,7 @@ defmodule Autolaunch.BaseLaunchersTest do
     assert Lab.address!(revstake, :factory) == @revstake_v3["factory"]
     assert StocksLab.address!(stocks, :launchpad) == @stocks_v3_launchpad
 
-    # The finisher and the discoveries drive the third launchers only.
+    # The finisher and the discoveries find new launches on the third launchers only.
     base = Enum.filter(Launchpads.configured(), &(&1.chain_id == @base))
 
     assert Enum.map(base, &{&1.launchpad, &1.contract}) == [
@@ -95,6 +95,17 @@ defmodule Autolaunch.BaseLaunchersTest do
 
     assert {:ok, %{contract: @stocks_v3_launchpad}} =
              Launchpads.for_auction(%{chain_id: @base, kind: :stocks, contracts_version: :v3})
+
+    # The finisher finishes a launch it recorded on the second launchers there.
+    auction = "0x" <> String.duplicate("ab", 20)
+    revstake_pad = Launchpads.for_launch!(%{chain_id: @base, contract: @revstake_v2["factory"]})
+
+    assert Launchpads.migrate_call(revstake_pad, %{auction: auction}).to ==
+             @revstake_v2["strategy"]
+
+    memestock_pad = Launchpads.for_launch!(%{chain_id: @base, contract: @stocks_v2.launchpad})
+    assert %{shape: %{version: :v2}} = memestock_pad
+    assert Launchpads.migrate_call(memestock_pad, %{launch_id: 1}).to == @stocks_v2.launchpad
   end
 
   test "a creator's vesting on the third launchpad runs 30 days from the graduation time" do
