@@ -1,5 +1,9 @@
 # Changelog
 
+## 13 November 2026: Auctions
+- On an auction's page, the price and the amount raised now roll to their new figure when they change while you watch, instead of flashing. Nothing beside or below them moves, the bid form included, and with reduced motion turned on the new figure simply appears.
+- A figure anywhere on the site that changed while the page had lost its connection now simply shows its new value when the connection comes back, instead of rolling.
+
 ## 13 November 2026: Wallet
 - On /stock/covered-call, /stock/isolated-afters and the covered calls in your portfolio, the line saying the page lost its connection during a press now has its own room at the foot of the panel, so nothing below it jumps when it shows or goes. It reads "Connection lost. Nothing was sent."
 - Raise on a covered-call bid and Exercise on calls you hold keep a line under the button for the reason it can't be pressed, so what is below no longer jumps while you type an amount.

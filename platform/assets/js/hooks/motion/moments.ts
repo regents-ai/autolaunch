@@ -107,7 +107,8 @@ function join(hook: CountHook, split: TextSplitter) {
  * carry a unit, such as "12.5 USDC". Only the characters that changed move,
  * the ones nearest the end first, like a counter turning over. The figure is
  * split into pieces for the move and joined back as soon as it ends, so the
- * page always patches the plain figure it rendered.
+ * page always patches the plain figure it rendered. A figure that changed
+ * while the connection was away simply shows its new value when it comes back.
  */
 export const countHook = (rolls: Record<string, Roll>): Hook => ({
   mounted(this: CountHook) {
@@ -133,7 +134,7 @@ export const countHook = (rolls: Record<string, Roll>): Hook => ({
   updated(this: CountHook) {
     const before = this.before ?? []
     const after = figures(this.el)
-    if (still(this.el) || after.length !== before.length) return
+    if (still(this.el) || !watched(this.el) || after.length !== before.length) return
 
     const {clip} = rolls[this.el.dataset.variant ?? ""]
     after.forEach((figure, index) => {

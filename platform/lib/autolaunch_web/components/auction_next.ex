@@ -181,7 +181,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             id="auction-next-price"
             class="auction-next-figure__value"
             phx-hook="MotionCount"
-            data-variant="flash"
+            data-variant={AutolaunchWeb.Motion.standard("count")}
           >
             <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
           </strong>
@@ -204,7 +204,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             id="auction-next-raised"
             class="auction-next-figure__value"
             phx-hook="MotionCount"
-            data-variant="flash"
+            data-variant={AutolaunchWeb.Motion.standard("count")}
           >
             <TokenDisplay.price amount={@raised} unit={@symbol} />
           </strong>
