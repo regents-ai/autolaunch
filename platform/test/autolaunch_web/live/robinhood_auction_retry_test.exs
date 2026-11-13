@@ -18,10 +18,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
   @chain_id 4_663
 
   setup do
-    # Whatever clock an earlier case left: this auction's window was never
-    # read, so the page has no clock to draw it against.
-    SharedReading.delete(ChainHead.key("robinhood"))
-
     # The site as it runs once launches are open, when a page's buttons work.
     put_env(:prelaunch_read_only, false)
     put_env(:autolaunch_robinhood_chain_id, @chain_id)
@@ -47,6 +43,25 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
 
     assert has_element?(view, "article#autolaunch-robinhood-auction h1", "RETRY")
     assert has_element?(view, "article#autolaunch-robinhood-auction .auction-next-overview")
+  end
+
+  # The page drew its bid timeline from the auction's window, and one never
+  # read crashed it once Robinhood's clock was known (review of the
+  # money-path fixes, 12 Nov 2026).
+  test "an auction whose window was never read opens while Robinhood's clock is known",
+       %{conn: conn} do
+    key = ChainHead.key("robinhood")
+    :ok = SharedReading.put(key, 1_000)
+    on_exit(fn -> SharedReading.delete(key) end)
+
+    stored = TestSupport.project_auction(chain_id: @chain_id, kind: :stocks, symbol: "NOWIN")
+    {:ok, auction} = Paths.find_auction("NOWIN", String.slice(stored.auction_address, -5, 5))
+
+    {:ok, view, _html} = live(conn, Paths.auction(auction))
+    render_async(view)
+
+    assert has_element?(view, "article#autolaunch-robinhood-auction h1", "NOWIN")
+    refute has_element?(view, "#robinhood-auction-activity")
   end
 
   # The page's own read of its auction, the first after the address was found,

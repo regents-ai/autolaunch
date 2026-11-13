@@ -305,7 +305,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             id={@id <> "-sender"}
             next_step={next_step(@steps)}
             steps={@steps}
-            reverted={reverted(@steps)}
             signer={@review && @review.signer}
             chain_name={@review && @review.chain.name}
             mismatch={@mismatch}
@@ -396,7 +395,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     do: {:noreply, assign(socket, notice: @generic)}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket),
     do: {:noreply, routed(socket, hash, OnchainSteps.receipt_logs(result))}
@@ -520,6 +519,20 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp confirmed(socket, _approval), do: socket
 
+  # A step of the open review that did not go through: the same payment, or
+  # the same route, is reviewed again at once from Base as it is now
+  # (`OnchainSteps.rebuild_reverted/4`), with a new payment reference.
+  defp step_reverted(%{assigns: %{prepared: %{facts: facts}}} = socket, %{name: name} = entry) do
+    note = reverted_copy(name)
+    params = %{"asset" => asset_id(facts.asset), "amount" => facts.amount}
+
+    OnchainSteps.rebuild_reverted(socket, entry, note, fn socket ->
+      socket |> withdrawn() |> review(facts.kind, params) |> OnchainSteps.rebuilt(note)
+    end)
+  end
+
+  defp step_reverted(socket, _closed_review), do: socket
+
   defp routed(socket, hash, logs) do
     with %{review: %{id: id}} <-
            Enum.find(Presses.shown(socket.assigns.presses), &(&1.hash == hash)),
@@ -583,18 +596,11 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  defp reverted(steps) do
-    case Enum.find(steps, &(&1.state == :reverted)) do
-      %{name: "approval"} ->
-        "That approval did not go through. Only the network fee was spent. Press again."
+  defp reverted_copy("approval"),
+    do: "That approval did not go through. Only the network fee was spent."
 
-      %{} ->
-        "That did not go through, so nothing moved. Only the network fee was spent. Press again."
-
-      nil ->
-        nil
-    end
-  end
+  defp reverted_copy(_action),
+    do: "That did not go through, so nothing moved. Only the network fee was spent."
 
   defp step_label("approval", facts, symbol),
     do: "Allow #{asset_label(facts.asset, symbol)} to be spent"
@@ -626,6 +632,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp action_kind(_unknown), do: nil
 
   defp asset_key(id), do: Enum.find_value(@assets, &(&1.id == id && &1.key))
+  defp asset_id(key), do: Enum.find_value(@assets, &(&1.key == key && &1.id))
 
   defp asset_label(:subject, symbol), do: symbol
   defp asset_label(:usdc, _symbol), do: "USDC"

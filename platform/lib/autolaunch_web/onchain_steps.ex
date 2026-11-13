@@ -374,6 +374,41 @@ defmodule AutolaunchWeb.OnchainSteps do
   end
 
   @doc """
+  A panel's `reverted` for `checked/5`: a step of the review on the page did
+  not go through. `note` says so beside the button at once, and once nothing
+  else sent from that review is on its way, `rebuild` builds the review again
+  from the chain as it is now, so the next press sends what the chain accepts
+  now, or the panel says why nothing can be done. A step from a review the page
+  has since left changes nothing.
+  """
+  def rebuild_reverted(
+        %{assigns: %{review: %{id: id} = review}} = socket,
+        %{review: %{id: id}},
+        note,
+        rebuild
+      ) do
+    socket = assign(socket, press_note: note)
+    if pending?(socket.assigns.presses, review), do: socket, else: rebuild.(socket)
+  end
+
+  def rebuild_reverted(socket, _earlier_review, _note, _rebuild), do: socket
+
+  @doc "The words beside the button of a review built again after `note`'s step did not go through."
+  def rebuilt_words(note),
+    do: note <> " This review now uses the latest figures: press again to send it."
+
+  @doc """
+  Where the words go once a panel built its review again in place
+  (`rebuild_reverted/4`): beside the new review's button, or before the
+  panel's own reason (`notice`) when the chain refuses the action now.
+  """
+  def rebuilt(%{assigns: %{review: %{}}} = socket, note),
+    do: assign(socket, press_note: rebuilt_words(note))
+
+  def rebuilt(%{assigns: %{notice: notice}} = socket, note),
+    do: assign(socket, notice: "#{note} #{notice}")
+
+  @doc """
   A step that landed may have changed what the site's shared figures show, so
   every reader of its chain reads it again (`Autolaunch.ChainRefresh`).
   """

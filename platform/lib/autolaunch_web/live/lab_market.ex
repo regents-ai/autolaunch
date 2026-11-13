@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.LabMarket do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [signed_in_wallet: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [linked_wallets: 1]
 
   alias Autolaunch.{AuctionReading, ChainHead, SharedReading}
   alias Autolaunch.LaunchDiscovery.Count
@@ -71,13 +71,18 @@ defmodule AutolaunchWeb.LabMarket do
   end
 
   @doc """
-  Has the connected page of the signed-in wallet's own bids told when one of
-  them is written (`{:autolaunch_bid_changed, bid_id}`, `Autolaunch.Bid.subscribe_wallet/1`):
-  an auction's reading job writes them with its row, apart from the block.
+  Has the connected page of the bids of every wallet the signed-in account
+  links told when one of them is written (`{:autolaunch_bid_changed, bid_id}`,
+  `Autolaunch.Bid.subscribe_wallet/1`): an auction's reading job writes them
+  with its row, apart from the block.
   """
   def subscribe_wallet_bids(socket) do
-    wallet = signed_in_wallet(socket.assigns.access_context)
-    if wallet && Phoenix.LiveView.connected?(socket), do: Autolaunch.Bid.subscribe_wallet(wallet)
+    if Phoenix.LiveView.connected?(socket),
+      do:
+        Enum.each(
+          linked_wallets(socket.assigns.access_context),
+          &Autolaunch.Bid.subscribe_wallet/1
+        )
 
     socket
   end

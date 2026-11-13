@@ -1,17 +1,48 @@
 defmodule Autolaunch.Stocks.AmountsTest do
   use ExUnit.Case, async: true
+  use ExUnitProperties
+
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
 
+  @uint256_max Integer.pow(2, 256) - 1
+
   test "raw uint256 quantities roundtrip without float loss" do
-    max = Integer.pow(2, 256) - 1
+    max = @uint256_max
 
     for decimals <- [0, 6, 8, 18, 255], raw <- [0, 1, 9_007_199_254_740_993, max] do
-      assert {:ok, text} = Amounts.format_units(raw, decimals)
+      text = Rpc.format_units(raw, decimals)
       assert {:ok, ^raw} = Amounts.parse_units(text, decimals)
     end
 
     assert {:error, :amount_not_representable} =
              Amounts.parse_units(Integer.to_string(max + 1), 0)
+  end
+
+  # The figure a wallet review shows reads back as the exact raw amount the
+  # chain holds, from one unit to the largest uint256, at 0 to 36 decimals.
+  property "a shown amount reads back as the exact raw amount" do
+    check all(
+            digits <- integer(1..78),
+            seed <- integer(0..@uint256_max),
+            decimals <- integer(0..36)
+          ) do
+      raw = rem(seed, Integer.pow(10, digits))
+      text = Rpc.format_units(raw, decimals)
+
+      assert {:ok, ^raw} = Amounts.parse_units(text, decimals)
+      refute text =~ ~r/\.\d*0\z/
+    end
+  end
+
+  test "the largest uint256 amounts are shown digit for digit" do
+    assert Rpc.format_units(@uint256_max, 18) ==
+             "115792089237316195423570985008687907853269984665640564039457.584007913129639935"
+
+    assert Rpc.format_units(@uint256_max, 0) == Integer.to_string(@uint256_max)
+    assert Rpc.format_units(1_500_000, 6) == "1.5"
+    assert Rpc.format_units(5, 6) == "0.000005"
+    assert Rpc.format_units(0, 6) == "0"
   end
 
   test "amount precision is never silently discarded" do

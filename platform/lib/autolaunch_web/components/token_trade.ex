@@ -109,41 +109,6 @@ defmodule AutolaunchWeb.Components.TokenTrade do
     """
   end
 
-  attr :id, :string, required: true
-  attr :class, :any, default: nil
-  slot :inner_block, required: true
-
-  @doc """
-  The ground the trade widget and Claim Rewards stand on: the soft light behind
-  their buttons (`SiteLight`) and the press their buttons make (`SiteButtons`),
-  as the template's study of the site's buttons has them, and the layer the
-  light swirls across after a claim, which page updates leave alone.
-  """
-  def buttons_stage(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      class={["site-light-stage", @class]}
-      phx-hook="SiteButtons"
-      phx-mounted={Phoenix.LiveView.JS.ignore_attributes("data-input")}
-    >
-      <div
-        id={@id <> "-light"}
-        class="site-light"
-        phx-hook="SiteLight"
-        phx-update="ignore"
-        phx-mounted={Phoenix.LiveView.JS.ignore_attributes("data-light-ready")}
-        aria-hidden="true"
-      >
-        <canvas data-light-canvas></canvas>
-      </div>
-      <div id={@id <> "-swirl"} class="stake-light-layer" phx-update="ignore" aria-hidden="true">
-      </div>
-      {render_slot(@inner_block)}
-    </div>
-    """
-  end
-
   attr :pool, :map, required: true, doc: "the page's pool read, while it is not ready"
 
   @doc """

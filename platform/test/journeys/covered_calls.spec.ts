@@ -258,7 +258,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
 
   // While paused, B's stock can't leave: the press reaches the wallet and reverts, and the page says so.
   expect((await collect(b, `held-${id}`, "Collect AMZNc", bought)).status).toBe("0x0")
-  await expect(b.getByText("That did not go through and nothing moved. Close this and review again.")).toBeVisible()
+  await expect(b.getByText("That did not go through and nothing moved.").first()).toBeVisible()
 
   // A still collects the 600 USDC strike during the pause.
   const aUsdc = await balanceOf(USDC, people.a.wallet)

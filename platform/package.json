@@ -7,7 +7,8 @@
     "typecheck": "tsc --project assets/tsconfig.json --noEmit && tsc --project test/browser/tsconfig.json --noEmit && tsc --project test/journeys/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:browser": "sh test/browser/walk.sh",
-    "stills:home": "node assets/js/home_cells/stills.mjs"
+    "stills:home": "node assets/js/home_cells/stills.mjs",
+    "stills:value-cards": "node assets/js/value_cards/stills.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "3.51.1",

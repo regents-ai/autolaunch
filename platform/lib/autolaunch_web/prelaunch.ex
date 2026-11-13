@@ -11,6 +11,9 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.AuctionLive => ~w(retry),
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
+    # Accounts stay open: the Account page reads its connections again once
+    # the browser has connected or disconnected an X account.
+    AutolaunchWeb.AccountLive => ~w(refresh_x_connections),
     AutolaunchWeb.CoveredCallsLive =>
       ~w(refresh sell sell_expiry sell_strike sell_suggested bid bid_expiry bid_strike bid_suggested buy sale mode dismiss_done),
     AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done)

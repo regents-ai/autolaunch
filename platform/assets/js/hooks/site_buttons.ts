@@ -65,6 +65,13 @@ export const SiteButtons = {
 // How bright the light rests, and how much a pointer over its ground adds.
 const GLOW = .4
 const HOVER_GLOW = .25
+// The round pool's size, and how much the frame's own edges catch it.
+const POOL = {w: 0, h: 0, reach: 1.15, edge: .06}
+// A light shaped like its buttons is quieter: how bright it rests on the page you are on, how
+// much a pointer or keyboard focus adds, and how many pixels it spreads past the button's edge.
+const SHAPED_GLOW = .14
+const SHAPED_HOVER_GLOW = .04
+const SHAPED_REACH = 10
 
 let probe: CanvasRenderingContext2D | null | undefined
 
@@ -110,8 +117,11 @@ const middle = (el: Element, box: DOMRect): Point => {
 }
 
 /** The VGPU light behind a group of the site's buttons: it follows the pointer over its ground
- *  and otherwise rests on the first button showing, then stops drawing. The still face
- *  underneath is what shows until a frame lands. After a confirmed claim the server sends
+ *  and otherwise rests on the first button showing, then stops drawing. A light shaped like its
+ *  buttons (`data-light-shape="button"`, the rail and the footer) instead takes the shape of the
+ *  button under a mouse, else the one with keyboard focus, else the page you are on, glides
+ *  between them, and fades where it is when there is none. The still face underneath is what
+ *  shows until a frame lands. After a confirmed claim the server sends
  *  `stake-light`: a green light swirls from the claim button into the Stake button (the
  *  Stake tab while that is not showing), the line under it fades in as it arrives, and the
  *  light goes back to rest. Nothing moves under
@@ -120,16 +130,43 @@ export const SiteLight = {
   mounted(this: LightHook) {
     const root = this.el
     const stage = root.parentElement!
-    const button = () =>
-      [...stage.querySelectorAll<HTMLElement>("[data-press='motion']")].find(el => el.offsetParent !== null && !el.closest("[inert]"))
-    let pointer: {x: number; y: number} | null = null
+    const shaped = root.dataset.lightShape === "button"
+    const showing = (el: HTMLElement) => el.isConnected && el.offsetParent !== null && !el.closest("[inert]")
+    const buttons = () => [...stage.querySelectorAll<HTMLElement>("[data-press='motion']")].filter(showing)
+    let pointer: Point | null = null
+    let hovered: HTMLElement | null = null
+    let lit: LightAim = {x: .5, y: .5, glow: 0, ...POOL}
+
+    const pool = (box: DOMRect): LightAim => {
+      if (pointer) return {x: pointer.x, y: pointer.y, glow: GLOW + HOVER_GLOW, ...POOL}
+      const at = buttons()[0]?.getBoundingClientRect()
+      if (!at || box.width === 0 || box.height === 0) return {x: .5, y: .5, glow: GLOW, ...POOL}
+      return {x: (at.left + at.width / 2 - box.left) / box.width, y: (at.top + at.height / 2 - box.top) / box.height, glow: GLOW, ...POOL}
+    }
+
+    const shape = (box: DOMRect): LightAim => {
+      const active = document.activeElement
+      const focused = active instanceof HTMLElement && stage.contains(active) && active.matches("[data-press='motion']:focus-visible") ? active : null
+      const near = [hovered, focused].find(el => el !== null && showing(el))
+      // The page you are on is the last row marked: Auctions, not the Explore above it.
+      const button = near ?? buttons().filter(el => el.matches("[aria-current='page']")).at(-1)
+      if (!button || box.width === 0 || box.height === 0) return {...lit, glow: 0}
+      const at = button.getBoundingClientRect()
+      lit = {
+        x: (at.left + at.width / 2 - box.left) / box.width,
+        y: (at.top + at.height / 2 - box.top) / box.height,
+        glow: near ? SHAPED_GLOW + SHAPED_HOVER_GLOW : SHAPED_GLOW,
+        w: at.width / 2 / box.height,
+        h: at.height / 2 / box.height,
+        reach: SHAPED_REACH / box.height,
+        edge: 0,
+      }
+      return lit
+    }
 
     const aim = (): LightAim => {
       const box = root.getBoundingClientRect()
-      if (pointer) return {x: pointer.x, y: pointer.y, glow: GLOW + HOVER_GLOW}
-      const at = button()?.getBoundingClientRect()
-      if (!at || box.width === 0 || box.height === 0) return {x: .5, y: .5, glow: GLOW}
-      return {x: (at.left + at.width / 2 - box.left) / box.width, y: (at.top + at.height / 2 - box.top) / box.height, glow: GLOW}
+      return shaped ? shape(box) : pool(box)
     }
 
     this.controller = createCanvasIsland<LightRenderer>(root, {}, {
@@ -149,8 +186,14 @@ export const SiteLight = {
           const style = getComputedStyle(root)
           renderer()?.colors(rgb(style.backgroundColor), rgb(style.color))
         }
+        // A light that has gone out comes back on where it lands, rather than gliding in from
+        // where it went out.
+        let off = true
         const sync = (jump = false) => {
-          renderer()?.aim(aim(), jump)
+          const target = aim()
+          if (off && target.glow > 0) renderer()?.aim({...target, glow: 0}, true)
+          off = target.glow === 0
+          renderer()?.aim(target, jump)
           nudge()
         }
         const keyed = () => stage.closest<HTMLElement>("[data-input]")?.dataset.input === "key"
@@ -158,12 +201,20 @@ export const SiteLight = {
         const options = {signal: events.signal}
         stage.addEventListener("pointermove", event => {
           if (event.pointerType !== "mouse") return
-          const box = root.getBoundingClientRect()
-          pointer = {x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height}
+          if (shaped) {
+            // Only a move onto another button moves the light; the gaps between keep the last.
+            const over = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-press='motion']") : null
+            if (!over || over === hovered || !stage.contains(over)) return
+            hovered = over
+          } else {
+            const box = root.getBoundingClientRect()
+            pointer = {x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height}
+          }
           sync()
         }, options)
-        stage.addEventListener("pointerleave", () => { pointer = null; sync() }, options)
+        stage.addEventListener("pointerleave", () => { pointer = null; hovered = null; sync() }, options)
         stage.addEventListener("focusin", () => sync(keyed()), options)
+        stage.addEventListener("focusout", () => sync(), options)
         // A theme switch repaints the ground at once; only the light itself eases.
         const repaint = () => { paint(); sync(true) }
         const theme = new MutationObserver(repaint)
@@ -176,7 +227,7 @@ export const SiteLight = {
           const box = root.getBoundingClientRect()
           if (box.width === 0 || box.height === 0) return
           paint()
-          renderer()?.aim({x: at.x / box.width, y: at.y / box.height, glow: GLOW + HOVER_GLOW}, true)
+          renderer()?.aim({x: at.x / box.width, y: at.y / box.height, glow: GLOW + HOVER_GLOW, ...POOL}, true)
           nudge()
         }
         onReady(repaint)

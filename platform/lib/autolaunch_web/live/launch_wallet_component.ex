@@ -58,8 +58,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       {:ok,
        socket
        |> Session.check_component_lease(&take_account/2)
-       |> LaunchSteps.init()
-       |> assign(fresh_treasury_report_id: nil)}
+       |> LaunchSteps.init()}
 
   # The review on the page, checked against the chain again once it is ten
   # minutes old (`AutolaunchWeb.LaunchSteps.refreshed/4`).
@@ -113,22 +112,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
           />
         </p>
-        <p
-          :if={freshly_verified?(@treasury_report, @fresh_treasury_report_id)}
-          data-treasury-verification-state="verified"
-        >
+        <p :if={verified?(@treasury_report)} data-treasury-verification-state="verified">
           Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
         </p>
-        <p
-          :if={awaiting_current_chain?(@treasury_report, @fresh_treasury_report_id)}
-          data-treasury-verification-state="awaiting-current-chain-confirmation"
-        >
-          Awaiting current chain confirmation. No launch can be prepared on the official Safe path.
-        </p>
-        <p
-          :if={freshly_unverified?(@treasury_report, @fresh_treasury_report_id)}
-          data-treasury-verification-state="unverified"
-        >
+        <p :if={!verified?(@treasury_report)} data-treasury-verification-state="unverified">
           Unverified. No launch can be prepared on the official Safe path.
         </p>
         <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
@@ -296,14 +283,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
     case result do
       {:ok, report} ->
-        assign(socket,
-          treasury_report: report,
-          fresh_treasury_report_id: report.id,
-          notice: copy(:treasury_observation_recorded)
-        )
+        assign(socket, treasury_report: report, notice: copy(:treasury_observation_recorded))
 
       {:error, error} ->
-        assign(socket, fresh_treasury_report_id: nil, notice: copy(OnchainSteps.refusal(error)))
+        assign(socket, notice: copy(OnchainSteps.refusal(error)))
     end
   end
 
@@ -316,15 +299,9 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp production_report(_draft), do: nil
 
-  defp freshly_verified?(%{id: id, verification_state: :verified}, id), do: true
-  defp freshly_verified?(_report, _fresh_report_id), do: false
-
-  defp freshly_unverified?(nil, _fresh_report_id), do: true
-  defp freshly_unverified?(%{id: id, verification_state: state}, id), do: state != :verified
-  defp freshly_unverified?(_report, _fresh_report_id), do: false
-
-  defp awaiting_current_chain?(%{id: id}, fresh_report_id), do: id != fresh_report_id
-  defp awaiting_current_chain?(_report, _fresh_report_id), do: false
+  # The newest stored report's own answer; the review observes the treasury
+  # again before it prepares anything.
+  defp verified?(report), do: match?(%{verification_state: :verified}, report)
 
   # The review
 

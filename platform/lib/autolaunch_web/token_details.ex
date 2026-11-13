@@ -244,8 +244,13 @@ defmodule AutolaunchWeb.TokenDetails do
 
   defp security(view) do
     "- Treasury security: immutable recipient #{view.address}, " <>
-      "#{AutolaunchHelpers.display_action(view.classification)}, awaiting current chain confirmation"
+      "#{AutolaunchHelpers.display_action(view.classification)}, #{verification(view)}"
   end
+
+  defp verification(%{verification_state: "verified", source_block_number: block}),
+    do: "verified at Base block #{block}"
+
+  defp verification(_unverified), do: "not verified"
 
   defp yours(_pool, nil, _position), do: nil
   defp yours(_pool, _wallet, nil), do: nil

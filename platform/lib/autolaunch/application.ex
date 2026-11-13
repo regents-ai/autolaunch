@@ -53,6 +53,15 @@ defmodule Autolaunch.Application do
          hooks: [hook(module: Cachex.Limit.Scheduled, args: {1_000, [], []})]},
         id: Autolaunch.DexScreener.cache()
       ),
+      # Where each settlement's walk of an auction's price records reached, so
+      # the next request goes on from there (Autolaunch.Chain.CcaLists).
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.Chain.CcaLists.cache(),
+         expiration: expiration(default: :timer.minutes(30), interval: :timer.minutes(1)),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {10_000, [], []})]},
+        id: Autolaunch.Chain.CcaLists.cache()
+      ),
       # Each paired agent's reading for an open account menu.
       Supervisor.child_spec({Cachex, name: Autolaunch.Agents.ActivityReading.cache()},
         id: Autolaunch.Agents.ActivityReading.cache()

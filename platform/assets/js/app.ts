@@ -24,6 +24,7 @@ import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
 import {PriceLine} from "./hooks/price_line"
 import {HomeCells} from "./hooks/home_cells"
+import {ValueCard} from "./hooks/value_card"
 import {Countdown} from "./hooks/countdown"
 import {LocalTime} from "./hooks/local_time"
 import {installAgentTools} from "./agent_tools"
@@ -60,6 +61,7 @@ const hooks = {
   PriceChart,
   PriceLine,
   HomeCells,
+  ValueCard,
   LocalTime,
   Countdown,
   PublicName,

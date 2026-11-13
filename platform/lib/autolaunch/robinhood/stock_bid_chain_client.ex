@@ -9,19 +9,16 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   bid adapter's bindings, the auction's STOCK and its admission record, the
   signer's USDG balance and allowance to the adapter, the admitted route's
   estimate of the STOCK the USDG buys, the auction's price limits, the
-  requested maximum aligned to the auction's tick grid, and that tick's
-  predecessor.
+  requested maximum aligned to the auction's tick grid, and a tick the auction
+  holds below it (`Autolaunch.Chain.CcaLists.tick_hint/4`).
   """
 
   alias Autolaunch.BidPrice
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, CcaLists, Rpc}
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias RegentChain.Address
-
-  @max_tick_walk 256
-  @uint256_max Integer.pow(2, 256) - 1
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, signer: signer, usdg_amount: usdg_amount, max_price_q96: max}) do
@@ -193,34 +190,20 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   defp aligned_price(nil, _facts), do: {:ok, nil}
   defp aligned_price(max, facts), do: BidPrice.align(max, facts)
 
-  # The initialised tick just below the aligned price, found by walking the
-  # auction's own tick list from the floor: bounded, and refused when the list
-  # stops making progress.
+  # A tick the auction holds below the aligned price (`CcaLists.tick_hint/4`).
   defp predecessor(_config, _auction, nil, _block, _opts), do: {:ok, 0}
 
   defp predecessor(config, auction, max_price, block, opts) do
+    read_next = fn price ->
+      with {:ok, [next, _demand]} <-
+             auction_words(config, auction, "ticks(uint256)", [price], block, opts, 2),
+           do: {:ok, next}
+    end
+
     with {:ok, floor} <- auction_uint(config, auction, "floorPrice()", [], block, opts),
-         true <- floor < max_price do
-      walk_ticks(config, auction, floor, max_price, block, opts, 0)
-    else
-      false -> {:error, :bid_preparation_unavailable}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp walk_ticks(_config, _auction, _current, _max_price, _block, _opts, @max_tick_walk),
-    do: {:error, :bid_preparation_unavailable}
-
-  defp walk_ticks(config, auction, current, max_price, block, opts, hops) do
-    with {:ok, [next, _demand]} <-
-           auction_words(config, auction, "ticks(uint256)", [current], block, opts, 2) do
-      cond do
-        next == @uint256_max -> {:ok, current}
-        next >= max_price -> {:ok, current}
-        next > current -> walk_ticks(config, auction, next, max_price, block, opts, hops + 1)
-        true -> {:error, :bid_preparation_unavailable}
-      end
-    end
+         {:ok, next_active} <-
+           Rpc.call_uint(auction, LabAbi.selector("nextActiveTickPrice()"), block, opts),
+         do: CcaLists.tick_hint(read_next, floor, next_active, max_price)
   end
 
   defp auction_uint(config, auction, signature, arguments, block, opts),

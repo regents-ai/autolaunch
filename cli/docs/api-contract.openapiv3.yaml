@@ -1404,8 +1404,8 @@ components:
         address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
         chain_id: {type: integer, enum: [8453]}
         classification: {type: string, enum: [supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, unsupported]}
-        verification_state: {type: string, enum: [awaiting_current_chain_confirmation]}
-        verification_reason: {type: string, enum: [projector_refresh_not_integrated]}
+        verification_state: {type: string, enum: [verified, unverified]}
+        verification_reason: {type: string, enum: [verified, single_key_eoa, delegated_eoa, safe_1_of_1, unknown_contract, unverified_split, unsupported, safe_owner_count, safe_duplicate_owners, safe_threshold, safe_modules_enabled, safe_guard_enabled, safe_fallback_unadmitted, usdc_evidence_missing, regent_evidence_missing, outbound_evidence_missing, configuration_changed]}
         configuration_fingerprint: {type: string, pattern: '^0x[0-9a-f]{64}$'}
         source_block_number: {type: integer, minimum: 0}
         source_block_hash: {type: string, pattern: '^0x[0-9a-f]{64}$'}

@@ -1,5 +1,5 @@
 {
-  "total": 182,
+  "total": 219,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -53,7 +53,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 8,
@@ -66,7 +66,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 9,
@@ -79,7 +79,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 10,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 11,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 12,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 25,
@@ -157,7 +157,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 40,
@@ -170,7 +170,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 41,
@@ -183,7 +183,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 42,
@@ -196,7 +196,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 43,
@@ -209,7 +209,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 44,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 45,
@@ -235,7 +235,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     },
     {
       "id": 46,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 53,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 54,
@@ -1327,7 +1327,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9defb37fce9ba69001c93112ea63a01df40413779182d1aad77ffd21ae09c4c7"
+      "source_sha256": "a62aed1f9c3d50c490ee155327a1a9522f8a228a21e230098714b1d6b75c7476"
     },
     {
       "id": 146,
@@ -1600,7 +1600,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 168,
@@ -1613,7 +1613,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 169,
@@ -1626,7 +1626,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 170,
@@ -1639,7 +1639,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 171,
@@ -1678,7 +1678,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 174,
@@ -1691,7 +1691,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+      "source_sha256": "26ad6ffea4aaae7d28740f39a17bdfc41f5151169fc2c5ddeab56f89f4da1489"
     },
     {
       "id": 175,
@@ -1841,13 +1841,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/bid_settlement_press_test.exs",
-      "line": 54,
+      "line": 55,
       "test_name": "SETTLE_PRESS_BEFORE_REVIEW_SENDS: a settlement press with no review on the card is prepared and sent",
       "keep_because": "A settlement card's button names its action before its review arrives, and a press in that moment sent nothing (found by the agent journeys, 28 Oct 2026). The case presses before the card has its review and checks the card prepares it and hands back its exit step. It fails without the card's prepare_and_send.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5fb30cbb77687ddbd8d06a95d45ff48a6d9b6894bc4f9dddf401ff56ca50c9ca"
+      "source_sha256": "468c5bb320460c938109e3a65c891f3ba1c1d5a2fc5f767f582cf515e802dd97"
     },
     {
       "id": 187,
@@ -1860,7 +1860,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
     },
     {
       "id": 188,
@@ -2368,6 +2368,487 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "ab4d17d073ef768afbb09a0065d010f8540eba731d11d1948782c652b6450ee4"
+    },
+    {
+      "id": 228,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 18,
+      "test_name": "is a tick the auction holds below the price, the one just below it when in reach",
+      "keep_because": "Audit finding A2 (12 Nov 2026): a new bid's tick hint walked the auction's tick list and gave up after 256 steps. Property case over lists of any length: the hint is always a tick the auction holds below the bid's price, and the one just below it when the walk reaches it. It fails if a hint above the price or not in the list is ever given.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 229,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 45,
+      "test_name": "is refused when the floor is not below the price or the list does not climb",
+      "keep_because": "A tick list that does not climb, or a floor at or above the price, has no valid hint; the walk says so instead of handing back a tick the auction would refuse. It fails if such a list yields a hint.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 230,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 52,
+      "test_name": "a read that fails is the read's own answer",
+      "keep_because": "A tick read that fails ends the walk with that failure, so the bid card says the chain could not be read just now instead of building a bid from a partial walk. It fails if a failed read becomes a hint.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 231,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 59,
+      "test_name": "is the exact crossing within the stated reads in each request, and a looser one goes on from it",
+      "keep_because": "Audit finding A1 (12 Nov 2026) and its review: a settlement's checkpoint hints walked from the bid and gave up after 256 steps, stranding a bid in a busy auction, and the outbid walk then read the same stretch again from the bid. Property case: for crossings anywhere along any history, the last fully filled and the outbid hints are the exact ones, the outbid walk going on from where the first ended, and each request reads at most 2*ceil(log2(n + 1)) + 257 entries. It fails on a wrong crossing, a read count over the bound, or an outbid walk that starts again from the bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 232,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 83,
+      "test_name": "a long stretch no bid wrote is read across requests, each going on from the last",
+      "keep_because": "A stretch of checkpoints longer than one request's reads is walked across requests, each going on from where the last one stopped, until the crossing is found. It fails if a request starts over or never reaches the crossing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 233,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 134,
+      "test_name": "a bid whose own checkpoint does not pass has no crossing to give",
+      "keep_because": "A bid still fully in the auction has no crossing; the walk says so instead of inventing hints. It fails if such a bid gets settlement hints.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 234,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 141,
+      "test_name": "a read that fails is the read's own answer, and keeps where the walk reached",
+      "keep_because": "A checkpoint read that fails answers that failure and keeps where the walk had reached, so the next request goes on from there. It fails if a failed read becomes hints or the walk's progress is lost.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 235,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_chain_client_test.exs",
+      "line": 142,
+      "test_name": "a bid in a busy auction names the tick just below its price, however many lie below",
+      "keep_because": "Audit finding A2 against the Base bid reader: an auction holding hundreds of ticks below a bid's price refused the bid before; now the bid names the tick just below its price. It fails if the 256-step limit comes back.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "49bf144a1d190c362fad43e9f7849714ed972e134bd95863c32cd3ed2902954b"
+    },
+    {
+      "id": 236,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_chain_client_test.exs",
+      "line": 155,
+      "test_name": "a bid further up than one walk reaches names the highest tick the walk reached",
+      "keep_because": "A bid whose price lies beyond one walk's reads still gets a tick the auction holds below its price, the highest the walk reached, which the auction accepts and walks on from. It fails if such a bid is refused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "49bf144a1d190c362fad43e9f7849714ed972e134bd95863c32cd3ed2902954b"
+    },
+    {
+      "id": 237,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
+      "line": 155,
+      "test_name": "a partly filled bid hundreds of checkpoints from its crossing is settled with the exact hints",
+      "keep_because": "Audit finding A1 against the Base settlement reader: a partly filled bid hundreds of checkpoints from its crossing could not be withdrawn or claimed before; now its settlement carries the exact hints. It fails if the 256-step limit comes back.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
+    },
+    {
+      "id": 238,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
+      "line": 167,
+      "test_name": "a stretch longer than one request's reads is read across requests, and the outbid walk goes on from the filled one",
+      "keep_because": "Audit finding A1 and its review (12 Nov 2026): a crossing further than one request's reads is reached over several requests through the kept walk, then the outbid walk goes on from the last fully filled checkpoint instead of reading the stretch again, so the review settles on the second request. It fails if the reader starts over, never settles, or walks the stretch twice.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
+    },
+    {
+      "id": 239,
+      "group": "Money and reviewed funding conditions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/amounts_test.exs",
+      "line": 24,
+      "test_name": "a shown amount reads back as the exact raw amount",
+      "keep_because": "Audit finding A6 (12 Nov 2026): raw amounts were formatted with 28-digit decimal precision and shown rounded under a wallet review. Property case: every shown amount up to 2^256-1 at 0 to 36 decimals reads back to the exact raw integer. It fails on any rounding.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "59c9cee50f91706d9d6c4a6c48eb0b8cc615cb5627c4011aa3a26ef347bacfbb"
+    },
+    {
+      "id": 240,
+      "group": "Money and reviewed funding conditions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/amounts_test.exs",
+      "line": 38,
+      "test_name": "the largest uint256 amounts are shown digit for digit",
+      "keep_because": "The largest raw amount the chain can hold is shown digit for digit at 18 and at 0 decimals, and small amounts without trailing zeros. It fails if a large amount is rounded or shortened.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "59c9cee50f91706d9d6c4a6c48eb0b8cc615cb5627c4011aa3a26ef347bacfbb"
+    },
+    {
+      "id": 241,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_settlement_press_test.exs",
+      "line": 84,
+      "test_name": "a return that did not go through is prepared again from the auction as it is now",
+      "keep_because": "Audit finding A5 (12 Nov 2026): a withdraw or claim that reverted kept its review, so the next press sent the same transaction again. The card says it did not go through and reads the settlement again from the auction. It fails if the old review is sent again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "468c5bb320460c938109e3a65c891f3ba1c1d5a2fc5f767f582cf515e802dd97"
+    },
+    {
+      "id": 242,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_settlement_press_test.exs",
+      "line": 112,
+      "test_name": "a return that did not go through after the bid was returned another way gives the auction's answer",
+      "keep_because": "When the bid was returned another way meanwhile, the card says the step did not go through, gives the auction's own answer and holds no review to send. It fails if the stale step is offered again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "468c5bb320460c938109e3a65c891f3ba1c1d5a2fc5f767f582cf515e802dd97"
+    },
+    {
+      "id": 244,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/launches_paused_test.exs",
+      "line": 40,
+      "test_name": "the Revstake create page reads the pause again each time the site reads a new Base block",
+      "keep_because": "Audit finding A13 (12 Nov 2026): the create page read whether launches were paused once, as it connected, so a disabled launch button stayed disabled after launches reopened. Each time the site's shared reader reads a new Base block (every five minutes on mainnet, every second on a lab, and soon after an on-chain press lands), the page reads the factory again; the button and its line follow the latest read both ways. It fails if the page keeps its first reading.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cee7bbbb90cb6a88ee2b2f7e21f2c55497d0149b85dff31d53ddafaecd958b9b"
+    },
+    {
+      "id": 245,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/launches_paused_test.exs",
+      "line": 55,
+      "test_name": "the Memestock create page reads the launchpad's pause again each time the site reads a new block",
+      "keep_because": "The same for Memestock: each time the site reads a new block on the stocks feed (every five minutes on mainnet), the page reads the launchpad's launchesPaused() at the latest block, and the button comes back with the first read that finds launches open. It fails if the page keeps its first reading.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cee7bbbb90cb6a88ee2b2f7e21f2c55497d0149b85dff31d53ddafaecd958b9b"
+    },
+    {
+      "id": 246,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
+      "line": 57,
+      "test_name": "the home list offers the return of a bid from a second linked wallet",
+      "keep_because": "Audit finding A7 (12 Nov 2026): lists read only the signed-in wallet's bids, so a bid from another linked wallet had no Withdraw or Claim. It fails if the home list leaves out a linked wallet's bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
+    },
+    {
+      "id": 247,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
+      "line": 69,
+      "test_name": "its card is prepared for the wallet that is open, and names the wallet it pays",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026), rule 11: the auction takes a return or a claim from any sender and pays the bid's owner, yet the card asked the person to switch wallets. The card prepares the step for the wallet that is open and names the bid's own wallet as the one paid. It fails if the press is blocked for another of the account's wallets, or the paid wallet is not named.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
+    },
+    {
+      "id": 248,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
+      "line": 97,
+      "test_name": "the portfolio lists it with its button",
+      "keep_because": "The portfolio lists a linked wallet's bid with its button. It fails if the portfolio reads only the signed-in wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
+    },
+    {
+      "id": 249,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
+      "line": 174,
+      "test_name": "a press with no review on the row is prepared and sent",
+      "keep_because": "Audit finding A12 (12 Nov 2026): a Robinhood withdraw or claim pressed before its review arrived sent nothing. The row now prepares the settlement for the pressing wallet and hands back its first step. It fails without the row's prepare_and_send.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
+    },
+    {
+      "id": 250,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
+      "line": 183,
+      "test_name": "a settlement Robinhood could not read keeps its button, and the next press asks again",
+      "keep_because": "After a read Robinhood could not answer, the row kept no button, so a later press could not ask again. The button stays and the next press reads the auction again. It fails if the button disappears or the press sends nothing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
+    },
+    {
+      "id": 251,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/treasury_state_test.exs",
+      "line": 36,
+      "test_name": "the public answer gives the stored report's own verification",
+      "keep_because": "Audit finding A14 (12 Nov 2026): the treasury answer gave every report a fixed awaiting state. It now gives the stored report's own verification_state and verification_reason, verified for a 2-of-3 Safe and unverified with its reason otherwise. It fails if the answer stops following the stored report.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
+    },
+    {
+      "id": 252,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/treasury_state_test.exs",
+      "line": 112,
+      "test_name": "the launch card shows a verified Safe as verified",
+      "keep_because": "The launch card said no launch could be prepared for any report not made in that visit, even a verified Safe. It now shows a stored verified report as verified. It fails if a verified Safe is shown as unverified.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
+    },
+    {
+      "id": 253,
+      "group": "Wallet actions",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 316,
+      "test_name": "sends the review the page holds while the connection is down, and before the server that took over answers",
+      "keep_because": "Audit finding A3 and its review (12 Nov 2026), rule 11: a press always reaches the wallet, and a duplicate or reverted transaction is an accepted outcome. While the connection is down, and after it is back until the new server's review arrives, a press sends the review the page holds. It fails if such a press sends nothing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+    },
+    {
+      "id": 254,
+      "group": "Wallet actions",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 332,
+      "test_name": "asks the server that took over for a fresh review as the page rejoins, and sends the one it pushes",
+      "keep_because": "Audit finding A3 (12 Nov 2026): as the page rejoins, the server that took over hears the wallet Privy has active and pushes a fresh review, which a press then sends. It fails if the rejoin does not ask, or the fresh review is ignored.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+    },
+    {
+      "id": 255,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
+      "line": 18,
+      "test_name": "a step of the open review that reverted builds the review again",
+      "keep_because": "Audit finding A5 (12 Nov 2026): a reverted step left its review on the page, so the next press sent the same failed transaction. The panel's review is built again from the chain. It fails if the old review stays.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+    },
+    {
+      "id": 256,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
+      "line": 28,
+      "test_name": "while another step of that review is on its way, the review waits for it",
+      "keep_because": "A review is not built again while another step sent from it is still on its way, so that step's outcome is not lost, and the person is still told the reverted step did not go through. It fails if the review is replaced under a step in flight.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+    },
+    {
+      "id": 257,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
+      "line": 40,
+      "test_name": "a step from a review the page has left changes nothing",
+      "keep_because": "A revert reported for a review the page has already replaced changes nothing on the panel. It fails if a stale revert throws away the current review.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+    },
+    {
+      "id": 258,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
+      "line": 48,
+      "test_name": "the words go beside a review built again, or before the reason nothing was built",
+      "keep_because": "The panel says the step did not go through beside the new review, or before the chain's reason when the action is refused now. It fails if the person is not told, or the refusal reason is lost.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+    },
+    {
+      "id": 259,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/linked_wallet_bids_test.exs",
+      "line": 108,
+      "test_name": "another account's bid is never listed, and its settlement is refused",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): the lists read every wallet an account links, and nothing proved they stop there. A bid of another account's wallet is on neither the home list nor the portfolio, and preparing its settlement from any of the account's wallets is refused. It fails if another account's bid is shown or can be settled.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a81ca9e701e19f40d044f46312e5fba96a5c6452daccf566b3825f54a7d27ff4"
+    },
+    {
+      "id": 260,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/bid_settlement_actions_test.exs",
+      "line": 118,
+      "test_name": "a bid of another wallet the account links is prepared for the open one and read for its own",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): a Base bid's return is prepared for any wallet the account links, and its receipt is read against the bid's own wallet, which the auction pays. It fails if only the bid's wallet may prepare it, or a receipt naming another owner counts.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9651be83d029cea7f130c391a59619f1d2e4ea5dda71b5a4f50fc710a110f1be"
+    },
+    {
+      "id": 261,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_settlement_press_test.exs",
+      "line": 200,
+      "test_name": "a bid of another wallet the account links is prepared for the open one, which the row names",
+      "keep_because": "Review of audit finding A7 (12 Nov 2026): on Robinhood too the auction pays the bid's owner whoever sends, so the row prepares the return for the open wallet and names the bid's own wallet, while an account that does not link the bid's wallet is refused. It fails if the press is blocked for another of the account's wallets, or another account can prepare it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e947472d87be85bd223c470a300d1f8767557be69255b4cc073a494c69076bc9"
+    },
+    {
+      "id": 262,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/cca_lists_test.exs",
+      "line": 109,
+      "test_name": "a request from a node behind the others leaves where the walk reached as it is",
+      "keep_because": "Review of audit finding A1 (12 Nov 2026): a request pinned to a block before the checkpoint a walk had reached, from a node behind the others, could not read it and the walk forgot it, so the next request read the whole stretch again. Such a request now walks from the bid and leaves what is kept. It fails if a lagging read erases or uses the kept progress.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafabfaa224a443c439f08c85ef44a6766db62cda5b7ab8cf60e76505054a526"
+    },
+    {
+      "id": 263,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/treasury_state_test.exs",
+      "line": 67,
+      "test_name": "a report stored before 9 Nov answers a reason the published contract lists",
+      "keep_because": "Review of audit finding A14 (12 Nov 2026): treasury reports written before 9 Nov can carry the reason configuration_changed, which the published API contract left out, so a client checking the list would refuse such an answer. The served contract lists it. It fails if the public answer can give a reason the contract does not list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e4d238ce5ea3c3211fd7023878c0c33f59fc32feea545558d099c8d14f2ad983"
+    },
+    {
+      "id": 264,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_auction_retry_test.exs",
+      "line": 51,
+      "test_name": "an auction whose window was never read opens while Robinhood's clock is known",
+      "keep_because": "Review of the money-path fixes (12 Nov 2026): a Robinhood auction page drew its bid timeline from the auction's start and end blocks, and for an auction whose window was not read yet it crashed as soon as the site knew Robinhood's clock; two tests had cleared the clock to avoid it. The page opens and leaves the timeline out until the window is read. It fails if the page crashes or draws a timeline with no window.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a3999519f35b72d94367a860b758699429feb4e5730c501dface5eef7eeb3061"
+    },
+    {
+      "id": 265,
+      "group": "Money and reviewed funding conditions",
+      "framework": "exunit",
+      "file": "test/autolaunch/bid_actions_test.exs",
+      "line": 249,
+      "test_name": "a bid estimate is the amount over the price, exact to the token's last unit",
+      "keep_because": "Review of the money-path fixes (12 Nov 2026): the public bid estimate divided the amount by the price at Decimal's default precision, so a large amount lost its last digits. It is now the exact quotient rounded down to the token's eighteenth decimal. It fails if any digit of a large estimate is rounded or a dust amount is not zero.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
     }
   ],
   "legacy_folders_to_remove": [

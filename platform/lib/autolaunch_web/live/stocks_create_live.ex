@@ -14,7 +14,18 @@ defmodule AutolaunchWeb.StocksCreateLive do
   require Logger
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{AgentDrafts, ImageColor, LaunchChain, Listings, Stocks, Ticker}
+
+  alias Autolaunch.{
+    AgentDrafts,
+    ChainHead,
+    ImageColor,
+    LaunchChain,
+    Listings,
+    SharedReading,
+    Stocks,
+    Ticker
+  }
+
   alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, MarketCard, StockIdentity, StockSelect}
   alias AutolaunchWeb.{DraftMarks, ReadFailure, UsdValue}
@@ -71,7 +82,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         status: :loading
       )
       |> assign_stocks()
-      |> read_launches_paused()
+      |> watch_launches_paused()
 
     case human_actor(socket) do
       nil ->
@@ -131,13 +142,23 @@ defmodule AutolaunchWeb.StocksCreateLive do
     )
   end
 
-  # Base's own answer, read once the page connects: while the launchpad has new
-  # launches paused, the launch button stays greyed with the reason beside it.
-  defp read_launches_paused(socket) do
-    if connected?(socket),
-      do: start_async(socket, :launches_paused, &LaunchActions.launches_paused/0),
-      else: socket
+  # Base's own answer, read as the page connects and again each time the site
+  # reads a new block of the Memestock deployment (`Autolaunch.ChainHead`:
+  # every five minutes on mainnet, every second on a lab, and within ten
+  # seconds of an on-chain press landing on Base): while the launchpad has new
+  # launches paused, the launch button stays greyed with the reason beside it,
+  # and it comes back with the first read that finds them open.
+  defp watch_launches_paused(socket) do
+    if connected?(socket) do
+      SharedReading.subscribe(ChainHead.key("stocks"))
+      read_launches_paused(socket)
+    else
+      socket
+    end
   end
+
+  defp read_launches_paused(socket),
+    do: start_async(socket, :launches_paused, &LaunchActions.launches_paused/0)
 
   # The chain's stock prices and the chosen stock's venues are read in the
   # background: the page renders without them and fills them in when they land.
@@ -247,6 +268,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
+
+  # The site read a new block: the launchpad may have paused or reopened new
+  # launches.
+  def handle_info({:shared_reading, {:chain_head, "stocks"}}, socket),
+    do: {:noreply, read_launches_paused(socket)}
 
   # The person's paired agent saved this draft: the form and the list of what
   # the agent filled in show it, and what the person typed that could not be

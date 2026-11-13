@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
 
   attr :id, :string, required: true
   attr :dialog, :string, required: true, doc: "The id of the `dialog/1` it opens."
+  attr :rest, :global, doc: "Such as `data-press`, where it stands with the site's main buttons."
 
   @doc """
   The button naming how many tools agents see, which opens their list.
@@ -33,6 +34,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
       aria-haspopup="dialog"
       aria-controls={@dialog}
       data-agent-tools-open
+      {@rest}
     >
       {@label}
     </button>

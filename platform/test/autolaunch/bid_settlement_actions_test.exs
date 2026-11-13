@@ -113,7 +113,56 @@ defmodule Autolaunch.BidSettlementActionsTest do
     assert refusal(error) == :not_your_bid
   end
 
+  # The auction takes a return from any sender and pays the bid's owner, yet
+  # only the bid's own wallet could prepare it (review of A7, 12 Nov 2026).
+  test "a bid of another wallet the account links is prepared for the open one and read for its own",
+       context do
+    unique = Elixir.System.unique_integer([:positive])
+    holder = Autolaunch.BidFixture.wallet()
+
+    account =
+      Autolaunch.Accounts.register_verified!("did:privy:open-#{unique}", @other, [@other, holder],
+        actor: %System{}
+      )
+
+    opts = [
+      actor: %Autolaunch.Actors.Human{human_account_id: account.id},
+      context: %{session_lease: AutolaunchWeb.SessionAuthorityHelpers.current_lease(account.id)}
+    ]
+
+    position = position!(context, holder)
+
+    install(
+      graduated?: false,
+      exit: exit_bid(refund: 5 * 10 ** 18, filled: 0),
+      claim: {:refused, :nothing_to_claim}
+    )
+
+    assert {:ok, %{steps: [%{step: "exit", data: data}], context: settled}} =
+             BidSettlementActions.prepare(position.id, @other, opts)
+
+    assert data == BuilderCode.append(exit_bid_data())
+
+    # Sent from the open wallet, the auction's receipt names the bid's own.
+    assert %{"currency_refunded" => "5000000000000000000"} =
+             BidSettlementActions.result(settled, "exit", [bid_exited(holder)])
+
+    assert BidSettlementActions.result(settled, "exit", [bid_exited(@other)]) == nil
+  end
+
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
+
+  defp bid_exited(owner),
+    do: %{
+      "address" => Autolaunch.BidFixture.auction_address(),
+      "blockHash" => "0x" <> String.duplicate("ab", 32),
+      "topics" => [
+        LabAbi.topic("BidExited(uint256,address,uint256,uint256)"),
+        "0x" <> word(@bid_id),
+        "0x" <> String.pad_leading(String.trim_leading(owner, "0x"), 64, "0")
+      ],
+      "data" => "0x" <> word(0) <> word(5 * 10 ** 18)
+    }
 
   defp position!(%{auction: auction}, owner) do
     unique = Elixir.System.unique_integer([:positive])

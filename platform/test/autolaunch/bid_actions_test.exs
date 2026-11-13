@@ -244,6 +244,24 @@ defmodule Autolaunch.BidActionsTest do
     assert stated.would_be_active_now
   end
 
+  # The estimate was divided at 28 significant digits, so a large amount lost
+  # its last ones (review of the money-path fixes, 12 Nov 2026).
+  test "a bid estimate is the amount over the price, exact to the token's last unit" do
+    auction = Autolaunch.TestSupport.project_auction(state: :active, current_clearing_price: "3")
+
+    assert {:ok, large} =
+             Autolaunch.quote_auction_bid(auction.id, "1000000000000000000000000000000", "3")
+
+    assert large.estimated_tokens_if_end_now ==
+             "333333333333333333333333333333.333333333333333333"
+
+    assert {:ok, small} = Autolaunch.quote_auction_bid(auction.id, "0.000000000000000001", "3")
+    assert small.estimated_tokens_if_end_now == "0"
+
+    assert {:ok, whole} = Autolaunch.quote_auction_bid(auction.id, "7.5", "3")
+    assert whole.estimated_tokens_if_end_now == "2.5"
+  end
+
   defmodule StockQuoteRpc do
     def post(_url, options) do
       %{method: method, params: params} = options[:json]

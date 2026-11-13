@@ -13,7 +13,16 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.{Pool, PoolFees, TreasurySecurity}
-  alias AutolaunchWeb.Components.{ChainIcon, CreatorLabel, LaunchTrust, ShareLaunch, TokenTrade}
+
+  alias AutolaunchWeb.Components.{
+    ChainIcon,
+    CreatorLabel,
+    LaunchTrust,
+    ShareLaunch,
+    SiteButtons,
+    TokenTrade
+  }
+
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
@@ -48,7 +57,15 @@ defmodule AutolaunchWeb.TokenLive do
     end
   end
 
-  def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
+  # Refresh balances reads the pool again and has the trade parts read the
+  # wallet's figures again: each press spends one of the viewer's page reads,
+  # and past them the page stays as it is. Nothing here reaches a wallet.
+  def handle_event("refresh_balances", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, balances_read(socket)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
   # The staking part read the wallet's stake: Unstake is offered only while
   # there is one.
@@ -165,7 +182,7 @@ defmodule AutolaunchWeb.TokenLive do
             pool={@pool}
           />
         </div>
-        <.buttons_stage id="token-side" class="token-page__side">
+        <SiteButtons.stage id="token-side" class="token-page__side" swirl>
           <.trade_widget id="trade" tab={@trade} swap staked={@staked?}>
             <:pane tab={:swap}>
               <.live_component
@@ -239,7 +256,7 @@ defmodule AutolaunchWeb.TokenLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
-        </.buttons_stage>
+        </SiteButtons.stage>
         <div class="token-page__details">
           <.revenue_history :if={@page_record.auction.kind == :agent} revenue={@revenue} />
           <.token_facts

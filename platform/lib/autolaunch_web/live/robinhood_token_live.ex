@@ -12,7 +12,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
+    only: [
+      connections_for: 2,
+      creator_connections_for: 1,
+      current_human_id: 1,
+      spend_page_read: 1
+    ]
 
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
@@ -22,7 +27,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.Components.{ChainIcon, CreatorLabel, LaunchTrust, ShareLaunch, TokenTrade}
+
+  alias AutolaunchWeb.Components.{
+    ChainIcon,
+    CreatorLabel,
+    LaunchTrust,
+    ShareLaunch,
+    SiteButtons,
+    TokenTrade
+  }
+
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard, UsdValue}
 
   def mount(%{"auction_id" => auction_id}, _session, socket),
@@ -53,9 +67,25 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   def handle_event("trade", %{"tab" => tab}, socket),
     do: {:noreply, assign(socket, :trade, TokenTrade.pick(tab, tabs(socket.assigns)))}
 
-  def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
+  # Read again, shown when the pool could not be read: each press spends one of
+  # the viewer's page reads, and past them the page stays as it is. Nothing
+  # here reaches a wallet.
+  def handle_event("reload_pool", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, load_pool(socket, false)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
-  def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
+  # Refresh balances reads the pool again and has the trade parts read the
+  # wallet's figures again: each press spends one of the viewer's page reads,
+  # and past them the page stays as it is. Nothing here reaches a wallet.
+  def handle_event("refresh_balances", _params, socket) do
+    case spend_page_read(socket) do
+      :ok -> {:noreply, balances_read(socket)}
+      :limited -> {:noreply, socket}
+    end
+  end
 
   # The staking part read the wallet's stake: Unstake is offered only while
   # there is one.
@@ -169,7 +199,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             pool={@pool}
           />
         </div>
-        <.buttons_stage id="token-side" class="token-page__side">
+        <SiteButtons.stage id="token-side" class="token-page__side" swirl>
           <.trade_widget id="trade" tab={@trade} swap={@swap?} staked={@staked?}>
             <:pane :if={@swap?} tab={:swap}>
               <.live_component
@@ -228,7 +258,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
-        </.buttons_stage>
+        </SiteButtons.stage>
         <div class="token-page__details">
           <.token_facts
             auction={@token.auction}

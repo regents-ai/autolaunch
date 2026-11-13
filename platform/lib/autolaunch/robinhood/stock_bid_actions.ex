@@ -192,8 +192,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   # The review
 
   defp build(executable, asset, snapshot, config) do
-    {:ok, minimum_units} =
-      Amounts.format_units(executable.min_stock_out, executable.stock_decimals)
+    minimum_units = Rpc.format_units(executable.min_stock_out, executable.stock_decimals)
 
     %{
       chain: Client.chain(config),

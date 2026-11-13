@@ -21,7 +21,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       creator_connections_for: 1,
       current_human_id: 1,
       same_name?: 2,
-      signed_in_wallet: 1
+      signed_in_wallet: 1,
+      spend_page_read: 1
     ]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1, finished_auction: 1]
@@ -86,22 +87,37 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     {:noreply, socket}
   end
 
+  # The bid lookup reads the chain, so each one spends one of the viewer's page
+  # reads; past them the lookup says the bid could not be read. Nothing here
+  # reaches a wallet.
   def handle_event("check_bid", %{"bid" => number}, socket) do
     %{auction: address, launch: launch} = socket.assigns
+    socket = assign(socket, :check_number, number)
 
-    {:noreply,
-     socket
-     |> assign(:check_number, number)
-     |> assign_async(
-       :checked_bid,
-       fn ->
-         with {:ok, bid_id} <- bid_number(number),
-              {:ok, receipt} <- BidReceipt.robinhood(address, launch.quote_token_decimals, bid_id) do
-           {:ok, %{checked_bid: receipt}}
-         end
-       end,
-       reset: true
-     )}
+    case spend_page_read(socket) do
+      :ok ->
+        {:noreply,
+         assign_async(
+           socket,
+           :checked_bid,
+           fn ->
+             with {:ok, bid_id} <- bid_number(number),
+                  {:ok, receipt} <-
+                    BidReceipt.robinhood(address, launch.quote_token_decimals, bid_id) do
+               {:ok, %{checked_bid: receipt}}
+             end
+           end,
+           reset: true
+         )}
+
+      :limited ->
+        {:noreply,
+         assign(
+           socket,
+           :checked_bid,
+           AsyncResult.failed(AsyncResult.loading(), {:error, :limited})
+         )}
+    end
   end
 
   # Robinhood's clock moved: the stored auction and what this page reads from
@@ -259,8 +275,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             token_symbol={@launch.token_symbol}
             claim_block={@snapshot.result.blocks.claim}
           />
+          <%!-- An auction whose bidding window is not read yet has no timeline
+               to draw. --%>
           <.auction_activity
-            :if={@clock && @history.ok? && @history.result}
+            :if={
+              @clock && @launch.start_block && @launch.end_block && @history.ok? &&
+                @history.result
+            }
             id="robinhood-auction-activity"
             bids={@history.result.bids}
             symbol={@launch.quote_token_symbol}

@@ -97,7 +97,11 @@ defmodule Autolaunch.TreasurySecurity do
        |> Base.encode16(case: :lower))
   end
 
-  @doc "The fail-closed public state before projector-owned canonical refresh integrates."
+  @doc """
+  A stored report as everyone reads it: what Base showed at its source block,
+  and whether that setup and its evidence verified. A launch review or a bid
+  observes the treasury again before it is prepared.
+  """
   def public_view(nil), do: nil
 
   def public_view(report) do
@@ -106,8 +110,8 @@ defmodule Autolaunch.TreasurySecurity do
       address: report.address,
       chain_id: report.chain_id,
       classification: to_string(report.classification),
-      verification_state: "awaiting_current_chain_confirmation",
-      verification_reason: "projector_refresh_not_integrated",
+      verification_state: to_string(report.verification_state),
+      verification_reason: report.verification_reason,
       configuration_fingerprint: report.configuration_fingerprint,
       source_block_number: report.source_block_number,
       source_block_hash: report.source_block_hash,

@@ -8,31 +8,45 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .shell-body { flex: 1 0 auto; }
 .shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
 @media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }
-/* The page column lays its footer out by its own width (`shell-page`), so
-   The header above runs the frame's whole width and answers to the screen's. */
+/* Pages lay themselves out by the page column's own width (`shell-page`); the
+   header above runs the frame's whole width and answers to the screen's. */
 .shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: var(--rg-layer-skip); padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
 .shell-skip:focus { transform: none; }
-.regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
-/* The tools agents see open from the footer's first row, at every width. */
-.regent-footer__tools { flex-basis: 100%; }
+/* The footer: its buttons on the first row, then one line of the site's documents,
+   the legal pair and the copyright, in muted words that take the full ink and an
+   underline under a mouse. Every word stands 44px tall with 8px either side, so
+   the gaps between the words are the same 24px everywhere and the first word
+   lines up with the buttons' edge. */
+.regent-footer {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-1);
+  padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem;
+}
+/* The buttons' light reaches 16px past them on every side but the bottom, where that
+   room is the row's gap to the words below. */
+.regent-footer__buttons {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-1);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0; padding: var(--space-2);
+}
+.regent-footer__buttons .regent-social-links { gap: 0; }
 /* The developer guide opens the same list above its text. */
 .document-page > .agent-tools-button { justify-self: start; margin-bottom: var(--space-3); }
 .regent-footer p { margin: 0; }
-.regent-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-3); }
-.regent-footer__links a { display: inline-flex; align-items: center; min-width: 2.75rem; min-height: 2.75rem; color: inherit; }
-.regent-footer__links .regent-footer__guide {
-  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0; border: 0;
-  background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
+.regent-footer__links, .regent-footer__legal { display: flex; flex-wrap: wrap; column-gap: var(--space-1); }
+.regent-footer__links { margin-inline-start: calc(-1 * var(--space-1)); }
+.regent-footer__links > a, .regent-footer__legal > a, .regent-footer__links .regent-footer__guide, .regent-footer__copyright {
+  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 var(--space-1);
+  color: var(--color-fg-muted); text-decoration: none; text-underline-offset: .2em;
 }
-/* The two legal documents stay together, apart from the rest by a hairline where
-   they share its line and on a line of their own on a narrow page. */
-.regent-footer__legal { display: flex; column-gap: var(--space-3); }
-@container shell-page (min-width: 45rem) {
-  .regent-footer__legal { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--rg-page-rule); }
+.regent-footer__links .regent-footer__guide { border: 0; background: none; font: inherit; cursor: pointer; }
+@media (hover: hover) {
+  .regent-footer__links > a:hover, .regent-footer__legal > a:hover, .regent-footer__links .regent-footer__guide:hover { color: var(--color-fg); text-decoration: underline; }
 }
-@container shell-page (max-width: 44.99rem) { .regent-footer__legal { flex-basis: 100%; } }
+.regent-footer__links :is(a, button):focus-visible { outline: var(--rg-ring-width) solid var(--color-focus); outline-offset: calc(-1 * var(--rg-ring-width)); }
+/* The legal pair closes the line, and the copyright follows it. */
+.regent-footer__legal { margin-inline-start: auto; }
+.regent-footer__copyright { padding-inline-end: 0; }
 .regent-footer__guide-body p { margin: 0; color: var(--rg-p-muted); }
 .regent-footer__guide-body a { min-height: 2.75rem; }
 .regent-footer__guide-body:popover-open { display: grid; }
@@ -40,6 +54,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 /* The crown, GitHub and the theme switch sit together beside Sign in. */
 #home-top .regent-header-links { margin-left: auto; }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; color: inherit; }
+@media (hover: hover) { .regent-footer__buttons .regent-social-links a:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); } }
 .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
 .regent-header-links svg { width: 1.5rem; height: 1.5rem; }
 /* Sign in, the closed Launch a token button and Copy to Agent match the regents.sh App
