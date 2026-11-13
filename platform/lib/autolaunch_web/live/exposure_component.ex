@@ -496,8 +496,8 @@ defmodule AutolaunchWeb.ExposureComponent do
       </ol>
 
       <p :if={@press_note} class="exposure-panel__note" role="status">{@press_note}</p>
-      <p class="exposure-panel__note" role="status" data-onchain-lost hidden>
-        Connection lost, so nothing was sent. Press again once it's back.
+      <p class="exposure-panel__note" role="status" data-onchain-lost>
+        <span>Connection lost. Nothing was sent.</span>
       </p>
     </section>
     """
