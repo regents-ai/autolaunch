@@ -5,9 +5,10 @@ defmodule Autolaunch.CoveredCalls.Answer do
   `:positions_answer` and `:prepare_answer`): the HTTP routes send them as their
   `data`, and the hosted MCP tools as their result. The figures come unchanged
   from the readings: stock amounts in raw token units, prices and USDC in
-  micro-USDC (6 decimals), times in Unix seconds. A book answers with at most
-  fifty open listings and fifty open bids, each best first, beside how many of
-  each are open in all (`Autolaunch.CoveredCalls.Book`). Each answer names the stock
+  micro-USDC (6 decimals), times in Unix seconds. A book answers with the open
+  listings and bids on the expiries the site offers, at most fifty of each for
+  each expiry, each best first, beside how many of each are open in all
+  (`Autolaunch.CoveredCalls.Book`). Each answer names the stock
   its calls are on (`market`: symbol, issuer, chain and the exact addresses of
   the stock and of its covered-calls contract).
 

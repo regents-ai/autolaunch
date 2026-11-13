@@ -97,10 +97,13 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     do:
       {:noreply, assign(socket, positions: AsyncResult.failed(socket.assigns.positions, reason))}
 
+  # A new read stops the one still running, so asks never stack.
   defp read(socket) do
     actor = %Human{human_account_id: socket.assigns.current_human_id}
 
-    start_async(socket, :positions, fn ->
+    socket
+    |> cancel_async(:positions)
+    |> start_async(:positions, fn ->
       {:ok, %{markets: markets}} = Deployment.current()
 
       Enum.map(markets, &read_market(&1, actor))

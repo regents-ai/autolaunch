@@ -130,7 +130,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     %{level: level, index: index, tag: text!(words, 24, @field)}
   end
 
-  defp expiry(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
+  defp expiry(unix), do: AutolaunchWeb.CoveredCallsFormat.at(unix, "%a %-d %b")
 
   # The border, the field, the grid, the legend, the strip with its logo,
   # words and the pill saying where the market stands, and the band.

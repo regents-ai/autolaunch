@@ -88,6 +88,24 @@ defmodule AutolaunchWeb.ShareMarketTest do
                )
     end
 
+    test "a listing on a Friday after the year 9999 is not an open call, and still earns its seller" do
+      seller = "0x" <> String.duplicate("5e", 20)
+
+      CoveredCallsChain.put(%{
+        listings: [
+          CoveredCallsChain.listing(%{seller: seller, expiry: 253_402_894_800}),
+          CoveredCallsChain.listing(%{seller: seller, expiry: 2 ** 64 - 1})
+        ]
+      })
+
+      assert {:ok, %{badge: "No calls open", levels: []}} =
+               MarketStory.read(:covered_calls, "AMZNc", nil)
+
+      # Each listing sold 4 calls at $3.00, less the 1% fee.
+      assert {:ok, %{figures: [{"Earned", "$23.76"}, _held]}} =
+               MarketStory.read(:covered_calls, "AMZNc", seller)
+    end
+
     test "the picture is drawn for a market the site offers, and nowhere else", %{conn: conn} do
       conn = get(conn, "/stock/covered-call/AMZNc/share.png")
       assert <<@png, _rest::binary>> = response(conn, 200)

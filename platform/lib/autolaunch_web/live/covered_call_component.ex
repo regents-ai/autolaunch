@@ -212,7 +212,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   # What the wallet has on the market, for the page's Max and its notice of a
   # window about to close: the wallet the panel shows figures for while signed
-  # in, read again for each new wallet and each ask (`balance_reads`).
+  # in, read again for each new wallet and each ask (`balance_reads`). A new
+  # ask stops the read still running for an earlier one, so asks never stack.
   defp read_balance(%{assigns: %{kind: kind} = assigns} = socket) when kind in @tickets do
     wallet =
       if is_list(assigns.linked),
@@ -226,6 +227,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       else:
         socket
         |> assign(balance_for: key)
+        |> cancel_async(:balance)
         |> start_async(:balance, fn -> {key, balance(symbol, id, wallet)} end)
   end
 
@@ -669,7 +671,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     <time
       id={@id}
       class="covered-calls__local"
-      datetime={@at |> DateTime.from_unix!() |> DateTime.to_iso8601()}
+      datetime={F.iso(@at)}
       phx-hook="LocalTime"
       phx-mounted={JS.ignore_attributes(["data-local"])}
     >{F.expiry(@at)}</time><small class="covered-calls__utc">{F.utc_time(@at)}</small>

@@ -227,7 +227,7 @@ Ash domain `Autolaunch.CoveredCalls`:
 - `Book` — each market's open listings and open bids, read once and shared by every visitor for five minutes and
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. It holds the best fifty of each
-  with the count of all; how it stays bounded is under "Reading a book anyone can fill" below.
+  for each expiry the site offers, with the count of all; how it stays bounded is under "Reading a book anyone can fill" below.
 - `Positions` — a wallet's listings, holdings, its own bids with what a refund would send it now
   (`refundable`), and the stock in the wallet (the most it can list now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
@@ -292,12 +292,18 @@ how many there are. What it does (12 November 2026):
   `0xcA11bde05977b3631167028862bE2a173976CA11`, the same address on Base and on a copy of it):
   200 reads to one request at the block's own hash, eight requests at a time. Ten thousand
   bids are 50 requests, not 10,000.
-- **Settled records are read once.** A bid can never change again once its expiry has passed with
-  nothing left to sell into and no refund due; a listing once its window has closed, the unsold
-  stock is back with the seller and every strike paid is collected (`Terms.settled?/2`). Before
-  its expiry a sold-out or stopped bid can still be raised, so it is not settled. `Book` keeps
-  settled records in an ETS table it owns, for as long as the site runs; the shared reading and a
-  wallet's positions both skip them.
+- **Each record is read again only while it can matter.** Every listing and bid read, by the
+  shared reading or a wallet's positions, is kept in an ETS table `Book` owns, for as long as the
+  site runs, with who made it and what of it can still change: nothing once settled (a bid whose
+  expiry has passed with nothing left to sell into and no refund due; a listing whose window has
+  closed, the unsold stock back with the seller and every strike paid collected,
+  `Terms.settled?/2`); only the seller's part of a listing that stopped or whose window has
+  closed; anything else. Who made a record and its expiry never change, so the shared reading
+  reads one again only while it can change and its expiry is one the site offers: a bid past its
+  expiry and never refunded, or one on a Friday decades away, is read once. A wallet's positions
+  read again its own unsettled listings and bids and others' listings that are still open, sold
+  out or in their window; others' bids never. Before its expiry a sold-out or stopped bid can
+  still be raised, so it is not settled.
 - **The reading runs in a task, not in the book process.** `Book` starts one task per market
   under `Autolaunch.TaskSupervisor` and answers everyone waiting when it ends, so the process
   that hands out readings never waits on the chain. A visitor waits at most fifteen seconds and
@@ -310,10 +316,16 @@ how many there are. What it does (12 November 2026):
   (`Terms.lapsed_shown/0`), when lapsed calls leave the portfolio; stock to claim on listings the
   wallet sold or some of which was exercised. The contract's events were not used: a sale into a
   bid names no bidder in a topic, and the RPC's range limits for log searches are not known.
-- **Fifty of each, best first.** The reading holds the best fifty open listings and the best fifty
-  open bids, with the count of all (`listings_total`, `bids_total`); pages say "The best 50 of N"
-  and agents get the same fifty and the counts. A listing or bid outside them is not offered on
-  the site; a step for it can still be prepared by its id.
+- **Only the offered expiries.** The contract takes any Friday at 21:00 UTC a 64-bit time can hold,
+  out to the year 584 billion. The reading holds only listings and bids on the expiries the site
+  offers (`Terms.expiries/1`, the next four full-day Fridays), so one far off never reaches a page
+  or an agent's book answer. Its maker still sees it on the portfolio and in the positions
+  answer, to stop it; a time past the year 9999 reads "After 9999" there
+  (`AutolaunchWeb.CoveredCallsFormat.at/2`).
+- **Fifty of each for each expiry, best first.** The reading holds the best fifty open listings
+  and the best fifty open bids of each offered expiry, with the count of all (`listings_total`,
+  `bids_total`); pages say "The best N of M" and agents get the same and the counts. A listing
+  or bid outside them is not offered on the site; a step for it can still be prepared by its id.
 - **Order.** Listings: the soonest expiry, then the lowest strike plus premium, then the oldest.
   Bids: the soonest expiry, then the most a seller ends with per token at the reference price,
   which is the premium plus the strike with the strike counted no higher than that price; then
@@ -321,25 +333,25 @@ how many there are. What it does (12 November 2026):
   used: a bid with a strike far above the price and a premium of one micro-USDC costs nothing to
   post and would sit above every real bid. With no reference price the order is by strike plus
   premium.
-- **Dust.** A bid with less than one whole token left is not offered to sellers and not counted;
-  its bidder still sees it on the portfolio, to stop and refund it.
+- **Dust.** A listing or bid with less than one whole token left is not offered and not counted:
+  the site asks a sale into a bid to be at least one whole token (`Terms.min_sale/2`), and the
+  same line keeps a crowd of one-raw-unit listings from hiding real ones. Its maker still sees it
+  on the portfolio, to stop it and take back the stock or the refund.
 
 What remains unbounded, and what it costs an attacker:
 
-- **Every unsettled listing and bid is read again** by each shared reading (at most once per
-  market per ten seconds, however many visitors) and by each portfolio view. A bid's expiry has
-  no upper limit in the contract, so a bid made to expire in a hundred years never settles. Such
-  a bid for one token at a premium of one micro-USDC costs its maker the transaction's gas and
-  one micro-USDC of escrow, which it can take back. A hundred thousand of them make every reading
-  500 requests in 63 rounds of eight. The site then reads slowly or shows "couldn't be read";
-  nothing is lost and the contract is untouched. The real fix is a list of open bids kept from
-  the contract's events, which needs a table and Sean's go.
+- **Records on the offered expiries are read again** by each shared reading (at most once per
+  market per ten seconds, however many visitors), and **others' listings that are still open,
+  sold out or in their window** by each portfolio view: calls can be held on any of them, and
+  only the listing says which. A listing on a Friday decades away stays open, so a crowd of
+  one-raw-unit listings there is read again by every portfolio view until it is stopped. The
+  real fix is a list of who bought from which listing kept from the contract's events, which
+  needs a table and Sean's go.
 - **The first reading after a restart** reads every record once, settled ones included.
-- **Crowding the fifty.** To push real bids off the Sell list an attacker needs fifty bids for the
-  soonest expiry, each for at least one whole token and each paying at least the best real
-  premium, so it escrows real USDC that any seller can take. With fifty or more bids on the
-  soonest expiry, later expiries are not shown at all; the same holds for listings. "Best bid"
-  and "Lowest ask" consider only the fifty shown.
+- **Crowding the fifty.** To push real bids off one Friday's Sell list an attacker needs fifty
+  bids for that expiry, each for at least one whole token and each paying at least the best real
+  premium, so it escrows real USDC that any seller can take. Other Fridays are counted on their
+  own. "Best bid" and "Lowest ask" consider only those shown.
 - **Settled listings some of which was exercised** cost one `claimable` read per portfolio view
   each, for good, since a holder may still have stock to claim. They grow only with real
   exercises, each of which paid a full strike.

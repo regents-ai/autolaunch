@@ -57,16 +57,17 @@ defmodule Autolaunch.CoveredCalls.Chain do
   end
 
   @doc """
-  The listings and bids on `market`'s contract that `settled?` does not already
-  hold, the stock's multiplier and any scheduled change to it, and the
-  reference price, at `block`. `settled?` is asked for each kind and id
-  (`Autolaunch.CoveredCalls.Book.settled?/3`); left out, every record is read.
+  The listings and bids on `market`'s contract that `read?` asks for, the
+  stock's multiplier and any scheduled change to it, and the reference price,
+  at `block`. `read?` is asked for each kind and id (`Autolaunch.CoveredCalls.Book`
+  and `Autolaunch.CoveredCalls.Positions` leave out what they already know);
+  left out, every record is read.
   """
-  def book(market, block, opts, settled? \\ fn _kind, _id -> false end) do
+  def book(market, block, opts, read? \\ fn _kind, _id -> true end) do
     with {:ok, heads} <- heads(market, block, opts),
          {:ok, listings} <-
-           records(market, :listing, unsettled(:listing, heads.listings, settled?), block, opts),
-         {:ok, bids} <- records(market, :bid, unsettled(:bid, heads.bids, settled?), block, opts) do
+           records(market, :listing, wanted(:listing, heads.listings, read?), block, opts),
+         {:ok, bids} <- records(market, :bid, wanted(:bid, heads.bids, read?), block, opts) do
       {:ok,
        heads
        |> Map.take([:unit, :multiplier, :effective_at, :price])
@@ -79,8 +80,7 @@ defmodule Autolaunch.CoveredCalls.Chain do
     end
   end
 
-  defp unsettled(kind, count, settled?),
-    do: for(id <- 1..count//1, not settled?.(kind, id), do: id)
+  defp wanted(kind, count, read?), do: for(id <- 1..count//1, read?.(kind, id), do: id)
 
   # How many listings and bids there are, the contract's unit, the stock's
   # multiplier and scheduled change, and the reference price, in one request.

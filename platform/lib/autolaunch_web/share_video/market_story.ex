@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   alias Autolaunch.Exposure
   alias Autolaunch.PriceFeedHistory
   alias Autolaunch.Stocks.Assets
-  alias AutolaunchWeb.{ExposureFormat, PublicDocuments, UsdValue}
+  alias AutolaunchWeb.{CoveredCallsFormat, ExposureFormat, PublicDocuments, UsdValue}
 
   @covered_calls_days 14
   @exposure_lead 2 * 86_400
@@ -62,18 +62,16 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
           {:ok, t()} | {:error, atom()}
   def read(:covered_calls, symbol, wallet) do
     with {:ok, config} <- CoveredCalls.Deployment.current(),
-         {:ok, market} <- CoveredCalls.Deployment.market(symbol),
+         {:ok, %{market: market} = book} <- CoveredCalls.Book.read(symbol),
          {:ok, block, opts} <- CoveredCalls.Chain.latest(config.lab),
-         {:ok, book} <- CoveredCalls.Chain.book(market, block, opts),
          from = block.timestamp - @covered_calls_days * 86_400,
          {:ok, history} <- PriceFeedHistory.since(market.feed, from, block, opts),
-         open = stage(book.listings, block.timestamp, [:open]),
-         {:ok, figures} <- covered_call_figures(market, book, open, wallet, block, opts) do
+         {:ok, figures} <- covered_call_figures(book, wallet) do
       {:ok,
        %{
          kind: :covered_calls,
          title: title("/stock/covered-call"),
-         badge: open_badge(length(open)),
+         badge: open_badge(book.listings_total),
          symbol: market.symbol,
          ticker: Assets.ticker(market.symbol),
          from: from,
@@ -81,7 +79,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          line: line(history, from, block.timestamp),
          bands: [],
          dots: [],
-         levels: strikes(open),
+         levels: strikes(book.listings),
          figures: figures
        }}
     end
@@ -125,6 +123,9 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
 
   # --- covered calls ---------------------------------------------------------------
 
+  # The open calls are the market's shared reading (`CoveredCalls.Book`), what
+  # its page offers; a wallet's own figures come from its positions.
+
   # The lowest strikes of the open calls, each with the first day its calls
   # expire.
   defp strikes(open) do
@@ -145,44 +146,45 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   defp open_badge(1), do: "1 call open"
   defp open_badge(count), do: "#{count} calls open"
 
-  defp stage(listings, now, stages),
-    do: Enum.filter(listings, &(CoveredCalls.Terms.stage(&1, now) in stages))
-
-  defp covered_call_figures(_market, book, open, nil, _block, _opts) do
+  defp covered_call_figures(book, nil) do
     price =
       case CoveredCalls.Quote.spot(book) do
         {:ok, spot} -> UsdValue.dollars(usdc(spot))
         {:error, :price_unavailable} -> "—"
       end
 
-    {:ok, [{"Reference", price}, {"Lowest ask", lowest_ask(open)}]}
+    {:ok, [{"Reference", price}, {"Lowest ask", lowest_ask(book.listings)}]}
   end
 
   # A seller's premium is worked out from each listing's totals; the contract
   # rounds each fill up on its own, so what it paid can be a micro-USDC a fill
   # more. Calls held count only while they can still be used: a call left
   # after its exercise window has lapsed.
-  defp covered_call_figures(market, book, _open, wallet, block, opts) do
-    usable = stage(book.listings, block.timestamp, [:open, :sold, :exercise])
-
-    with {:ok, holdings} <- CoveredCalls.Chain.holdings(market, usable, wallet, block, opts) do
+  defp covered_call_figures(%{market: market}, wallet) do
+    with {:ok, positions} <- CoveredCalls.Positions.read(market.symbol, wallet) do
       earned =
-        book.listings
-        |> Enum.filter(&(&1.seller == wallet))
+        positions.sold
         |> Enum.map(fn listing ->
           premium =
-            CoveredCalls.Terms.usdc_for(listing.filled, listing.premium_per_token, book.unit)
+            CoveredCalls.Terms.usdc_for(listing.filled, listing.premium_per_token, positions.unit)
 
           premium - CoveredCalls.Terms.fee(premium)
         end)
         |> Enum.sum()
 
-      held = holdings |> Enum.map(& &1.held) |> Enum.sum()
+      held =
+        for(
+          %{listing: listing, held: held} <- positions.holdings,
+          CoveredCalls.Terms.stage(listing, positions.now) in [:open, :sold, :exercise],
+          do: held
+        )
+        |> Enum.sum()
 
       {:ok,
        [
          {"Earned", UsdValue.dollars(usdc(earned))},
-         {"Calls held", "#{RegentFormat.token_amount(held, digits(book.unit))} #{market.symbol}"}
+         {"Calls held",
+          "#{RegentFormat.token_amount(held, digits(positions.unit))} #{market.symbol}"}
        ]}
     end
   end
@@ -193,7 +195,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
 
   defp lowest_ask(open) do
     ask = Enum.min_by(open, & &1.premium_per_token)
-    friday = ask.expiry |> DateTime.from_unix!() |> Calendar.strftime("%-d %b")
+    friday = CoveredCallsFormat.date(ask.expiry)
 
     "#{UsdValue.dollars(usdc(ask.premium_per_token))}, #{UsdValue.dollars(usdc(ask.strike_per_token))} strike, #{friday}"
   end

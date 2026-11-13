@@ -2,16 +2,18 @@ defmodule Autolaunch.CoveredCalls.BookTest do
   @moduledoc """
   The shared reading of a market is kept between visits, and a covered-call
   step that lands drops it, so the next read shows what the step changed. It
-  holds what the site offers: the best fifty open listings and open bids, with
-  the count of all of each, and no bid with less than a whole token left.
-  Listings and bids are read many to a request, and those that can never
-  change again are read once. A wallet's positions never come from the kept
-  reading, and carry its own bids with what a refund would send it now.
+  holds what the site offers: the best fifty open listings and open bids of
+  each Friday it offers, with the count of all of each, and no listing or bid
+  on another expiry or with less than a whole token left. Listings and bids
+  are read many to a request; those that can never change again are read
+  once, and a bid past its expiry only by its bidder. A wallet's positions
+  never come from the kept reading, and carry its own listings and bids
+  whatever their expiry, its bids with what a refund would send it now.
   """
   use ExUnit.Case, async: false
   use ExUnitProperties
 
-  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, Positions, Terms}
+  alias Autolaunch.CoveredCalls.{Answer, Book, Chain, Deployment, Positions, Terms}
   alias Autolaunch.CoveredCallsChain
 
   @unit CoveredCallsChain.unit()
@@ -168,6 +170,94 @@ defmodule Autolaunch.CoveredCalls.BookTest do
 
     assert {:ok, %{bids: [%{id: 2}], bids_total: 1}} = Book.read("AMZNc")
     assert {:ok, %{bids: [%{id: 1}, %{id: 2}]}} = Positions.read("AMZNc", @wallet)
+  end
+
+  # A Friday at 21:00 UTC in the year 10000, which the contract takes, and the
+  # largest time it can hold.
+  @far_friday 253_402_894_800
+  @last_time 2 ** 64 - 1
+
+  test "a listing or bid on a Friday the site doesn't offer is never offered, and is still its maker's" do
+    far = %{seller: @wallet, bidder: @wallet, filled: 0}
+
+    CoveredCallsChain.install(%{
+      listings: [
+        CoveredCallsChain.listing(Map.put(far, :expiry, @far_friday)),
+        CoveredCallsChain.listing(Map.put(far, :expiry, @last_time)),
+        CoveredCallsChain.listing(%{})
+      ],
+      bids: [
+        CoveredCallsChain.bid(%{bidder: @wallet, expiry: @far_friday, premium: 1}),
+        CoveredCallsChain.bid(%{bidder: @wallet, expiry: @last_time, refundable: 7}),
+        CoveredCallsChain.bid(%{})
+      ]
+    })
+
+    assert {:ok, reading} = Book.read("AMZNc")
+    assert [%{id: 3}] = reading.listings
+    assert [%{id: 3}] = reading.bids
+    assert {reading.listings_total, reading.bids_total} == {1, 1}
+
+    assert {:ok, positions} = Positions.read("AMZNc", @wallet)
+    assert Enum.map(positions.sold, &{&1.id, &1.expiry}) == [{1, @far_friday}, {2, @last_time}]
+    assert Enum.map(positions.bids, &{&1.id, &1.expiry}) == [{1, @far_friday}, {2, @last_time}]
+
+    # Every agent surface sends these answers as JSON.
+    for answer <- [Answer.book({:ok, reading}), Answer.positions({:ok, positions})] do
+      assert {:ok, data} = answer
+      assert is_binary(Jason.encode!(data))
+    end
+  end
+
+  test "fifty bids on the nearest Friday leave a later Friday's bids offered" do
+    [first, second | _later] = Terms.expiries(@now)
+
+    near =
+      for n <- 1..60, do: CoveredCallsChain.bid(%{premium: 5_000_000 + n, filled: 0})
+
+    later = CoveredCallsChain.bid(%{expiry: second, premium: 1, filled: 0})
+    CoveredCallsChain.install(%{listings: [], bids: near ++ [later]})
+
+    assert {:ok, reading} = Book.read("AMZNc")
+    assert reading.bids_total == 61
+    assert Enum.count(reading.bids, &(&1.expiry == first)) == 50
+    assert List.last(reading.bids).id == 61
+  end
+
+  test "fifty listings of one raw unit leave a real listing offered" do
+    dust = for _n <- 1..50, do: CoveredCallsChain.listing(%{amount: 1, filled: 0, premium: 1})
+    real = CoveredCallsChain.listing(%{premium: 9_000_000})
+    CoveredCallsChain.install(%{listings: dust ++ [real]})
+
+    assert {:ok, %{listings: [%{id: 51}], listings_total: 1}} = Book.read("AMZNc")
+  end
+
+  test "a bid past its expiry is read once by the shared reading, and only by its bidder after that" do
+    past = @now - 3_600
+    other = "0x" <> String.duplicate("cd", 20)
+
+    CoveredCallsChain.install(%{
+      listings: [],
+      bids: [
+        CoveredCallsChain.bid(%{bidder: other, expiry: past}),
+        CoveredCallsChain.bid(%{bidder: @wallet, expiry: past, refundable: 5}),
+        CoveredCallsChain.bid(%{bidder: other, expiry: @far_friday})
+      ]
+    })
+
+    assert {:ok, %{bids: []}} = Book.read("AMZNc")
+    assert {:ok, %{bids: [%{id: 2, refundable: 5}]}} = Positions.read("AMZNc", @wallet)
+
+    # From now on the counts and terms are read, and only the bidder's own bid.
+    before = CoveredCallsChain.requests()
+    :ok = Book.expire("AMZNc")
+    assert {:ok, %{bids: []}} = Book.read("AMZNc")
+    assert CoveredCallsChain.requests() - before == 1
+
+    before = CoveredCallsChain.requests()
+    assert {:ok, %{bids: [%{id: 2}]}} = Positions.read("AMZNc", @wallet)
+    # The counts and terms, the wallet's own bid, its refund, and the stock balance.
+    assert CoveredCallsChain.requests() - before == 4
   end
 
   defp open_bid do

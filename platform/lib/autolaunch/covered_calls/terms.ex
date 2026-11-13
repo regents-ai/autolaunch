@@ -167,11 +167,13 @@ defmodule Autolaunch.CoveredCalls.Terms do
         listing.strike_paid == listing.strike_collected
 
   @doc """
-  Whether a bid is dust: less than one whole token of `unit` raw units is left
-  to sell into it. The site offers no sale into a dust bid; its bidder still
-  sees it in their portfolio, to stop and refund it.
+  Whether a listing or bid is dust: less than one whole token of `unit` raw
+  units is left to buy from it or sell into it, under the one whole token the
+  site asks a sale to be at least (`min_sale/2`). The site offers no purchase
+  from a dust listing and no sale into a dust bid; its maker still sees it in
+  their portfolio, to stop it and take back the stock or the refund.
   """
-  def dust?(bid, unit), do: available(bid) < unit
+  def dust?(listing_or_bid, unit), do: available(listing_or_bid) < unit
 
   @doc """
   Where an open listing sits for a buyer, best first: the soonest expiry, then

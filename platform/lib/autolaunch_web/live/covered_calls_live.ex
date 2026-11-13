@@ -446,7 +446,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     assigns =
       assign(assigns,
         reading: book,
-        # What the shared reading offers: open, best first, the first fifty.
+        # What the shared reading offers: open, best first, the first fifty of each expiry.
         open: if(book, do: book.listings, else: []),
         bids: if(book, do: book.bids, else: []),
         human_id: current_human_id(assigns.access_context)

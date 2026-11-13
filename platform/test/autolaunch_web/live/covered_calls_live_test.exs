@@ -677,12 +677,14 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
        %{conn: conn} do
     opens = CoveredCallsChain.now() + 2 * 86_400
 
+    # The calls held are on listing 1, which no page offers (the next Friday
+    # the site offers is more than five days off); the panel is listing 2's.
     CoveredCallsChain.install(%{
-      listings: [CoveredCallsChain.listing(%{expiry: opens})],
+      listings: [CoveredCallsChain.listing(%{expiry: opens}), CoveredCallsChain.listing(%{})],
       held: 2 * @unit
     })
 
-    {view, _panel} = signed_in_panel(conn)
+    {view, _panel} = signed_in(conn, "/stock/covered-call?listing=2", "#covered-call-fill-2")
 
     assert has_element?(
              view,
@@ -1124,6 +1126,62 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-raise_bid-5")
 
     refute has_element?(view, "#portfolio-covered-calls-bid-6")
+  end
+
+  test "a listing or bid on a Friday after the year 9999 stays off Buy and Sell, and its maker can still stop it",
+       %{conn: conn} do
+    account = TestSupport.register_creator!()
+    wallet = account.wallet_address
+
+    # A Friday at 21:00 UTC in the year 10000, which the contract takes, and
+    # the largest time it can hold.
+    far = [253_402_894_800, 2 ** 64 - 1]
+
+    CoveredCallsChain.install(%{
+      listings:
+        Enum.map(far, &CoveredCallsChain.listing(%{seller: wallet, expiry: &1, filled: 0})) ++
+          [CoveredCallsChain.listing(%{})],
+      bids:
+        Enum.map(far, &CoveredCallsChain.bid(%{bidder: wallet, expiry: &1, premium: 1})) ++
+          [CoveredCallsChain.bid(%{})]
+    })
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
+    render_async(view)
+    assert has_element?(view, "#covered-call-bids-3")
+    refute has_element?(view, "#covered-call-bids-1")
+    refute has_element?(view, "#covered-call-bids-2")
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
+    render_async(view)
+    assert has_element?(view, "#covered-call-3")
+    refute has_element?(view, "#covered-call-1")
+
+    {view, _account} = portfolio(conn, account)
+
+    for id <- [1, 2] do
+      assert has_element?(view, "#portfolio-covered-calls-sold-#{id}-for_sale")
+      assert has_element?(view, "#portfolio-covered-calls-cancel_bid-#{id}", "Stop")
+    end
+  end
+
+  test "asking the panel to read the wallet again stops the read still running", %{conn: conn} do
+    CoveredCallsChain.install()
+    # The Sell ticket with no amount typed: the wallet's read is its panel's only one.
+    {_view, panel} = signed_in_sell(conn)
+
+    CoveredCallsChain.put(%{hold: self()})
+
+    [first, second, last] =
+      for _ask <- 1..3 do
+        render_hook(panel, "refresh_funds", %{})
+        assert_receive {:held, reader}
+        Process.monitor(reader)
+      end
+
+    assert_receive {:DOWN, ^first, :process, _pid, _reason}
+    assert_receive {:DOWN, ^second, :process, _pid, _reason}
+    refute_receive {:DOWN, ^last, :process, _pid, _reason}, 100
   end
 
   test "a bid's Raise, Stop and Refund each review their own step", %{conn: conn} do

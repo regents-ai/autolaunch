@@ -9,6 +9,9 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   # The largest amount a page takes: far beyond any real one, and well inside
   # what a contract call can carry.
   @largest 2 ** 128 - 1
+  # 31 Dec 9999 23:59:59 UTC, the last moment a calendar date names.
+  @last_moment 253_402_300_799
+  @beyond "After 9999"
 
   @doc """
   USDC micro-units as dollars, the one Regents way (`RegentFormat.token_amount/2`):
@@ -66,16 +69,13 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     do: Autolaunch.CoveredCalls.Terms.usdc_for(raw, per_token, unit)
 
   @doc "A weekly expiry as its day and time in UTC, the time the contract keeps."
-  def expiry(unix) when is_integer(unix),
-    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b, %H:%M UTC")
+  def expiry(unix) when is_integer(unix), do: at(unix, "%a %-d %b, %H:%M UTC")
 
   @doc "A weekly expiry as its date in UTC, for a choice of a few."
-  def date(unix) when is_integer(unix),
-    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%-d %b")
+  def date(unix) when is_integer(unix), do: at(unix, "%-d %b")
 
   @doc "A time as its weekday and time in UTC, shown beside the reader's own time."
-  def utc_time(unix) when is_integer(unix),
-    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %H:%M UTC")
+  def utc_time(unix) when is_integer(unix), do: at(unix, "%a %H:%M UTC")
 
   @doc "The 24-hour window after an expiry, as the time it closes."
   def window_closes(unix) when is_integer(unix),
@@ -85,9 +85,28 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   The exercise window that opens at `expiry`, for a list or a choice: the day
   and time it opens and the day and time it closes, in UTC and saying so.
   """
+  def window(expiry) when is_integer(expiry) and expiry > @last_moment, do: @beyond
+
   def window(expiry) when is_integer(expiry),
     do:
       "#{moment(expiry)} – #{moment(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}\u00a0UTC"
+
+  @doc """
+  Unix time `unix` in UTC as `format` names it (`Calendar.strftime/2`). The
+  contract takes any Friday a 64-bit time can hold, so a listing or bid of
+  someone's own can be later than the last day a calendar names; such a time
+  reads as "After 9999".
+  """
+  def at(unix, format) when is_integer(unix) and unix <= @last_moment,
+    do: unix |> DateTime.from_unix!() |> Calendar.strftime(format)
+
+  def at(unix, _format) when is_integer(unix), do: @beyond
+
+  @doc "Unix time `unix` as ISO 8601 for a `<time>` element, or nil past the last day a calendar names."
+  def iso(unix) when is_integer(unix) and unix <= @last_moment,
+    do: unix |> DateTime.from_unix!() |> DateTime.to_iso8601()
+
+  def iso(unix) when is_integer(unix), do: nil
 
   @doc """
   How long is left of an exercise window `seconds` before it closes: whole
@@ -105,11 +124,7 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   end
 
   # No-break spaces, so a narrow column breaks between the two times, never inside one.
-  defp moment(unix),
-    do:
-      unix
-      |> DateTime.from_unix!()
-      |> Calendar.strftime("%a\u00a0%-d\u00a0%b\u00a0%H:%M")
+  defp moment(unix), do: at(unix, "%a\u00a0%-d\u00a0%b\u00a0%H:%M")
 
   defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1
