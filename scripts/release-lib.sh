@@ -48,6 +48,21 @@ check_deployment() {
   fi
 }
 
+# Fly carries the descriptions fly.toml's [[files]] place on the machine inside
+# the machine's own configuration, whose size it limits. Refuses when the
+# descriptions $2... come to more than 700,000 bytes without whitespace
+# (scripts/compact-deployment.py); otherwise writes each one without whitespace
+# into folder $1, or with --dry-run only measures them.
+compact_descriptions() {
+  local into=$1
+  shift
+  if [[ -n $dry_run ]]; then
+    uv run --no-project python scripts/compact-deployment.py "$@"
+  else
+    uv run --no-project python scripts/compact-deployment.py --into "$into" "$@"
+  fi
+}
+
 # Runs a command, or with --dry-run prints it exactly as it would run.
 run() {
   if [[ -n $dry_run ]]; then

@@ -36,6 +36,18 @@ Whenever a lock is lifted on one table, the release then runs a read-only check 
 guard is still in place: every other listed table still refuses being emptied, having rows deleted
 and being dropped.
 
+## Deployment files
+
+The deployment descriptions in `platform/deployment/` hold the site's private RPC address, so
+they never enter git or the image: fly.toml's `[[files]]` place them on the machine, and Fly
+carries them inside the machine's own configuration, whose size it limits. A deploy and a
+rollback ship them without whitespace, and refuse before anything is built or switched when
+together they come to more than 700,000 bytes that way (`scripts/compact-deployment.py`). On
+13 Nov 2026 Fly took 640,000 bytes and refused 850,000 with "request body too large" (v277);
+they come to about 412,000. When the refusal comes, take out of the descriptions what the site
+no longer reads (the sections `scripts/check-deployment.py` checks stay), then release again. Each release's
+descriptions are kept in `platform/deployment/releases/<commit>/` for a rollback to it.
+
 ## After every deploy
 
 `https://autolaunch.sh/healthz` answers `ok <commit>`. The commit must be the full commit the

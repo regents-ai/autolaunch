@@ -2,7 +2,7 @@
 
 Each test builds a git repository with its own origin in a fresh temporary folder,
 holding copies of the scripts, the tracked Base deployed manifests and
-covered-calls deployment record the release check reads, and three commits on
+covered-calls deployment record the release checks read, and three commits on
 main: `first`, `second` (which adds a migration) and `third`. Its two Base
 deployment descriptions name the launchers those manifests record, beside a
 stand-in private RPC address, and its covered-calls description names the
@@ -23,9 +23,22 @@ import tempfile
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[1]
-COPIED = ["deploy.sh", "rollback.sh", "release-lib.sh", "check-deployment.py"]
+COPIED = ["deploy.sh", "rollback.sh", "release-lib.sh", "check-deployment.py", "compact-deployment.py"]
 APP = "autolaunch-sh"
 PRIVATE_RPC = "https://base.private-door.invalid/key-0f3a9c"
+
+# The most the descriptions may come to without whitespace (scripts/compact-deployment.py).
+LIMIT = 700_000
+
+
+def compact(document):
+    return json.dumps(document, separators=(",", ":"))
+
+
+def padded(documents, total):
+    """`documents` and a Robinhood description padded so all of them come to `total` bytes compact."""
+    used = sum(len(compact(document)) for document in documents.values()) + len(compact({"pad": ""}))
+    return {**documents, "robinhood.json": {"pad": "x" * (total - used)}}
 
 # Each tracked Base deployed manifest's launchers, by contract key.
 MANIFESTS = {
@@ -177,13 +190,17 @@ class Fixture(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text)
 
-    def describe(self, documents, folder="platform/deployment"):
+    def describe(self, documents, folder="platform/deployment", indent=None):
         for name, document in documents.items():
-            self.write(f"{folder}/{name}", json.dumps(document))
+            self.write(f"{folder}/{name}", json.dumps(document, indent=indent))
 
     def shipped(self):
         """The descriptions the last switch shipped, by file name."""
         return {path.name: json.loads(path.read_text()) for path in (self.fake / "shipped").glob("*.json")}
+
+    def shipped_text(self):
+        """The files the last switch shipped, as written, by file name."""
+        return {path.name: path.read_text() for path in (self.fake / "shipped").glob("*.json")}
 
     def commit(self, message):
         self.git(self.repo, "add", "--all")
@@ -291,6 +308,30 @@ class DeployTest(Fixture):
         self.assertIn("base-memestock.json addresses.launchpad: does not match", result.stdout)
         self.assertEqual(self.fly_calls(), [])
 
+    def test_refuses_descriptions_too_big_for_fly_before_anything_is_built(self):
+        self.live(f"ok {self.first}")
+        self.describe(padded(descriptions(), LIMIT + 1))
+        for args in ([APP], [APP, "--dry-run"]):
+            result = self.run_script("deploy.sh", *args)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("700,001 bytes", result.stderr)
+            self.assertIn("700,000", result.stderr)
+            self.assertNotIn(PRIVATE_RPC, result.stdout + result.stderr)
+        self.assertEqual(self.fly_calls(), [])
+        self.assertFalse((self.tmp / f"autolaunch-deploy-{self.third}").exists())
+        self.assertFalse((self.repo / "platform/deployment/releases").exists())
+
+    def test_ships_descriptions_at_the_limit_once_their_whitespace_is_gone(self):
+        self.live(f"ok {self.first}")
+        documents = padded(descriptions(), LIMIT)
+        self.describe(documents, indent=2)
+        written = sum(path.stat().st_size for path in (self.repo / "platform/deployment").glob("*.json"))
+        self.assertGreater(written, LIMIT)
+        result = self.run_script("deploy.sh", APP)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(self.changes()), 2)
+        self.assertEqual(self.shipped_text(), {name: compact(document) for name, document in documents.items()})
+
     def test_releases_the_live_commit_again(self):
         self.live(f"ok {self.third}")
         result = self.run_script("deploy.sh", APP)
@@ -365,11 +406,27 @@ class RollbackTest(Fixture):
         )
         self.live(f"ok {self.third}")
 
-    def keep(self, commit):
+    def keep(self, commit, documents=None, indent=None):
         """The descriptions `commit`'s release ran with, kept as scripts/deploy.sh keeps them."""
-        documents = descriptions(rpc_url=f"https://kept-for-{commit[:7]}.invalid")
-        self.describe(documents, folder=f"platform/deployment/releases/{commit}")
+        documents = documents or descriptions(rpc_url=f"https://kept-for-{commit[:7]}.invalid")
+        self.describe(documents, folder=f"platform/deployment/releases/{commit}", indent=indent)
         return documents
+
+    def test_ships_kept_descriptions_without_whitespace(self):
+        # Releases before 13 Nov 2026 kept their descriptions as rendered, with indentation.
+        kept = self.keep(self.second, indent=2)
+        (self.fake / "health-after").write_text(f"ok {self.second}")
+        result = self.run_script("rollback.sh", APP, "v2")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.shipped_text(), {name: compact(document) for name, document in kept.items()})
+
+    def test_refuses_kept_descriptions_too_big_for_fly(self):
+        self.keep(self.second, padded(descriptions(), LIMIT + 1))
+        for args in (["v2"], ["v2", "--dry-run"]):
+            result = self.run_script("rollback.sh", APP, *args)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("700,001 bytes", result.stderr)
+        self.assertEqual(self.changes(), [])
 
     def test_goes_back_to_a_release_with_the_same_migrations_and_its_own_descriptions(self):
         kept = self.keep(self.second)

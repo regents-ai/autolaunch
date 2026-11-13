@@ -10,9 +10,11 @@
 # a release whose deployment descriptions are not kept in
 # platform/deployment/releases/<commit>/, where scripts/deploy.sh keeps the ones
 # each release ran with: the descriptions in platform/deployment/ belong to the
-# live release and may name contracts the older code does not read. Otherwise it
-# switches the app to that release's image, with that commit's fly.toml and its
-# kept descriptions, then reads /healthz until it names that release's commit.
+# live release and may name contracts the older code does not read, and kept
+# descriptions too big for Fly to carry (scripts/compact-deployment.py). Otherwise
+# it switches the app to that release's image, with that commit's fly.toml and
+# its kept descriptions without whitespace, then reads /healthz until it names
+# that release's commit.
 #
 # Run it as it is, never inside lockf: it takes the same locks as
 # scripts/deploy.sh, the site's own and a place on the shared database.
@@ -64,13 +66,15 @@ rollback() {
   fi
   echo "==> Live is $live; $version ran $image, commit $target, with the same migrations"
 
-  if [[ -z $dry_run ]]; then
+  # fly deploy reads fly.toml's [[files]] local_path from the folder it runs in,
+  # where the kept descriptions travel without whitespace, as a deploy ships them.
+  if [[ -n $dry_run ]]; then
+    compact_descriptions "" "$kept"/*.json
+  else
     folder="$(mktemp -d)"
     trap 'rm -rf -- "$folder"' EXIT
-    mkdir "$folder/deployment"
+    compact_descriptions "$folder/deployment" "$kept"/*.json
     git -C "$root" archive "$target" platform/fly.toml | tar -x -C "$folder"
-    # fly deploy reads fly.toml's [[files]] local_path from the folder it runs in.
-    cp "$kept"/*.json "$folder/deployment/"
     cd "$folder"
   fi
   switch_to "$image"
@@ -92,7 +96,7 @@ rollback() {
 }
 
 export app root dry_run health version
-export -f rollback live_commit run switch_to
+export -f rollback live_commit run switch_to compact_descriptions
 
 if [[ -n $dry_run ]]; then
   echo "==> Dry run: nothing is switched."

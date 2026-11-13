@@ -21,8 +21,9 @@
 # platform/deployment/ (git ignores that folder) before deploying. Before
 # anything is built, the two Base descriptions must name the launchers the
 # tracked deployed manifests record, and the covered-calls description the
-# contract its tracked deployment record holds (scripts/check-deployment.py), dry
-# run included. Once the switch is done, the descriptions it shipped are kept in
+# contract its tracked deployment record holds (scripts/check-deployment.py), and
+# all of them together must fit what Fly carries (scripts/compact-deployment.py),
+# dry run included. Once the switch is done, the descriptions it shipped are kept in
 # platform/deployment/releases/<commit>/, which a rollback to that commit ships.
 #
 # Run it as it is, never inside lockf: it takes its own locks. To go back to an
@@ -58,6 +59,10 @@ check_deployment
 
 tag="${commit:0:7}"
 export_dir="${TMPDIR:-/tmp}/autolaunch-deploy-$commit"
+
+# fly deploy reads fly.toml's [[files]] local_path from the folder it runs in,
+# the export below, where the descriptions travel without whitespace.
+compact_descriptions "$export_dir/deployment" platform/deployment/*.json
 
 # A commit that does not contain the live one would take live work back out,
 # which happens when an older main commit is released or two releases cross.
@@ -96,21 +101,7 @@ if [[ -n $dry_run ]]; then
   exit
 fi
 
-mkdir -p "$export_dir/deployment"
 git archive "$commit" | tar -x -C "$export_dir"
-# fly deploy reads fly.toml's [[files]] local_path from the folder it runs in.
-# Fly carries those files inside the machine's own configuration, which has a
-# size limit, so they travel without the whitespace they are rendered with.
-uv run --no-project python - "$export_dir/deployment" platform/deployment/*.json <<'PY'
-import json
-import sys
-from pathlib import Path
-
-target, *sources = sys.argv[1:]
-for source in map(Path, sources):
-    document = json.loads(source.read_text(encoding="utf-8"))
-    (Path(target) / source.name).write_text(json.dumps(document, separators=(",", ":")), encoding="utf-8")
-PY
 cd "$export_dir"
 
 # One deploy of this site at a time; other sites' deploys never wait on it.
