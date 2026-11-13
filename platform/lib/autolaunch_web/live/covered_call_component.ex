@@ -874,7 +874,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     do: "The purchase did not go through and nothing moved. Someone may have bought these first."
 
   defp reverted_copy(:sell_to_bid),
-    do: "The sale did not go through and nothing moved. Someone may have sold into this bid first."
+    do:
+      "The sale did not go through and nothing moved. Someone may have sold into this bid first."
 
   defp reverted_copy(_kind), do: "That did not go through and nothing moved."
 
