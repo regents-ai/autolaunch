@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Motion do
   dialogs on every page; a live part names its version from here in
   `data-variant`.
   """
+  use Phoenix.Component
 
   alias Phoenix.LiveView.JS
 
@@ -41,5 +42,21 @@ defmodule AutolaunchWeb.Motion do
       "data-panel" => kind,
       "phx-mounted" => JS.ignore_attributes(keep ++ ["style"])
     }
+  end
+
+  attr :rest, :global
+
+  @doc """
+  A tick in the colour of the text around it, hidden from screen readers, so
+  the words beside it say what is done. Inside a wallet step with the
+  `MotionStep` hook, it draws itself in when the step lands. A live page
+  leaves its line alone while it draws.
+  """
+  def tick(assigns) do
+    ~H"""
+    <svg class="motion-tick" viewBox="0 0 24 24" aria-hidden="true" {@rest}>
+      <path pathLength="1" d="M4 12.5l5 5L20 6.5" phx-mounted={JS.ignore_attributes("style")} />
+    </svg>
+    """
   end
 end

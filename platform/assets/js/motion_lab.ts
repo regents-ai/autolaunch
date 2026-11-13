@@ -7,7 +7,6 @@
  */
 import {
   animate,
-  createDrawable,
   createScope,
   random,
   spring,
@@ -18,7 +17,7 @@ import {
   type TextSplitter,
 } from "animejs"
 import type {Hook} from "./hook_composition"
-import {LAYOUTS, ROLLS, countHook, listHook} from "./hooks/motion/moments"
+import {LAYOUTS, ROLLS, countHook, drawTick, listHook} from "./hooks/motion/moments"
 import {nope, squish} from "./hooks/motion/press"
 import {GRIDS, HEADLINES, TABS, onFirstSight, tabsHook} from "./hooks/motion/reveals"
 import {BASE, CLIPPED_WORD, EASE_IN_OUT, EASE_OUT, FAST, SLOW, byPointer, play, still} from "./hooks/motion/shared"
@@ -446,8 +445,7 @@ const LabStamp: Hook = {
       scope.add("stamp", () => {
         const stamp = this.el.querySelector<HTMLElement>("[data-stamp]")!
         const inkAt = STAMPS[this.el.dataset.variant ?? ""](this.el, stamp)
-        const [tick] = createDrawable(stamp.querySelector("[data-tick]")!)
-        animate(tick, {draw: ["0 0", "0 1"], delay: inkAt, duration: SLOW, ease: EASE_OUT})
+        drawTick(stamp.querySelector(".motion-tick path")!, inkAt)
       })
 
       return () => sweepAll(this.el)

@@ -223,7 +223,8 @@ svg.token-swap__review-arrow { width: 20px; height: 20px; color: var(--color-fg-
 .token-swap__steps li[data-state="reverted"] .token-swap__step-note { color: var(--color-error); }
 .token-swap__step-mark { justify-self: center; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
 .token-swap__steps li[data-current] .token-swap__step-mark { width: .875rem; height: .875rem; background: var(--color-accent); }
-.token-swap__steps li[data-state="done"] .token-swap__step-mark { width: .875rem; height: .875rem; background: var(--color-success); }
+.token-swap__steps li[data-state="done"] .token-swap__step-mark { width: .875rem; height: .875rem; background: none; color: var(--color-success); }
+.token-swap__step-mark svg { display: block; width: 100%; height: 100%; stroke-width: 3.5; }
 .token-swap__steps li[data-state="reverted"] .token-swap__step-mark { background: var(--color-error); }
 .token-swap__steps li[data-state="sent"] .token-swap__step-mark,
 .token-swap__spinner {

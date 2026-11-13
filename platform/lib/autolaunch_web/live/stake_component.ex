@@ -918,11 +918,13 @@ defmodule AutolaunchWeb.StakeComponent do
       <ol class="token-swap__steps" role="list">
         <li
           :for={{step, index} <- Enum.with_index(@steps, 1)}
+          id={"#{@id}-#{step.name}"}
+          phx-hook="MotionStep"
           data-step={step.name}
           data-state={step.state}
           data-current={@next_step && (@bundle || @next_step.name == step.name)}
         >
-          <span class="token-swap__step-mark" aria-hidden="true"></span>
+          <SwapForm.step_mark id={"#{@id}-#{step.name}-tick"} done={step.state == :done} />
           <span>{step.label}</span>
           <span class="token-swap__step-note">
             {SwapForm.step_note(step, index, length(@steps), !@bundle && @next_step)}

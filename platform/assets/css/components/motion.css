@@ -6,6 +6,12 @@
    and a quick second press near its edge still lands on it. A transform needs a box. */
 [data-press-label] { display: inline-block; }
 
+/* A tick (`AutolaunchWeb.Motion.tick/1`). Its line is one unit long and one dash
+   covers it, so it shows whole; drawing it in (`drawTick` in the motion kit) slides
+   the dash in from the gap before it. */
+.motion-tick { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+.motion-tick path { stroke-dasharray: 1 2; }
+
 /* A dropdown's list leaving (`unlist` in the motion kit): its closed <details>
    still draws it until it has faded out, and a press on it lands on what is under
    it. Opened again, it takes presses at once. */
