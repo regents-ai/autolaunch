@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   the chain's explorer, the way on to the auction and the portfolio (each left
   out on its own page), and a window to share it on X
   (`AutolaunchWeb.Components.ShareDialog`). The news takes focus when it
-  appears, so it is read out and scrolled into view wherever the panel sits.
+  appears, so it is read out and scrolled into view wherever the panel sits,
+  and its tick draws itself in as the bid lands.
 
   The host component owns two events that read the bidder's X account:
   `share_opened` when the window opens, and `refresh_x_connections` (sent
@@ -43,7 +44,9 @@ defmodule AutolaunchWeb.Components.BidPlaced do
     ~H"""
     <div class="bid-placed" role="status" tabindex="-1" phx-mounted={JS.focus()}>
       <p class="bid-placed__news">
-        Your bid on <span class="ticker">{@token_symbol}</span> is placed.
+        <AutolaunchWeb.Motion.tick id={@id <> "-tick"} phx-hook="MotionTick" /> Your bid on
+        <span class="ticker">{@token_symbol}</span>
+        is placed.
       </p>
       <p :if={@test_chain} class="bid-form__note">
         This was on a test network. Test assets have no real value.
