@@ -1,18 +1,23 @@
 defmodule Autolaunch.BaseLaunchersTest do
   @moduledoc """
   New Base launches go to the third Revstake factory and Memestock launchpad,
-  on the third's schedule, and a launch made on the second is still read and
-  finished through the second's own contracts.
+  on the third's schedule, and a launch made on the second is still read,
+  traded and finished through the second's own contracts.
   """
 
   use ExUnit.Case, async: false
 
   alias Autolaunch.AuctionFinish.Launchpads
-  alias Autolaunch.{Lab, LaunchActions, Pool}
+  alias Autolaunch.{BaseRpcStub, Lab, LabAbi, LabRpc, LaunchActions, Pool}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LaunchActions, as: StocksLaunchActions
 
   @base 8453
+  @auction "0x" <> String.duplicate("ab", 20)
+  @token "0x" <> String.duplicate("cd", 20)
+  # Every other address a graduated record names: creator, stock, escrow,
+  # splitter and receiver.
+  @named "0x" <> String.duplicate("ef", 20)
 
   # The test descriptions' version 3 at the top level and version 2 in their
   # `v2` sections (`test/fixtures/base-deployment.json` and
@@ -97,15 +102,51 @@ defmodule Autolaunch.BaseLaunchersTest do
              Launchpads.for_auction(%{chain_id: @base, kind: :stocks, contracts_version: :v3})
 
     # The finisher finishes a launch it recorded on the second launchers there.
-    auction = "0x" <> String.duplicate("ab", 20)
     revstake_pad = Launchpads.for_launch!(%{chain_id: @base, contract: @revstake_v2["factory"]})
 
-    assert Launchpads.migrate_call(revstake_pad, %{auction: auction}).to ==
+    assert Launchpads.migrate_call(revstake_pad, %{auction: @auction}).to ==
              @revstake_v2["strategy"]
 
     memestock_pad = Launchpads.for_launch!(%{chain_id: @base, contract: @stocks_v2.launchpad})
     assert %{shape: %{version: :v2}} = memestock_pad
     assert Launchpads.migrate_call(memestock_pad, %{launch_id: 1}).to == @stocks_v2.launchpad
+  end
+
+  test "a graduated launch trades on the pool its own version's launcher recorded" do
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn call, _state -> graduated(call) end)
+    block = %{number: 32, hash: BaseRpcStub.safe_hash()}
+    revstake = Lab.current!()
+    stocks = StocksLab.current!()
+
+    for {version, strategy, launchpad} <- [
+          {:v2, @revstake_v2["strategy"], @stocks_v2.launchpad},
+          {:v3, @revstake_v3["strategy"], @stocks_v3_launchpad}
+        ] do
+      agent = %{
+        kind: :agent,
+        contracts_version: version,
+        auction_address: @auction,
+        token_symbol: "AGNT"
+      }
+
+      assert {:ok, %{pool_id: pool, token: @token}} =
+               Pool.swap_source(agent, revstake, block, LabRpc.opts(revstake))
+
+      assert pool == "0x" <> BaseRpcStub.address_word(strategy)
+
+      memestock = %{
+        kind: :stocks,
+        contracts_version: version,
+        auction_address: @auction,
+        quote_token_symbol: "AAPLc",
+        quote_token_decimals: 18
+      }
+
+      assert {:ok, %{pool_id: pool, token: @token}} =
+               Pool.swap_source(memestock, stocks, block, StocksLab.rpc_opts(stocks))
+
+      assert pool == "0x" <> BaseRpcStub.address_word(launchpad)
+    end
   end
 
   test "a creator's vesting on the third launchpad runs 30 days from the graduation time" do
@@ -130,4 +171,33 @@ defmodule Autolaunch.BaseLaunchersTest do
       refute Map.has_key?(vesting, :ends_at)
     end
   end
+
+  # Every launcher answers that the auction graduated (lifecycle 2) into a pool
+  # whose id is the launcher's own address, so the pool a launch trades on
+  # names the contract its record was read from.
+  defp graduated(%{to: launcher, data: data}) do
+    pool = word(launcher)
+    token = word(@token)
+    named = word(@named)
+
+    answers = %{
+      # lifecycle, start, end, claim and migration blocks, reserve, the two LP
+      # amounts, price and launch id, then subject, escrow, treasury, splitter,
+      # receiver, pool id and LP token.
+      LabAbi.selector("distribution(address)") =>
+        [2, 0, 0, 0, 10] ++ List.duplicate(0, 5) ++ [token, named, 0, named, named, pool, 0],
+      LabAbi.selector("launchIdOfAuction(address)") => [7],
+      # launcher, new token, stock, auction, splitter, start, end, claim and
+      # migration blocks, lifecycle and pool id, then nine price, position and
+      # vesting figures.
+      LabAbi.selector("launches(uint256)") =>
+        [named, token, named, word(@auction), named, 0, 0, 0, 10, 2, pool] ++
+          List.duplicate(0, 9),
+      LabAbi.selector("creatorReleasable(uint256)") => [0]
+    }
+
+    "0x" <> Enum.map_join(Map.fetch!(answers, String.slice(data, 0, 10)), &BaseRpcStub.hex_word/1)
+  end
+
+  defp word("0x" <> hex), do: String.to_integer(hex, 16)
 end
