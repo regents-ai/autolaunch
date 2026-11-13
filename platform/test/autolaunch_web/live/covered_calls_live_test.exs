@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{CoveredCalls, CoveredCallsChain, Lab, SharedReading, TestSupport}
+  alias Autolaunch.{CoveredCalls, CoveredCallsChain, SharedReading, TestSupport}
   alias Autolaunch.CoveredCalls.{PriceLine, Terms}
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias RegentChain.{BuilderCode, Call}
@@ -803,13 +803,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-done a[href='/portfolio']")
   end
 
-  test "the contract is named at the foot of the page with its verified code on Sourcify",
+  test "the contract is named at the foot of the page with its verified code on Basescan",
        %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     contract = CoveredCallsChain.contract()
 
-    assert has_element?(view, "a[href='https://repo.sourcify.dev/#{Lab.chain_id()}/#{contract}']")
+    assert has_element?(view, "a[href='https://basescan.org/address/#{contract}#code']")
 
     assert has_element?(view, "#covered-calls-contract")
   end

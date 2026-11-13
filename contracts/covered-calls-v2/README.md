@@ -7,8 +7,9 @@ the site can move to V2 alone; it neither imports nor calls V1.
 
 Status: **deployed on Base** for AMZNc at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6`, 13 November
 2026, block 56,749,573, sent by Sean from the packet in [deploy/](deploy/README.md). Its source is
-verified on [Sourcify](https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6);
-Basescan is not verified yet. [deploy/deployed.json](deploy/deployed.json) is the record.
+verified on [Basescan](https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6#code)
+and [Sourcify](https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6).
+[deploy/deployed.json](deploy/deployed.json) is the record.
 
 ## In plain words
 

@@ -52,9 +52,9 @@
       "note": "Sent 13 November 2026 with forge verify-contract --verifier sourcify from a git export of this package, whose build gives the packet's creation code. The only parts Sourcify filled in are the immutables and the constructor arguments. The build carries no metadata hash (bytecode_hash none), so Sourcify's higher grade, exact_match, cannot apply."
     },
     "basescan": {
-      "status": "not verified on 13 November 2026",
+      "status": "verified on 13 November 2026 (Exact Match, contract name CoveredCallsV2, compiler v0.8.26+commit.8a97fa7a)",
       "page": "https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6#code",
-      "needs": "packet.json post_deploy.basescan_verify, run with an Etherscan API key. Sourcify's own forward to Etherscan was refused both times (its daily limit, then its rate limit)."
+      "note": "Sent with forge verify-contract to the Etherscan API (packet.json post_deploy.basescan_verify); the key is not kept here."
     }
   },
   "explorer": "https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6"

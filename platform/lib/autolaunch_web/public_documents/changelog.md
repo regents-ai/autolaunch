@@ -9,6 +9,7 @@
 - A link to a bid or listing that has sold out, passed its expiry or been stopped, or that doesn't exist, says which in one line and opens no ticket.
 - The list itself is unchanged: the best 50 for each Friday on offer, with the same counts.
 - A link with a malformed bid or listing number now opens the page with the same "There is no bid by that number" line instead of an error page.
+- The covered-calls contract's code is now also verified on Basescan, where a seller or buyer can collect directly from the contract. The Code line at the foot of /stock/covered-call links there.
 
 ## 12 November 2026: Covered calls
 - Covered calls on /stock/covered-call now run on a new contract on Base, 0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6, which adds bids. Its code is verified on Sourcify, and the Code line at the foot of the page links there.

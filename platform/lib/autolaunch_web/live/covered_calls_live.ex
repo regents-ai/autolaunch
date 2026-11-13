@@ -46,7 +46,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   alias Autolaunch.CoveredCalls
   alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, PriceLine, Quote, Terms}
   alias Autolaunch.SharedReading
-  alias AutolaunchWeb.Components.PriceChart
+  alias AutolaunchWeb.Components.{BidPlaced, PriceChart}
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.{NotFoundError, Read}
@@ -826,11 +826,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <dt>Code</dt>
           <dd>
             <a
-              href={"https://repo.sourcify.dev/#{@market.chain_id}/#{@market.contract}"}
+              href={BidPlaced.address_url(:base, @market.contract) <> "#code"}
               target="_blank"
               rel="noopener"
             >
-              Verified on Sourcify
+              Verified on Basescan
             </a>
           </dd>
           <dt>Owner</dt>

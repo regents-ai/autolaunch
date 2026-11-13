@@ -4,9 +4,10 @@ Status: **deployed on Base** at [`0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6`](h
 transaction [`0x98873b5a…f8acb45`](https://basescan.org/tx/0x98873b5a2e611af7f76515a3ee503c819fc88ad34f50dc03bc0623457f8acb45) in block 56,749,573, sent by Sean
 from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). The sent data is `transaction-data.txt` byte for byte,
 and every check under "After it lands" passed against Base itself. The source is verified on
+[Basescan](https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6#code) (exact match, with the
+`basescan_verify` command below) and on
 [Sourcify](https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6) (a match on the runtime and the
-creation code; the build has no metadata hash, so Sourcify's exact grade cannot apply). Basescan is not verified yet:
-it needs the `basescan_verify` command below, with an Etherscan key. `deployed.json` is the record.
+creation code; the build has no metadata hash, so Sourcify's exact grade cannot apply). `deployed.json` is the record.
 
 ## What it is
 
@@ -114,10 +115,10 @@ exactly:
   forge verify-contract 0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6 src/CoveredCallsV2.sol:CoveredCallsV2 --chain base --compiler-version v0.8.26+commit.8a97fa7a --constructor-args 0x000000000000000000000000b200000000000000000000d9192b6b456483c2e8000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab5 --watch
   ```
 
-On 13 November 2026 every check but the last matched against Base, on two public endpoints;
-`deployed.json` records them (address, transaction, block, sender, gas, fee, the checks run on
-Base, the source verification) in the shape of `contracts/covered-calls/deploy/deployed.json`.
-The source is verified on Sourcify instead of Basescan until the command above is run with a key.
+On 13 November 2026 every check matched against Base, on two public endpoints, and the source
+verified on Basescan with the command above; `deployed.json` records them (address, transaction,
+block, sender, gas, fee, the checks run on Base, the source verification) in the shape of
+`contracts/covered-calls/deploy/deployed.json`.
 `platform/test/autolaunch/covered_calls/deployment_test.exs` reads `deployed.json`.
 
 ## Switching the site on
