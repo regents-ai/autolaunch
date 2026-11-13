@@ -16,9 +16,13 @@
 # and blog/. Before any machine changes, fly.toml's release_command runs the
 # image's migrations; a failed migration stops the deploy.
 #
-# The three deployment descriptions fly.toml places on the machine carry the
-# site's private RPC door, so they never enter git or the image: copy them into
-# platform/deployment/ (git ignores that folder) before deploying.
+# The deployment descriptions fly.toml places on the machine carry the site's
+# private RPC door, so they never enter git or the image: copy them into
+# platform/deployment/ (git ignores that folder) before deploying. Before
+# anything is built, the two Base descriptions must name the launchers the
+# tracked deployed manifests record (scripts/check-deployment.py), dry run
+# included. Once the switch is done, the descriptions it shipped are kept in
+# platform/deployment/releases/<commit>/, which a rollback to that commit ships.
 #
 # Run it as it is, never inside lockf: it takes its own locks. To go back to an
 # earlier release, use scripts/rollback.sh.
@@ -49,6 +53,8 @@ if ! git merge-base --is-ancestor "$commit" origin/main; then
   exit 1
 fi
 
+check_deployment
+
 tag="${commit:0:7}"
 export_dir="${TMPDIR:-/tmp}/autolaunch-deploy-$commit"
 
@@ -74,6 +80,10 @@ release() {
     --build-arg SOURCE_COMMIT="$commit" \
     --image-label "$tag"
   switch_to "registry.fly.io/$app:$tag"
+
+  # A rollback to this commit ships the descriptions it runs with.
+  run mkdir -p "$root/platform/deployment/releases/$commit"
+  run cp deployment/*.json "$root/platform/deployment/releases/$commit/"
 }
 
 export app root dry_run health commit tag

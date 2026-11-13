@@ -1,7 +1,10 @@
 # Base mainnet
 
-Deployment is complete. V2 launches are open, as checked on 9 October 2026. The preparation
-and ceremony instructions below record the original deployment; they do not authorize another one.
+Deployment is complete. New launches are paused here (`launchesPaused()` true, read on Base on
+12 November 2026); new Base launches go to version 3
+(`../../../stocks-v3/deployments/base-mainnet/README.md`). The launches made here keep their
+bids, claims, vesting, staking and trading on these contracts. The preparation and ceremony
+instructions below record the original deployment; they do not authorize another one.
 
 `mainnet-no-go-packet.json` was prepared on 6 October 2026 for the 5 October Memestake terms
 (49.75% sold, 49.75% pooled, 0.5% vesting to the launcher), against live Base at block 52273288
@@ -58,5 +61,6 @@ Governance Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` (2 of 3) sends one 
 Read on Base at block 53,304,257 (30 October 2026, 22:05 UTC): both `launchesPaused()` false;
 each call simulated from the Safe without a revert (44,831 and 45,011 gas); Safe nonce 75.
 Pausing stops new launches only. The six existing launches, their auctions, claims, refunds,
-staking and fee collection are untouched. Version 3, built for the faster blocks, opens later
-by its own decision.
+staking and fee collection are untouched. Version 3, built for the faster blocks, opened on 12
+November 2026 (Safe transaction `0x3ee0a4044b7641aae1fd7bb492f749fc03820fc74fa1f350d3070b07240c116f`);
+both version 2 launchers read `launchesPaused()` true that day.

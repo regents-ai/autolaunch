@@ -13,10 +13,12 @@ builds against) and never fetches. Nothing in `contracts/revstake-v2` or any oth
 
 ## Status
 
-**Not deployed.** The factory is born paused, as every version is. It is to be opened by the
-Governance and REGENT Safe only after Base mainnet is producing 0.2-second blocks; before Denim
-every duration here would run ten times too long (a 20-day auction). Nothing here branches on the
-Denim block: version 2 serves launches before it, version 3 after it.
+**Deployed and open since 12 November 2026** at `0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48`
+([receipts](deployments/base-mainnet/README.md)). The factory was born paused, as every version
+is, and the Governance and REGENT Safe opened it the same day. Base mainnet has made 0.2-second blocks since block 53,556,127 (5 November 2026,
+18:00:01 UTC), measured on the chain on 12 November 2026 over 3,000 and 300,000 blocks; Base has
+announced no further change. Nothing here branches on the Denim block: version 2, now paused,
+served launches before it, version 3 serves them after it.
 
 ## Changes from version 2
 
@@ -86,6 +88,55 @@ Packed as `RegentLBPStrategyV3.AUCTION_STEPS` (19 × 8 bytes, `uint24 mps | uint
 00000a00000077d8 00000900000046d1 00000a000000a53d 2d97e60000000001
 ```
 
+Both sums are exact: the block deltas add to 864,001 (version 2's 86,400 scheduled blocks × 10,
+plus 1) and `mps × blockDelta` adds to 10,000,000. Every step's product stays below the CCA's
+`uint24` (the largest is 2,988,006).
+
+### Where rounding lands
+
+An mps is a whole number, and a tenth of version 2's rate is not, so each version 2 window is split
+into a stretch at the rate rounded down and a stretch at the rate rounded up, in the proportion that
+makes the window's total exact. Nothing is rounded across a window boundary, so nothing accumulates:
+the release is equal to version 2's at all twelve boundaries. Inside a window the round-down stretch
+comes first, so version 3 runs slightly behind version 2 and catches up by the window's end. The
+widest gap is 26,144 mps (0.26% of the sale, 52.3 million tokens of 20 billion), at about 3.63
+hours. Where version 2 rose by less than 10 mps from one window to the next, the rate steps back by
+one mps at the boundary: 8 to 7 between windows 3 and 4, 9 to 8 between windows 5 and 6 and between
+6 and 7, and 10 to 9 between windows 9 and 10, 10 and 11, and 11 and 12. Exact boundaries with whole
+mps leave no other choice, and the CCA sets its clearing price from the demand against the supply
+still to be sold, not from one block's rate.
+
+### Tokens per block
+
+Version 2 at 2 s blocks against version 3 at 0.2 s blocks, for a sale of 1,000,000,000 tokens (the
+real sale is 20,000,000,000; multiply by 20):
+
+| Window | Version 2: mps × blocks | Tokens per 2 s block | Tokens a second | Version 3: mps × blocks | Tokens per 0.2 s block | Tokens a second |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 54 × 10,894 | 5,400 | 2,700 | 5 × 65,364, 6 × 43,576 | 500, 600 | 2,500, 3,000 |
+| 2 | 68 × 8,517 | 6,800 | 3,400 | 6 × 17,034, 7 × 68,136 | 600, 700 | 3,000, 3,500 |
+| 3 | 75 × 7,803 | 7,500 | 3,750 | 7 × 39,015, 8 × 39,015 | 700, 800 | 3,500, 4,000 |
+| 4 | 79 × 7,373 | 7,900 | 3,950 | 7 × 7,373, 8 × 66,357 | 700, 800 | 3,500, 4,000 |
+| 5 | 83 × 7,068 | 8,300 | 4,150 | 8 × 49,476, 9 × 21,204 | 800, 900 | 4,000, 4,500 |
+| 6 | 85 × 6,835 | 8,500 | 4,250 | 8 × 34,175, 9 × 34,175 | 800, 900 | 4,000, 4,500 |
+| 7 | 88 × 6,647 | 8,800 | 4,400 | 8 × 13,294, 9 × 53,176 | 800, 900 | 4,000, 4,500 |
+| 8 | 90 × 6,490 | 9,000 | 4,500 | 9 × 64,900 | 900 | 4,500 |
+| 9 | 92 × 6,356 | 9,200 | 4,600 | 9 × 50,848, 10 × 12,712 | 900, 1,000 | 4,500, 5,000 |
+| 10 | 94 × 6,238 | 9,400 | 4,700 | 9 × 37,428, 10 × 24,952 | 900, 1,000 | 4,500, 5,000 |
+| 11 | 95 × 6,136 | 9,500 | 4,750 | 9 × 30,680, 10 × 30,680 | 900, 1,000 | 4,500, 5,000 |
+| 12 | 97 × 6,043 | 9,700 | 4,850 | 9 × 18,129, 10 × 42,301 | 900, 1,000 | 4,500, 5,000 |
+| Last block | 2,988,006 × 1 | 298,800,600 | | 2,988,006 × 1 | 298,800,600 | |
+
+On the real sale the last block releases 5,976,012,000 tokens in both versions.
+
+### The last block
+
+The pinned CCA's documentation requires the last block to sell a significant amount, because the
+final clearing price opens the Uniswap pool and a thin last block would be easy to move. Version 3
+keeps version 2's last block whole, at the same 29.88% of the sale in one block, rather than
+spreading it over ten 0.2 s blocks. A last block is now a tenth as long, so there is less time to
+react inside it, which only makes the single block harder to manipulate.
+
 ## Layout
 
 The layout is version 2's, with `src/factory/RegentsAutolaunchFactoryV3.sol` and
@@ -99,6 +150,7 @@ changed or added:
 | `test/strategy/V2Schedule.sol` | Version 2's schedule, kept only as the reference, and the schedule arithmetic the tests use. |
 | `test/invariant/handlers/LifecycleHandler.sol` | The lifecycle invariants now move the chain at five blocks a second. |
 | `test/sepolia/AutolaunchSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): a launch through the real pinned CCA factory (code hash checked against `BaseBindings`) and Permit2 opens 10 minutes after launch, releases version 3's amount at 24 hours, ends after 48 hours, claims after 128 s, migrates at 256 s and not one block earlier, graduates, and vests the escrow half at half a year and all at a year. |
+| `test/base/AutolaunchBaseCopy.t.sol` | On a copy of Base mainnet, with the real pinned CCA factory, Permit2, PoolManager, PositionManager, REGENT and version 2's deployed UERC20 factory, escrow, splitter and receiver implementations: the copy makes five blocks a second; a launch opens 3,000 blocks (ten minutes) after it is created, has released within 0.26% of version 2's amount at 24 hours, runs two days, claims after 128 s, migrates at 256 s and not one block earlier into a real pool with liquidity, and vests the escrow over a year; a raise one unit short fails and refunds in full; one checkpoint across all nineteen steps costs about 212,000 gas. |
 
 The deployment kit follows version 2's, for the one creation version 3 makes:
 `script/DeployRevstakeV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
@@ -113,6 +165,7 @@ cd contracts/revstake-v3          # with ../stocks-v3/lib in place
 forge build
 forge test                                     # hermetic, offline
 FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
+FOUNDRY_PROFILE=base forge test                # Base mainnet copy, public endpoint, read-only
 ./bin/gate.sh                                  # the required gate, offline, on a clean commit
 python3 ../stocks-v3/bin/ceremony.py render    # the deployment packet, offline
 ```
@@ -124,3 +177,7 @@ and breaks the fixtures' address predictions.
 The Sepolia profile forks `https://sepolia.base.org` inside Forge; nothing is signed or sent. The
 pool pieces, REGENT, USDC and REGENT staking are built fresh at their Base mainnet addresses, which
 hold nothing usable on Sepolia; the CCA factory and Permit2 are Sepolia's own.
+
+The base profile forks `https://mainnet.base.org` at its latest block inside Forge; nothing is
+signed or sent. It needs Foundry 1.8.6 or later and takes about seven minutes on the public
+endpoint.

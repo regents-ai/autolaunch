@@ -1,16 +1,23 @@
 # Revstake v2: launching from another contract
 
-Status checked on 9 October 2026: Base Revstake v2, Base Memestake v2 and Robinhood
-Memestake v2 are deployed and open for new launches. The site uses v2; new v1 launches
-are paused while existing auctions remain supported.
+Status checked on 12 November 2026: new Base Revstake launches go to version 3's factory,
+`RegentsAutolaunchFactoryV3` at `0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48`
+([receipts](../../revstake-v3/deployments/base-mainnet/README.md)). Version 2's factory below is
+paused for new launches; the launches made on it keep running on its contracts. Version 3 takes the
+same `launch(LaunchParams)` call with the same terms and treasury rules. Only its block counts
+differ, so each step lasts the time it did at 2-second blocks: the auction opens 3,000 blocks after
+creation and runs 864,001 blocks, claims open 640 blocks after the end and `migrate` 1,280 blocks
+after it ([the changes](../../revstake-v3/README.md#changes-from-version-2)). The rest of this guide
+describes version 2.
 
 | Deployment | Receipt record |
 | --- | --- |
+| Base Revstake v3 | [Base Revstake v3 receipts](../../revstake-v3/deployments/base-mainnet/README.md) |
 | Base Revstake v2 | [Base Revstake receipts](../deployments/base-mainnet/README.md) |
-| Base Memestake v2 | [Base Memestake receipts](../../stocks-v2/deployments/base-mainnet/README.md) |
+| Base Memestake v3 | [Base Memestake v3 receipts](../../stocks-v3/deployments/base-mainnet/README.md) |
 | Robinhood Memestake v2 | [Robinhood receipts](../../robinhood-v2/deployments/robinhood-mainnet/README.md) |
 
-The recorded Revstake addresses are:
+The recorded version 2 Revstake addresses are:
 
 | Contract | Recorded address |
 | --- | --- |

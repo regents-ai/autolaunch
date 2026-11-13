@@ -34,14 +34,35 @@ defmodule Autolaunch.Stocks.LaunchActions do
     LaunchOperations
   }
 
-  # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol
-  # on Base and contracts/robinhood-v2/src/RobinhoodPreset.sol on Robinhood Chain,
-  # where blocks are the rollup clock's. Only the schedule differs.
+  # Preset terms the review states back, from StocksPreset.sol in contracts/stocks-v2
+  # and contracts/stocks-v3 on Base and contracts/robinhood-v2/src/RobinhoodPreset.sol
+  # on Robinhood Chain, where blocks are the rollup clock's. Only the schedule
+  # differs: Base's third launchpad restates the second's for five blocks a
+  # second and vests the creator by the clock.
   @new_decimals 18
   @auction_inventory 497_500_000 * Integer.pow(10, 18)
   @schedules %{
-    base: %{opens: 300, length: 43_200, claim: 64, pool: 128, vesting: 1_296_000},
-    robinhood: %{opens: 6_000, length: 864_000, claim: 1_280, pool: 2_560, vesting: 25_920_000}
+    {:base, :v2} => %{
+      opens: 300,
+      length: 43_200,
+      claim: 64,
+      pool: 128,
+      vesting: {:blocks, 1_296_000}
+    },
+    {:base, :v3} => %{
+      opens: 3_000,
+      length: 431_991,
+      claim: 640,
+      pool: 1_280,
+      vesting: {:seconds, 2_592_000}
+    },
+    {:robinhood, :v2} => %{
+      opens: 6_000,
+      length: 864_000,
+      claim: 1_280,
+      pool: 2_560,
+      vesting: {:blocks, 25_920_000}
+    }
   }
   @tick_divisor 100
   # The auction's lowest floor, 2^32 + 1, rounded up to the next multiple of
@@ -70,7 +91,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Pool opens", "#{schedule_copy(chain, schedule.pool)} after the auction ends"},
       {"Creator allocation", "5,000,000 #{ticker} (0.5%)"},
       {"Vesting",
-       "Released block by block over #{schedule_copy(chain, schedule.vesting)} from the pool opening; anyone can release it and it always goes to the creator"},
+       "Released #{vesting_copy(chain, schedule.vesting)} from the pool opening; anyone can release it and it always goes to the creator"},
       {"Treasury", "None"},
       {"Pool pair", "#{ticker} and the stock it was launched against"}
     ] ++
@@ -90,14 +111,51 @@ defmodule Autolaunch.Stocks.LaunchActions do
     do:
       "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(chain, blocks)}"
 
+  # The creator's release as the terms state it: in blocks, with the blocks and
+  # an estimated duration, or by the clock.
+  defp vesting_copy(chain, {:blocks, blocks}),
+    do: "block by block over #{schedule_copy(chain, blocks)}"
+
+  defp vesting_copy(chain, vesting), do: release_words(chain, vesting)
+
   @doc """
-  A Memestock launch's fixed schedule on `chain`, in blocks: bidding opens
-  `opens` after the launch, runs for `length`, claims and the trading pool open
-  `claim` and `pool` after bidding ends, and the creator's tokens are released
-  over `vesting` from the pool opening. Every duration the site states for a
-  Memestock launch is worked out from these with `LaunchChain.time_estimate/2`.
+  A Memestock launch's fixed schedule on `chain` for launchpad `version`, in
+  blocks: bidding opens `opens` after the launch, runs for `length`, claims
+  and the trading pool open `claim` and `pool` after bidding ends, and the
+  creator's tokens are released over `vesting` from the pool opening, counted
+  in `{:blocks, count}` or, on Base's third launchpad, `{:seconds, count}`.
+  Every duration the site states for a Memestock launch is worked out from
+  these with `LaunchChain.time_estimate/2`.
   """
-  def schedule(chain), do: Map.fetch!(@schedules, chain)
+  def schedule(chain, version), do: Map.fetch!(@schedules, {chain, version})
+
+  @doc """
+  The schedule of a new launch on `chain`: on Base, the launchpad the Base
+  Stocks description names for new launches (`Autolaunch.Stocks.Lab`).
+  """
+  def schedule(:base), do: schedule(:base, Lab.current!().version)
+  def schedule(:robinhood), do: schedule(:robinhood, :v2)
+
+  @doc """
+  How the creator's tokens of a launch on `chain` and launchpad `version` are
+  released, in words: "block by block over about 3 days", or "steadily over
+  30 days" where the launchpad vests by the clock. Pages say it from
+  graduation. `release/1` is a new launch's.
+  """
+  def release(chain, version), do: release_words(chain, schedule(chain, version).vesting)
+  def release(chain), do: release_words(chain, schedule(chain).vesting)
+
+  defp release_words(chain, {:blocks, blocks}),
+    do: "block by block over #{LaunchChain.time_estimate(chain, blocks)}"
+
+  defp release_words(_chain, {:seconds, seconds}),
+    do: "steadily over #{div(seconds, 86_400)} days"
+
+  @doc "How long a creator's tokens vest by the clock on launchpad `version`, in seconds."
+  def vesting_seconds(chain, version) do
+    {:seconds, seconds} = schedule(chain, version).vesting
+    seconds
+  end
 
   @doc """
   What a launch opens at, in a stock of `stock_decimals`: the price of one
@@ -245,8 +303,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "stock_symbol" => fields.stock_symbol,
         "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
         "stock_decimals" => Integer.to_string(executable.stock_decimals),
-        "start_lead_blocks" => Integer.to_string(@schedules.base.opens),
-        "auction_duration_blocks" => Integer.to_string(@schedules.base.length),
+        "start_lead_blocks" => Integer.to_string(schedule(:base, config.version).opens),
+        "auction_duration_blocks" => Integer.to_string(schedule(:base, config.version).length),
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
         "minimum_raise_units" => Rpc.format_units(minimum_raise(), executable.stock_decimals),
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),

@@ -130,6 +130,7 @@ defmodule Autolaunch.Stocks.ChainLaunch do
        %{
          kind: :stocks,
          origin: :chain,
+         contracts_version: pad.shape.version,
          featured: false,
          current_clearing_price: "0",
          chain_id: pad.chain_id,

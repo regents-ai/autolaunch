@@ -242,18 +242,21 @@ defmodule Autolaunch.AuctionMarket.Read do
   defp units(:stocks, %{quote_token_decimals: decimals}),
     do: {&Amounts.format_cca_price(&1, decimals, @token_decimals), decimals}
 
-  # The contract holding the launch: the Revstake strategy, or the Memestock
-  # launchpad of the auction's own contracts version.
-  defp launchpad(:agent, _config, _auction), do: {:ok, :strategy}
+  # The contract holding the launch: the Revstake strategy or the Memestock
+  # launchpad, each of the auction's own contracts version.
+  defp launchpad(:agent, config, auction) do
+    with {:ok, contracts} <- Lab.contracts(config, auction.contracts_version),
+         do: {:ok, {:strategy, contracts}}
+  end
 
   defp launchpad(:stocks, config, auction),
     do: StocksLab.contracts(config, auction.contracts_version)
 
   # The launch's lifecycle and its token's pool price.
-  defp launch(:strategy, config, auction, block, opts) do
+  defp launch({:strategy, contracts}, config, auction, block, opts) do
     with {:ok, distribution} <-
            LabRpc.words(
-             config,
+             contracts,
              :strategy,
              "distribution(address)",
              [auction.auction_address],

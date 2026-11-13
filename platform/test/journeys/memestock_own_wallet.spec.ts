@@ -126,14 +126,18 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
   await expect(placed).toBeVisible({timeout: 60_000})
 
   await mineTo(Number(await read(auction, abis.auction, "endBlock")))
-  await mineTo(Number(await read(auction, abis.auction, "claimBlock")) + 200)
+  // Its migration block is 640 blocks after the claim block.
+  await mineTo(Number(await read(auction, abis.auction, "claimBlock")) + 840)
   await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("ended")
   await b.goto(new URL(listing.url).pathname)
   await ready(b)
   await finishFromPage(b, bids, listing.id, "graduated")
 
-  // The creator allocation vests to the agent's wallet and to no one else: anyone may release it.
-  await mineTo(Number(mined.blockNumber) + 100_000)
+  // The creator allocation vests to the agent's wallet and to no one else, over 30 days from
+  // graduation: a minute on, anyone may release what has vested. A longer step would put the
+  // copy's clock past the 15 minutes the site gives the swap below.
+  await rpc("evm_increaseTime", [60])
+  await rpc("evm_mine")
   expect(await balanceOf(token, agent.address)).toBe(0n)
   await sendAs(people.b.wallet, addresses.launchpad, encodeFunctionData({
     abi: abis.launchpad, functionName: "releaseCreatorVesting", args: [launchId],

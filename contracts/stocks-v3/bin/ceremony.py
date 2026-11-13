@@ -38,15 +38,21 @@ Modes:
               the committed one, that the deployer's confirmed and pending nonces both equal that
               creation's nonce, and that its predicted address holds no code yet. Sends nothing.
   record      Verifies the founder's confirmed transaction hashes against the committed packet
-              (sender, nonce, order, created address, status, code identity, readbacks) and writes
-              a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
+              (sender, nonce, order, created address, status, code identity, and the readbacks at
+              the last creation's block, before the Safe's switch-on) and writes a deployed-manifest
+              candidate to reports/generated/deployment/. A human installs it. Its `cast --json`
+              reads take Foundry 1.5.1's plain answers.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoints the founder passes, to reports/generated/deployment/. It
+              ABIs, the server endpoint injected under `REGENT_BASE_RPC_URL` and the
+              `--public-rpc-url` the founder passes, to reports/generated/deployment/, with a
+              section per earlier version (Revstake `v2`, Memestake `v1` and `v2`) from that
+              version's committed deployed manifest and ABIs, for the launches made on it. It
               names no stocks: the site reads the stocks a launchpad admits from the chain.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`), matching the `[rpc_endpoints]`
-alias in `foundry.toml`; site-config reads no chain and only writes the `--rpc-url` it is given
-into the document. A diagnostic that would echo an endpoint is redacted before it is shown.
+alias in `foundry.toml`, so a private one never appears on a command line; site-config reads no
+chain and only writes that endpoint into the document, as the server's `rpc_url`. A diagnostic
+that would echo an endpoint is redacted before it is shown.
 """
 
 from __future__ import annotations
@@ -223,12 +229,17 @@ class Chain:
     def endpoint(self) -> str:
         """What `--rpc-url` receives: the foundry.toml alias, so the injected address never appears
         on a command line or in the process list."""
+        self.injected()
+        return self.alias
+
+    def injected(self) -> str:
+        """The endpoint injected under `env_name` itself, which is never printed."""
         value = os.environ.get(self.env_name, "")
         if not value:
             raise CeremonyError(f"no read-only endpoint is injected under {self.env_name}")
         if not re.match(r"^(https?|wss?)://.+", value):
             raise CeremonyError(f"the value under {self.env_name} is not an http(s) or ws(s) endpoint; its value is never printed")
-        return self.alias
+        return value
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()
@@ -262,11 +273,11 @@ class Chain:
     def codehash(self, account: str) -> str:
         return freeze.keccak256(self.code(account))
 
-    def call(self, to: str, signature: str, *arguments: str) -> str:
-        return self.cast("call", to, signature, *arguments)
+    def call(self, to: str, signature: str, *arguments: str, block: int | str = "latest") -> str:
+        return self.cast("call", "--block", str(block), to, signature, *arguments)
 
-    def call_address(self, to: str, signature: str, *arguments: str) -> str:
-        found = ADDRESS_RE.findall(self.call(to, signature, *arguments))
+    def call_address(self, to: str, signature: str, *arguments: str, block: int | str = "latest") -> str:
+        found = ADDRESS_RE.findall(self.call(to, signature, *arguments, block=block))
         if len(found) != 1:
             raise CeremonyError(f"{signature} on {to} did not return one address")
         return checksum(found[0])
@@ -277,8 +288,8 @@ class Chain:
     def call_uint(self, to: str, signature: str, *arguments: str) -> int:
         return int(self.call(to, signature, *arguments).split()[0])
 
-    def call_bool(self, to: str, signature: str) -> bool:
-        value = self.call(to, signature)
+    def call_bool(self, to: str, signature: str, block: int | str = "latest") -> bool:
+        value = self.call(to, signature, block=block)
         if value not in ("true", "false"):
             raise CeremonyError(f"{signature} on {to} did not return a bool")
         return value == "true"
@@ -539,11 +550,13 @@ class Package:
         """The Safe batch's name and description, for a package whose governance plan has calls."""
         raise NotImplementedError
 
-    def readbacks(self, selection: dict, problems: list[str]) -> dict:
+    def readbacks(self, selection: dict, block: int, problems: list[str]) -> dict:
+        """The wiring as the ceremony left it: read at the block of its last creation, so a later
+        governance call (the Safe opening launches) is not taken for a different ceremony."""
         found = {}
         for key, to, signature, wanted in self.readback_plan(selection):
             read = self.chain.call_bool if signature.endswith("(bool)") else self.chain.call_address
-            found[key] = read(to, signature)
+            found[key] = read(to, signature, block=block)
             if found[key] != wanted:
                 problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
         return found
@@ -552,7 +565,6 @@ class Package:
         raise NotImplementedError
 
     def add_site_config_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--rpc-url", required=True, help="the endpoint the website's server reads through")
         parser.add_argument("--public-rpc-url", required=True, help="the endpoint wallets in the browser use")
 
     def abi_artifacts(self) -> dict[str, str]:
@@ -584,6 +596,21 @@ def version_two_record(path: Path) -> dict:
     return manifest
 
 
+def earlier_section(manifest_path: Path, abi_dir: Path, address_keys: tuple[str, ...],
+                    abi_contracts: dict[str, str]) -> dict:
+    """An earlier version's section of the site-config: the contracts the website keeps reading
+    for the launches made on them, from that version's committed deployed manifest and its
+    committed ABIs."""
+    manifest = load_json(manifest_path)
+    if manifest.get("status") != "deployed":
+        raise CeremonyError(f"{manifest_path} is not a deployed record")
+    deployed = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
+    return {
+        "addresses": {key: deployed[key].lower() for key in sorted(address_keys)},
+        "abis": {key: load_json(abi_dir / f"{contract}.json")["abi"] for key, contract in sorted(abi_contracts.items())},
+    }
+
+
 def abi_word(value: str | int) -> str:
     """One static ABI word: an address, a bool or an unsigned integer."""
     return format(int(value, 16) if isinstance(value, str) else int(value), "064x")
@@ -606,6 +633,9 @@ class RevstakeV3(Package):
     REUSED = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
               ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"))
     VERSION_TWO = Path("../revstake-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+    # Version 2's own contracts, which its launches keep running on: site key and contract.
+    VERSION_TWO_OWN = {"factory": "RegentsAutolaunchFactoryV2", "strategy": "RegentLBPStrategyV2",
+                       "lp_locker": "RevstakeLPLocker", "hook": "RegentFeeHook"}
     CREATIONS = ("RegentsAutolaunchFactoryV3", "RegentLBPStrategyV3", "RevstakeLPLocker", "RegentFeeHook")
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE")
@@ -732,7 +762,9 @@ class RevstakeV3(Package):
         }
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
-        """Revstake launches are found by the factory's `nextLaunchId`, so no start block is written."""
+        """Revstake launches are found by the factory's `nextLaunchId`, so no start block is written.
+        The `v2` section names version 2's factory, strategy, LP locker and hook, which the website
+        keeps reading for the launches made on them."""
         addresses = {
             **{entry["contract_key"]: entry["address"] for entry in manifest["contracts"]},
             **manifest["selection"]["reused"],
@@ -745,10 +777,12 @@ class RevstakeV3(Package):
         }
         return {
             "chain_id": self.chain.chain_id,
-            "rpc_url": args.rpc_url,
+            "rpc_url": self.chain.injected(),
             "public_rpc_url": args.public_rpc_url,
             "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
             "abis": abis,
+            "v2": earlier_section(self.VERSION_TWO, Path("../revstake-v2/abi"), tuple(self.VERSION_TWO_OWN),
+                                  self.VERSION_TWO_OWN),
         }
 
 
@@ -768,6 +802,13 @@ class StocksV3(Package):
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
     VERSION_TWO = Path("../stocks-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
+    # The earlier launchpads, which their launches keep running on: the site-config section, the
+    # package, and the contracts of each whose ABIs the website reads. Each section also names the
+    # bid adapter its USDC bids went through.
+    EARLIER = (("v1", Path("../stocks"), {"launchpad": "StocksLaunchpadV1", "hook": "StocksFeeHookV1",
+                                          "locker": "MemestockLPLocker"}),
+               ("v2", Path("../stocks-v2"), {"launchpad": "StocksLaunchpadV2", "hook": "StocksFeeHookV1",
+                                             "locker": "MemestockLPLocker"}))
 
     def version_two_inputs(self) -> dict:
         """The UERC20 factory version 2's launchpad binds and the stocks it admits with their routes."""
@@ -931,6 +972,8 @@ class StocksV3(Package):
         parser.add_argument("--agent-factory", required=True, help="the deployed Base Revstake factory, from contracts/revstake-v3/deployments/base-mainnet/deployed-manifest.json")
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
+        """The `v1` and `v2` sections name the earlier launchpads, which the website keeps reading
+        for the launches made on them."""
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
         addresses = {
             **created,
@@ -945,11 +988,14 @@ class StocksV3(Package):
             "agent_factory": checksum(args.agent_factory),
         }
         return {
-            "rpc_url": args.rpc_url,
+            "rpc_url": self.chain.injected(),
             "public_rpc_url": args.public_rpc_url,
             "chain_id": self.chain.chain_id,
             "addresses": {key: value.lower() for key, value in addresses.items()},
             "abis": abis,
+            **{section: earlier_section(package / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME, package / "abi",
+                                        ("bid_adapter", *contracts), contracts)
+               for section, package, contracts in self.EARLIER},
         }
 
 
@@ -1236,12 +1282,19 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
     for contract, predicted, created_by in package.internal_plan(selection):
         block = transactions[creator_index]["block_number"]
         contracts.append(verify_code(chain, frozen, artifacts, contract, predicted, block, created_by, problems))
-    readbacks = package.readbacks(selection, problems)
+    readbacks = package.readbacks(selection, transactions[-1]["block_number"], problems)
     if problems:
         raise CeremonyError("the receipts do not record the committed ceremony:\n  " + "\n  ".join(problems))
     manifest = {
         **empty_manifest(package),
         "status": "deployed",
+        "note": (
+            "This file is the only record of deployed facts. It is not the packet: the packet is a "
+            "proposal about what a ceremony would do, rendered from an offline or read-only run. "
+            "`bin/ceremony.py record` wrote every field from confirmed receipts, after the founder had "
+            "named the approved packet digest and sent the ceremony by hand; nothing simulated is "
+            "written here."
+        ),
         "approved_packet_digest": packet["digest"]["value"],
         "selection": selection,
         "transactions": transactions,
@@ -1320,7 +1373,7 @@ def mode_site_config(package: Package, frozen: Frozen, args: argparse.Namespace)
             raise CeremonyError(f"out carries no artifact {target}; run forge build first")
     document = package.site_config(manifest, args, abis)
     candidate = write_candidate(SITE_CONFIG_NAME, document)
-    print(f"site-config written to {candidate}; it carries the endpoints you passed and is never committed")
+    print(f"site-config written to {candidate}; it carries both endpoints and is never committed")
     return 0
 
 

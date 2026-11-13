@@ -588,7 +588,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
               class="create-page__notice"
               role="status"
             >
-              New launches are paused until the new version opens.
+              New launches are paused right now.
             </p>
             <Regent.Primitives.button
               :if={!@current_human_id}

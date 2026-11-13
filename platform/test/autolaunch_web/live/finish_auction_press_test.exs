@@ -58,12 +58,13 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
   # stayed ended (the agent journeys on a busy machine, 12 Nov 2026).
   test "FINISH_PRESS_BEFORE_READING_SENDS: a Finish press with no reading on the card is read and sent",
        %{conn: conn} = context do
-    {view, card} = card(conn, context)
+    {view, card, auction} = card(conn, context)
     BaseRpcStub.put(%{answers?: true, lifecycle: @running})
 
     render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "finish"})
 
-    config = Lab.current!()
+    # The strategy of the launch's own contracts version.
+    {:ok, config} = Lab.contracts(Lab.current!(), auction.contracts_version)
     strategy = Lab.address!(config, :strategy)
     wallet = context.wallet
 
@@ -80,7 +81,7 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
 
   test "a Finish press on a launch the chain shows finished sends nothing",
        %{conn: conn} = context do
-    {view, card} = card(conn, context)
+    {view, card, _auction} = card(conn, context)
     BaseRpcStub.put(%{answers?: true, lifecycle: @graduated})
 
     render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "finish"})
@@ -127,7 +128,7 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
     card = with_target(view, "#card")
     render_hook(card, "onchain_active_wallet", %{"address" => context.wallet})
     render_async(view)
-    {view, card}
+    {view, card, auction}
   end
 
   # The strategy's record of the auction: past its migration block, with the

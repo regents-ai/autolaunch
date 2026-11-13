@@ -100,6 +100,7 @@ defmodule Autolaunch.Robinhood.Launchpad do
          token: token,
          auction: auction,
          launchpad: contracts.launchpad,
+         contracts_version: contracts.version,
          stock: stock,
          name: name,
          symbol: symbol,

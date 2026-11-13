@@ -2,8 +2,10 @@
 
 Stocks is a separate launch mode next to Agent: a new token (NEW) auctioned for one admitted Base
 stock token (STOCK) through the pinned CCA, then migrated into the official NEW/STOCK pool.
-Current v2 terms are in [the Base v2 package](../../contracts/stocks-v2/README.md) and
-[the Robinhood v2 package](../../contracts/robinhood-v2/README.md): 49.75% sold, 49.75%
+Current terms are in [the Base v3 package](../../contracts/stocks-v3/README.md), which new Base
+launches use since 12 November 2026, [the Base v2 package](../../contracts/stocks-v2/README.md)
+for the launches before it, and [the Robinhood v2 package](../../contracts/robinhood-v2/README.md):
+49.75% sold, 49.75%
 reserved for locked liquidity and 0.5% vested to the creator over 30 days from graduation.
 The floor and minimum are fixed. The pool opens at the final clearing price with a full-range
 position and, when reserve remains, a token-only position above the opening token price.
@@ -18,8 +20,8 @@ not describe the current live site. V1 remains supported for its existing auctio
 
 | Surface | Path | Notes |
 | --- | --- | --- |
-| Stocks create | `/create/stocks` | Signed-in; one private Stocks draft per account (`stock_launch_drafts`), independent of the Agent draft. Two autosaving sections (token details; the paired stock), the fixed-terms list (no launch fee; bidding opens 300 blocks after the launch is created), then the wallet step. The "Create" menu in the rail links here when the site is not read-only. |
-| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and saves one review of one step (`stock_launch_operations`, a new one for every Review press): the `launch(LaunchParams)` call, a six-field tuple `(name, symbol, description, website, image, stock)`. There is no launch fee, no REGENT read and no approval step. The snapshot reads `paused()`, the launchpad and hook addresses, the stock's admission (decimals, route) and the latest block. Review shows the preset's fixed floor (2^32+1 rounded up to a multiple of 100, `floorPriceQ96` 4,294,967,300), the minimum raise (the whole 497,500,000 sale at that floor, rounded up: 26,969,530 STOCK base units, asked for plus one unit), and the fixed schedule: bidding opens 300 blocks after the creation block, runs 43,200 blocks, claims open 64 and the pool 128 blocks after the end. Launch verification decodes `StockLaunchCreated`, verifies the fixed minimum and floor against the auction, checks against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id`, `start_block`, `end_block` and projects the `Auction` row (`kind: :stocks`). |
+| Stocks create | `/create/stocks` | Signed-in; one private Stocks draft per account (`stock_launch_drafts`), independent of the Agent draft. Two autosaving sections (token details; the paired stock), the fixed-terms list (no launch fee; bidding opens a fixed number of blocks after the launch is created), then the wallet step. The "Create" menu in the rail links here when the site is not read-only. |
+| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and saves one review of one step (`stock_launch_operations`, a new one for every Review press): the `launch(LaunchParams)` call, a six-field tuple `(name, symbol, description, website, image, stock)`. There is no launch fee, no REGENT read and no approval step. The snapshot reads `paused()`, the launchpad and hook addresses, the stock's admission (decimals, route) and the latest block. Review shows the preset's fixed floor (2^32+1 rounded up to a multiple of 100, `floorPriceQ96` 4,294,967,300), the minimum raise (the whole 497,500,000 sale at that floor, rounded up: 26,969,530 STOCK base units, asked for plus one unit), and the fixed schedule of the launchpad the description names for new launches (`Autolaunch.Stocks.LaunchActions.schedule/2`): on the third, bidding opens 3,000 blocks after the creation block, runs 431,991 blocks, claims open 640 and the pool 1,280 blocks after the end, and the creator's 0.5% is released by the clock over 30 days from the graduation time; on the second, 300, 43,200, 64 and 128 blocks, and the release block by block over 1,296,000 blocks. Launch verification decodes `StockLaunchCreated`, verifies the fixed minimum and floor against the auction, checks against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id`, `start_block`, `end_block` and projects the `Auction` row (`kind: :stocks`). |
 | Auction list and detail | `/auctions`, `/auctions/:address`, `/api/v1/auctions` | Shared with Agent. `Auction.kind` is `:agent` or `:stocks`; the quote token fields carry the real currency (address, symbol, decimals) and the detail page states them. |
 | Bid | auction page | Two forms side by side, never auto-switched: "Bid with STOCK" (allowance to Permit2, Permit2 allowance to the auction, `submitBid`) and, on Stocks auctions with the Stocks lab running, "Bid with USDC" (exact USDC allowance to the adapter, then `bidWithUsdc` with `minStockOut` = route estimate less the bidder’s chosen slippage (5% by default) and a 15-minute deadline). Amounts and prices use the auction's own currency decimals. |
 | Auction readings | background | Launch discovery (`Autolaunch.LaunchDiscovery.Discover`) creates the `Auction` row of every Memestock launch. Each auction's reading job (`Autolaunch.AuctionMarket`) then reads it every second on the fork and refreshes its state and clearing price from the auction contract and the launchpad lifecycle. After an auction's end block the same job (Agent and Stocks) also reads every site-held bid position back from the auction's `bids(bidId)` (`Autolaunch.LabPositions`): `returnable` while the bid can be exited, `awaiting_claim` once exited with fill before the claim block, `claimable` once exited with fill and the claim block reached, `returned` when exited with nothing filled, `claimed` once the fill has been taken. A status only moves forward (`Autolaunch.Bid.forward?/2`). |
@@ -127,6 +129,16 @@ The `faucet` section carries exactly `regent_holder`, `regent_amount`, `stock_am
 written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerated from
 `contracts/stocks/src/interfaces` with solc 0.8.26) and registered in
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
+
+The top level is the third launchpad, which new launches use. The description also carries a
+section for each earlier launchpad that still has launches: `v1` for the first and `v2` for the
+second, each with `addresses` of exactly `launchpad`, `hook`, `locker` and `bid_adapter` and
+`abis` of exactly `launchpad`, `hook` and `locker` (`Autolaunch.Stocks.Lab`). Each launch is
+read, bid on (USDC bids through its own version's bid adapter), claimed and finished through its
+own version's contracts, and its auction row records that version. The Stocks and
+Revstake descriptions switch together, since `agent_factory` has to be the Revstake description's
+top-level factory. `contracts/stocks-v3/bin/ceremony.py site-config --agent-factory <factory>`,
+run from `contracts/stocks-v3`, writes the file with both sections from the deployed manifests.
 
 Environment: `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongside the
 Base description variables, in every environment. It is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`

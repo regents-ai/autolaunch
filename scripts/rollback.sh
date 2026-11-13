@@ -6,10 +6,13 @@
 #
 # It refuses a release Fly does not list as complete for the app, and one whose
 # commit holds different migrations than the live commit: the database would no
-# longer match the older code, so that rollback needs a person. Otherwise it
-# switches the app to that release's image, with that commit's fly.toml and the
-# deployment descriptions in platform/deployment/, then reads /healthz until it
-# names that release's commit.
+# longer match the older code, so that rollback needs a person. It also refuses
+# a release whose deployment descriptions are not kept in
+# platform/deployment/releases/<commit>/, where scripts/deploy.sh keeps the ones
+# each release ran with: the descriptions in platform/deployment/ belong to the
+# live release and may name contracts the older code does not read. Otherwise it
+# switches the app to that release's image, with that commit's fly.toml and its
+# kept descriptions, then reads /healthz until it names that release's commit.
 #
 # Run it as it is, never inside lockf: it takes the same locks as
 # scripts/deploy.sh, the site's own and a place on the shared database.
@@ -32,7 +35,7 @@ health="$(health_address "$app")"
 git fetch --quiet origin main
 
 rollback() {
-  local image tag target live changed answer
+  local image tag target live changed kept answer
   image="$(fly releases --app "$app" --image --json |
     jq -r --argjson version "${version#v}" \
       '.[] | select(.Version == $version and .Status == "complete") | .ImageRef')"
@@ -54,6 +57,11 @@ rollback() {
     echo "A rollback across a migration is not automatic. It needs a person." >&2
     exit 1
   fi
+  kept="$root/platform/deployment/releases/$target"
+  if ! compgen -G "$kept/*.json" >/dev/null; then
+    echo "Refusing to roll back: no deployment descriptions are kept for $version in $kept. Put the descriptions $version ran with there first." >&2
+    exit 1
+  fi
   echo "==> Live is $live; $version ran $image, commit $target, with the same migrations"
 
   if [[ -z $dry_run ]]; then
@@ -62,7 +70,7 @@ rollback() {
     mkdir "$folder/deployment"
     git -C "$root" archive "$target" platform/fly.toml | tar -x -C "$folder"
     # fly deploy reads fly.toml's [[files]] local_path from the folder it runs in.
-    cp "$root"/platform/deployment/*.json "$folder/deployment/"
+    cp "$kept"/*.json "$folder/deployment/"
     cd "$folder"
   fi
   switch_to "$image"

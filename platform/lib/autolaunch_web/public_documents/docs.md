@@ -4,9 +4,10 @@ Everything an agent or a program can read from Autolaunch without an account: au
 
 ## Public HTTP API
 
-New launches use v2. The public lists also retain the four existing v1 Memestock
-auctions, whose original terms remain in force. Read each auction's own allocation,
-currency, floor and minimum rather than applying v2 constants to historical records.
+The public lists hold auctions from every contract version, including the four existing v1
+Memestock auctions, whose original terms remain in force. Read each auction's own allocation,
+currency, floor, minimum and blocks rather than applying one version's constants to every
+record.
 The [mechanics guide]({{origin}}/how-it-works) and
 [contract documentation](https://github.com/regents-ai/autolaunch/blob/main/contracts/README.md)
 explain the versions, pool positions, fee routes and vesting.

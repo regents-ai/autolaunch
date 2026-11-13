@@ -2,9 +2,11 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   @moduledoc """
   The launchpads this site describes, and what finishing a launch needs from
   each: how many launches it has, one launch's auction, migration block and
-  state, and the `migrate` call that finishes it. The finisher drives the
-  second launchpads (`configured/0`); an auction page's Finish button reaches
-  the launchpad its own auction runs on, first or second (`for_auction/1`).
+  state, and the `migrate` call that finishes it. The finisher records the
+  launches of the launchpads new launches go to (`configured/0`) and finishes
+  each recorded launch on its own launchpad, an earlier one included
+  (`for_launch!/1`); an auction page's Finish button reaches the launchpad its
+  own auction runs on, of whichever version (`for_auction/1`).
 
   - Base Revstake: the factory numbers the launches and the strategy holds
     each auction's distribution and finishes it with `migrate(address auction)`.
@@ -27,11 +29,12 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @scope "auction finisher"
 
-  @doc "Every second launchpad the loaded deployment descriptions name."
+  @doc "Every launchpad for new launches the loaded deployment descriptions name."
   def configured do
     [
       Lab.configured?() && {:ok, revstake(Lab.current!())},
-      StocksLab.configured?() && memestock(StocksLab.current(), :v2),
+      StocksLab.configured?() &&
+        with({:ok, config} <- StocksLab.current(), do: memestock(config, config.version)),
       RobinhoodLab.configured?() && robinhood(RobinhoodLab.current(), :v2)
     ]
     |> Enum.flat_map(fn
@@ -47,16 +50,48 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   """
   def for_auction(%{chain_id: chain_id, kind: kind, contracts_version: version}) do
     cond do
-      RobinhoodLab.chain?(chain_id) -> robinhood(RobinhoodLab.current(), version)
-      kind == :agent -> with {:ok, config} <- Lab.current(), do: {:ok, revstake(config)}
-      true -> memestock(StocksLab.current(), version)
+      RobinhoodLab.chain?(chain_id) ->
+        robinhood(RobinhoodLab.current(), version)
+
+      kind == :agent ->
+        with {:ok, config} <- Lab.current(),
+             {:ok, launch} <- Lab.contracts(config, version),
+             do: {:ok, revstake(launch)}
+
+      true ->
+        with {:ok, config} <- StocksLab.current(), do: memestock(config, version)
     end
   end
 
-  @doc "The configured launchpad a recorded launch belongs to."
+  @doc """
+  The launchpad a recorded launch belongs to: one new launches go to, or an
+  earlier Base one, whose launches still finish on their own contracts.
+  """
   def for_launch!(%{chain_id: chain_id, contract: contract}) do
-    Enum.find(configured(), &(&1.chain_id == chain_id and &1.contract == contract)) ||
-      raise "no configured launchpad is #{contract} on chain #{chain_id}"
+    Enum.find(configured() ++ earlier(), &(&1.chain_id == chain_id and &1.contract == contract)) ||
+      raise "no described launchpad is #{contract} on chain #{chain_id}"
+  end
+
+  # The Base launchpads new launches went to before the current ones, as the
+  # descriptions name them: version 2's Revstake factory, and the first and
+  # second Memestock launchpads.
+  defp earlier do
+    revstake =
+      if Lab.configured?(),
+        do: for({:ok, v2} <- [Lab.contracts(Lab.current!(), :v2)], do: revstake(v2)),
+        else: []
+
+    memestock =
+      if StocksLab.configured?(),
+        do:
+          for(
+            version <- [:v1, :v2],
+            {:ok, pad} <- [memestock(StocksLab.current!(), version)],
+            do: pad
+          ),
+        else: []
+
+    revstake ++ memestock
   end
 
   @doc """
@@ -162,7 +197,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     }
   end
 
-  defp memestock({:ok, config}, version) do
+  defp memestock(config, version) do
     with {:ok, contracts} <- StocksLab.contracts(config, version) do
       {:ok,
        %{
@@ -178,8 +213,6 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
        }}
     end
   end
-
-  defp memestock(error, _version), do: error
 
   defp robinhood({:ok, config}, version) do
     with {:ok, contracts} <- RobinhoodLab.contracts(config, version) do

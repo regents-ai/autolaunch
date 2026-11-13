@@ -30,6 +30,8 @@ defmodule Autolaunch.Stocks.LabProjection do
       current_clearing_price: "0",
       chain_id: chain_id,
       auction_address: result["auction"],
+      # The receipt was verified against the launchpad new launches go to.
+      contracts_version: Autolaunch.Stocks.Lab.current!().version,
       token_address: result["new_token"],
       origin: :site,
       creator_human_account_id: operation.human_account_id,

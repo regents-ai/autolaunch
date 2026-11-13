@@ -589,25 +589,23 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> durations()
   end
 
-  # How long each launch's auction runs and a Memestock creator's release takes,
-  # in words, from the launches' fixed schedules in blocks, as the pages say it.
+  # How long a new launch's auction runs and how a new Memestock creator's
+  # tokens are released, in words, from the launches' fixed schedules, as the
+  # pages say it.
   defp durations(markdown) do
-    revstake = RevstakeLaunchActions.schedule()
-    base = LaunchActions.schedule(:base)
-    robinhood = LaunchActions.schedule(:robinhood)
-
     Enum.reduce(
       [
-        {"{{revstake_auction}}", :base, revstake.length},
-        {"{{memestock_auction_base}}", :base, base.length},
-        {"{{memestock_auction_robinhood}}", :robinhood, robinhood.length},
-        {"{{memestock_release_base}}", :base, base.vesting},
-        {"{{memestock_release_robinhood}}", :robinhood, robinhood.vesting}
+        {"{{revstake_auction}}",
+         LaunchChain.time_estimate(:base, RevstakeLaunchActions.schedule().length)},
+        {"{{memestock_auction_base}}",
+         LaunchChain.time_estimate(:base, LaunchActions.schedule(:base).length)},
+        {"{{memestock_auction_robinhood}}",
+         LaunchChain.time_estimate(:robinhood, LaunchActions.schedule(:robinhood).length)},
+        {"{{memestock_release_base}}", LaunchActions.release(:base)},
+        {"{{memestock_release_robinhood}}", LaunchActions.release(:robinhood)}
       ],
       markdown,
-      fn {mark, chain, blocks}, text ->
-        String.replace(text, mark, LaunchChain.time_estimate(chain, blocks))
-      end
+      fn {mark, words}, text -> String.replace(text, mark, words) end
     )
   end
 

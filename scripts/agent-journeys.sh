@@ -9,7 +9,7 @@
 #   scripts/agent-journeys.sh down     stop the stack and drop its databases
 #
 # The stack, all on this machine and all started here:
-#   - a copy of Base (Anvil, chain 31337) carrying the v2 contracts as deployed,
+#   - a copy of Base (Anvil, chain 31337) carrying the version 3 contracts as deployed,
 #     with stand-in stock tokens, launches switched on and AMZNc covered calls
 #     and an Isolated Exposure to After-hours Stocks series deployed, on the copy only (test/journeys/support/base_fork.py);
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
@@ -31,7 +31,7 @@
 #                            revisions this one pins (default the repository's main checkout)
 #   SIWA_SERVER_REPO         a siwa-server checkout holding SIWA_SERVER_REV (default beside it)
 #   AUTOLAUNCH_JOURNEYS_PORT the site's plain port, for its health check (default 4050, else a free one)
-# Foundry first on PATH must be the build contracts/stocks-v2 pins (1.5.1-stable).
+# Foundry first on PATH must be 1.5.1-stable, the build contracts/stocks-v2 pins (see contracts()).
 # Every process it starts is stopped by its recorded pid, once that pid is checked to be
 # still the process it started. Its two databases are named after this checkout
 # (autolaunch_agents_<id>_test, siwa_agent_journeys_<id>), so two checkouts never
@@ -139,7 +139,8 @@ site_env() {
   env -u DATABASE_URL -u DATABASE_DIRECT_URL -u AUTOLAUNCH_LAB_AUTH $(cat "$state/site.env") "$@"
 }
 
-# The v2 contract packages, built once, beside this checkout's own copy of them.
+# The version 3 contract packages, built once, beside this checkout's own copy of them, with
+# the earlier packages whose deployed manifests and ABIs the settings files name.
 contracts() {
   from=${AGENT_JOURNEYS_CONTRACTS:-$main_checkout}
   git -C "$root" ls-tree -r HEAD contracts/v1/lib | while read -r _mode _type rev lib; do
@@ -149,8 +150,9 @@ contracts() {
       exit 1
     fi
   done
-  # The copy runs on the Foundry the v2 contracts are pinned to: Anvil 1.8 answers
-  # Base's stock addresses itself, so a stand-in stock installed there cannot be minted.
+  # The copy runs on Foundry 1.5.1, the build the v2 contracts are pinned to, though version 3
+  # pins 1.8.6: Anvil 1.8 answers Base's stock addresses itself, so a stand-in stock installed
+  # there cannot be minted. Forge 1.5.1 builds version 3's sources to the same ABIs.
   pin=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["toolchain"]["forge_commit_sha"])' \
     "$root/contracts/stocks-v2/requirements/frozen-identity.json")
   for tool in anvil cast forge; do
@@ -160,10 +162,13 @@ contracts() {
     fi
   done
   mkdir -p "$work"
-  git -C "$root" archive HEAD contracts/stocks-v2 contracts/revstake-v2 contracts/covered-calls-v2 contracts/exposure | tar -x -C "$work"
+  git -C "$root" archive HEAD contracts/stocks-v3 contracts/revstake-v3 contracts/stocks-v2 contracts/revstake-v2 \
+    contracts/stocks contracts/covered-calls-v2 contracts/exposure | tar -x -C "$work"
+  [ -d "$work/contracts/stocks-v3/lib" ] || (cd "$work/contracts/stocks-v3" && python3 bootstrap-deps.py "$from")
+  # Covered calls and exposure build against stocks-v2's forge-std and solady.
   [ -d "$work/contracts/stocks-v2/lib" ] || (cd "$work/contracts/stocks-v2" && python3 bootstrap-deps.py "$from")
-  (cd "$work/contracts/stocks-v2" && forge build) >"$out/contracts-build.log" 2>&1
-  (cd "$work/contracts/revstake-v2" && forge build) >>"$out/contracts-build.log" 2>&1
+  (cd "$work/contracts/stocks-v3" && forge build) >"$out/contracts-build.log" 2>&1
+  (cd "$work/contracts/revstake-v3" && forge build) >>"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/covered-calls-v2" && forge build) >>"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/exposure" && forge build) >>"$out/contracts-build.log" 2>&1
 }
@@ -171,7 +176,7 @@ contracts() {
 up() {
   mkdir -p "$state" "$out"
 
-  say "the v2 contracts and a copy of Base"
+  say "the version 3 contracts and a copy of Base"
   contracts
   $fork start "$state" "$work/contracts" >"$out/base-fork.log" 2>&1
   $fork prepare "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
@@ -236,7 +241,8 @@ EOF
   start_site
   # The site learns which stocks the launchpad admits by reading its admission
   # history, which on the copy goes back to the real deployment; the journeys
-  # start once it has every stock the deployed manifest admits.
+  # start once it has every stock version 2's deployed manifest admits, which
+  # the Safe admitted to version 3 with the same routes.
   say "waiting for the site to read the launchpad's admitted stocks"
   wanted=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['admissions']))" \
     "$work/contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json")

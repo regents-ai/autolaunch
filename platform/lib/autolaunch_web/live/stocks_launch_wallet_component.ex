@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     stocks_unavailable: "Stock launches are not open on this site.",
-    launches_paused: "New launches are paused until the new version opens.",
+    launches_paused: "New launches are paused right now.",
     stock_not_admitted: "This stock token is not admitted for launches right now.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     stock_invalid: "Choose a stock token on the draft.",

@@ -34,9 +34,10 @@ defmodule Autolaunch.LaunchActions do
   @metadata [name: 64, symbol: 16, description: 512, website: 256]
 
   # Three of the exact seven treasuries the strategy refuses are frozen
-  # constants rather than reads (contracts/revstake-v2 src/bindings/BaseBindings.sol),
-  # refused together with the factory, the strategy, its hook and its LP locker
-  # (src/strategy/RegentLBPStrategyV2.sol, `_requireAdmissibleTreasury`).
+  # constants rather than reads (src/bindings/BaseBindings.sol, the same in
+  # contracts/revstake-v2 and contracts/revstake-v3), refused together with the
+  # factory, the strategy, its hook and its LP locker (`_requireAdmissibleTreasury`
+  # in RegentLBPStrategyV2.sol and RegentLBPStrategyV3.sol).
   @frozen_refused_treasuries [
     "0x498581fF718922c3f8e6A244956aF099B2652b2b",
     "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
@@ -151,13 +152,18 @@ defmodule Autolaunch.LaunchActions do
   @total_supply 100_000_000_000
 
   @doc """
-  A Revstake launch's fixed schedule in Base blocks, `RegentLBPStrategyV2`'s
-  START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS, CLAIM_DELAY_BLOCKS and
+  A Revstake launch's fixed schedule in Base blocks on strategy `version`,
+  its START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS, CLAIM_DELAY_BLOCKS and
   MIGRATION_DELAY_BLOCKS: bidding opens `opens` after the launch, runs for
   `length`, and claims and the trading pool open `claim` and `pool` after
-  bidding ends. The treasury's release is counted in time (365 days), not here.
+  bidding ends. Version 3 restates version 2's for five blocks a second. The
+  treasury's release is counted in time (365 days), not here.
   """
-  def schedule, do: %{opens: 300, length: 86_401, claim: 64, pool: 128}
+  def schedule(:v2), do: %{opens: 300, length: 86_401, claim: 64, pool: 128}
+  def schedule(:v3), do: %{opens: 3_000, length: 864_001, claim: 640, pool: 1_280}
+
+  @doc "The schedule of a new launch: on the strategy the Base description names for new launches."
+  def schedule, do: schedule(Lab.current!().version)
 
   @doc """
   What a launch opens at, in REGENT: the price of one token at the auction's

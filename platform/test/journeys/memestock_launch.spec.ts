@@ -30,7 +30,8 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
     stock_address: AAPLC,
   }
 
-  // L1: the person's stock picker offers exactly the stocks the launchpad admits.
+  // L1: the person's stock picker offers exactly the stocks the launchpad admits: version 2's
+  // ten, which the Safe admitted to version 3 with the same routes.
   await page.goto("/create")
   await ready(page)
   const admitted = JSON.parse(readFileSync("../contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json", "utf8"))

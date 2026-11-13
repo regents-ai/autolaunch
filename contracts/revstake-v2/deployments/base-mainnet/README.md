@@ -168,5 +168,7 @@ Governance Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` (2 of 3) sends one 
 Read on Base at block 53,304,257 (30 October 2026, 22:05 UTC): both `launchesPaused()` false;
 each call simulated from the Safe without a revert (44,831 and 45,011 gas); Safe nonce 75.
 Pausing stops new launches only. The six existing launches, their auctions, claims, refunds,
-staking and fee collection are untouched. Version 3, built for the faster blocks, opens later
-by its own decision.
+staking and fee collection are untouched. Version 3, built for the faster blocks, opened on 12
+November 2026 (Safe transaction `0x3ee0a4044b7641aae1fd7bb492f749fc03820fc74fa1f350d3070b07240c116f`,
+`../../../revstake-v3/deployments/base-mainnet/README.md`); both version 2 launchers read
+`launchesPaused()` true that day, and the launches made here keep running on these contracts.

@@ -1,7 +1,8 @@
 # Autolaunch and the Continuous Clearing Auction
 
 This page is for engineers who know Uniswap's Continuous Clearing Auction (CCA) and want to see how
-Autolaunch uses it for new v2 launches. Existing v1 auctions keep their original terms.
+Autolaunch uses it for new launches: v3 on Base, v2 on Robinhood Chain. Base v2 launches keep the
+v2 block counts below, and existing v1 auctions keep their original terms.
 The [legacy packages](README.md#historical-v1-deployed-addresses) preserve their historical records.
 
 | Section | What it covers |
@@ -76,14 +77,14 @@ recipients and checks them.
 | `currency` | REGENT [`0x6f89bcA4eA5931EdFCB09786267b251DeE752b07`](https://basescan.org/address/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07) | the admitted stock token | the admitted stock token |
 | `tokensRecipient` | the strategy; unsold rounding tokens pass to the treasury's vesting escrow on success | the launchpad; unsold tokens go to the dead address | the launchpad; unsold tokens go to the dead address |
 | `fundsRecipient` | the strategy; half the raise budgets the v4 pool, and at least half reaches the treasury | the launchpad; the whole raise funds the locked v4 pool apart from stock rounding dust credited to the protocol fee lane | the launchpad; the whole raise funds the locked v4 pool apart from stock rounding dust credited to the protocol fee lane |
-| `startBlock` | creation block + 300 (about 10 min at 2 s blocks) | creation block + 300 (about 10 min) | creation block + 6,000 (about 10 min at 0.1 s blocks) |
-| `endBlock` | start + 86,401 (about 48 h) | start + 43,200 (about 24 h) | start + 864,000 (about 24 h) |
-| `claimBlock` | end + 64 | end + 64 | end + 1,280 |
-| Migration (our rule, not a CCA field) | end + 128; anyone can call `migrate` | end + 128; anyone can call `migrate` | end + 2,560; anyone can call `migrate` |
+| `startBlock` | creation block + 3,000 (about 10 min at 0.2 s blocks); v2: + 300 | creation block + 3,000 (about 10 min); v2: + 300 | creation block + 6,000 (about 10 min at 0.1 s blocks) |
+| `endBlock` | start + 864,001 (about 48 h); v2: + 86,401 | start + 431,991 (about 24 h); v2: + 43,200 | start + 864,000 (about 24 h) |
+| `claimBlock` | end + 640; v2: + 64 | end + 640; v2: + 64 | end + 1,280 |
+| Migration (our rule, not a CCA field) | end + 1,280; v2: + 128; anyone can call `migrate` | end + 1,280; v2: + 128; anyone can call `migrate` | end + 2,560; anyone can call `migrate` |
 | `floorPrice` | fixed Q96 value 4,294,967,300 | same fixed Q96 value | same fixed Q96 value |
 | `tickSpacing` | floor ÷ 100, Q96 value 42,949,673 | floor ÷ 100 | floor ÷ 100 |
 | `validationHook` | `address(0)`: anyone may bid | `address(0)` | `address(0)` |
-| `auctionStepsData` | 13 steps: twelve windows each release about 5.8%, then a final single block releases 29.88% | same shape scaled to 24 h: twelve windows of about 5.8%, final block 29.88% | Base Memestake schedule with block counts ×20 and rates ÷20, rounded: twelve windows of 5.4–6.2%, final block 29.31% |
+| `auctionStepsData` | 13 steps on v2: twelve windows each release about 5.8%, then a final single block releases 29.88%; v3 releases the same amounts at the same times in 19 steps of 0.2 s blocks | same shape scaled to 24 h: twelve windows of about 5.8%, final block 29.88%; v3 keeps 13 steps regenerated for 0.2 s blocks | Base Memestake schedule with block counts ×20 and rates ÷20, rounded: twelve windows of 5.4–6.2%, final block 29.31% |
 | `salt` | `bytes32(launchId)` | `bytes32(launchId)` | `bytes32(launchId)` |
 
 ### Fixed minimum and launcher inputs
@@ -115,7 +116,7 @@ Every launchpad and the CCA both use `BlockNumberish`.
 
 | Chain | Block number used | Block time | 10 minutes | 24 hours |
 |---|---|---|---|---|
-| Base | `block.number` | 2 s | 300 blocks | 43,200 blocks |
+| Base | `block.number` | 0.2 s | 3,000 blocks | 432,000 blocks |
 | Robinhood Chain | Arbitrum block number, read through ArbSys | 0.1 s | 6,000 blocks | 864,000 blocks |
 
 This matters on Robinhood Chain. On Arbitrum-style chains, a contract's plain `block.number` returns

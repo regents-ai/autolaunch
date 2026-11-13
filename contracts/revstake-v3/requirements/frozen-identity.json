@@ -28,7 +28,7 @@
     "libs": [
       "../stocks-v3/lib"
     ],
-    "no_match_path": "test/sepolia/**",
+    "no_match_path": "test/{base,sepolia}/**",
     "remappings": [
       "forge-std/=../stocks-v3/lib/forge-std/src/",
       "solady/=../stocks-v3/lib/solady/src/",

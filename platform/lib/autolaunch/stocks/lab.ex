@@ -1,9 +1,9 @@
 defmodule Autolaunch.Stocks.Lab do
   @moduledoc """
-  The Base Stocks deployment description: `stocks-site-config.json` as
-  `contracts/stocks-v2/bin/local-stocks-lab.py deploy` writes it, and as the
-  contracts thread writes it for Base mainnet. `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT`
-  names the file.
+  The Base Stocks deployment description, as
+  `contracts/stocks-v3/bin/ceremony.py site-config` writes it for Base mainnet
+  and the agent journeys write it for their copy of Base.
+  `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` names the file.
 
   It extends the Base deployment (`Autolaunch.Lab`) and is refused unless it
   names the very Base description this site runs with, answers on the same
@@ -12,9 +12,12 @@ defmodule Autolaunch.Stocks.Lab do
   admits are not listed here: the site reads them from the chain
   (`Autolaunch.Stocks.Stock`).
 
-  A deployment with launches on the first Memestock launchpad (BITE, JollyB and
-  AGI on Base) names that launchpad, its hook and its locker in a `v1`
-  section with their ABIs; those launches read only those contracts.
+  The top level names the third launchpad, which new launches go to.
+  Launchpads that came before it and still have launches keep their own
+  sections, each naming that launchpad, its hook, its locker and its bid
+  adapter, with the first three's ABIs: `v1` for the first (BITE, JollyB and
+  AGI on Base) and `v2` for the second. A launch reads only the contracts of
+  its own version, its USDC bids included.
   """
 
   alias Autolaunch.{Lab, LabRpcUrl}
@@ -30,18 +33,22 @@ defmodule Autolaunch.Stocks.Lab do
   @abi_keys ~w(launchpad hook locker splitter bid_adapter route auction erc20 permit2)
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
   @contract_keys ~w(hook launchpad locker)
-  # A v1 section also names the bid adapter that version's USDC bids went through.
-  @v1_address_keys ~w(bid_adapter hook launchpad locker)
+  # An earlier launchpad's section also names the bid adapter its USDC bids went through.
+  @section_address_keys ~w(bid_adapter hook launchpad locker)
+
+  @type version :: :v1 | :v2 | :v3
 
   @type t :: %{
           path: String.t(),
           rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
+          version: :v3,
           addresses: %{required(String.t()) => String.t()},
           faucet: %{required(String.t()) => String.t()} | nil,
           abis: %{required(String.t()) => [map()]},
-          v1: map() | nil
+          v1: map() | nil,
+          v2: map() | nil
         }
 
   @doc "Whether this site was given a Base Stocks deployment description."
@@ -96,17 +103,20 @@ defmodule Autolaunch.Stocks.Lab do
          {:ok, faucet} <- faucet_section(decoded["faucet"], chain_id),
          {:ok, abis} <- exact_abis(decoded["abis"]),
          :ok <- StocksLabAbi.validate(abis),
-         {:ok, v1} <- v1_section(decoded["v1"]) do
+         {:ok, v1} <- section(decoded["v1"], :v1),
+         {:ok, v2} <- section(decoded["v2"], :v2) do
       {:ok,
        %{
          path: path,
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
+         version: :v3,
          addresses: addresses,
          faucet: faucet,
          abis: abis,
-         v1: v1
+         v1: v1,
+         v2: v2
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -128,12 +138,13 @@ defmodule Autolaunch.Stocks.Lab do
   `"locker"`) and the shape of that version's records and hook
   (`Autolaunch.Stocks.LabAbi.shape/1`).
   """
-  def contracts(config, :v2) do
+  @spec contracts(t(), version()) :: {:ok, map()} | {:error, :contracts_missing}
+  def contracts(%{version: version} = config, version) do
     {:ok,
-     :v2
+     version
      |> StocksLabAbi.shape()
      |> Map.merge(%{
-       version: :v2,
+       version: version,
        launchpad: address!(config, :launchpad),
        hook: address!(config, :hook),
        locker: address!(config, :locker),
@@ -142,10 +153,17 @@ defmodule Autolaunch.Stocks.Lab do
      })}
   end
 
-  def contracts(%{v1: %{} = v1}, :v1),
-    do: {:ok, :v1 |> StocksLabAbi.shape() |> Map.merge(v1) |> Map.put(:version, :v1)}
+  def contracts(config, version) when version in [:v1, :v2] do
+    case Map.fetch!(config, version) do
+      %{} = section ->
+        {:ok, version |> StocksLabAbi.shape() |> Map.merge(section) |> Map.put(:version, version)}
 
-  def contracts(_config, :v1), do: {:error, :v1_contracts_missing}
+      nil ->
+        {:error, :contracts_missing}
+    end
+  end
+
+  def contracts(_config, _version), do: {:error, :contracts_missing}
 
   @doc "The Base deployment's chain id, which this description shares."
   def chain_id, do: Lab.chain_id()
@@ -210,14 +228,15 @@ defmodule Autolaunch.Stocks.Lab do
 
   defp exact_faucet(_faucet), do: {:error, :invalid_faucet}
 
-  defp v1_section(nil), do: {:ok, nil}
+  defp section(nil, _version), do: {:ok, nil}
 
-  defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
-    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @v1_address_keys,
+  defp section(%{"addresses" => addresses, "abis" => abis} = section, version)
+       when map_size(section) == 2 do
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @section_address_keys,
          true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
          true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
          true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
-         :ok <- StocksLabAbi.validate_v1(abis) do
+         :ok <- validate_section(version, abis) do
       {:ok,
        %{
          launchpad: String.downcase(addresses["launchpad"]),
@@ -227,11 +246,17 @@ defmodule Autolaunch.Stocks.Lab do
          abis: abis
        }}
     else
-      _ -> {:error, :invalid_v1}
+      _ -> {:error, invalid_section(version)}
     end
   end
 
-  defp v1_section(_v1), do: {:error, :invalid_v1}
+  defp section(_section, version), do: {:error, invalid_section(version)}
+
+  defp validate_section(:v1, abis), do: StocksLabAbi.validate_v1(abis)
+  defp validate_section(:v2, abis), do: StocksLabAbi.validate_v2(abis)
+
+  defp invalid_section(:v1), do: :invalid_v1
+  defp invalid_section(:v2), do: :invalid_v2
 
   defp exact_abis(abis) when is_map(abis) do
     with true <- Enum.sort(Map.keys(abis)) == Enum.sort(@abi_keys),

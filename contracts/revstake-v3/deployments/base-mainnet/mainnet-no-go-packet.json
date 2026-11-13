@@ -92,13 +92,148 @@
     }
   ],
   "hook_permission_bits": "0x2044",
-  "selection": null,
-  "external_observation": null,
-  "topology": null,
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 68,
+    "hook_salt": "0x000000000000000000000000000000000000000000000000000000000000f7cc",
+    "predicted_addresses": {
+      "factory": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+      "strategy": "0x9253413b8eD663548b15a596481E495698FA4a67",
+      "lp_locker": "0x30fDDFFDa111F52AcfACf8bc71F019B9dCC93925",
+      "hook": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044"
+    },
+    "reused": {
+      "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+      "escrow_implementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
+      "splitter_implementation": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+      "receiver_implementation": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc"
+    }
+  },
+  "external_observation": {
+    "observed_at_block": 56518999,
+    "bindings": {
+      "regent": {
+        "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+        "codehash": "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f"
+      },
+      "usdc": {
+        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "codehash": "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab"
+      },
+      "cca_factory": {
+        "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+        "codehash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa"
+      },
+      "pool_manager": {
+        "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+        "codehash": "0x83b2af6e9f3158defc2811cbcb0db71ecf8b2ba2abea39c39e370ac5c6f43eb6"
+      },
+      "position_manager": {
+        "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+        "codehash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
+      },
+      "live_staking": {
+        "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+        "codehash": "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+      },
+      "governance_and_regent_safe": {
+        "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+        "codehash": "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+      }
+    },
+    "governance_and_regent_safe": {
+      "owners": [
+        "0x8C172cA4b5Dd9449217C636A953727eACD690e37",
+        "0x978BDbECb54C54800D01055Df5A8f6af600BfaCe",
+        "0x1d0dcABAeb941823E51935F795Be184aBeBf76dF"
+      ],
+      "threshold": 2
+    },
+    "live_staking": {
+      "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "paused": false
+    },
+    "reused": {
+      "uerc20_factory": {
+        "address": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+        "codehash": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f"
+      },
+      "escrow_implementation": {
+        "address": "0x8F511153393429468C3861E7cC5341Abb3310871",
+        "codehash": "0xeb0532f7a40fb683b1fd1335e26a39a8384d3f10aceb427225bb5c6db2ae137e"
+      },
+      "splitter_implementation": {
+        "address": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+        "codehash": "0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e"
+      },
+      "receiver_implementation": {
+        "address": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+        "codehash": "0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc"
+      }
+    }
+  },
+  "topology": [
+    {
+      "chain_id": 8453,
+      "creation_order": [
+        {
+          "index": 0,
+          "contract": "RegentsAutolaunchFactoryV3",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 68,
+          "address": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+          "constructor_arguments": {
+            "uerc20Factory_": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+            "escrowImplementation_": "0x8F511153393429468C3861E7cC5341Abb3310871",
+            "splitterImplementation_": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+            "receiverImplementation_": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+            "hookSalt": "0x000000000000000000000000000000000000000000000000000000000000f7cc"
+          }
+        }
+      ],
+      "internal_creations": [
+        {
+          "contract": "RegentLBPStrategyV3",
+          "mechanism": "CREATE",
+          "created_by": "RegentsAutolaunchFactoryV3 constructor",
+          "creator_nonce": 1,
+          "address": "0x9253413b8eD663548b15a596481E495698FA4a67",
+          "constructor_arguments": {
+            "factory_": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+            "escrowImplementation_": "0x8F511153393429468C3861E7cC5341Abb3310871",
+            "splitterImplementation_": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+            "receiverImplementation_": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc"
+          }
+        },
+        {
+          "contract": "RevstakeLPLocker",
+          "mechanism": "CREATE",
+          "created_by": "RegentLBPStrategyV3 constructor",
+          "creator_nonce": 1,
+          "address": "0x30fDDFFDa111F52AcfACf8bc71F019B9dCC93925",
+          "constructor_arguments": {
+            "strategy_": "0x9253413b8eD663548b15a596481E495698FA4a67"
+          }
+        },
+        {
+          "contract": "RegentFeeHook",
+          "mechanism": "CREATE2",
+          "created_by": "RegentsAutolaunchFactoryV3 constructor",
+          "salt": "0x000000000000000000000000000000000000000000000000000000000000f7cc",
+          "address": "0xcCc1F9f049AADF419Ae15CB976AE61c38c28e044",
+          "constructor_arguments": {
+            "manager_": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+            "strategy_": "0x9253413b8eD663548b15a596481E495698FA4a67"
+          }
+        }
+      ]
+    }
+  ],
   "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xcd7b1404bab42a061866d69af3f5c885a6a725c30efa7f399c24c36ef10af825"
+    "value": "0x0ef9d1209779378e80a4982f72c1e176bd04cf38a8a3982e95cfac59c5cb6f28"
   }
 }

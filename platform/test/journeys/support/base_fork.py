@@ -1,5 +1,5 @@
-"""A local copy of Base carrying the v2 Autolaunch contracts exactly as deployed, switched on, for
-the agent journeys (scripts/agent-journeys.sh).
+"""A local copy of Base carrying the version 3 Autolaunch contracts exactly as deployed and switched
+on, for the agent journeys (scripts/agent-journeys.sh).
 
   python3 base_fork.py start   RUN CONTRACTS   copy Base at FORK_BLOCK onto a free loopback port (chain 31337)
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
@@ -8,8 +8,9 @@ the agent journeys (scripts/agent-journeys.sh).
   python3 base_fork.py exposure RUN CONTRACTS   AMZNc Isolated Exposure to After-hours Stocks: a series and its settings file
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
 
-RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v2
-package is built. Nothing here sends to a live chain. The only live reads are the fork's upstream
+RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v3
+and revstake-v3 packages are built, beside the stocks-v2, revstake-v2 and stocks packages whose
+deployed manifests and ABIs the settings files name for the launches made on them. Nothing here sends to a live chain. The only live reads are the fork's upstream
 (REGENT_BASE_RPC_URL, reached by the foundry alias "base" so it never appears in a process list) and
 each pool's stock balance, read through it.
 
@@ -19,15 +20,19 @@ On the copy only:
 - For covered calls, LabStockToken (contracts/covered-calls-v2/test/lab) is installed over AMZNc's
   stand-in, keeping its balances, because covered calls read the B20 multiplier and its scheduled
   change; then CoveredCallsV2 is deployed for AMZNc against Base's USDC and live REGENT staking.
+  FORK_BLOCK predates its deploy on Base, so the copy builds it from this checkout's source and
+  refuses to go on unless its code hashes to the code recorded from Base in its deployed.json.
 - For Isolated Exposure to After-hours Stocks, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
   feed's phase) are deployed and one AMZNc series created whose three prices (a close, an open and
   a close) fall in the copy's next few hours, so a journey can record and apply each one.
 - Whatever of the switch-on Base does not already have is done from the impersonated Safe: each stock
-  admitted with its route, the hook's executor named (Anvil's last development account), the v2
-  Revstake factory and Memestock launchpad open, and the v1 pair paused.
+  admitted with its route, the hook's executor named (Anvil's last development account), the
+  version 3 Revstake factory and Memestock launchpad open, and the version 2 and version 1 pairs
+  paused.
 """
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -36,12 +41,13 @@ import urllib.request
 from pathlib import Path
 
 CHAIN_ID = 31337
-# The Base block every run copies, after the v2 deployments, so two runs start
-# from the same chain. Moving it is a commit, and the evidence names it.
-FORK_BLOCK = 53_180_000
+# The Base block every run copies, after the Safe switched version 3 on (block 56,661,365, 12 Nov
+# 2026), so two runs start from the same chain. Moving it is a commit, and the evidence names it.
+FORK_BLOCK = 56_661_400
 SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 # Anvil's tenth development account; the journeys' people hold the second and third.
 EXECUTOR = "0xa0ee7a142d267c1f36714e4a8f75612f20a79720"
+# The first Revstake factory and Memestock launchpad, paused on Base.
 V1_FACTORY = "0x635615ccef2ef24d0655fc2ebc47a14e005fef6e"
 V1_LAUNCHPAD = "0x1d36a95112835f81b1b499a808e556020c64cac2"
 # Anvil's first development account, unlocked on the copy, deploys the Isolated Exposure to After-hours Stocks contracts.
@@ -67,7 +73,7 @@ class Fork:
     def __init__(self, run: Path, contracts: Path):
         self.run = run
         self.contracts = contracts
-        self.alias_dir = contracts / "stocks-v2"
+        self.alias_dir = contracts / "stocks-v3"
         port_file = run / "base-fork.port"
         self.url = f"http://127.0.0.1:{port_file.read_text().strip()}" if port_file.exists() else None
 
@@ -121,9 +127,11 @@ class Fork:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
         log = open(self.run / "base-fork.log", "w")
+        # A version 3 auction runs about 432,000 blocks. Anvil 1.5.1 mines that many in seconds
+        # with a bare --prune-history; given a count of states to keep, it slows as the chain grows.
         process = subprocess.Popen(
             ["anvil", "--fork-url", "base", "--fork-block-number", str(FORK_BLOCK), "--host", "127.0.0.1",
-             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64"],
+             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history"],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             start_new_session=True, cwd=self.alias_dir,
         )
@@ -151,8 +159,9 @@ class Fork:
     def prepare(self):
         fixture = self.alias_dir / "out/FixtureStockToken.sol/FixtureStockToken.json"
         runtime = json.loads(fixture.read_text())["deployedBytecode"]["object"]
-        stocks = self.manifest("stocks-v2")
-        for admission in stocks["admissions"]:
+        # Version 3 admits the stocks version 2 admitted, each with version 2's route.
+        admissions = self.manifest("stocks-v2")["admissions"]
+        for admission in admissions:
             stock, pool = admission["stock"], admission["pool"]
             live = int(
                 self.cast("call", stock, "balanceOf(address)(uint256)", pool, "--block", str(FORK_BLOCK), rpc_url="base")
@@ -164,38 +173,41 @@ class Fork:
             self.send_as(SAFE, stock, "mint(address,uint256)", pool, str(live))
             print(f"{admission['symbol']:7} stand-in installed; its pool holds {live / 1e8:,.4f} as on Base at {FORK_BLOCK}")
 
+        stocks = self.manifest("stocks-v3")
         launchpad, hook = self.address_of(stocks, "launchpad"), self.address_of(stocks, "hook")
-        factory = self.address_of(self.manifest("revstake-v2"), "factory")
-        for admission in stocks["admissions"]:
+        factory = self.address_of(self.manifest("revstake-v3"), "factory")
+        earlier = (self.address_of(self.manifest("revstake-v2"), "factory"),
+                   self.address_of(self.manifest("stocks-v2"), "launchpad"), V1_FACTORY, V1_LAUNCHPAD)
+        for admission in admissions:
             admitted = self.call(launchpad, "stockAdmission(address)(bool,uint8,address)", admission["stock"]).split()
             if admitted[0] != "true":
                 self.send_as(SAFE, launchpad, "admitStock(address,address)", admission["stock"], admission["route"])
-        print(f"{len(stocks['admissions'])} stocks admitted on the v2 launchpad {launchpad}")
+        print(f"{len(admissions)} stocks admitted on the version 3 launchpad {launchpad}")
         if self.call(hook, "executor()(address)").lower() != EXECUTOR:
             self.send_as(SAFE, hook, "setExecutor(address)", EXECUTOR)
-        for target, paused in ((factory, False), (launchpad, False), (V1_FACTORY, True), (V1_LAUNCHPAD, True)):
+        for target, paused in ((factory, False), (launchpad, False), *((pair, True) for pair in earlier)):
             if (self.call(target, "launchesPaused()(bool)") == "true") != paused:
                 self.send_as(SAFE, target, "pauseLaunches()" if paused else "unpauseLaunches()")
-        print(f"v2 factory {factory} and launchpad {launchpad} open; v1 pair paused")
+        print(f"version 3 factory {factory} and launchpad {launchpad} open; version 2 and version 1 pairs paused")
 
     def configs(self):
         """The two Base settings files, rendered by the ceremony tool from the deployed manifests."""
-        launchpad = self.address_of(self.manifest("stocks-v2"), "launchpad")
-        factory = self.address_of(self.manifest("revstake-v2"), "factory")
+        launchpad = self.address_of(self.manifest("stocks-v3"), "launchpad")
+        factory = self.address_of(self.manifest("revstake-v3"), "factory")
         for package, extra, name in (
-            ("revstake-v2", [], "base-revstake.json"),
-            ("stocks-v2", ["--agent-factory", factory], "base-memestock.json"),
+            ("revstake-v3", [], "base-revstake.json"),
+            ("stocks-v3", ["--agent-factory", factory], "base-memestock.json"),
         ):
             root = self.contracts / package
             subprocess.run(
-                ["python3", "../stocks-v2/bin/ceremony.py", "site-config",
-                 "--rpc-url", self.url, "--public-rpc-url", self.url, *extra],
+                ["python3", "../stocks-v3/bin/ceremony.py", "site-config", "--public-rpc-url", self.url, *extra],
                 cwd=root, check=True, stdout=subprocess.DEVNULL,
+                env={**os.environ, "REGENT_BASE_RPC_URL": self.url},
             )
             document = json.loads((root / "reports/generated/deployment/site-config.json").read_text())
             document["chain_id"] = CHAIN_ID
             document.pop("public_rpc_url")  # a loopback chain is the browser's door too
-            if package == "stocks-v2":
+            if package == "stocks-v3":
                 document["faucet"] = FAUCET
                 if document["addresses"]["launchpad"] != launchpad:
                     sys.exit("the rendered Memestock settings name another launchpad")
@@ -213,6 +225,12 @@ class Fork:
         stocks = json.loads((self.run / "base-memestock.json").read_text())["addresses"]
         usdc, staking = stocks["usdc"].lower(), stocks["live_staking"].lower()
         contract = self.create(package, "src/CoveredCallsV2.sol:CoveredCallsV2", AMZNC, usdc, staking)
+        # The same source and arguments as on Base, so the same code: its arguments are immutables in it.
+        deployed = json.loads((package / "deploy/deployed.json").read_text())
+        code = self.cast("code", contract)
+        keccak = subprocess.run(["cast", "keccak", code], capture_output=True, text=True, check=True).stdout.strip()
+        if keccak != deployed["checks_on_base"]["runtime_code_keccak"]:
+            sys.exit(f"the CoveredCallsV2 deployed on the copy is not the code deployed at {deployed['address']}")
         reads = [self.call(contract, f"{name}()(address)").lower() for name in ("stock", "usdc", "staking")]
         if reads != [AMZNC, usdc, staking]:
             sys.exit(f"the CoveredCallsV2 deployed on the copy names {reads}, not AMZNc, USDC and staking")

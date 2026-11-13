@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
 
     assigns =
       assign(assigns,
-        supply: supply(assigns.kind, assigns.chain, schedule),
+        supply: supply(assigns.kind, assigns.chain),
         unit: assigns.currency || default_unit(assigns.kind),
         schedule: schedule
       )
@@ -326,8 +326,9 @@ defmodule AutolaunchWeb.Components.CreateNext do
   defp schedule(:revstake, :base), do: RevstakeLaunchActions.schedule()
   defp schedule(:memestock, chain), do: LaunchActions.schedule(chain)
 
-  # Where the supply goes; a Memestock creator's release takes the chain's own time.
-  defp supply(:memestock, chain, schedule),
+  # Where the supply goes; a Memestock creator's release follows the launchpad
+  # new launches go to.
+  defp supply(:memestock, chain),
     do: %{
       words: "1 billion",
       parts: [
@@ -352,12 +353,12 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "5 million",
           share: 0.5,
           note:
-            "Released to you block by block over #{LaunchChain.time_estimate(chain, schedule.vesting)} from graduation. Anyone can send the release, and it always pays you."
+            "Released to you #{LaunchActions.release(chain)} from graduation. Anyone can send the release, and it always pays you."
         }
       ]
     }
 
-  defp supply(:revstake, :base, _schedule),
+  defp supply(:revstake, :base),
     do: %{
       words: "100 billion",
       parts: [

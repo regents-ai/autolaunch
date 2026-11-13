@@ -1,0 +1,105 @@
+{
+  "version": "1.0",
+  "chainId": "8453",
+  "createdAt": 1794494672000,
+  "meta": {
+    "name": "Autolaunch: switch on Base version 3",
+    "description": "admitStock(stock, route) on StocksLaunchpadV3 0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C for AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc, TSLAc, each with the AerodromeStockRouteV2 version 2 deployed for it; setExecutor(0x72E2FB09147d3E6E5c9F44A4E127E6321e022045) on StocksFeeHookV1 0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc, the executor version 2's hook names; unpauseLaunches() on StocksLaunchpadV3 0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C and on RegentsAutolaunchFactoryV3 0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48. Sign only after all three version 3 creations have landed and the site reads version 3 (Stocks packet 0xdba99ae57caae5c06185cded85bf5495140626c93b38edd6da529dd0dee40818, Revstake packet 0x0ef9d1209779378e80a4982f72c1e176bd04cf38a8a3982e95cfac59c5cb6f28). Version 2 stays paused.",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+    "createdFromOwnerAddress": ""
+  },
+  "transactions": [
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b200000000000000000000c2e324d24d7eecd1fb000000000000000000000000c0e910234d2a057eb5e78b69c5149567617c0563",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b200000000000000000000d9192b6b456483c2e80000000000000000000000007755bb35d838602748a44a66f671f96f2b42efa2",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b2000000000000000000002d0ba3164cc74f58b70000000000000000000000004dc2b96f07271b82e0f97dff7a1555153fe3ef6d",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b2000000000000000000008bc8786b856e61707c00000000000000000000000071280e11da1b4ed47e168b364fb52e2918975417",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b200000000000000000000ab99cfa739e253872b000000000000000000000000c090f75b7c664a60ca56ae4b8590de34e46fbde1",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b2000000000000000000004884b426556b92883d0000000000000000000000008e901a2b5775d3ff8d93e8c83d0622df08d74868",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b20000000000000000000078ee7ce2fe4908108c000000000000000000000000390bc80fcf71dbcd3782ff9db3954a7211fed999",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b200000000000000000000397293cb8cda9a10c500000000000000000000000075d0b57bc539f72dd16fb248855873126bd08916",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b2000000000000000000007b9fcbd005511acbd5000000000000000000000000c9ae2aeba42fc2408ac664ef278df1d996e27b19",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0xf6f19fe1000000000000000000000000b2000000000000000000001e800a7f5189430cd000000000000000000000000055009863eaff428c4dc52520f6468b423c99b38a",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x48B5F05910b3c548e97d9C9E7F85CdE076B260cc",
+      "value": "0",
+      "data": "0x1c3c0ea800000000000000000000000072e2fb09147d3e6e5c9f44a4e127e6321e022045",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C",
+      "value": "0",
+      "data": "0x5af02677",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48",
+      "value": "0",
+      "data": "0x5af02677",
+      "contractMethod": null,
+      "contractInputsValues": null
+    }
+  ]
+}

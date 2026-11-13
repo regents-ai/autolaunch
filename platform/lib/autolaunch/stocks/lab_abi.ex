@@ -6,8 +6,9 @@ defmodule Autolaunch.Stocks.LabAbi do
   @launch_params "(string,string,string,string,string,address)"
   @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint128,uint64,uint128,uint256)"
 
-  # `launches(uint256)`, field by field: the full-range position, the
-  # new-token-only position above the opening price, and the creator's vesting.
+  # `launches(uint256)` on the second launchpad, field by field: the full-range
+  # position, the new-token-only position above the opening price, and the
+  # creator's vesting, which starts at the graduation block.
   @launch_fields [
     :launcher,
     :new_token,
@@ -27,6 +28,31 @@ defmodule Autolaunch.Stocks.LabAbi do
     :new_only_token_id,
     :new_only_used,
     :vesting_start_block,
+    :creator_released,
+    :retired_new
+  ]
+
+  # The third launchpad's record is the second's word for word, except that the
+  # creator's vesting starts at the graduation timestamp, in seconds.
+  @v3_launch_fields [
+    :launcher,
+    :new_token,
+    :stock,
+    :auction,
+    :splitter,
+    :start_block,
+    :end_block,
+    :claim_block,
+    :migration_block,
+    :lifecycle,
+    :pool_id,
+    :final_sqrt_price_x96,
+    :lp_token_id,
+    :lp_stock_used,
+    :lp_new_used,
+    :new_only_token_id,
+    :new_only_used,
+    :vesting_start,
     :creator_released,
     :retired_new
   ]
@@ -200,7 +226,10 @@ defmodule Autolaunch.Stocks.LabAbi do
   The shape of one Memestock launchpad version's records and hook: the fields
   of a launch record in word order, the hook's lanes in the order `accrued`
   returns them, its fee event, and the event each lane's settlement emits.
+  The third launchpad has the second's hook.
   """
+  def shape(:v3), do: %{shape(:v2) | record_fields: @v3_launch_fields}
+
   def shape(:v2),
     do: %{
       record_fields: @launch_fields,
@@ -223,8 +252,6 @@ defmodule Autolaunch.Stocks.LabAbi do
       lane_settled: %{regent: @regent_lane_settled, stakers: @staker_lane_settled}
     }
 
-  def launch_record_words, do: length(@launch_fields)
-
   @doc "One `launches(uint256)` answer, by field, read with its version's shape."
   def record(%{record_fields: fields}, words) when length(words) == length(fields),
     do: fields |> Enum.zip(words) |> Map.new()
@@ -238,4 +265,7 @@ defmodule Autolaunch.Stocks.LabAbi do
   def creator_vesting_released_signature, do: @creator_vesting_released
   def validate(abis), do: LabAbi.validate(abis, @required)
   def validate_v1(abis), do: LabAbi.validate(abis, @v1_required)
+
+  @doc "Validates a `v2` section's launchpad, hook and locker: the second launchpad's ABIs."
+  def validate_v2(abis), do: LabAbi.validate(abis, Map.take(@required, ~w(launchpad hook locker)))
 end

@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
   # ConditionalVestingEscrowV2 (Revstake supply), StocksPreset (Memestock
   # supply), RegentFeeHook and the Memestock fee hooks (fees), SubjectSplitterV1
   # and MemestockSplitterCore (staking rewards). Auction lengths and a Memestock
-  # creator's release are worked out from each launch's schedule in blocks.
+  # creator's release are worked out from a new launch's schedule.
   def mount(_params, _session, socket),
     do:
       {:ok,
@@ -158,8 +158,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
-          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale at
-          that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it.
+          From v2 on, every auction opens at the lowest price it accepts. Its minimum is the whole
+          sale at that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it.
           The launcher chooses neither. A successful auction sells the whole allocation, apart from rounding. If it
           misses its minimum, every bidder takes back their full bid and all 100 billion tokens
           are retired to the dead address.
@@ -180,7 +180,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
         <p>
           Memestock launches last {@auction.base} on Base and {@auction.robinhood} on Robinhood
           Chain. 49.75% of the tokens are sold in the auction, 49.75% is reserved for the locked
-          trading pool, and 0.5% goes to the token's creator over {@release.base} on Base and {@release.robinhood} on Robinhood Chain from graduation. Stakers earn the onchain stock
+          trading pool, and 0.5% is released to the token's creator {@release.base} on Base and {@release.robinhood} on Robinhood Chain from graduation. Stakers earn the onchain stock
           from fees.
         </p>
         <table class="fact-table">
@@ -219,7 +219,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
                 <strong>5 million (0.5%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Released to the token's creator block by block over <strong>{@release.base}</strong>
+                Released to the token's creator <strong>{@release.base}</strong>
                 on Base and <strong>{@release.robinhood}</strong>
                 on Robinhood Chain from graduation. Anyone can send the release, and it always pays the
                 creator. The creator also earns a share of trading fees.
@@ -228,8 +228,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
-          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale
-          allocation at that floor, rounded up; the launcher chooses neither. A successful auction
+          From v2 on, every auction opens at the lowest price it accepts. Its minimum is the whole
+          sale allocation at that floor, rounded up; the launcher chooses neither. A successful auction
           sells the whole allocation, apart from rounding. If it misses its minimum, every bidder
           takes back their full bid and all 1 billion tokens, including the creator allocation, are
           retired to the dead address. After graduation, token rounding leftovers are also retired.
@@ -240,17 +240,23 @@ defmodule AutolaunchWeb.HowItWorksLive do
           and a 1% trading fee each to Regent and the token's staking contract. New v1 launches are paused;
           existing withdrawals, claims, trading and staking remain supported.
         </p>
+        <p>
+          New Base launches use v3 since 12 November 2026, made for Base's faster blocks, with the
+          same allocations and fees as v2. New v2 launches on Base are paused; existing v2 auctions
+          and tokens keep their bids, withdrawals, claims, vesting, trading and staking on their own
+          contracts.
+        </p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-fees">
         <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
-          V2 Revstake trades pay a 3% trading fee: <strong class="fact-page__hi">2%</strong>
+          From v2 on, Revstake trades pay a 3% trading fee: <strong class="fact-page__hi">2%</strong>
           goes to the token's staking and <strong class="fact-page__hi">1%</strong>
           goes to Regent.
           REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
-          to participate. V2 Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees, shared by Memestock stakers
+          to participate. From v2 on, Memestock trades pay a 4.3% trading fee on the stock amount of every trade, before fees, shared by Memestock stakers
           (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it goes to the token’s staking.
         </p>
         <table class="fact-table">
@@ -367,9 +373,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
   defp auction_length(:memestock, chain),
     do: LaunchChain.time_estimate(chain, LaunchActions.schedule(chain).length)
 
-  # How long a Memestock creator's tokens take to be released on `chain`, in words.
-  defp creator_release(chain),
-    do: LaunchChain.time_estimate(chain, LaunchActions.schedule(chain).vesting)
+  # How a new Memestock launch on `chain` releases its creator's tokens, in words.
+  defp creator_release(chain), do: LaunchActions.release(chain)
 
   # Where each share of a Memestock trading fee goes on `chain`.
   defp memestock_fees(chain, regent_route),

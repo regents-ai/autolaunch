@@ -4,7 +4,7 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
   lane to settle, is reviewed as exactly one step,
   `collect(<that launch's lp_token_id>)` on the deployment's `lp_locker`,
   bound to that locker and showing the fees the locker itself says the call
-  would deposit.
+  would deposit. The locker is that of the launch's own contracts version.
   """
 
   use AutolaunchWeb.ConnCase, async: false
@@ -29,9 +29,9 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
 
   test "settle on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker",
        context do
-    config = Lab.current!()
-    lp_locker = Lab.address!(config, :lp_locker)
     auction = Autolaunch.TestSupport.project_auction(state: :graduated, symbol: "LRVS")
+    {:ok, config} = Lab.contracts(Lab.current!(), auction.contracts_version)
+    lp_locker = Lab.address!(config, :lp_locker)
 
     BaseRpcStub.install(:autolaunch_lab_http_client, fn %{data: data}, _state ->
       answer(data, config)

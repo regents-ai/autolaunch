@@ -154,6 +154,10 @@ defmodule Autolaunch.LabAbi do
 
   def validate(_abis, _required), do: {:error, :invalid_abis}
 
+  @doc "Validates a `v2` section's factory, strategy, hook and LP locker: version 2's ABIs."
+  def validate_v2(abis),
+    do: validate(abis, Map.take(@required, ~w(factory strategy hook lp_locker)))
+
   def declared?(abi, signature) when is_list(abi) and is_binary(signature) do
     Enum.any?(abi, &(canonical_signature(&1) == signature))
   end
