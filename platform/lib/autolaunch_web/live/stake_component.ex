@@ -878,7 +878,8 @@ defmodule AutolaunchWeb.StakeComponent do
   steps, one button at a time. It stays in the page and is only hidden while
   nothing is reviewed, so its wallet button is never replaced. Opening it
   takes the focus, which the form under it gives up as it goes inert, and so
-  brings the whole review into view.
+  brings the whole review into view. It rises into place as it opens, taking
+  presses from the first frame, and goes at once when it closes.
   """
   def stake_review(assigns) do
     ~H"""
@@ -888,6 +889,8 @@ defmodule AutolaunchWeb.StakeComponent do
       aria-labelledby={@id <> "-title"}
       tabindex="-1"
       hidden={!@open}
+      phx-hook="MotionPanels"
+      {AutolaunchWeb.Motion.panel("review")}
     >
       <header :if={@open} class="token-swap__review-head" phx-mounted={JS.focus(to: "#" <> @id)}>
         <h3 id={@id <> "-title"}>{@title}</h3>

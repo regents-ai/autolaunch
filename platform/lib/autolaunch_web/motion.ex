@@ -33,11 +33,12 @@ defmodule AutolaunchWeb.Motion do
 
   @doc """
   The attributes that make an element open as a panel of `kind`: a `"menu"`
-  under its button, or a `"sheet"`, a dialog rising from below. A live page
-  leaves the style the motion writes alone while it plays, along with any
-  attributes in `keep`, such as a dialog's `open`.
+  under its button, a `"sheet"`, a dialog rising from below, or a `"review"`
+  rising over the form it reviews. A live page leaves the style the motion
+  writes alone while it plays, along with any attributes in `keep`, such as a
+  dialog's `open`.
   """
-  def panel(kind, keep \\ []) when kind in ["menu", "sheet"] do
+  def panel(kind, keep \\ []) when kind in ["menu", "sheet", "review"] do
     %{
       "data-panel" => kind,
       "phx-mounted" => JS.ignore_attributes(keep ++ ["style"])

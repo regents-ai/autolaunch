@@ -1,7 +1,8 @@
 /**
  * Panels that open over the page: the phone menu slides out as a drawer, a
- * dialog rises as a sheet, a header menu pops under its button and a list,
- * such as the pairing window's agents, drops under its dropdown. The page
+ * dialog rises as a sheet, a header menu pops under its button, a list, such
+ * as the pairing window's agents, drops under its dropdown and a trade's
+ * review rises over the form it reviews. The page
  * opens and closes them itself; this only moves a panel from where it starts
  * to where it rests, then hands it back to its stylesheet. Closing is
  * immediate, except for a list, which leaves the way it came.
@@ -57,31 +58,39 @@ export function settle(el: HTMLElement) {
 // A list's items, without the name a fieldset gives it.
 const items = (el: HTMLElement) => [...el.children].filter(child => !(child instanceof HTMLLegendElement))
 
+// A review fades in as it rises a little over its form. Its wallet button
+// takes presses from the first frame.
+export const review = (el: Element) =>
+  play(el, {y: {from: 10}, opacity: {from: 0}, duration: SLOW, ease: EASE_OUT})
+
 export const backdrop = (el: Element) =>
   play(el, {opacity: {from: 0}, duration: BASE, ease: EASE_OUT})
 
 // How each kind of panel, named in `data-panel`, moves when it opens.
-const PANELS: Record<string, (el: Element) => unknown> = {drawer, sheet, menu}
+const PANELS: Record<string, (el: Element) => unknown> = {drawer, sheet, menu, review}
 
 type PanelsHook = {el: HTMLElement; scope?: ReturnType<typeof createScope>; watch?: MutationObserver}
 
 /**
  * An island whose panels, each marked `data-panel`, are opened by LiveView
- * commands rather than by a press the page follows, such as a menu a button
- * opens with `JS.show`. A command acts only after the press has reached the
- * document, so this watches each panel's `hidden` go and moves it then, when
- * the reader was last using a mouse or a finger.
+ * commands or by the server rather than by a press the page follows, such as
+ * a menu a button opens with `JS.show`. A command acts only after the press
+ * has reached the document, so this watches each panel's `hidden` go and
+ * moves it then, when the reader was last using a mouse or a finger. The
+ * island may be a panel itself, as a review is.
  */
 export const MotionPanels: Hook = {
   mounted(this: PanelsHook) {
     const scope = createScope({root: this.el})
     this.scope = scope.add("open", (el: HTMLElement) => PANELS[el.dataset.panel ?? ""](el))
-    const panels = () => [...this.el.querySelectorAll<HTMLElement>("[data-panel]")]
+    const panels = () =>
+      [this.el, ...this.el.querySelectorAll<HTMLElement>("[data-panel]")].filter(el => el.dataset.panel !== undefined)
     const open = new Set(panels().filter(el => !el.hidden))
 
+    // A panel that closes stops any move still playing, so it reopens at rest.
     this.watch = new MutationObserver(() => {
       for (const el of panels()) {
-        if (el.hidden) open.delete(el)
+        if (el.hidden && open.delete(el)) rest(el)
         if (el.hidden || open.has(el)) continue
         open.add(el)
         if (lastInputByPointer() && !still(el)) scope.methods.open(el)

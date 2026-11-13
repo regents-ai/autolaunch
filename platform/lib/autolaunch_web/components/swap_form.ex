@@ -284,6 +284,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
   @doc """
   The review panel over the swap form. It stays in the page and is only
   hidden while no swap is reviewed, so its wallet button is never replaced.
+  It rises into place as it opens, taking presses from the first frame, and
+  goes at once when it closes.
   """
   def swap_review(assigns) do
     ~H"""
@@ -292,6 +294,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
       class="token-swap__review"
       aria-labelledby={@id <> "-title"}
       hidden={!@review}
+      phx-hook="MotionPanels"
+      {AutolaunchWeb.Motion.panel("review")}
     >
       <header class="token-swap__review-head">
         <h3 id={@id <> "-title"}>You’re swapping</h3>
