@@ -9,12 +9,15 @@
 @media (prefers-color-scheme: light) { :root:not([data-theme]) { --site-focus: #a33208; } }
 
 /* The edge light spans the whole button, so the label gives up its own positioning. */
-.rg-button[data-press="motion"] .rg-button__label { position: static; }
-.site-glint {
-  position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
-  clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
-  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--site-light) 22%, transparent));
-  transition: opacity 140ms cubic-bezier(.23, 1, .32, 1);
+.rg-button[data-press="motion"] {
+  isolation: isolate;
+  & .rg-button__label { position: static; }
+  & .site-glint {
+    position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+    clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
+    background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--site-light) 22%, transparent));
+    transition: opacity 140ms cubic-bezier(.23, 1, .32, 1);
+  }
 }
 @media (hover: hover) and (pointer: fine) {
   .rg-button[data-press="motion"]:not(:disabled):not([aria-busy="true"]):hover .site-glint { opacity: 1; }
@@ -23,12 +26,19 @@
 .rg-button[data-press="motion"]:focus-visible { outline-color: var(--site-focus); }
 .rg-button[data-press="motion"]:focus-visible::before { transition: none; }
 
-/* The light: a still glow until the GPU's first frame lands, then the frame. */
-.site-light-stage { position: relative; isolation: isolate; }
-.site-light {
-  position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background-color: var(--color-bg); color: var(--site-light);
-  background-image: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--site-light) 14%, transparent), transparent 62%);
+/* The light: a still glow until the GPU's first frame lands, then the frame. A light
+   shaped like its buttons has the plain ground for its still face, so the buttons' own
+   hover and current page show without it. */
+.site-light-stage {
+  position: relative; isolation: isolate;
+  & .site-light {
+    position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background-color: var(--color-bg); color: var(--site-light);
+    background-image: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--site-light) 14%, transparent), transparent 62%);
+  }
+  & .site-light[data-light-shape="button"] { background-image: none; }
+  /* After a claim, the layer the green light swirls across (below). */
+  & .stake-light-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
 }
 .site-light canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 200ms cubic-bezier(.23, 1, .32, 1); }
 .site-light[data-light-ready="true"] canvas { opacity: 1; }
@@ -46,7 +56,6 @@
    leads a short trail of glows, then lands in the button. */
 :root { --stake-light: #2fd67b; }
 .site-light[data-swirl] { color: var(--stake-light); }
-.stake-light-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
 .stake-light {
   --size: 24px;
   position: absolute; top: 0; left: 0; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);

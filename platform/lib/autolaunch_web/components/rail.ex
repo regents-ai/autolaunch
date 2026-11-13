@@ -3,6 +3,8 @@ defmodule AutolaunchWeb.Components.Rail do
   use Phoenix.Component
   use AutolaunchWeb, :verified_routes
 
+  alias AutolaunchWeb.Components.SiteButtons
+
   # Explore has two smaller links, to the auctions list and the tokens list. It
   # also covers their search and detail pages; Docs covers the persistent
   # information-page navigation. Stocks has one to covered calls and one to
@@ -28,40 +30,62 @@ defmodule AutolaunchWeb.Components.Rail do
 
   attr :current_path, :string, required: true
 
+  @doc """
+  The rail: each destination is a quiet row, with Launch as the one orange
+  button at the end. The rows and Launch stand on one light shaped like the row
+  under the pointer, with keyboard focus or for the page you are on
+  (`SiteButtons.stage`).
+  """
   def rail(assigns) do
-    assigns = assign(assigns, items: @items)
+    assigns =
+      assign(assigns,
+        rows: Enum.reject(@items, &(&1 == @launch)),
+        launch: @launch,
+        launch_current?: current?(assigns.current_path, @launch)
+      )
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
-      <ul class="shell-rail__list">
-        <li :for={item <- @items} class="shell-rail__item">
-          <.link
-            href={item.path}
-            class={[
-              "rg-button rg-button--primary shell-rail__link",
-              item.path == "/create" && "shell-rail__launch"
-            ]}
-            aria-current={if current?(@current_path, item), do: "page"}
-          >
-            {item.label}
-          </.link>
-          <ul
-            :if={views(item) != []}
-            class="shell-rail__sublist"
-            aria-label={"#{item.label} views"}
-          >
-            <li :for={view <- views(item)}>
-              <.link
-                navigate={view.path}
-                class="rg-button rg-button--primary shell-rail__link shell-rail__sublink"
-                aria-current={if current?(@current_path, view), do: "page"}
-              >
-                {view.label}
-              </.link>
-            </li>
-          </ul>
-        </li>
-      </ul>
+      <SiteButtons.stage id="shell-rail-buttons" class="shell-rail__stage" shape="button">
+        <ul class="shell-rail__list">
+          <li :for={item <- @rows} class="shell-rail__item">
+            <.link
+              href={item.path}
+              class="shell-rail__link"
+              data-press="motion"
+              aria-current={if current?(@current_path, item), do: "page"}
+            >
+              {item.label}
+            </.link>
+            <ul
+              :if={views(item) != []}
+              class="shell-rail__sublist"
+              aria-label={"#{item.label} views"}
+            >
+              <li :for={view <- views(item)}>
+                <.link
+                  navigate={view.path}
+                  class="shell-rail__link shell-rail__sublink"
+                  data-press="motion"
+                  aria-current={if current?(@current_path, view), do: "page"}
+                >
+                  {view.label}
+                </.link>
+              </li>
+            </ul>
+          </li>
+          <li class="shell-rail__item">
+            <.link
+              href={@launch.path}
+              class="rg-button rg-button--primary shell-rail__launch"
+              data-press="motion"
+              aria-current={if @launch_current?, do: "page"}
+            >
+              <span class="site-glint" aria-hidden="true"></span>{@launch.label}
+            </.link>
+          </li>
+        </ul>
+      </SiteButtons.stage>
     </nav>
     """
   end

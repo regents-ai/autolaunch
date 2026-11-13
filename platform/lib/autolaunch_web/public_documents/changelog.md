@@ -1,5 +1,10 @@
 # Changelog
 
+## 12 November 2026: Navigation
+- The sidebar is quieter. Each page is a plain row, and the page you are on has an orange mark at its edge. A soft light sits behind that row and glides to the row under your pointer or your keyboard. Launch is still the one orange button.
+- The footer is tidier. Its buttons share the first row, with a soft light behind the one under your pointer or your keyboard. The links below it are evenly spaced, and on a wide screen the legal links and the copyright end the same line. On a phone, the light and dark switch ends the button row.
+- With reduced motion, or in a browser that can't draw the light, the sidebar and footer look the same without it.
+
 ## 12 November 2026: Home
 - The home page now ends with Principles: six cards on what Autolaunch holds to. One price for every bidder, liquidity no one can pull, every stock named exactly, your wallet signs everything, agents prepare and you sign, and figures from the chain. Each card opens the page that explains it.
 - Each card has a small moving picture in its own colours that follows your pointer. With reduced motion, or in a browser that can't draw it, the card shows a still picture instead.

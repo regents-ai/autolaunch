@@ -13,7 +13,16 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.{Pool, PoolFees, TreasurySecurity}
-  alias AutolaunchWeb.Components.{ChainIcon, CreatorLabel, LaunchTrust, ShareLaunch, TokenTrade}
+
+  alias AutolaunchWeb.Components.{
+    ChainIcon,
+    CreatorLabel,
+    LaunchTrust,
+    ShareLaunch,
+    SiteButtons,
+    TokenTrade
+  }
+
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
@@ -173,7 +182,7 @@ defmodule AutolaunchWeb.TokenLive do
             pool={@pool}
           />
         </div>
-        <.buttons_stage id="token-side" class="token-page__side">
+        <SiteButtons.stage id="token-side" class="token-page__side" swirl>
           <.trade_widget id="trade" tab={@trade} swap staked={@staked?}>
             <:pane tab={:swap}>
               <.live_component
@@ -247,7 +256,7 @@ defmodule AutolaunchWeb.TokenLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
-        </.buttons_stage>
+        </SiteButtons.stage>
         <div class="token-page__details">
           <.revenue_history :if={@page_record.auction.kind == :agent} revenue={@revenue} />
           <.token_facts

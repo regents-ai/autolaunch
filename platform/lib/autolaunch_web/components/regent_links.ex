@@ -60,6 +60,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
     """
   end
 
+  @doc "The footer's X and GitHub links, which stand with its buttons (`data-press`)."
   def social_links(assigns) do
     ~H"""
     <nav class="regent-social-links" aria-label="Regents social links">
@@ -68,13 +69,16 @@ defmodule AutolaunchWeb.Components.RegentLinks do
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Regents on X"
+        data-press="motion"
       >
         <.link_icon kind={:x} />
       </a>
-      <.github_link />
+      <.github_link data-press="motion" />
     </nav>
     """
   end
+
+  attr :rest, :global
 
   defp github_link(assigns) do
     ~H"""
@@ -83,6 +87,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Regents on GitHub"
+      {@rest}
     >
       <.link_icon kind={:github} />
     </a>

@@ -8,8 +8,11 @@ import type {IslandRenderer} from "./canvas_island"
 
 export type Rgb = readonly [number, number, number]
 
-/** Where the light should rest: x and y across the frame from its top left, and how bright it is. */
-export type LightAim = {x: number; y: number; glow: number}
+/** Where the light should rest: x and y across the frame from its top left, and how bright it is.
+ *  `w` and `h` are half the lit button's width and height, `reach` how far the light spreads past
+ *  its edge, all as shares of the frame's height; with no button size the light is a round pool.
+ *  `edge` is how much the frame's own edges catch the light. */
+export type LightAim = {x: number; y: number; glow: number; w: number; h: number; reach: number; edge: number}
 
 export type LightRenderer = IslandRenderer & {
   colors(ground: Rgb, light: Rgb): void
@@ -17,21 +20,24 @@ export type LightRenderer = IslandRenderer & {
 }
 
 // vgpu's effect uv starts at the top left and grows down, the same way the page measures.
+// The light fills the button's box evenly and fades out past its edge.
 const lightWgsl = /* wgsl */ `
-struct Params { ground: vec4f, light: vec4f, spot: vec4f, }
+struct Params { ground: vec4f, light: vec4f, spot: vec4f, shape: vec4f, }
 @group(0) @binding(0) var<uniform> params: Params;
 @fragment fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let aspect = params.spot.w;
   let offset = (uv - params.spot.xy) * vec2f(aspect, 1.0);
-  let pool = 1.0 - smoothstep(0.0, 1.15, length(offset));
+  let past = length(max(abs(offset) - params.shape.xy, vec2f(0.0)));
+  let pool = 1.0 - smoothstep(0.0, params.shape.z, past);
   let edge = smoothstep(0.55, 1.0, max(abs(uv.x - 0.5), abs(uv.y - 0.5)) * 2.0);
-  let amount = pool * pool * params.spot.z * 0.7 + edge * params.spot.z * 0.06;
+  let amount = pool * pool * params.spot.z * 0.7 + edge * params.spot.z * params.shape.w;
   return vec4f(mix(params.ground.rgb, params.light.rgb, clamp(amount, 0.0, 1.0)), 1.0);
 }`
 
 // Each frame closes this share of the distance left, so a move settles well inside
 // the island's frame budget and the last frame snaps the rest.
 const EASE = 0.22
+const KEYS = ["x", "y", "glow", "w", "h", "reach", "edge"] as const
 
 const same = (a: Rgb, b: Rgb) => a.every((channel, i) => Math.abs(channel - b[i]) < 1 / 512)
 
@@ -51,11 +57,12 @@ export async function createLightRenderer(
     let aspect = size[0] / Math.max(1, size[1])
     let ground: Rgb = [0, 0, 0]
     let light: Rgb = [1, 1, 1]
-    const now: LightAim = {x: .5, y: .5, glow: 0}
+    const now: LightAim = {x: .5, y: .5, glow: 0, w: 0, h: 0, reach: 1.15, edge: 0}
     let target: LightAim = {...now}
+    const uniforms = () => ({spot: [now.x, now.y, now.glow, aspect], shape: [now.w, now.h, now.reach, now.edge]})
     const shader = effect(gpu, prepareShader(lightWgsl, "site_button_light.wgsl"), {
       label: "site-button-light.pass",
-      set: {params: {ground: [...ground, 1], light: [...light, 1], spot: [now.x, now.y, now.glow, aspect]}},
+      set: {params: {ground: [...ground, 1], light: [...light, 1], ...uniforms()}},
     })
     await shader.compile({colors: [output.format]})
 
@@ -75,13 +82,12 @@ export async function createLightRenderer(
         output.resize([width, height])
       },
       step(snap) {
-        const keys = ["x", "y", "glow"] as const
-        const moved = keys.some(key => Math.abs(target[key] - now[key]) > .002)
-        for (const key of keys) now[key] = snap || !moved ? target[key] : now[key] + (target[key] - now[key]) * EASE
+        const moved = KEYS.some(key => Math.abs(target[key] - now[key]) > .002)
+        for (const key of KEYS) now[key] = snap || !moved ? target[key] : now[key] + (target[key] - now[key]) * EASE
         return moved
       },
       present() {
-        shader.set({params: {spot: [now.x, now.y, now.glow, aspect]}})
+        shader.set({params: uniforms()})
         frame(gpu, current => current.pass(output, shader))
       },
       async settled() { await gpu.gpu.queue.onSubmittedWorkDone(); await gpu.settled() },
