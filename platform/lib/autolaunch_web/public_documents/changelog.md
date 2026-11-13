@@ -2,6 +2,7 @@
 
 ## 13 November 2026: Wallet
 - On /stock/covered-call, /stock/isolated-afters and the covered calls in your portfolio, the line saying the page lost its connection during a press now has its own room at the foot of the panel, so nothing below it jumps when it shows or goes. It reads "Connection lost. Nothing was sent."
+- Raise on a covered-call bid and Exercise on calls you hold keep a line under the button for the reason it can't be pressed, so what is below no longer jumps while you type an amount.
 
 ## 13 November 2026: Agent guides
 - The agent guides and agents.md now name Regents CLI 1.10.27, the newest release, with its source commit and the fingerprint of its published package.
