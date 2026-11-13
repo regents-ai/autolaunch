@@ -33,6 +33,33 @@ defmodule AutolaunchWeb.HomeNextTest do
     assert view |> element("#home-market") |> render() =~ "Done Before"
   end
 
+  test "a card that drops out of Coming next stays, hidden, until the list next changes",
+       %{conn: conn} do
+    leaving = TestSupport.project_auction(chain_id: 8453, title: "Leaving", state: :active)
+    staying = TestSupport.project_auction(chain_id: 8453, title: "Staying", state: :active)
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    Autolaunch.hide_auction!(leaving, actor: %Autolaunch.Actors.System{})
+    send(view.pid, :reread_listings)
+    render_async(view)
+
+    assert has_element?(view, "#home-next-card-#{leaving.id}[data-gone]")
+    refute has_element?(view, "#home-next-card-#{staying.id}[data-gone]")
+
+    send(view.pid, :reread_listings)
+    render_async(view)
+    assert has_element?(view, "#home-next-card-#{leaving.id}[data-gone]")
+
+    arriving = TestSupport.project_auction(chain_id: 8453, title: "Arriving", state: :active)
+    send(view.pid, :reread_listings)
+    render_async(view)
+
+    refute has_element?(view, "#home-next-card-#{leaving.id}")
+    assert has_element?(view, "#home-next-card-#{staying.id}")
+    assert has_element?(view, "#home-next-card-#{arriving.id}")
+  end
+
   test "Clear search drops only the search and keeps the other filters", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/?q=frog&chain=base")
 

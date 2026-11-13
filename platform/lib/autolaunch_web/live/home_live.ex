@@ -60,6 +60,7 @@ defmodule AutolaunchWeb.HomeLive do
        records_kind: :auction,
        backed: [],
        coming: [],
+       coming_gone: [],
        creators: %{},
        market_loading: true,
        market_failed: false,
@@ -263,7 +264,7 @@ defmodule AutolaunchWeb.HomeLive do
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
   def handle_async(:home_reread, {:ok, {options, count, {backed, coming}, {:ok, page}}}, socket) do
-    socket = assign(socket, backed: backed, coming: coming)
+    socket = socket |> assign(:backed, backed) |> put_coming(coming)
 
     if options == socket.assigns.listed and count == length(socket.assigns.records) and
          not socket.assigns.market_loading do
@@ -281,7 +282,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   # A failed reread leaves the listing the reader already has.
   def handle_async(:home_reread, {:ok, {_options, _count, {backed, coming}, _failure}}, socket),
-    do: {:noreply, assign(socket, backed: backed, coming: coming)}
+    do: {:noreply, socket |> assign(:backed, backed) |> put_coming(coming)}
 
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
@@ -346,6 +347,18 @@ defmodule AutolaunchWeb.HomeLive do
     live = read_records(%{"state" => "active", "sort" => "ending"})
     opening = read_records(%{"state" => "created"})
     Enum.take(live ++ opening, 3)
+  end
+
+  # "Coming next" as a reread finds it. A card that drops out stays in the
+  # list, hidden, until the list next changes, so it fades out while the
+  # others close the gap (`MotionList`). A reread that finds the same cards
+  # leaves the list as it is.
+  defp put_coming(%{assigns: %{coming: coming}} = socket, coming), do: socket
+
+  defp put_coming(socket, coming) do
+    ids = Enum.map(coming, & &1.id)
+    gone = Enum.reject(socket.assigns.coming, &(&1.id in ids))
+    assign(socket, coming: coming, coming_gone: gone)
   end
 
   defp read_records(params) do
@@ -487,10 +500,16 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   attr :coming, :list, required: true
+  attr :gone, :list, required: true, doc: "cards that just dropped out, kept hidden"
 
-  # What a visitor can join next: the auctions taking bids or opening soon,
-  # each settling in as the page arrives (`MotionCascade`). While there are
-  # none, one quiet line says so; the list below keeps the past ones.
+  # What a visitor can join next: the auctions taking bids or opening soon.
+  # When they change while the page is watched, the cards glide to their new
+  # places, a new one fades in and one that drops out fades while the others
+  # close the gap (`MotionList`). The motion follows each part of a card by the
+  # `data-layout-id` it gives that part, so the cards are keyed by auction and
+  # an update keeps those names; without either, a card's face blanks while it
+  # moves. While there are none, one quiet line says so; the list below keeps
+  # the past ones.
   defp coming_next(assigns) do
     ~H"""
     <section class="home-next" aria-labelledby="home-next-title">
@@ -499,10 +518,19 @@ defmodule AutolaunchWeb.HomeLive do
         :if={@coming != []}
         id="home-next-auctions"
         class="home-next__row"
-        phx-hook="MotionCascade"
-        data-variant={AutolaunchWeb.Motion.standard("grid")}
+        phx-hook="MotionList"
+        data-layout-id="home-next-auctions"
+        data-children="li"
+        data-variant={AutolaunchWeb.Motion.standard("list")}
       >
-        <li :for={auction <- @coming}>
+        <li
+          :for={auction <- @coming ++ @gone}
+          :key={auction.id}
+          id={"home-next-card-#{auction.id}"}
+          data-layout-id={"home-next-card-#{auction.id}"}
+          data-gone={auction in @gone}
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes("data-layout-id", to: {:inner, "*"})}
+        >
           <.link navigate={AutolaunchWeb.Paths.auction(auction)} class="home-next__card">
             <strong>{auction.title}</strong>
             <small>{auction.token_symbol}</small>
@@ -867,7 +895,7 @@ defmodule AutolaunchWeb.HomeLive do
         </p>
       </section>
 
-      <.coming_next coming={@coming} />
+      <.coming_next coming={@coming} gone={@coming_gone} />
 
       <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
         <h2 id="home-backed-title">Bid volume</h2>

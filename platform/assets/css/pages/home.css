@@ -247,6 +247,8 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 #home-explore .home-values h2 { margin: 0 0 14px; font-size: 1.125rem; }
 #home-explore .home-values .value-cards__face { color: inherit; text-decoration: none; }
 #home-explore .home-next__row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+/* A card that just dropped out takes no room, yet the list's motion can still show it fading while the others close up. Not `hidden`: base.css makes that win over every style, so the card would vanish at once. */
+#home-explore .home-next__row > [data-gone] { display: none; }
 #home-explore .home-next__card { display: grid; gap: 4px; min-width: 0; height: 100%; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: inherit; text-decoration: none; }
 #home-explore .home-next__card:hover { border-color: var(--hairline-strong); }
 #home-explore .home-next__card:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
