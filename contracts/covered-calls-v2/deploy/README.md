@@ -1,8 +1,12 @@
 # Deploying CoveredCallsV2 for AMZNc on Base
 
-Status: **not deployed; waits for Sean.** Deploying a contract is Sean's decision, and nothing here
-has been sent to Base. Everything below is prepared so that, on his go, he sends one transaction
-and nothing else needs writing first.
+Status: **deployed on Base** at [`0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6`](https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6), 13 November 2026,
+transaction [`0x98873b5a…f8acb45`](https://basescan.org/tx/0x98873b5a2e611af7f76515a3ee503c819fc88ad34f50dc03bc0623457f8acb45) in block 56,749,573, sent by Sean
+from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). The sent data is `transaction-data.txt` byte for byte,
+and every check under "After it lands" passed against Base itself. The source is verified on
+[Sourcify](https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6) (a match on the runtime and the
+creation code; the build has no metadata hash, so Sourcify's exact grade cannot apply). Basescan is not verified yet:
+it needs the `basescan_verify` command below, with an Etherscan key. `deployed.json` is the record.
 
 ## What it is
 
@@ -110,25 +114,25 @@ exactly:
   forge verify-contract 0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6 src/CoveredCallsV2.sol:CoveredCallsV2 --chain base --compiler-version v0.8.26+commit.8a97fa7a --constructor-args 0x000000000000000000000000b200000000000000000000d9192b6b456483c2e8000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab5 --watch
   ```
 
-Then record the deployment in `deployed.json`, in the shape of
-`contracts/covered-calls/deploy/deployed.json` (address, transaction, block, sender, gas, fee, the
-checks run on Base, the source verification), and in the same commit point
-`platform/test/autolaunch/covered_calls/deployment_test.exs` at `deployed.json` in place of
-`packet.json`, as CoveredCallsV1's test read its record.
+On 13 November 2026 every check but the last matched against Base, on two public endpoints;
+`deployed.json` records them (address, transaction, block, sender, gas, fee, the checks run on
+Base, the source verification) in the shape of `contracts/covered-calls/deploy/deployed.json`.
+The source is verified on Sourcify instead of Basescan until the command above is run with a key.
+`platform/test/autolaunch/covered_calls/deployment_test.exs` reads `deployed.json`.
 
 ## Switching the site on
 
 `site-markets.json` is the markets file the site reads (`Autolaunch.CoveredCalls.Deployment`):
-Base, and for AMZNc its stock, this contract's predicted address and the AMZN price feed
+Base, and for AMZNc its stock, this contract's address and the AMZN price feed
 `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295` (the AMZNc admission's feed). The site test
 `platform/test/autolaunch/covered_calls/deployment_test.exs` checks it reads as the site reads it
-and names this packet's contract.
+and names the contract in `deployed.json`.
 
-`platform/fly.toml` points the site at `platform/deployment/covered-calls.json`, which today names
-CoveredCallsV1. Once the contract is on Base and the checks above match, the release that moves
-the site to CoveredCallsV2 copies `site-markets.json` to `platform/deployment/covered-calls.json`;
-no code path keeps reading V1. What to do about anything still unclaimed on V1 at that release is
-in `../README.md` ("The cutover").
+`platform/fly.toml` points the site at `platform/deployment/covered-calls.json`. The release that
+moves the site to CoveredCallsV2 copies `site-markets.json` to
+`platform/deployment/covered-calls.json`; `scripts/release-lib.sh` refuses a release whose
+covered-calls description names any other contract than `deployed.json`'s. No code path keeps
+reading V1. What happens to the stock still on V1 is in `../README.md` ("The cutover").
 
 ## Evidence (11 November 2026)
 

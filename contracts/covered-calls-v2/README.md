@@ -5,9 +5,10 @@ does everything V1 does, unchanged, and adds one thing: a buyer can post a bid f
 escrow its premium, and any seller can sell into that bid and be paid at once. It is written so
 the site can move to V2 alone; it neither imports nor calls V1.
 
-Status: **not deployed; waits for Sean.** Deploying it is a contract deployment, which needs
-Sean's go. Its deploy packet is ready in [deploy/](deploy/README.md): one transaction that places
-it at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` on Base, rehearsed on a local copy of Base.
+Status: **deployed on Base** for AMZNc at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6`, 13 November
+2026, block 56,749,573, sent by Sean from the packet in [deploy/](deploy/README.md). Its source is
+verified on [Sourcify](https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6);
+Basescan is not verified yet. [deploy/deployed.json](deploy/deployed.json) is the record.
 
 ## In plain words
 
@@ -275,19 +276,22 @@ calls.
 
 **The cutover.** The market record's `contract`
 (`contracts/covered-calls-v2/deploy/site-markets.json`, copied to the site's deployment file) changes
-to the V2 address in the same release that ships the bid pages; no code path keeps reading V1. V2
-counts listing and bid ids from 1, and the site reads one contract per market, so ids never meet
-V1's. V1 has no owner and every pull on it has no deadline, so nothing on V1 is lost by the site
-moving: the release should land after V1's last exercise window has closed, with a read at the
-latest block listing any V1 stock or strike still unclaimed. Whether the site must show those
-leftovers, or their owners claim on V1 directly, is a decision for Sean before the release.
+to the V2 address in the same release that ships the bid pages; no code path keeps reading V1, and
+`scripts/release-lib.sh` refuses a release whose covered-calls description names another contract
+than [deploy/deployed.json](deploy/deployed.json)'s. V2 counts listing and bid ids from 1, and the
+site reads one contract per market, so ids never meet V1's. V1 has no owner and every pull on it
+has no deadline, so nothing on V1 is lost by the site moving. Read at Base block 56,757,800: V1's
+four listings all have closed exercise windows, nothing was exercised, no strike is waiting, and
+its 0.09 AMZNc is all claimable by the one seller who listed it. The site does not show those
+leftovers; the changelog entry for the release names V1's address and says how a seller claims
+there (Basescan, Contract, then Write Contract, `claim(listingId)` once per listing).
 
-**Deployment** of V2 is a contract deployment and needs Sean's go. Its packet,
-[deploy/](deploy/README.md), is built the way V1's [deploy/](../covered-calls/deploy/README.md)
-was: deterministic CREATE2, a deploy script that sends exactly the packet's transaction, and a
-rehearsal on a local copy of Base that runs a whole life with the real AMZNc, USDC and REGENT
-staking. V1 also had an independent review of its packet, a dry run on the latest Base block once
-deployed, and a Base fork suite; V2 has none of those yet.
+**Deployment.** The packet, [deploy/](deploy/README.md), is built the way V1's
+[deploy/](../covered-calls/deploy/README.md) was: deterministic CREATE2, a deploy script that sends
+exactly the packet's transaction, and a rehearsal on a local copy of Base that runs a whole life
+with the real AMZNc, USDC and REGENT staking. Its transaction landed as built, and the code on Base
+hashes to the packet's runtime code. V1 also had an independent review of its packet, a dry run on
+the latest Base block once deployed, and a Base fork suite; V2 has none of those yet.
 
 ## Checks
 

@@ -7,6 +7,8 @@ Design and measurements: [covered-calls-design.md](../../platform/docs/covered-c
 Status: **deployed on Base** at [`0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`](https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E), 29 October 2026,
 transaction [`0xaa52f5ca…d6ba3a`](https://basescan.org/tx/0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a) in block 53,230,752, sent by Sean
 from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). See [deploy/](deploy/README.md) for the packet, the checks and the record.
+The site has moved to [`CoveredCallsV2`](../covered-calls-v2/README.md) and no longer reads this
+contract; a seller with stock still here calls `claim` on it directly ("The cutover" there).
 
 ## How it works
 

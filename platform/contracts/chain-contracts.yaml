@@ -294,6 +294,36 @@ contracts:
           - id: total_staked
             signature: totalStaked()
             selector: "0x817b1cd2"
+      - contract_id: covered_calls_v2_amznc
+        contract_name: CoveredCallsV2
+        address: "0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6"
+        source_commit: 755e7ce2cd79c38c55c2a435848b402a67baa5f8
+        runtime_code:
+          bytes: 7735
+          sha256: 2e57d1799c932f83d6ea1b7540fe28684d6a47611568e9b26c6482510b95444a
+          keccak256: "0x96528893fe765ba369a54e616f68337d0a4d87689856f19baaca62c9621d51a8"
+        onchain_constants:
+          stock: "0xb200000000000000000000d9192b6B456483C2E8"
+          usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+          staking: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        interface_note: >-
+          The covered-calls contract for AMZNc: listings and standing buyer bids, paid in USDC, 1% of
+          each premium to REGENT staking, with no owner, admin, pause or upgrade. Deployed on 13
+          November 2026 in block 56,749,573 (contracts/covered-calls-v2/deploy/deployed.json). The
+          site reads it through the covered-calls description, which the release check requires to
+          name this address, and builds its steps in Autolaunch.CoveredCalls.Steps. The first
+          covered-calls contract, 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, is no longer read.
+        reads:
+          - id: unit
+            signature: unit()
+            selector: "0x907af6c0"
+          - id: listing_count
+            signature: listingCount()
+            selector: "0xa9b07c26"
+          - id: bid_count
+            signature: bidCount()
+            selector: "0xb40a5627"
+        action_ids: []
     validation_command: mix test test/autolaunch/chain/manifest_test.exs
   - id: stocks_local_lab
     chain_target: base-mainnet

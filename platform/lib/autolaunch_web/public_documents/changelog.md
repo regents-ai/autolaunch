@@ -1,12 +1,22 @@
 # Changelog
 
-## 12 November 2026: Call terms
+## 12 November 2026: Covered calls
+- Covered calls on /stock/covered-call now run on a new contract on Base, 0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6, which adds bids. Its code is verified on Sourcify, and the Code line at the foot of the page links there.
+- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants. Bids on the same terms sit together, the best for a seller first: the soonest expiry, then the most you end with per token at the reference price, which is the premium plus the strike, the strike counted no higher than that price.
+- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in. When a bid's strike and premium together are under the stock's price, its Risks line says so with both totals.
+- Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or all that is left.
+- The portfolio shows each of your bids: how much has sold, the premium not yet spent, Raise and Stop while it is open, and Refund for what was not spent. A bid you stopped with nothing sold leaves once its refund is taken. Calls bought through a bid show with your other calls.
+- Buy and Sell show the best 50 listings and the best 50 bids, with a line saying how many more are open. Agents get the same 50 with the full counts. A bid with less than one whole token left is no longer offered to sellers; its bidder still sees it on the portfolio.
+- A break-even is rounded up to the cent, as every amount you pay is.
+- New listings and bids no longer take a Friday when the US stock market is shut or closes early, such as Good Friday, Christmas or the day after Thanksgiving: Sell, Bid and the quote offer the next four other Fridays, to people and agents alike.
 - Every covered-call ticket, review and portfolio table now names the stock by its issuer, its chain and its exact address, not by its symbol alone. Agents get the same in every answer.
 - Selling says in plain sight that the premium is paid to your wallet only when a buyer buys, that stock under sold calls is locked until the exercise window closes, that its price can fall meanwhile, and that any gain above the strike goes to the buyer.
 - Buying says that you must exercise yourself inside the window, that calls not exercised by its close end with the premium not returned, and what each part costs, with the break-even. A bid says its premium is held by the contract and may never be filled.
 - Exercise windows are shown with their opening and closing times and the time zone everywhere, and a holder whose window is open or near is told when it closes.
 - On the portfolio a seller's amounts are kept apart: sold, premium paid, for sale, locked, exercised and to collect. To collect is only what the contract will send now.
 - The price beside a stock is labelled as a reference with its age, the suggested premium as a model, and the best live bid or listing on the same terms is shown with its size.
+- Listings on the first covered-calls contract, 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, no longer show on the site. Their exercise windows have all closed, so nothing there has a deadline. A seller with stock still there takes it back on that contract's Basescan page: Contract, then Write Contract, then claim with the listing's number, once per listing, signed by the wallet that listed it.
+- For agents: the market book names the stock in `market` (its symbol, issuer, chain and the exact addresses of the stock and of its covered-calls contract) in place of the top-level `contract` and `stock`, and adds `bids`, `listings_total` and `bids_total`. A wallet's covered calls also name their `market` and list its `bids`, and each holding gives its `strike_per_token`, `expiry`, `exercise_closes_at` and `stage`. Prepared steps name their `market`.
 
 ## 12 November 2026: Launches open
 - New Memestock and Revstake launches are open again on Base, on new launch contracts made for Base's faster blocks. Each auction opens ten minutes after its launch and runs for about a day on Memestock and about two days on Revstake.
@@ -203,15 +213,6 @@
 
 ## 11 November 2026: Max
 - A press straight after Max, or after a balance, now sends that amount, on every form that has one.
-
-## 11 November 2026: Bids
-- On /stock/covered-call, Sell lists the open bids for calls under the listing ticket: strike, premium, exercise window and how much each still wants. Bids on the same terms sit together, the best for a seller first: the soonest expiry, then the most you end with per token at the reference price, which is the premium plus the strike, the strike counted no higher than that price.
-- Sell on a bid opens Sell now: the amount, with your wallet's stock and a Max, the bid's strike on the price line, and You receive, the premium less the 1% fee, paid the moment the sale lands. You receive shows before you sign in. When a bid's strike and premium together are under the stock's price, its Risks line says so with both totals.
-- Buy has a Buy / Bid switch. A bid takes an amount, a Friday expiry, a strike and a premium; its receipt shows what you pay now, what a full exercise costs, the stock it delivers and the break-even. Each sale into a bid is at least one whole token, or all that is left.
-- The portfolio shows each of your bids: how much has sold, the premium not yet spent, Raise and Stop while it is open, and Refund for what was not spent. A bid you stopped with nothing sold leaves once its refund is taken. Calls bought through a bid show with your other calls.
-- Buy and Sell show the best 50 listings and the best 50 bids, with a line saying how many more are open. Agents get the same 50 with the full counts. A bid with less than one whole token left is no longer offered to sellers; its bidder still sees it on the portfolio.
-- A break-even is rounded up to the cent, as every amount you pay is.
-- New listings and bids no longer take a Friday when the US stock market is shut or closes early, such as Good Friday, Christmas or the day after Thanksgiving: Sell, Bid and the quote offer the next four other Fridays, to people and agents alike. Listings and bids already made keep their Friday.
 
 ## 9 November 2026: Create pages
 - Revstake launches now start at /agent-business; /create is for Memestocks. A switch beside each title moves between them.

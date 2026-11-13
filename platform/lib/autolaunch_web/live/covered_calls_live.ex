@@ -740,11 +740,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <dt>Code</dt>
           <dd>
             <a
-              href={"https://basescan.org/address/#{@market.contract}#code"}
+              href={"https://repo.sourcify.dev/#{@market.chain_id}/#{@market.contract}"}
               target="_blank"
               rel="noopener"
             >
-              Verified on Basescan
+              Verified on Sourcify
             </a>
           </dd>
           <dt>Owner</dt>

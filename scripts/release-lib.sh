@@ -34,14 +34,16 @@ live_commit() {
 }
 
 # Refuses unless the two Base deployment descriptions in platform/deployment/ name
-# the launchers the tracked deployed manifests record: version 3's at the top and
-# each earlier version's in its own section (scripts/check-deployment.py). It
-# prints key names with "match" or "does not match", never a value: the
-# descriptions hold the site's private RPC address.
+# the launchers the tracked deployed manifests record, version 3's at the top and
+# each earlier version's in its own section, and the covered-calls description
+# names the contract contracts/covered-calls-v2/deploy/deployed.json records
+# (scripts/check-deployment.py). It prints key names with "match" or "does not
+# match", never a value: the descriptions hold the site's private RPC address.
 check_deployment() {
   if ! uv run --no-project python scripts/check-deployment.py \
-    platform/deployment/base-revstake.json platform/deployment/base-memestock.json; then
-    echo "Refusing: the Base deployment descriptions in platform/deployment/ do not name the launchers the tracked deployed manifests record. Render them with the ceremony tool's site-config." >&2
+    platform/deployment/base-revstake.json platform/deployment/base-memestock.json \
+    platform/deployment/covered-calls.json; then
+    echo "Refusing: the deployment descriptions in platform/deployment/ do not name the contracts the tracked deployment records hold. Render the Base ones with the ceremony tool's site-config, and copy contracts/covered-calls-v2/deploy/site-markets.json to covered-calls.json." >&2
     return 1
   fi
 }

@@ -176,8 +176,10 @@ function claimable(uint256 listingId, address account) external view returns (ui
 ### Buyer bids (`CoveredCallsV2`, `contracts/covered-calls-v2`)
 
 The site reads and acts on `CoveredCallsV2` only: V1's listings, fills, exercise, claims and
-strike collection unchanged, plus standing buyer bids. Not deployed on Base yet; deploying it is
-Sean's decision. Its README holds every call, check, event and view.
+strike collection unchanged, plus standing buyer bids. Deployed on Base for AMZNc at
+`0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` (13 November 2026,
+`contracts/covered-calls-v2/deploy/deployed.json`). Its README holds every call, check, event and
+view.
 
 ```solidity
 function bid(uint256 amount, uint256 strikePerToken, uint256 premiumPerToken, uint64 expiry,
@@ -409,7 +411,7 @@ What remains unbounded, and what it costs an attacker:
    suite needs Foundry 1.8.4 or later, because Base stock tokens are precompiles. Base's own build
    (base-anvil) would also cover the newer `effectiveAt()` read. Installing either on the Mac
    changes the shared toolchain, so that waits for the toolchain owner.
-3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is not deployed; its deploy packet (`contracts/covered-calls-v2/deploy/`, predicted address `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6`) waits for Sean's go. The site moves to it only once it is on Base and `platform/deployment/covered-calls.json` names it (`contracts/covered-calls-v2/deploy/site-markets.json`).
+3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is on Base at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` (13 November 2026, block 56,749,573; `contracts/covered-calls-v2/deploy/deployed.json`). The release that moves the site to it copies `contracts/covered-calls-v2/deploy/site-markets.json` to `platform/deployment/covered-calls.json`, and the release check refuses a covered-calls description that names any other contract.
 4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).

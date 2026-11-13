@@ -1,10 +1,12 @@
 """Run scripts/deploy.sh and scripts/rollback.sh on a fixture repository.
 
 Each test builds a git repository with its own origin in a fresh temporary folder,
-holding copies of the scripts, the tracked Base deployed manifests the release
-check reads, and three commits on main: `first`, `second` (which adds a
-migration) and `third`. Its two Base deployment descriptions name the launchers
-those manifests record, beside a stand-in private RPC address. Fly, the site's
+holding copies of the scripts, the tracked Base deployed manifests and
+covered-calls deployment record the release check reads, and three commits on
+main: `first`, `second` (which adds a migration) and `third`. Its two Base
+deployment descriptions name the launchers those manifests record, beside a
+stand-in private RPC address, and its covered-calls description names the
+contract that record holds. Fly, the site's
 health address, the locks and the wait between health reads are stand-ins: `fly`
 records each call, keeps the descriptions each switch ships and serves the
 release list from a file, `curl` answers from a file, `lockf` runs its command
@@ -34,9 +36,18 @@ MANIFESTS = {
     "stocks": {"launchpad": "0x" + "b1" * 20, "bid_adapter": "0x" + "c1" * 20},
 }
 
+# The covered-calls contract contracts/covered-calls-v2/deploy/deployed.json records.
+COVERED_CALLS = "0x" + "d2" * 20
+
+
+def covered_calls(contract=COVERED_CALLS):
+    """The covered-calls description: one AMZNc market on `contract`."""
+    market = {"symbol": "AMZNc", "stock": "0x" + "e1" * 20, "contract": contract, "feed": "0x" + "f1" * 20}
+    return {"chain_id": 8453, "markets": [market]}
+
 
 def descriptions(rpc_url=PRIVATE_RPC):
-    """The two Base descriptions a version 3 site-config renders, by file name."""
+    """The two Base descriptions a version 3 site-config renders, and the covered-calls one, by file name."""
     revstake, stocks = MANIFESTS["revstake-v3"], MANIFESTS["stocks-v3"]
     return {
         "base-revstake.json": {
@@ -50,6 +61,7 @@ def descriptions(rpc_url=PRIVATE_RPC):
             "v1": {"addresses": MANIFESTS["stocks"]},
             "v2": {"addresses": MANIFESTS["stocks-v2"]},
         },
+        "covered-calls.json": covered_calls(),
     }
 
 GIT_ENV = {
@@ -138,6 +150,11 @@ class Fixture(unittest.TestCase):
                 f"contracts/{package}/deployments/base-mainnet/deployed-manifest.json",
                 json.dumps({"status": "deployed", "contracts": contracts}),
             )
+        self.write(
+            "contracts/covered-calls-v2/deploy/deployed.json",
+            # Checksummed, as the real record writes it; descriptions write it in lower case.
+            json.dumps({"status": "deployed", "market": "AMZNc", "address": "0x" + "D2" * 20}),
+        )
         self.write("platform/fly.toml", "# fixture\n")
         self.write("platform/.gitignore", "/deployment/\n")
         self.describe(descriptions())
@@ -231,7 +248,7 @@ class DeployTest(Fixture):
         )
         self.assertEqual(self.git(self.repo, "status", "--porcelain"), "")
 
-    def test_refuses_descriptions_that_do_not_name_the_version_3_launchers(self):
+    def test_refuses_descriptions_that_do_not_name_the_recorded_contracts(self):
         self.live(f"ok {self.first}")
         current = descriptions()
         # A Memestock description rendered for version 2: version 2's launchpad
@@ -247,6 +264,10 @@ class DeployTest(Fixture):
             "no Revstake v2 section": (
                 {"base-revstake.json": revstake_without_v2},
                 "base-revstake.json v2.addresses.factory",
+            ),
+            "covered calls on another contract": (
+                {"covered-calls.json": covered_calls("0x" + "d1" * 20)},
+                "covered-calls.json markets.AMZNc.contract",
             ),
         }
         for case, (documents, refused) in cases.items():
@@ -315,7 +336,7 @@ class DeployTest(Fixture):
         self.live(f"ok {self.first}")
         result = self.run_script("deploy.sh", APP, "--dry-run")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.count(": match\n"), 9)
+        self.assertEqual(result.stdout.count(": match\n"), 10)
         self.assertEqual(self.fly_calls(), [])
         self.assertFalse((self.tmp / f"autolaunch-deploy-{self.third}").exists())
         self.assertFalse((self.repo / "platform/deployment/releases").exists())

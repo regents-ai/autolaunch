@@ -20,8 +20,9 @@
 # private RPC door, so they never enter git or the image: copy them into
 # platform/deployment/ (git ignores that folder) before deploying. Before
 # anything is built, the two Base descriptions must name the launchers the
-# tracked deployed manifests record (scripts/check-deployment.py), dry run
-# included. Once the switch is done, the descriptions it shipped are kept in
+# tracked deployed manifests record, and the covered-calls description the
+# contract its tracked deployment record holds (scripts/check-deployment.py), dry
+# run included. Once the switch is done, the descriptions it shipped are kept in
 # platform/deployment/releases/<commit>/, which a rollback to that commit ships.
 #
 # Run it as it is, never inside lockf: it takes its own locks. To go back to an

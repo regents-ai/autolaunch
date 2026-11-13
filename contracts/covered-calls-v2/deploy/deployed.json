@@ -1,0 +1,61 @@
+{
+  "contract": "CoveredCallsV2",
+  "market": "AMZNc",
+  "chain_id": 8453,
+  "status": "deployed",
+  "address": "0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6",
+  "transaction": "0x98873b5a2e611af7f76515a3ee503c819fc88ad34f50dc03bc0623457f8acb45",
+  "block": 56749573,
+  "block_time": "2026-11-13T03:24:50Z",
+  "sender": "0x9b2C414614aEE294202c1219520955EF3B596031",
+  "sender_nonce": 71,
+  "sent_by": "Sean, from his own keystore (forge script script/DeployCoveredCallsV2AMZNc.s.sol --broadcast, run from contracts/covered-calls-v2 at commit 8bca29ce)",
+  "gas_used": 1736901,
+  "fee_paid_eth": "0.000014589819176732",
+  "packet": "deploy/packet.json",
+  "source_commit": "755e7ce2cd79c38c55c2a435848b402a67baa5f8",
+  "constructor": {
+    "stock_": "0xb200000000000000000000d9192b6B456483C2E8",
+    "usdc_": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "staking_": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+  },
+  "checks_on_base": {
+    "receipt_status": "1",
+    "to_is_deterministic_deployer": true,
+    "calldata_equals_packet": true,
+    "creation_code_keccak_equals_packet": true,
+    "runtime_code_keccak": "0x96528893fe765ba369a54e616f68337d0a4d87689856f19baaca62c9621d51a8",
+    "runtime_code_keccak_equals_packet": true,
+    "runtime_code_keccak_matches_on_two_rpcs": true,
+    "runtime_code_bytes": 7735,
+    "reads": {
+      "stock()": "0xb200000000000000000000d9192b6B456483C2E8",
+      "usdc()": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "staking()": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "unit()": "100000000",
+      "FEE_BPS()": "100",
+      "EXERCISE_WINDOW()": "86400"
+    },
+    "reads_match": true,
+    "listing_count": 0,
+    "bid_count": 0,
+    "reads_at_block": 56749573
+  },
+  "source_verification": {
+    "sourcify": {
+      "status": "match on the runtime and the creation code",
+      "page": "https://repo.sourcify.dev/8453/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6",
+      "jobs": [
+        "https://sourcify.dev/server/verify-ui/jobs/8dae98d9-762b-4f79-bf3e-eb4b42e494ad",
+        "https://sourcify.dev/server/verify-ui/jobs/86e1adc6-a939-4b30-a54d-43bce54cc48d"
+      ],
+      "note": "Sent 13 November 2026 with forge verify-contract --verifier sourcify from a git export of this package, whose build gives the packet's creation code. The only parts Sourcify filled in are the immutables and the constructor arguments. The build carries no metadata hash (bytecode_hash none), so Sourcify's higher grade, exact_match, cannot apply."
+    },
+    "basescan": {
+      "status": "not verified on 13 November 2026",
+      "page": "https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6#code",
+      "needs": "packet.json post_deploy.basescan_verify, run with an Etherscan API key. Sourcify's own forward to Etherscan was refused both times (its daily limit, then its rate limit)."
+    }
+  },
+  "explorer": "https://basescan.org/address/0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6"
+}
