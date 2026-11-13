@@ -98,7 +98,18 @@ fi
 mkdir -p "$export_dir/deployment"
 git archive "$commit" | tar -x -C "$export_dir"
 # fly deploy reads fly.toml's [[files]] local_path from the folder it runs in.
-cp platform/deployment/*.json "$export_dir/deployment/"
+# Fly carries those files inside the machine's own configuration, which has a
+# size limit, so they travel without the whitespace they are rendered with.
+uv run --no-project python - "$export_dir/deployment" platform/deployment/*.json <<'PY'
+import json
+import sys
+from pathlib import Path
+
+target, *sources = sys.argv[1:]
+for source in map(Path, sources):
+    document = json.loads(source.read_text(encoding="utf-8"))
+    (Path(target) / source.name).write_text(json.dumps(document, separators=(",", ":")), encoding="utf-8")
+PY
 cd "$export_dir"
 
 # One deploy of this site at a time; other sites' deploys never wait on it.
