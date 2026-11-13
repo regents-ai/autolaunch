@@ -49,9 +49,10 @@ defmodule AutolaunchWeb.Motion do
 
   @doc """
   A tick in the colour of the text around it, hidden from screen readers, so
-  the words beside it say what is done. Inside a wallet step with the
-  `MotionStep` hook, it draws itself in when the step lands. A live page
-  leaves its line alone while it draws.
+  the words beside it say what is done. Given an id and the `MotionTick` hook,
+  it draws itself in when it arrives on a live page; inside a wallet step with
+  the `MotionStep` hook, it draws in when the step lands. A live page leaves
+  its line alone while it draws.
   """
   def tick(assigns) do
     ~H"""

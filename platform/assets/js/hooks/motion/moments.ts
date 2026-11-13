@@ -199,6 +199,25 @@ export const drawTick = (path: Element, delay = 0) =>
 // The line of the tick inside `el`, if it shows one.
 const tickLine = (el: Element) => el.querySelector(".motion-tick path")
 
+type TickHook = {el: HTMLElement}
+
+/**
+ * A tick (`AutolaunchWeb.Motion.tick/1`) that arrives with the news of
+ * something just done. It draws itself in when it arrives on a live page; one
+ * already there when the page opens or its connection comes back shows whole
+ * and still. The page leaves its line's style alone while it draws, so an
+ * update that lands mid-draw lets it finish.
+ */
+export const MotionTick: Hook = {
+  mounted(this: TickHook) {
+    if (watched(this.el) && !still(this.el)) drawTick(tickLine(this.el)!)
+  },
+
+  destroyed(this: TickHook) {
+    rest(tickLine(this.el)!)
+  },
+}
+
 type StepHook = {el: HTMLElement; done?: boolean}
 
 /**

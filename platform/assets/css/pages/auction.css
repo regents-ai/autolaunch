@@ -163,6 +163,7 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); }
 .bid-placed p { margin: 0; }
 .bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
+.bid-placed__news .motion-tick { width: 1em; height: 1em; margin-inline-end: .375em; vertical-align: -.125em; color: var(--color-success); stroke-width: 3; }
 .bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 /* Each button starts at its own label's width, so one that does not fit moves to the next
    line whole rather than cutting its label short. */
