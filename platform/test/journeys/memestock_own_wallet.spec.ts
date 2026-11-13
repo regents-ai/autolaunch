@@ -134,8 +134,9 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
   await finishFromPage(b, bids, listing.id, "graduated")
 
   // The creator allocation vests to the agent's wallet and to no one else, over 30 days from
-  // graduation: a day on, anyone may release what has vested.
-  await rpc("evm_increaseTime", [86_400])
+  // graduation: a minute on, anyone may release what has vested. A longer step would put the
+  // copy's clock past the 15 minutes the site gives the swap below.
+  await rpc("evm_increaseTime", [60])
   await rpc("evm_mine")
   expect(await balanceOf(token, agent.address)).toBe(0n)
   await sendAs(people.b.wallet, addresses.launchpad, encodeFunctionData({
