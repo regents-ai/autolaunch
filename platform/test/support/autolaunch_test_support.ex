@@ -34,7 +34,8 @@ defmodule Autolaunch.TestSupport do
         website: Map.get(opts, :website),
         image: Map.get(opts, :image),
         treasury_address: Map.get(opts, :treasury_address),
-        token_address: Map.get(opts, :token_address)
+        token_address: Map.get(opts, :token_address),
+        contracts_version: Map.get(opts, :contracts_version, :v2)
       },
       actor: %System{}
     )

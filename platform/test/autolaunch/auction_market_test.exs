@@ -360,7 +360,8 @@ defmodule Autolaunch.AuctionMarketTest do
           quote_token_decimals: 8,
           required_currency_raised: "1000",
           state: state,
-          treasury_address: "0x0f8955a7f09ec713bb71c30e07b512ecee69a044"
+          treasury_address: "0x0f8955a7f09ec713bb71c30e07b512ecee69a044",
+          contracts_version: :v2
         },
         actor: %System{}
       )

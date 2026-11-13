@@ -559,11 +559,10 @@ defmodule Autolaunch.Auction do
     # Robinhood) are `:v1`, on their original launchpad, hook and locker. A
     # Base launch is recorded with the version of the contracts that made it:
     # `:v2` until 12 November 2026, `:v3` since. Robinhood's later launches are
-    # `:v2`.
+    # `:v2`. Every writer names the version; there is no default.
     attribute :contracts_version, :atom do
       allow_nil? false
       public? true
-      default :v2
       constraints one_of: [:v1, :v2, :v3]
     end
 

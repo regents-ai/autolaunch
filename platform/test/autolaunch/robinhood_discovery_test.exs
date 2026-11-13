@@ -317,7 +317,8 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
       quote_token_decimals: 18,
       current_clearing_price: "0",
       required_currency_raised: "1000",
-      treasury_address: launchpad()
+      treasury_address: launchpad(),
+      contracts_version: :v2
     }
 
     {:ok, written} = Autolaunch.record_launch_auction(first, actor: %System{})
