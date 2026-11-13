@@ -42,6 +42,13 @@ defmodule Autolaunch.CoveredCalls.Book do
   (`Autolaunch.CoveredCalls.Positions`). The records are facts of the chain,
   so a dropped reading leaves them.
 
+  A link to one listing or bid the reading does not offer reads that record on
+  its own (`one/3`), shared and kept the same way: one task takes it while
+  others wait, it is kept as long as the reading, a landed press shortens it
+  the same, and dropping a market's reading drops its records too, so a
+  ticket opened from a link is never older than the list. A kept record past
+  its time is dropped when the next reading is kept.
+
   A reading never disables a button: a press is checked against the chain when
   its step is built (`Autolaunch.CoveredCalls.Steps`).
   """
@@ -103,22 +110,14 @@ defmodule Autolaunch.CoveredCalls.Book do
   `symbol`'s listing or bid (`kind`) numbered `id`, as its contract holds it
   at the latest block, with that block's time (`now`); `:unknown_listing` or
   `:unknown_bid` when the contract has none by that id. A link to one that is
-  not in the reading opens it from here: one record, read on its own, and kept
-  like every other read (`keep/2`).
+  not in the reading opens it from here: one record, read on its own, shared
+  and kept as the reading is, and kept like every other read (`keep/2`).
   """
   @spec one(String.t(), :listing | :bid, pos_integer()) :: {:ok, map()} | {:error, atom()}
   def one(symbol, kind, id) do
-    with {:ok, config} <- Deployment.current(),
-         {:ok, %{contract: contract} = market} <- Deployment.market(symbol),
-         {:ok, block, opts} <- Chain.latest(config.lab),
-         {:ok, record} <- record(kind, market, id, block, opts) do
-      keep(
-        contract,
-        Map.put(%{listings: [], bids: [], now: block.timestamp}, many(kind), [record])
-      )
-
-      {:ok, %{record: record, now: block.timestamp}}
-    end
+    GenServer.call(__MODULE__, {:read, {symbol, kind, id}}, @read_timeout)
+  catch
+    :exit, {:timeout, _call} -> {:error, :chain_unavailable}
   end
 
   defp record(:listing, market, id, block, opts), do: Chain.listing(market, id, block, opts)
@@ -211,9 +210,10 @@ defmodule Autolaunch.CoveredCalls.Book do
   defp shown(records),
     do: records |> Enum.chunk_by(& &1.expiry) |> Enum.flat_map(&Enum.take(&1, @shown))
 
-  # `kept` is each market's reading with when it was taken and until when it
-  # is good; `taking` the task whose reading will be kept for a market; and
-  # `waiting` who each running task answers.
+  # `kept` is each market's reading, and each single record read for a link
+  # (keyed `{symbol, kind, id}`), with when it was taken and until when it is
+  # good; `taking` the task whose reading will be kept for each; and `waiting`
+  # who each running task answers.
   @impl GenServer
   def init(nil) do
     :ets.new(@table, [:named_table, :ordered_set, :public, read_concurrency: true])
@@ -238,19 +238,25 @@ defmodule Autolaunch.CoveredCalls.Book do
   # answers those waiting for it, and the next read starts another.
   def handle_cast({:expire, symbol}, state) do
     {:noreply,
-     %{state | kept: Map.delete(state.kept, symbol), taking: Map.delete(state.taking, symbol)}}
+     %{state | kept: drop_market(state.kept, symbol), taking: drop_market(state.taking, symbol)}}
   end
 
+  defp drop_market(readings, symbol),
+    do: Map.reject(readings, fn {key, _value} -> market(key) == symbol end)
+
+  defp market({symbol, _kind, _id}), do: symbol
+  defp market(symbol), do: symbol
+
   @impl GenServer
-  def handle_call({:read, symbol}, from, state) do
+  def handle_call({:read, key}, from, state) do
     case state.kept do
-      %{^symbol => {reading, _taken_at, good_until}} ->
+      %{^key => {reading, _taken_at, good_until}} ->
         if good_until > now(),
           do: {:reply, {:ok, reading}, state},
-          else: {:noreply, wait(state, symbol, from)}
+          else: {:noreply, wait(state, key, from)}
 
       _none ->
-        {:noreply, wait(state, symbol, from)}
+        {:noreply, wait(state, key, from)}
     end
   end
 
@@ -266,23 +272,24 @@ defmodule Autolaunch.CoveredCalls.Book do
 
   def handle_info(_other, state), do: {:noreply, state}
 
-  defp wait(state, symbol, from) do
+  defp wait(state, key, from) do
     ref =
-      state.taking[symbol] ||
-        Task.Supervisor.async_nolink(Autolaunch.TaskSupervisor, fn -> take(symbol) end).ref
+      state.taking[key] ||
+        Task.Supervisor.async_nolink(Autolaunch.TaskSupervisor, fn -> take(key) end).ref
 
     %{
       state
-      | taking: Map.put(state.taking, symbol, ref),
+      | taking: Map.put(state.taking, key, ref),
         waiting: Map.update(state.waiting, ref, [from], &[from | &1])
     }
   end
 
   # A task's reading answers everyone waiting for it, and is kept when it is
-  # still the one its market is taking.
+  # still the one its market or record is taking; keeping one drops those past
+  # their time.
   defp taken(state, ref, result) do
     {waiting, others} = Map.pop(state.waiting, ref)
-    symbol = Enum.find_value(state.taking, fn {symbol, taking} -> taking == ref && symbol end)
+    key = Enum.find_value(state.taking, fn {key, taking} -> taking == ref && key end)
     kept_ms = kept_ms()
 
     {answer, kept} =
@@ -291,8 +298,13 @@ defmodule Autolaunch.CoveredCalls.Book do
           taken_at = now()
 
           {{:ok, reading},
-           if(symbol,
-             do: Map.put(state.kept, symbol, {reading, taken_at, taken_at + kept_ms}),
+           if(key,
+             do:
+               state.kept
+               |> Map.reject(fn {_key, {_reading, _taken_at, good_until}} ->
+                 good_until <= taken_at
+               end)
+               |> Map.put(key, {reading, taken_at, taken_at + kept_ms}),
              else: state.kept
            )}
 
@@ -301,7 +313,21 @@ defmodule Autolaunch.CoveredCalls.Book do
       end
 
     Enum.each(waiting, &GenServer.reply(&1, answer))
-    %{state | kept: kept, taking: Map.delete(state.taking, symbol), waiting: others}
+    %{state | kept: kept, taking: Map.delete(state.taking, key), waiting: others}
+  end
+
+  defp take({symbol, kind, id}) do
+    with {:ok, config} <- Deployment.current(),
+         {:ok, %{contract: contract} = market} <- Deployment.market(symbol),
+         {:ok, block, opts} <- Chain.latest(config.lab),
+         {:ok, record} <- record(kind, market, id, block, opts) do
+      keep(
+        contract,
+        Map.put(%{listings: [], bids: [], now: block.timestamp}, many(kind), [record])
+      )
+
+      {:ok, %{record: record, now: block.timestamp}}
+    end
   end
 
   defp take(symbol) do

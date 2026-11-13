@@ -4,6 +4,7 @@
 - A link to a bid on /stock/covered-call now opens its Sell now ticket whenever the bid is still open, even when it is not in the list: one with less than one whole token left, one on a Friday the site doesn't list, or one outside the best 50. The ticket says why the bid is not in the list, shows how much it still wants, and takes a sale of all that is left however small. The same goes for a link to a listing on Buy.
 - A link to a bid or listing that has sold out, passed its expiry or been stopped, or that doesn't exist, says which in one line and opens no ticket.
 - The list itself is unchanged: the best 50 for each Friday on offer, with the same counts.
+- A link with a malformed bid or listing number now opens the page with the same "There is no bid by that number" line instead of an error page.
 
 ## 12 November 2026: Covered calls
 - Covered calls on /stock/covered-call now run on a new contract on Base, 0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6, which adds bids. Its code is verified on Sourcify, and the Code line at the foot of the page links there.

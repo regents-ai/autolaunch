@@ -336,6 +336,35 @@ defmodule Autolaunch.CoveredCalls.BookTest do
     assert CoveredCallsChain.requests() - before == 2
   end
 
+  test "visitors opening one listing or bid at once wait for one read of it" do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})], hold: self()})
+    visitors = for _visitor <- 1..3, do: Task.async(fn -> Book.one("AMZNc", :bid, 1) end)
+
+    assert_receive {:held, reader}
+    refute_receive {:held, _another}, 100
+
+    CoveredCallsChain.put(%{bids: [CoveredCallsChain.bid(%{})]})
+    send(reader, :go)
+
+    assert [{:ok, one}, {:ok, one}, {:ok, one}] = Task.await_many(visitors)
+    # The bid count, then the bid.
+    assert CoveredCallsChain.requests() == 2
+  end
+
+  test "one listing or bid is kept like the reading, and a landed step drops both" do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+    assert {:ok, %{record: %{filled: filled}}} = Book.one("AMZNc", :bid, 1)
+
+    CoveredCallsChain.put(%{bids: [CoveredCallsChain.bid(%{filled: 5 * @unit})]})
+    before = CoveredCallsChain.requests()
+    assert {:ok, %{record: %{filled: ^filled}}} = Book.one("AMZNc", :bid, 1)
+    assert CoveredCallsChain.requests() == before
+
+    :ok = Book.expire("AMZNc")
+    assert {:ok, %{record: %{filled: refilled}}} = Book.one("AMZNc", :bid, 1)
+    assert refilled == 5 * @unit
+  end
+
   test "a listing or bid that can never change again is read once and kept" do
     over = @now - 2 * Terms.exercise_window()
 

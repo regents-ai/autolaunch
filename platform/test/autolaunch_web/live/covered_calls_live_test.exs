@@ -1070,6 +1070,94 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert unlisted - listed == 2
   end
 
+  test "Refresh on a link to a bid outside the list costs no more than on a listed bid",
+       %{conn: conn} do
+    keep_readings()
+    bids = for n <- 1..60, do: CoveredCallsChain.bid(%{premium: 5_000_000 + n, filled: 0})
+    CoveredCallsChain.install(%{listings: [], bids: bids})
+
+    presses = fn path ->
+      {:ok, view, _html} = live(conn, path)
+      settled(view)
+      before = CoveredCallsChain.requests()
+
+      for _press <- 1..20 do
+        view |> element("#covered-calls-read-again") |> render_click()
+        settled(view)
+      end
+
+      CoveredCallsChain.requests() - before
+    end
+
+    # Bid 1 pays the least of all and is not in the list; bid 60 is.
+    assert presses.("/stock/covered-call?bid=1") == presses.("/stock/covered-call?bid=60")
+  end
+
+  test "following links from one bid outside the list to another leaves one read running",
+       %{conn: conn} do
+    keep_readings()
+    bids = for n <- 1..60, do: CoveredCallsChain.bid(%{premium: 5_000_000 + n, filled: 0})
+    CoveredCallsChain.install(%{listings: [], bids: bids})
+    {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
+    settled(view)
+    {:links, idle} = Process.info(view.pid, :links)
+
+    # The list is kept from here on, so the only reads of the chain are of each linked bid.
+    CoveredCallsChain.put(%{listings: [], bids: bids, hold: self()})
+
+    readers =
+      for id <- 2..4 do
+        render_patch(view, "/stock/covered-call?bid=#{id}")
+        assert_receive {:held, reader}
+        reader
+      end
+
+    {:links, reading} = Process.info(view.pid, :links)
+    assert length(reading -- idle) == 1
+
+    CoveredCallsChain.put(%{listings: [], bids: bids})
+
+    for reader <- readers do
+      Process.monitor(reader)
+      send(reader, :go)
+      assert_receive {:DOWN, _ref, :process, ^reader, _reason}
+    end
+  end
+
+  test "a link whose number is not text opens no ticket", %{conn: conn} do
+    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})
+
+    for {path, note} <- [
+          {"/stock/covered-call?bid[]=1", "#covered-calls-bid-note"},
+          {"/stock/covered-call?listing[a]=1", "#covered-calls-listing-note"},
+          {"/stock/covered-call?tab[]=buy&bid[a]=1", "#covered-calls-bid-note"}
+        ] do
+      {:ok, view, _html} = live(conn, path)
+      settled(view)
+
+      assert has_element?(view, note)
+      refute has_element?(view, "[id^=covered-call-sell-1]")
+      refute has_element?(view, "[id^=covered-call-buy-1]")
+    end
+  end
+
+  # Readings kept as the site keeps them, in a book process holding none of
+  # an earlier test's.
+  defp keep_readings do
+    Application.put_env(:autolaunch, :covered_calls_book_kept_ms, 300_000)
+    restart_book()
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :covered_calls_book_kept_ms, 0)
+      restart_book()
+    end)
+  end
+
+  defp restart_book do
+    :ok = Supervisor.terminate_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
+    {:ok, _pid} = Supervisor.restart_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
+  end
+
   test "signed in, Max on Sell now fills what the bid still wants or the wallet holds, the less",
        %{conn: conn} do
     CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{})]})

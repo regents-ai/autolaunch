@@ -237,13 +237,16 @@ Ash domain `Autolaunch.CoveredCalls`:
 - A `?listing=<id>` or `?bid=<id>` link to one the reading does not hold (dust, an expiry the site
   does not list, outside the best fifty, or newer than the reading) reads that one record at the
   latest block (`Book.one/3`, the `offer` action: the record count, then the record, two requests
-  whatever the book holds), kept like any other read. While it is open there (`Terms.stage/2`,
+  whatever the book holds), kept like any other read. That read is shared and kept as the
+  reading is: one task takes it for every visitor asking, it is kept for the same time, a landed
+  press drops it with its market's reading, and a page reads it again only when the link names
+  another record or the page has a new reading, stopping the read still running. While it is open there (`Terms.stage/2`,
   `Terms.bid_stage/2`) it gets the same ticket a listed one does, with a line saying why it is
   not in the list; it never joins the list or its counts. A sale into a bid takes at least
   `Terms.least_sale/1`, the bid's minimum or all that is left when less is, as `sellToBid` checks
   it. Only when the chain says the record is stopped, sold out, past its expiry or unknown does the
-  link get a one-line note and no ticket. An id that is not a number gets the unknown note with no
-  read at all.
+  link get a one-line note and no ticket. An id that is not a number, or not text at all
+  (`?bid[]=1`), gets the unknown note with no read at all.
 - Dollar figures follow the one Regents rule (`RegentFormat.token_amount/2`: two decimals from $1,
   three significant digits below, cut). Typed amounts are digits with at most one dot, and typed prices go to the cent. An amount a person pays is shown rounded up to the cent, never below what the wallet is asked for.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.

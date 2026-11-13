@@ -281,12 +281,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # `:unknown` for one that isn't a number the contract can have.
   defp chosen(nil), do: nil
 
-  defp chosen(text) do
+  defp chosen(text) when is_binary(text) do
     case Integer.parse(text) do
       {id, ""} when id > 0 -> id
       _not_a_number -> :unknown
     end
   end
+
+  defp chosen(_not_text), do: :unknown
 
   # Selling comes first, a bid's own address with it; a listing's own address
   # opens it on the Buy tab.
@@ -332,19 +334,25 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   # A link to a listing or bid the reading does not offer (dust, an expiry the
-  # site does not list, or not among the best fifty) reads that one record from
-  # the chain at the latest block, once for each reading the page takes: never
-  # the whole market again. Its ticket shows while it is open there.
+  # site does not list, or not among the best fifty) reads that one record
+  # (`Book.one/3`, shared and kept as the reading is): never the whole market
+  # again. It is read when the link names another record or the page has a
+  # new reading, not when the same reading answers again, and a new read stops
+  # the one still running. Its ticket shows while it is open there.
   defp read_linked(%{assigns: %{book: %AsyncResult{ok?: true, result: book}}} = socket) do
-    case unlisted_link(socket.assigns, book) do
-      nil ->
-        assign(socket, linked: nil)
+    case {unlisted_link(socket.assigns, book), socket.assigns.linked} do
+      {nil, _linked} ->
+        socket |> cancel_async(:linked) |> assign(linked: nil)
 
-      {kind, id} ->
+      {{kind, id}, %{kind: kind, id: id, read_at: read_at}} when read_at == book.read_at ->
+        socket
+
+      {{kind, id}, linked} ->
         symbol = socket.assigns.market.symbol
 
         socket
-        |> assign(linked: reading_link(socket.assigns.linked, kind, id))
+        |> assign(linked: reading_link(linked, kind, id, book.read_at))
+        |> cancel_async(:linked)
         |> start_async(:linked, fn ->
           {kind, id, CoveredCalls.read_covered_call_offer(symbol, kind, id)}
         end)
@@ -365,8 +373,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     do: if(!Enum.any?(offered, &(&1.id == id)), do: {kind, id})
 
   # The same link read again keeps showing what it last read until the new read answers.
-  defp reading_link(%{kind: kind, id: id} = linked, kind, id), do: linked
-  defp reading_link(_linked, kind, id), do: %{kind: kind, id: id, result: :reading}
+  defp reading_link(%{kind: kind, id: id} = linked, kind, id, read_at),
+    do: %{linked | read_at: read_at}
+
+  defp reading_link(_linked, kind, id, read_at),
+    do: %{kind: kind, id: id, read_at: read_at, result: :reading}
 
   defp linked(socket, kind, id, answer) do
     case socket.assigns.linked do
