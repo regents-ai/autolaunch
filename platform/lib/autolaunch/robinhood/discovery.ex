@@ -167,6 +167,7 @@ defmodule Autolaunch.Robinhood.Discovery do
         current_clearing_price: "0",
         required_currency_raised: Integer.to_string(LaunchActions.required_stock_raised()),
         treasury_address: launch.launchpad,
+        contracts_version: launch.contracts_version,
         token_address: launch.token,
         launch_id: launch.launch_id,
         start_block: launch.start_block,

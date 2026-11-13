@@ -435,7 +435,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
             quote_token_symbol: "AAPLc",
             quote_token_decimals: 8,
             required_currency_raised: "1",
-            treasury_address: @stranger
+            treasury_address: @stranger,
+            contracts_version: :v2
           },
           actor: @actor
         )
