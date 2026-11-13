@@ -208,13 +208,15 @@
     list-style: none;
   }
 
+  /* Every row keeps room for the current page's mark, so nothing moves. */
   .shell-drawer__row {
     display: flex;
     align-items: center;
     width: 100%;
     min-height: 3rem;
-    padding: 0 var(--space-3);
+    padding: 0 var(--space-3) 0 calc(var(--space-3) - 2px);
     border: 0;
+    border-inline-start: 2px solid transparent;
     border-block-end: 1px solid var(--hairline);
     background: transparent;
     color: var(--color-fg);
@@ -228,15 +230,16 @@
 
   .shell-drawer__row--sub {
     min-height: 2.75rem;
-    padding-inline-start: calc(var(--space-3) + 1rem);
+    padding-inline-start: calc(var(--space-3) + 1rem - 2px);
     color: var(--color-fg-muted);
     font-size: 0.9375rem;
   }
 
-  /* The page you are on: heavier, with the brand's mark at its edge. */
+  /* The page you are on: heavier, with the brand's mark at its edge, as the
+     rail has it. */
   .shell-drawer__row[aria-current="page"] {
     color: var(--color-fg);
-    box-shadow: inset 3px 0 0 var(--palette-tangerine-tango);
+    border-inline-start-color: var(--palette-tangerine-tango);
   }
 
   .shell-drawer__row:active {
@@ -284,14 +287,31 @@
     visibility: visible;
   }
 
-  /* The theme switch starts the footer, on a row of its own, as the
-     template's bottom bar has it. */
+  /* The footer is one column: the words wrap under its buttons, and the legal
+     pair and the copyright each start a line, lined up with the words above.
+     Its buttons have no light on a phone. */
+  .regent-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .regent-footer__legal {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  .regent-footer__copyright {
+    padding-inline: 0;
+  }
+
+  .regent-footer__buttons > .site-light {
+    display: none;
+  }
+
+  /* The theme switch ends the footer's button row. Its prism sits .5rem
+     inside its press, so the prism lines up with the row's end. */
   .regent-footer__phone {
     display: flex;
-    flex-basis: 100%;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
+    margin-inline: auto -0.5rem;
   }
 
 }
@@ -314,6 +334,17 @@
   .rg-button.shell-menu-close:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
     text-decoration: none;
+  }
+}
+
+/* Forced colours: the page you are on keeps its mark, in the link colour. */
+@media (forced-colors: active) and (max-width: 47.99rem) {
+  .shell-drawer__row {
+    border-inline-start-color: Canvas;
+  }
+
+  .shell-drawer__row[aria-current="page"] {
+    border-inline-start-color: LinkText;
   }
 }
 

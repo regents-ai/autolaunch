@@ -60,23 +60,31 @@ defmodule AutolaunchWeb.Layouts do
   def menu_account(_assigns), do: nil
 
   @doc """
-  The footer of every page, the same on every Regent site: the social links,
-  Buy $REGENT, the site's documents and its two plain-text guides for agents,
-  which open in the browser's popover from "Agent guide", after the `tools`
-  slot: the button for the tools agents see, at every width. On a phone, whose
-  top bar has no room for it, the footer starts with the `phone` slot: the
-  theme switch, where the template's bottom bar has it.
+  The footer of every page, the same on every Regent site. Its first row holds
+  its buttons, on one light shaped like the button under the pointer or with
+  keyboard focus (`SiteButtons.stage`): the `tools` slot, the button for the
+  tools agents see, then the social links, and on a phone, whose top bar has no
+  room for it, the `phone` slot at the row's end: the theme switch. Below them
+  are Buy $REGENT, the site's documents and its two plain-text guides for
+  agents, which open in the browser's popover from "Agent guide", then the two
+  legal documents and the copyright.
   """
   slot :tools, doc: "The tools agents see; a page without the shell leaves it out."
-  slot :phone, doc: "What a phone's footer shows first; a page without the shell leaves it out."
+  slot :phone, doc: "What ends a phone's button row; a page without the shell leaves it out."
   attr :rest, :global
 
   def product_links(assigns) do
     ~H"""
     <footer class="regent-footer" {@rest}>
-      <div :if={@phone != []} class="regent-footer__phone">{render_slot(@phone)}</div>
-      <div :if={@tools != []} class="regent-footer__tools">{render_slot(@tools)}</div>
-      <AutolaunchWeb.Components.RegentLinks.social_links />
+      <AutolaunchWeb.Components.SiteButtons.stage
+        id="footer-buttons"
+        class="regent-footer__buttons"
+        shape="button"
+      >
+        {render_slot(@tools)}
+        <AutolaunchWeb.Components.RegentLinks.social_links />
+        <div :if={@phone != []} class="regent-footer__phone">{render_slot(@phone)}</div>
+      </AutolaunchWeb.Components.SiteButtons.stage>
       <nav class="regent-footer__links" aria-label="About Autolaunch">
         <a
           href={AutolaunchWeb.Components.TokenLinks.buy()}
@@ -101,7 +109,7 @@ defmodule AutolaunchWeb.Layouts do
           <a href={~p"/terms"}>Terms of use</a>
         </span>
       </nav>
-      <p>© 2026 Regents Labs</p>
+      <p class="regent-footer__copyright">© 2026 Regents Labs</p>
     </footer>
     """
   end

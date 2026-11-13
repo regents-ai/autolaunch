@@ -1,17 +1,42 @@
-/* In-document navigation never clips focus or competes with wallet menus. */
-.shell-rail { display: grid; align-content: start; gap: var(--space-4); padding: var(--space-3) var(--space-1); }
-.shell-rail__list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+/* The rail: quiet square rows, as the template's rail has them (ash-template
+   shell.css, `.shell-rail__section`): muted words that take the full ink under a
+   mouse and on the page you are on, which also has a raised fill and the brand's
+   mark at its edge. Every row keeps room for the mark, so nothing moves. The light
+   behind them (`SiteButtons.stage`, shape "button") takes the shape of the row it
+   lights; without it the rows look the same by their own fills. Launch is the one
+   orange button. In-document navigation never clips focus or competes with wallet
+   menus. */
+.shell-rail__stage { padding: var(--space-3) var(--space-1); }
+.shell-rail__list, .shell-rail__sublist { display: grid; margin: 0; padding: 0; list-style: none; }
 .shell-rail__item { min-width: 0; }
-/* The links are the header's charcoal buttons: corner marks that close
-   into a full outline on hover, and stay closed on the page you are on. */
-.rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; padding: .25rem var(--space-2); gap: .25rem; justify-content: start; font-size: 1.0625rem; text-align: start; }
-.shell-rail__sublist { display: grid; gap: var(--space-1); width: 75%; margin: var(--space-1) 0 0 auto; padding: 0; list-style: none; }
-.rg-button.shell-rail__sublink { padding-inline: .5rem; font-size: .796875rem; }
+.shell-rail__link {
+  display: flex; align-items: center; min-width: 0; min-height: 2.75rem;
+  padding: 0 var(--space-2) 0 calc(var(--space-2) - 2px);
+  border-inline-start: 2px solid transparent;
+  color: var(--color-fg-muted); font-size: 1.0625rem; line-height: 1.25; text-decoration: none;
+  transition: background-color 140ms cubic-bezier(.23, 1, .32, 1), color 140ms cubic-bezier(.23, 1, .32, 1);
+}
+.shell-rail__sublist { padding-inline-start: var(--space-2); }
+.shell-rail__sublink { font-size: .9375rem; }
+@media (hover: hover) and (pointer: fine) {
+  .shell-rail__link:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); color: var(--color-fg); text-decoration: none; }
+}
+.shell-rail__link[aria-current="page"] {
+  background: color-mix(in oklch, var(--color-fg) 8%, transparent);
+  border-inline-start-color: var(--palette-tangerine-tango);
+  color: var(--color-fg);
+}
+.shell-rail__link:focus-visible { outline: var(--rg-ring-width) solid var(--color-focus); outline-offset: calc(-1 * var(--rg-ring-width)); color: var(--color-fg); }
 .rg-button.shell-rail__launch { --rg-p-accent: var(--palette-tangerine-tango); --rg-p-on-accent: var(--palette-charcoal); }
+.shell-rail .rg-button.shell-rail__launch {
+  width: 100%; margin-block-start: var(--space-2); padding-inline: var(--space-2);
+  justify-content: start; gap: .25rem; font-size: 1.0625rem;
+}
+/* On the create pages Launch shows a closed outline in the ink colour. */
 @media (forced-colors: none) {
-  :root .rg-button.shell-rail__link[aria-current="page"]::before {
-    --rg-button-edge-ink: var(--rg-button-active-border);
-    --rg-button-cut-ink: var(--rg-button-active-border);
+  :root .shell-rail .rg-button.shell-rail__launch[aria-current="page"]::before {
+    --rg-button-edge-ink: var(--color-fg);
+    --rg-button-cut-ink: var(--color-fg);
     --rg-button-cut-gap: 0px;
     background-size:
       var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
@@ -19,13 +44,16 @@
       calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
   }
 }
-/* Forced colours: the page you are on has a thicker, link-coloured border. */
+/* Forced colours: the page you are on keeps its mark, in the link colour. */
 @media (forced-colors: active) {
-  .rg-button.shell-rail__link[aria-current="page"] { border: 2px solid LinkText; }
+  .shell-rail__link { border-inline-start-color: Canvas; }
+  .shell-rail__link[aria-current="page"] { border-inline-start-color: LinkText; }
+  .rg-button.shell-rail__launch[aria-current="page"] { border: 2px solid LinkText; }
 }
-/* Narrow screens: the links stay in one row above the page. */
+@media (prefers-reduced-motion: reduce) { .shell-rail__link { transition: none; } }
+/* Narrow screens: the destinations stay in one row above the page. */
 @media (max-width: 63.99rem) {
-  .shell-rail { padding: var(--rg-panel-padding); gap: var(--space-2); }
-  .shell-rail__list { grid-template-columns: repeat(5, minmax(0,1fr)); }
-  .rg-button.shell-rail__link { justify-content: center; text-align: center; }
+  .shell-rail__stage { padding: var(--rg-panel-padding); }
+  .shell-rail__list { grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--space-1); align-items: start; }
+  .shell-rail .rg-button.shell-rail__launch { margin-block-start: 0; }
 }

@@ -27,7 +27,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.Components.{ChainIcon, CreatorLabel, LaunchTrust, ShareLaunch, TokenTrade}
+
+  alias AutolaunchWeb.Components.{
+    ChainIcon,
+    CreatorLabel,
+    LaunchTrust,
+    ShareLaunch,
+    SiteButtons,
+    TokenTrade
+  }
+
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard, UsdValue}
 
   def mount(%{"auction_id" => auction_id}, _session, socket),
@@ -190,7 +199,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             pool={@pool}
           />
         </div>
-        <.buttons_stage id="token-side" class="token-page__side">
+        <SiteButtons.stage id="token-side" class="token-page__side" swirl>
           <.trade_widget id="trade" tab={@trade} swap={@swap?} staked={@staked?}>
             <:pane :if={@swap?} tab={:swap}>
               <.live_component
@@ -249,7 +258,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
-        </.buttons_stage>
+        </SiteButtons.stage>
         <div class="token-page__details">
           <.token_facts
             auction={@token.auction}
