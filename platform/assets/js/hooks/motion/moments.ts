@@ -1,7 +1,8 @@
 /**
  * Motion for things the server decides: a list that changes, such as a stack
- * of notes, and a figure that moves. The page renders every result first;
- * these islands only animate from the old picture to the new one.
+ * of notes, a figure that moves, a refusal and a tick for something just done.
+ * The page renders every result first; these islands only animate from the
+ * old picture to the new one.
  */
 import {
   animate,
@@ -15,7 +16,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, CLIPPED_CHAR, SLOW, still} from "./shared"
+import {BASE, CLIPPED_CHAR, EASE_OUT, SLOW, play, rest, still, watched} from "./shared"
 import {deny} from "./press"
 import type {Hook} from "../../hook_composition"
 
@@ -184,5 +185,43 @@ export const MotionRefusal: Hook = {
 
   destroyed(this: RefusalHook) {
     this.scope?.revert()
+  },
+}
+
+// A tick's stroke drawn in once, from its start to its end. Its path is one
+// unit long (`pathLength="1"`) and one dash as long covers it (`.motion-tick`
+// in components/motion.css), so the page renders it whole; the draw slides
+// that dash in from just before the path's start, then hands the path back to
+// the stylesheet.
+export const drawTick = (path: Element, delay = 0) =>
+  play(path, {strokeDashoffset: [1, 0], delay, duration: SLOW, ease: EASE_OUT})
+
+// The line of the tick inside `el`, if it shows one.
+const tickLine = (el: Element) => el.querySelector(".motion-tick path")
+
+type StepHook = {el: HTMLElement; done?: boolean}
+
+/**
+ * One step of a wallet review, whose mark is a tick once its `data-state` is
+ * `done`. The tick draws itself in when a newer reading first shows the step
+ * done while the reader watches. A step that is already done when it first
+ * shows, when the page opens or when its connection comes back shows its tick
+ * whole and still, and so does one drawn again or moved in the list. The page
+ * leaves the tick's line alone while it draws, so an update that lands
+ * mid-draw lets it finish.
+ */
+export const MotionStep: Hook = {
+  beforeUpdate(this: StepHook) {
+    this.done = this.el.dataset.state === "done"
+  },
+
+  updated(this: StepHook) {
+    if (this.done || this.el.dataset.state !== "done") return
+    if (watched(this.el) && !still(this.el)) drawTick(tickLine(this.el)!)
+  },
+
+  destroyed(this: StepHook) {
+    const line = tickLine(this.el)
+    if (line) rest(line)
   },
 }

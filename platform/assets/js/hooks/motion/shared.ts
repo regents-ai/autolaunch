@@ -23,6 +23,13 @@ export const CLIPPED_CHAR = "<span class='split-clip'><span data-char='{i}'>{val
 export const still = (el: Element) =>
   matchMedia("(prefers-reduced-motion: reduce)").matches || el.closest("[data-motion='reduced']") !== null
 
+// The reader saw it change: the page was already live when it did. LiveView
+// marks its view `phx-connected` only once it has drawn what it joined with,
+// so a page that has just opened, or that is drawn again as its connection
+// comes back, shows its state as it is.
+export const watched = (el: Element) =>
+  el.closest("[data-phx-session]")?.classList.contains("phx-connected") ?? false
+
 // A click from Enter or Space reports no pointer presses. Keyboard-driven UI
 // answers at once rather than animating.
 export const byPointer = (event: MouseEvent) => event.detail > 0
