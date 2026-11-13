@@ -4,7 +4,7 @@
 - New Memestock and Revstake launches are open again on Base, on new launch contracts made for Base's faster blocks. Each auction opens ten minutes after its launch and runs for about a day on Memestock and about two days on Revstake.
 - Any wallet can launch. Revstake's treasury can still be a Safe, another contract or a single key; a Safe is recommended.
 - Auctions and tokens launched before today work as before: bids (USDC bids too), withdrawals, claims, vesting, staking and trading each go through the contracts their launch was made on.
-- If Base pauses new launches again, the create pages say "New launches are paused right now." beside the greyed-out launch button.
+- Whenever we pause new launches, the create pages say "New launches are paused right now." beside the greyed-out launch button.
 
 ## 12 November 2026: Navigation
 - The sidebar is quieter. Each page is a plain row, and the page you are on has an orange mark at its edge. A soft light sits behind that row and glides to the row under your pointer or your keyboard. Launch is still the one orange button.

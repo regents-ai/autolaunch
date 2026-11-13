@@ -31,6 +31,7 @@ On the copy only:
 """
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -198,9 +199,9 @@ class Fork:
         ):
             root = self.contracts / package
             subprocess.run(
-                ["python3", "../stocks-v3/bin/ceremony.py", "site-config",
-                 "--rpc-url", self.url, "--public-rpc-url", self.url, *extra],
+                ["python3", "../stocks-v3/bin/ceremony.py", "site-config", "--public-rpc-url", self.url, *extra],
                 cwd=root, check=True, stdout=subprocess.DEVNULL,
+                env={**os.environ, "REGENT_BASE_RPC_URL": self.url},
             )
             document = json.loads((root / "reports/generated/deployment/site-config.json").read_text())
             document["chain_id"] = CHAIN_ID

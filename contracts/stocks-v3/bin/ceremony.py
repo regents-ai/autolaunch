@@ -43,14 +43,16 @@ Modes:
               candidate to reports/generated/deployment/. A human installs it. Its `cast --json`
               reads take Foundry 1.5.1's plain answers.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoints the founder passes, to reports/generated/deployment/, with a
+              ABIs, the server endpoint injected under `REGENT_BASE_RPC_URL` and the
+              `--public-rpc-url` the founder passes, to reports/generated/deployment/, with a
               section per earlier version (Revstake `v2`, Memestake `v1` and `v2`) from that
               version's committed deployed manifest and ABIs, for the launches made on it. It
               names no stocks: the site reads the stocks a launchpad admits from the chain.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`), matching the `[rpc_endpoints]`
-alias in `foundry.toml`; site-config reads no chain and only writes the `--rpc-url` it is given
-into the document. A diagnostic that would echo an endpoint is redacted before it is shown.
+alias in `foundry.toml`, so a private one never appears on a command line; site-config reads no
+chain and only writes that endpoint into the document, as the server's `rpc_url`. A diagnostic
+that would echo an endpoint is redacted before it is shown.
 """
 
 from __future__ import annotations
@@ -227,12 +229,17 @@ class Chain:
     def endpoint(self) -> str:
         """What `--rpc-url` receives: the foundry.toml alias, so the injected address never appears
         on a command line or in the process list."""
+        self.injected()
+        return self.alias
+
+    def injected(self) -> str:
+        """The endpoint injected under `env_name` itself, which is never printed."""
         value = os.environ.get(self.env_name, "")
         if not value:
             raise CeremonyError(f"no read-only endpoint is injected under {self.env_name}")
         if not re.match(r"^(https?|wss?)://.+", value):
             raise CeremonyError(f"the value under {self.env_name} is not an http(s) or ws(s) endpoint; its value is never printed")
-        return self.alias
+        return value
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()
@@ -558,7 +565,6 @@ class Package:
         raise NotImplementedError
 
     def add_site_config_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--rpc-url", required=True, help="the endpoint the website's server reads through")
         parser.add_argument("--public-rpc-url", required=True, help="the endpoint wallets in the browser use")
 
     def abi_artifacts(self) -> dict[str, str]:
@@ -771,7 +777,7 @@ class RevstakeV3(Package):
         }
         return {
             "chain_id": self.chain.chain_id,
-            "rpc_url": args.rpc_url,
+            "rpc_url": self.chain.injected(),
             "public_rpc_url": args.public_rpc_url,
             "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
             "abis": abis,
@@ -982,7 +988,7 @@ class StocksV3(Package):
             "agent_factory": checksum(args.agent_factory),
         }
         return {
-            "rpc_url": args.rpc_url,
+            "rpc_url": self.chain.injected(),
             "public_rpc_url": args.public_rpc_url,
             "chain_id": self.chain.chain_id,
             "addresses": {key: value.lower() for key, value in addresses.items()},
@@ -1282,6 +1288,13 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
     manifest = {
         **empty_manifest(package),
         "status": "deployed",
+        "note": (
+            "This file is the only record of deployed facts. It is not the packet: the packet is a "
+            "proposal about what a ceremony would do, rendered from an offline or read-only run. "
+            "`bin/ceremony.py record` wrote every field from confirmed receipts, after the founder had "
+            "named the approved packet digest and sent the ceremony by hand; nothing simulated is "
+            "written here."
+        ),
         "approved_packet_digest": packet["digest"]["value"],
         "selection": selection,
         "transactions": transactions,
@@ -1360,7 +1373,7 @@ def mode_site_config(package: Package, frozen: Frozen, args: argparse.Namespace)
             raise CeremonyError(f"out carries no artifact {target}; run forge build first")
     document = package.site_config(manifest, args, abis)
     candidate = write_candidate(SITE_CONFIG_NAME, document)
-    print(f"site-config written to {candidate}; it carries the endpoints you passed and is never committed")
+    print(f"site-config written to {candidate}; it carries both endpoints and is never committed")
     return 0
 
 
