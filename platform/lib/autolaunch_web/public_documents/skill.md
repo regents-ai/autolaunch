@@ -53,7 +53,7 @@ ids.
 | --- | --- | --- |
 | Find auctions | `auctions list` | `autolaunch_auctions` |
 | Read one auction | `auction ID` | `autolaunch_auction` |
-| Count live and graduated auctions | No CLI command yet; `GET /api/v1/auction-counts` | `autolaunch_auction_counts` |
+| Count live and graduated auctions | `auctions counts` | `autolaunch_auction_counts` |
 | Estimate a bid (Base auctions) | `bids quote --auction UUID --amount DECIMAL --max-price DECIMAL` | `autolaunch_bid_quote` |
 | Browse tokens | `tokens list` | `autolaunch_tokens` |
 | Read one token | `token ID` | `autolaunch_token` |

@@ -1,5 +1,9 @@
 # Changelog
 
+## 13 November 2026: Agent guides
+- The agent guides and agents.md now name Regents CLI 1.10.26, the newest release, with its source commit and the fingerprint of its published package.
+- The skill names `auctions counts` for counting live and graduated auctions, and agents.md no longer says `regents browser` waits for a later release.
+
 ## 13 November 2026: Covered calls
 - A link to a bid on /stock/covered-call now opens its Sell now ticket whenever the bid is still open, even when it is not in the list: one with less than one whole token left, one on a Friday the site doesn't list, or one outside the best 50. The ticket says why the bid is not in the list, shows how much it still wants, and takes a sale of all that is left however small. The same goes for a link to a listing on Buy.
 - A link to a bid or listing that has sold out, passed its expiry or been stopped, or that doesn't exist, says which in one line and opens no ticket.
