@@ -1,5 +1,8 @@
 # Changelog
 
+## 14 November 2026: Wallet
+- On /stock/covered-call, /stock/isolated-afters and the covered calls in your portfolio, the line saying the page lost its connection during a press now has its own room at the foot of the panel, so nothing below it jumps when it shows or goes. It reads "Connection lost. Nothing was sent."
+
 ## 14 November 2026: Create
 - Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. Either way the page shows the review, or the form, from its top. The launch button that opens your wallet sits at the foot of the review.
 - On Create Memestock, the Still needed line and Review launch follow what you type straight away. Each field still saves when you leave it.

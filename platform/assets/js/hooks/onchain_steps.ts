@@ -315,11 +315,11 @@ function sameInputs(review: Record<string, string>, form: Record<string, string>
   return [...names].every(name => review[name] === form[name])
 }
 
-// The component's `data-onchain-lost` line, shown when a press could not reach
-// the server. The next render from the server hides it again.
+// The component's `data-onchain-lost` line keeps its room with its words unseen;
+// `data-shown` shows them when a press could not reach the server. The next
+// render from the server takes the mark off again.
 function lost(root: HTMLElement, shown: boolean): void {
-  const line = root.querySelector<HTMLElement>("[data-onchain-lost]")
-  if (line) line.hidden = !shown
+  root.querySelector<HTMLElement>("[data-onchain-lost]")?.toggleAttribute("data-shown", shown)
 }
 
 // Marked with a data attribute and CSS only: the button keeps taking presses.

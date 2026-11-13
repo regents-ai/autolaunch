@@ -497,8 +497,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         />
       </div>
 
-      <p class="token-swap__error" role="status" data-onchain-lost hidden>
-        This page lost its connection, so nothing was sent. Press again once it's back.
+      <p class="covered-call-panel__problem" role="status" data-onchain-lost>
+        <span>Connection lost. Nothing was sent.</span>
       </p>
     </section>
     """
