@@ -281,6 +281,24 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     end
   end
 
+  property "a raw amount of any size a contract holds is shown exactly, its digits all kept" do
+    check all(
+            word <- binary(length: 32),
+            bits <- integer(0..256),
+            decimals <- integer(0..18)
+          ) do
+      # Any uint256, from one raw unit up to the largest.
+      raw = rem(:binary.decode_unsigned(word), 2 ** bits)
+      unit = 10 ** decimals
+      shown = F.tokens(raw, unit)
+      [whole | fraction] = String.split(shown, ".")
+      digits = String.pad_trailing(Enum.join(fraction), decimals, "0")
+
+      assert String.to_integer(whole) * unit + String.to_integer("0" <> digits) == raw
+      refute fraction != [] and String.ends_with?(shown, "0")
+    end
+  end
+
   test "an amount with more decimals than the token has, zero or text is not an amount" do
     assert F.parse_tokens("1.000000001", @unit) == nil
     assert F.parse_tokens("0", @unit) == nil

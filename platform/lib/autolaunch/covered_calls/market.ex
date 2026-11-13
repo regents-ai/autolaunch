@@ -1,16 +1,18 @@
 defmodule Autolaunch.CoveredCalls.Market do
   @moduledoc """
-  The four covered-call operations, so every surface answers with the same
+  The covered-call operations, so every surface answers with the same
   figures and the same refusals:
 
     * `:book` — a market's listings and bids, as its contract holds them (public)
+    * `:offer` — one listing or bid by its id, at the latest block, for a
+      page's link to one the book does not offer (public)
     * `:quote` — a seller's quote for an expiry: the reference price, the
       next expiries, three suggested strikes, and what a listing of the
       chosen strike and premium pays (public)
     * `:positions` — what a wallet of the acting account sold, holds and bid
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
-  The page reads `:book`, `:positions` and `:prepare` as they are. Every agent
+  The page reads `:book`, `:offer`, `:positions` and `:prepare` as they are. Every agent
   surface (the HTTP routes, which the browser tools call, and the hosted MCP
   tools) runs `:book_answer`, `:quote`, `:positions_answer` and
   `:prepare_answer`: the same operation, its answer shaped once
@@ -46,6 +48,16 @@ defmodule Autolaunch.CoveredCalls.Market do
     action :book, :map do
       argument :symbol, :string, allow_nil?: false
       run fn input, _context -> input.arguments.symbol |> Book.read() |> __MODULE__.refused() end
+    end
+
+    action :offer, :map do
+      argument :symbol, :string, allow_nil?: false
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:listing, :bid]]
+      argument :id, :integer, allow_nil?: false, constraints: [min: 1]
+
+      run fn %{arguments: %{symbol: symbol, kind: kind, id: id}}, _context ->
+        symbol |> Book.one(kind, id) |> __MODULE__.refused()
+      end
     end
 
     action :quote, :map do
@@ -198,7 +210,7 @@ defmodule Autolaunch.CoveredCalls.Market do
   def refused(result), do: result
 
   policies do
-    policy action([:book, :quote, :book_answer]) do
+    policy action([:book, :offer, :quote, :book_answer]) do
       authorize_if always()
     end
 

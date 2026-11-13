@@ -211,6 +211,12 @@ defmodule Autolaunch.CoveredCalls.Terms do
   def min_sale(amount, unit), do: min(amount, unit)
 
   @doc """
+  The smallest sale `sellToBid` takes into `bid` now: its minimum sale, or all
+  that is left on it when less is left.
+  """
+  def least_sale(bid), do: min(bid.min_sale, available(bid))
+
+  @doc """
   The USDC `raiseBid` takes to add `amount` raw units to `bid`, as the
   contract's `raiseCostFor`: the premium for the raised amount less the
   premium already escrowed, each rounded up once, so raising in small steps

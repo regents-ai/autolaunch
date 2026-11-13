@@ -96,6 +96,37 @@ defmodule Autolaunch.CoveredCalls.Book do
     end
   end
 
+  @doc "How many open listings, and how many open bids, a reading holds for each expiry."
+  def shown, do: @shown
+
+  @doc """
+  `symbol`'s listing or bid (`kind`) numbered `id`, as its contract holds it
+  at the latest block, with that block's time (`now`); `:unknown_listing` or
+  `:unknown_bid` when the contract has none by that id. A link to one that is
+  not in the reading opens it from here: one record, read on its own, and kept
+  like every other read (`keep/2`).
+  """
+  @spec one(String.t(), :listing | :bid, pos_integer()) :: {:ok, map()} | {:error, atom()}
+  def one(symbol, kind, id) do
+    with {:ok, config} <- Deployment.current(),
+         {:ok, %{contract: contract} = market} <- Deployment.market(symbol),
+         {:ok, block, opts} <- Chain.latest(config.lab),
+         {:ok, record} <- record(kind, market, id, block, opts) do
+      keep(
+        contract,
+        Map.put(%{listings: [], bids: [], now: block.timestamp}, many(kind), [record])
+      )
+
+      {:ok, %{record: record, now: block.timestamp}}
+    end
+  end
+
+  defp record(:listing, market, id, block, opts), do: Chain.listing(market, id, block, opts)
+  defp record(:bid, market, id, block, opts), do: Chain.bid(market, id, block, opts)
+
+  defp many(:listing), do: :listings
+  defp many(:bid), do: :bids
+
   @doc "Keeps each listing and bid of `book` (`Chain.book/4`) as read at its block (`kept/3`)."
   def keep(contract, book) do
     if kept_ms() > 0 do

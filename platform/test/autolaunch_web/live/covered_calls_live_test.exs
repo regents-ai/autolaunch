@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   alias Autolaunch.{CoveredCalls, CoveredCallsChain, Lab, SharedReading, TestSupport}
   alias Autolaunch.CoveredCalls.{PriceLine, Terms}
   alias AutolaunchWeb.CoveredCallsFormat, as: F
+  alias RegentChain.{BuilderCode, Call}
 
   @unit CoveredCallsChain.unit()
   test "switched off, the page is not found and the stock page offers no covered calls",
@@ -813,16 +814,44 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-calls-contract")
   end
 
-  test "a listing's address that isn't for sale says so", %{conn: conn} do
-    CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/stock/covered-call?listing=7")
-    render_async(view)
+  test "a link to a listing still for sale on the chain opens its ticket, though it is not in the list",
+       %{conn: conn} do
+    # Listing 2 has less than one whole token left, so the list leaves it out.
+    CoveredCallsChain.install(%{
+      listings: [
+        CoveredCallsChain.listing(%{}),
+        CoveredCallsChain.listing(%{filled: 10 * @unit - 40_000_000})
+      ]
+    })
 
-    assert has_element?(
-             view,
-             ".covered-calls__note[role=status]",
-             "Listing 7 isn't for sale here now"
-           )
+    {view, _panel} = signed_in(conn, "/stock/covered-call?listing=2", "#covered-call-fill-2")
+
+    assert has_element?(view, "#covered-call-1")
+    refute has_element?(view, "#covered-call-2")
+    assert has_element?(view, "#covered-call-buy-2-unlisted")
+
+    view |> element("#covered-call-buy-2-form") |> render_change(%{"amount" => "0.4"})
+    view |> element("#covered-call-fill-2-review") |> render_click()
+    assert_step(view, "fill", "fill(uint256,uint256)", [2, 40_000_000])
+  end
+
+  test "a link to a listing the chain no longer sells, or has never had, opens no ticket",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{
+      listings: [
+        CoveredCallsChain.listing(%{amount: 0, filled: 0}),
+        CoveredCallsChain.listing(%{filled: 10 * @unit}),
+        CoveredCallsChain.listing(%{expiry: CoveredCallsChain.now() - 60})
+      ]
+    })
+
+    for id <- ~w(1 2 3 4 abc) do
+      {:ok, view, _html} = live(conn, "/stock/covered-call?listing=#{id}")
+      settled(view)
+
+      assert has_element?(view, "#covered-calls-listing-note")
+      refute has_element?(view, "[id^=covered-call-buy-]")
+    end
   end
 
   test "the Sell tab lists the open bids under the ticket, with what each still wants",
@@ -909,11 +938,136 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-sale-1 button[data-account-target=sign-in]")
   end
 
-  test "a bid's address that isn't open says so", %{conn: conn} do
-    CoveredCallsChain.install(%{bids: [CoveredCallsChain.bid(%{amount: 0, filled: 0})]})
+  test "a link to any bid still open on the chain opens its sale, and the list stays as it is",
+       %{conn: conn} do
+    now = CoveredCallsChain.now()
+    best = for n <- 1..50, do: CoveredCallsChain.bid(%{premium: 5_000_000 + n, filled: 0})
+
+    CoveredCallsChain.install(%{
+      listings: [],
+      bids:
+        best ++
+          [
+            # Below the best fifty of its Friday.
+            CoveredCallsChain.bid(%{premium: 1_000_000, filled: 0}),
+            # Less than one whole token left: 0.4 of a 1-token minimum sale.
+            CoveredCallsChain.bid(%{filled: 10 * @unit - 40_000_000}),
+            # A Friday the site doesn't offer, and one in the year 10000.
+            CoveredCallsChain.bid(%{expiry: List.last(Terms.expiries(now, 5)), filled: 0}),
+            CoveredCallsChain.bid(%{expiry: 253_402_894_800, filled: 0})
+          ]
+    })
+
+    for {id, amount} <- [{51, 2 * @unit}, {52, 40_000_000}, {53, 2 * @unit}, {54, 2 * @unit}] do
+      {view, _panel} =
+        signed_in(conn, "/stock/covered-call?bid=#{id}", "#covered-call-sale-#{id}")
+
+      # The list is the reading's own: the best fifty, and the count of all on offer.
+      assert Enum.filter(1..54, &has_element?(view, "#covered-call-bids-#{&1}")) ==
+               Enum.to_list(1..50)
+
+      assert text(view, "#covered-calls-bids-more") =~ "50 of 51"
+      assert has_element?(view, "#covered-call-sell-#{id}-unlisted")
+
+      view
+      |> element("#covered-call-sell-#{id}-form")
+      |> render_change(%{"amount" => F.tokens(amount, @unit)})
+
+      settled(view)
+      view |> element("#covered-call-sale-#{id}-review") |> render_click()
+      assert_step(view, "sell_to_bid", "sellToBid(uint256,uint256)", [id, amount])
+    end
+  end
+
+  test "a bid at the edge of what the contract can hold renders every figure of its sale",
+       %{conn: conn} do
+    largest = 2 ** 256 - 1
+
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{
+          expiry: 2 ** 64 - 1,
+          amount: largest,
+          filled: 0,
+          strike: largest,
+          premium: largest,
+          min_sale: largest
+        })
+      ]
+    })
+
     {:ok, view, _html} = live(conn, "/stock/covered-call?bid=1")
     settled(view)
-    assert has_element?(view, ".covered-calls__note[role=status]", "Bid 1 isn't offered here now")
+    assert has_element?(view, "#covered-call-sell-1-unlisted")
+
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "2"})
+    settled(view)
+    assert text(view, "#covered-call-sell-1-receive") =~ "$"
+    assert text(view, "#covered-call-sell-1-exercised") =~ "$"
+  end
+
+  test "a dust bid takes a sale of all that is left, and less is disabled with the least it takes",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{
+      bids: [CoveredCallsChain.bid(%{filled: 10 * @unit - 40_000_000})]
+    })
+
+    {view, _panel} = signed_in(conn, "/stock/covered-call?bid=1", "#covered-call-sale-1")
+
+    assert max_fill(view, "#covered-call-sell-1-max") == 40_000_000
+
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "0.2"})
+    settled(view)
+    assert has_element?(view, "#covered-call-sale-1-review[disabled]")
+    assert has_element?(view, "#covered-call-sale-1-why", "0.4 AMZNc")
+
+    view |> element("#covered-call-sell-1-form") |> render_change(%{"amount" => "0.4"})
+    settled(view)
+    refute has_element?(view, "#covered-call-sale-1-review[disabled]")
+  end
+
+  test "a link to a bid the chain no longer takes sales into, or has never had, opens no ticket",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{
+      bids: [
+        CoveredCallsChain.bid(%{amount: 0, filled: 0}),
+        CoveredCallsChain.bid(%{expiry: CoveredCallsChain.now() - 60}),
+        CoveredCallsChain.bid(%{filled: 10 * @unit}),
+        CoveredCallsChain.bid(%{})
+      ]
+    })
+
+    absurd = "1" <> String.duplicate("0", 100)
+
+    for id <- ["1", "2", "3", "99", "abc", "-4", absurd] do
+      {:ok, view, _html} = live(conn, "/stock/covered-call?bid=#{id}")
+      settled(view)
+
+      assert has_element?(view, "#covered-calls-bid-note")
+      refute has_element?(view, "[id^=covered-call-sell-]")
+      assert has_element?(view, "#covered-call-bids-4")
+      assert has_element?(view, "#covered-calls-sell")
+    end
+  end
+
+  test "a link to a bid outside the list costs one read of that bid, never the whole book again",
+       %{conn: conn} do
+    bids = for n <- 1..60, do: CoveredCallsChain.bid(%{premium: 5_000_000 + n, filled: 0})
+    CoveredCallsChain.install(%{listings: [], bids: bids})
+
+    reads = fn path ->
+      before = CoveredCallsChain.requests()
+      {:ok, view, _html} = live(conn, path)
+      settled(view)
+      CoveredCallsChain.requests() - before
+    end
+
+    # Bid 60 is in the list; bid 1 pays the least of all and is not.
+    listed = reads.("/stock/covered-call?bid=60")
+    unlisted = reads.("/stock/covered-call?bid=1")
+
+    # The bid count, then the bid itself.
+    assert unlisted - listed == 2
   end
 
   test "signed in, Max on Sell now fills what the bid still wants or the wallet holds, the less",
@@ -1221,6 +1375,16 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     view |> element("#portfolio-covered-calls-refund_bid-2-review") |> render_click()
     assert has_element?(view, "#portfolio-covered-calls-refund_bid-2-review-panel", "$30.00")
     assert has_element?(view, "#portfolio-covered-calls-refund_bid-2 [data-step=refund_bid]")
+  end
+
+  # The review a panel opened carries, as its last step, `name` sent to the
+  # covered-calls contract calling `signature` on exactly `arguments`.
+  defp assert_step(view, name, signature, arguments) do
+    assert_push_event(view, "onchain-steps:review", %{review: %{steps: steps}})
+    step = List.last(steps)
+
+    assert {step.step, String.downcase(step.to)} == {name, CoveredCallsChain.contract()}
+    assert BuilderCode.call(step.data) == Call.encode(signature, arguments)
   end
 
   # The receipt's figures against the quote for the same request, the action

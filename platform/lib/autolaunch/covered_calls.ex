@@ -62,6 +62,7 @@ defmodule Autolaunch.CoveredCalls do
       define :covered_call_positions, action: :positions_answer, args: [:symbol]
       define :prepare_covered_call, action: :prepare_answer, args: [:symbol, :kind]
       define :read_covered_call_book, action: :book, args: [:symbol]
+      define :read_covered_call_offer, action: :offer, args: [:symbol, :kind, :id]
       define :read_covered_call_positions, action: :positions, args: [:symbol]
       define :prepare_covered_call_steps, action: :prepare, args: [:symbol, :kind]
     end

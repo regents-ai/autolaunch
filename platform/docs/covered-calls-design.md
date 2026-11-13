@@ -231,9 +231,19 @@ Ash domain `Autolaunch.CoveredCalls`:
 - `Positions` — a wallet's listings, holdings, its own bids with what a refund would send it now
   (`refundable`), and the stock in the wallet (the most it can list now), all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
-- `/stock/covered-call` reads again when a press lands on any page, when a `?listing=<id>` link opens
-  (unless read in the last ten seconds), and just after the next open listing's expiry or a
-  scheduled multiplier change, so a Buy the chain held back comes back by itself.
+- `/stock/covered-call` reads again when a press lands on any page, when a `?listing=<id>` or
+  `?bid=<id>` link opens (unless read in the last ten seconds), and just after the next open
+  listing's expiry or a scheduled multiplier change, so a Buy the chain held back comes back by itself.
+- A `?listing=<id>` or `?bid=<id>` link to one the reading does not hold (dust, an expiry the site
+  does not list, outside the best fifty, or newer than the reading) reads that one record at the
+  latest block (`Book.one/3`, the `offer` action: the record count, then the record, two requests
+  whatever the book holds), kept like any other read. While it is open there (`Terms.stage/2`,
+  `Terms.bid_stage/2`) it gets the same ticket a listed one does, with a line saying why it is
+  not in the list; it never joins the list or its counts. A sale into a bid takes at least
+  `Terms.least_sale/1`, the bid's minimum or all that is left when less is, as `sellToBid` checks
+  it. Only when the chain says the record is stopped, sold out, past its expiry or unknown does the
+  link get a one-line note and no ticket. An id that is not a number gets the unknown note with no
+  read at all.
 - Dollar figures follow the one Regents rule (`RegentFormat.token_amount/2`: two decimals from $1,
   three significant digits below, cut). Typed amounts are digits with at most one dot, and typed prices go to the cent. An amount a person pays is shown rounded up to the cent, never below what the wallet is asked for.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
@@ -318,14 +328,15 @@ how many there are. What it does (12 November 2026):
   bid names no bidder in a topic, and the RPC's range limits for log searches are not known.
 - **Only the offered expiries.** The contract takes any Friday at 21:00 UTC a 64-bit time can hold,
   out to the year 584 billion. The reading holds only listings and bids on the expiries the site
-  offers (`Terms.expiries/1`, the next four full-day Fridays), so one far off never reaches a page
+  offers (`Terms.expiries/1`, the next four full-day Fridays), so one far off never reaches a list
   or an agent's book answer. Its maker still sees it on the portfolio and in the positions
-  answer, to stop it; a time past the year 9999 reads "After 9999" there
-  (`AutolaunchWeb.CoveredCallsFormat.at/2`).
+  answer, to stop it, and its own link opens its ticket; a time past the year 9999 reads
+  "After 9999" there (`AutolaunchWeb.CoveredCallsFormat.at/2`).
 - **Fifty of each for each expiry, best first.** The reading holds the best fifty open listings
   and the best fifty open bids of each offered expiry, with the count of all (`listings_total`,
   `bids_total`); pages say "The best N of M" and agents get the same and the counts. A listing
-  or bid outside them is not offered on the site; a step for it can still be prepared by its id.
+  or bid outside them is not in the list; a step for it can still be prepared by its id, and its
+  link opens its ticket (above).
 - **Order.** Listings: the soonest expiry, then the lowest strike plus premium, then the oldest.
   Bids: the soonest expiry, then the most a seller ends with per token at the reference price,
   which is the premium plus the strike with the strike counted no higher than that price; then
@@ -333,10 +344,11 @@ how many there are. What it does (12 November 2026):
   used: a bid with a strike far above the price and a premium of one micro-USDC costs nothing to
   post and would sit above every real bid. With no reference price the order is by strike plus
   premium.
-- **Dust.** A listing or bid with less than one whole token left is not offered and not counted:
+- **Dust.** A listing or bid with less than one whole token left is not listed and not counted:
   the site asks a sale into a bid to be at least one whole token (`Terms.min_sale/2`), and the
   same line keeps a crowd of one-raw-unit listings from hiding real ones. Its maker still sees it
-  on the portfolio, to stop it and take back the stock or the refund.
+  on the portfolio, to stop it and take back the stock or the refund, and its link still opens its
+  ticket, which takes a sale of exactly what is left.
 
 What remains unbounded, and what it costs an attacker:
 

@@ -955,7 +955,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp blocked_words(:more_than_bid, _assigns), do: "More than the bid wants"
 
   defp blocked_words(:below_minimum_sale, %{bid: bid, unit: unit, symbol: symbol}),
-    do: "Minimum sale #{F.tokens(bid.min_sale, unit)} #{symbol}"
+    do: "Minimum sale #{F.tokens(Terms.least_sale(bid), unit)} #{symbol}"
 
   defp blocked_words(:nothing_to_refund, _assigns), do: "Nothing to refund"
 

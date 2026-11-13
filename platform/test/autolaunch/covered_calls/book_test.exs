@@ -311,6 +311,31 @@ defmodule Autolaunch.CoveredCalls.BookTest do
     end
   end
 
+  test "one listing or bid is read on its own at the latest block, and kept like any other" do
+    bids = for n <- 1..450, do: CoveredCallsChain.bid(%{premium: 1_000 + n})
+    CoveredCallsChain.install(%{bids: bids})
+    {:ok, %{contract: contract}} = Deployment.market("AMZNc")
+
+    before = CoveredCallsChain.requests()
+
+    assert {:ok, %{record: %{id: 7, premium_per_token: 1_007}, now: @now}} =
+             Book.one("AMZNc", :bid, 7)
+
+    # The bid count, then the bid: however many bids there are.
+    assert CoveredCallsChain.requests() - before == 2
+
+    assert {"0x3333333333333333333333333333333333333333", :live, %{id: 7}} =
+             Book.kept(contract, :bid, 7)
+
+    assert {:ok, %{record: %{id: 1}}} = Book.one("AMZNc", :listing, 1)
+
+    # An id past the count is never asked for.
+    before = CoveredCallsChain.requests()
+    assert {:error, :unknown_bid} = Book.one("AMZNc", :bid, 10 ** 100)
+    assert {:error, :unknown_listing} = Book.one("AMZNc", :listing, 2)
+    assert CoveredCallsChain.requests() - before == 2
+  end
+
   test "a listing or bid that can never change again is read once and kept" do
     over = @now - 2 * Terms.exercise_window()
 

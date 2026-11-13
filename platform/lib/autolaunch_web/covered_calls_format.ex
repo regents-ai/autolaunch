@@ -29,13 +29,21 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def usd_due(nil), do: usd(nil)
   def usd_due(micro) when is_integer(micro), do: usd(div(micro + 9_999, 10_000) * 10_000)
 
-  @doc "A raw stock amount as whole tokens, without trailing zeros."
+  @doc """
+  A raw stock amount as whole tokens, without trailing zeros, exact at any
+  size a contract can hold (`unit` is a power of ten, as the contract sets it).
+  """
   def tokens(raw, unit) when is_integer(raw) and is_integer(unit) do
-    raw
-    |> Decimal.new()
-    |> Decimal.div(Decimal.new(unit))
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
+    case rem(raw, unit) do
+      0 ->
+        Integer.to_string(div(raw, unit))
+
+      part ->
+        fraction =
+          part |> Integer.to_string() |> String.pad_leading(decimals(unit), "0")
+
+        "#{div(raw, unit)}.#{String.trim_trailing(fraction, "0")}"
+    end
   end
 
   @doc """
@@ -126,8 +134,10 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   # No-break spaces, so a narrow column breaks between the two times, never inside one.
   defp moment(unix), do: at(unix, "%a\u00a0%-d\u00a0%b\u00a0%H:%M")
 
+  defp decimals(unit), do: String.length(Integer.to_string(unit)) - 1
+
   defp parse(text, unit) do
-    decimals = String.length(Integer.to_string(unit)) - 1
+    decimals = decimals(unit)
 
     with [_text, whole | fraction] <- Regex.run(~r/\A(\d*)(?:\.(\d*))?\z/, text),
          fraction = Enum.join(fraction),

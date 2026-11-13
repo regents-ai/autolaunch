@@ -12,6 +12,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   Under it, while any are open, the bids buyers have posted; a bid's Sell now
   ticket opens below them at `?bid=<id>`: the amount, what the sale pays now (the
   prepared step's own figures, read at the latest block) and how it can end.
+  A link to a bid or listing the shared reading does not list (dust, an
+  expiry the site does not offer, outside the best fifty) reads that one from
+  the chain and opens the same ticket while it is open there; otherwise a
+  line says, from the chain, why there is none.
 
   **Buy** (`?tab=buy`, with how many are for sale) lists the calls for sale, and a
   listing's ticket opens below the list at `?listing=<id>`: the amount, what it costs
@@ -81,6 +85,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          tab: :sell,
          selected: nil,
          bid: nil,
+         linked: nil,
          done: nil,
          due: nil,
          fields: %{sell: @ticket, bid: @ticket},
@@ -194,7 +199,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
        book: AsyncResult.ok(socket.assigns.book, book),
        due: wait && Process.send_after(self(), :covered_calls_due, (wait + 5) * 1_000)
      )
-     |> read_quote()}
+     |> read_quote()
+     |> read_linked()}
   end
 
   def handle_async(:book, {:ok, {:error, error}}, socket),
@@ -204,6 +210,24 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_async(:book, {:exit, reason}, socket),
     do: {:noreply, assign(socket, book: AsyncResult.failed(socket.assigns.book, reason))}
+
+  # The one listing or bid a link names, read from the chain, kept only while
+  # the link still names it.
+  def handle_async(:linked, {:ok, {kind, id, result}}, socket) do
+    answer =
+      case result do
+        {:ok, offer} -> {:ok, offer}
+        {:error, error} -> {:error, CoveredCalls.reason(error)}
+      end
+
+    {:noreply, linked(socket, kind, id, answer)}
+  end
+
+  def handle_async(:linked, {:exit, _reason}, %{assigns: %{linked: linked}} = socket)
+      when is_map(linked),
+      do: {:noreply, linked(socket, linked.kind, linked.id, {:error, :chain_unavailable})}
+
+  def handle_async(:linked, {:exit, _reason}, socket), do: {:noreply, socket}
 
   # A quote that answered for other strikes than the ticket now names (the
   # reference price moved, and the suggestions with it) is read again for them.
@@ -253,13 +277,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp put_fields(socket, key, fields),
     do: socket |> update(:fields, &Map.put(&1, key, fields)) |> read_quote()
 
-  # The listing or bid a ticket's address names, nil for none or one that doesn't read.
+  # The listing or bid a ticket's address names: its number, nil for none, or
+  # `:unknown` for one that isn't a number the contract can have.
   defp chosen(nil), do: nil
 
   defp chosen(text) do
     case Integer.parse(text) do
       {id, ""} when id > 0 -> id
-      _none -> nil
+      _not_a_number -> :unknown
     end
   end
 
@@ -288,7 +313,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   # A shared link to one listing or bid reads the market again unless it was
   # read in the last ten seconds, so it is never turned away on an old reading.
-  defp reread(%{assigns: %{selected: nil, bid: nil}} = socket), do: socket
+  defp reread(%{assigns: %{selected: selected, bid: bid}} = socket)
+       when not is_integer(selected) and not is_integer(bid),
+       do: socket
 
   defp reread(socket) do
     if connected?(socket) do
@@ -302,6 +329,50 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp read_book(socket) do
     symbol = socket.assigns.market.symbol
     start_async(socket, :book, fn -> CoveredCalls.read_covered_call_book(symbol) end)
+  end
+
+  # A link to a listing or bid the reading does not offer (dust, an expiry the
+  # site does not list, or not among the best fifty) reads that one record from
+  # the chain at the latest block, once for each reading the page takes: never
+  # the whole market again. Its ticket shows while it is open there.
+  defp read_linked(%{assigns: %{book: %AsyncResult{ok?: true, result: book}}} = socket) do
+    case unlisted_link(socket.assigns, book) do
+      nil ->
+        assign(socket, linked: nil)
+
+      {kind, id} ->
+        symbol = socket.assigns.market.symbol
+
+        socket
+        |> assign(linked: reading_link(socket.assigns.linked, kind, id))
+        |> start_async(:linked, fn ->
+          {kind, id, CoveredCalls.read_covered_call_offer(symbol, kind, id)}
+        end)
+    end
+  end
+
+  defp read_linked(socket), do: socket
+
+  defp unlisted_link(%{tab: :sell, bid: id}, book) when is_integer(id),
+    do: unlisted_link(:bid, id, book.bids)
+
+  defp unlisted_link(%{tab: :buy, selected: id}, book) when is_integer(id),
+    do: unlisted_link(:listing, id, book.listings)
+
+  defp unlisted_link(_assigns, _book), do: nil
+
+  defp unlisted_link(kind, id, offered),
+    do: if(!Enum.any?(offered, &(&1.id == id)), do: {kind, id})
+
+  # The same link read again keeps showing what it last read until the new read answers.
+  defp reading_link(%{kind: kind, id: id} = linked, kind, id), do: linked
+  defp reading_link(_linked, kind, id), do: %{kind: kind, id: id, result: :reading}
+
+  defp linked(socket, kind, id, answer) do
+    case socket.assigns.linked do
+      %{kind: ^kind, id: ^id} = linked -> assign(socket, linked: %{linked | result: answer})
+      _another -> socket
+    end
   end
 
   # The open ticket's quote, Sell's or Bid's, for the ticket as it stands. The
@@ -441,14 +512,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp answers?(quote, asked), do: Enum.all?(asked, fn {name, value} -> quote[name] == value end)
 
   def render(assigns) do
-    book = assigns.book.result
+    %{book: %{result: book}, linked: linked, selected: selected, bid: bid} = assigns
+    # What the shared reading offers: open, best first, the first fifty of each expiry.
+    open = if(book, do: book.listings, else: [])
+    bids = if(book, do: book.bids, else: [])
 
     assigns =
       assign(assigns,
         reading: book,
-        # What the shared reading offers: open, best first, the first fifty of each expiry.
-        open: if(book, do: book.listings, else: []),
-        bids: if(book, do: book.bids, else: []),
+        open: open,
+        bids: bids,
+        ticket_listing: offer(open, linked, :listing, selected),
+        ticket_bid: offer(bids, linked, :bid, bid),
+        listing_note: shut(:listing, selected, linked),
+        bid_note: shut(:bid, bid, linked),
         human_id: current_human_id(assigns.access_context)
       )
 
@@ -578,13 +655,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           </table>
         </div>
         <p
-          :if={@tab == :buy && @reading && @selected && !Enum.any?(@open, &(&1.id == @selected))}
+          :if={@tab == :buy && @reading && @listing_note}
+          id="covered-calls-listing-note"
           class="covered-calls__note"
           role="status"
         >
-          Listing {@selected} isn't for sale here now: it has sold out, passed its expiry or
-          stopped selling{if @reading.listings_total > length(@open),
-            do: ", or it is not one of the best #{length(@open)}"}.
+          {@listing_note}
         </p>
         <p
           :if={@tab == :buy && @reading && @reading.listings_total > length(@open)}
@@ -594,9 +670,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           The best {length(@open)} of {@reading.listings_total} listings
         </p>
         <.buy_ticket
-          :for={listing <- @open}
-          :if={@tab == :buy && @selected == listing.id}
-          listing={listing}
+          :if={@tab == :buy && @reading && @ticket_listing}
+          listing={@ticket_listing}
+          unlisted={unlisted(@ticket_listing, @open, @reading, &Terms.for_buyers/1)}
           market={@market}
           reading={@reading}
           line={@line}
@@ -655,23 +731,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <span class="loading-block"></span>
         </div>
         <p
-          :if={@reading && @bid && !Enum.any?(@bids, &(&1.id == @bid))}
+          :if={@reading && @bid_note}
+          id="covered-calls-bid-note"
           class="covered-calls__note"
           role="status"
         >
-          Bid {@bid} isn't offered here now: it has sold out, passed its expiry or stopped, or
-          less than 1 {@market.symbol} is left on it{if @reading.bids_total > length(@bids),
-            do: ", or it is not one of the best #{length(@bids)}"}.
+          {@bid_note}
         </p>
       </section>
 
       <section
-        :if={@tab == :sell && @bids != []}
+        :if={@tab == :sell && @reading && (@bids != [] or @ticket_bid)}
         class="covered-calls__section"
         aria-labelledby="covered-calls-bids-title"
       >
         <h2 id="covered-calls-bids-title" class="covered-calls__title">Bids</h2>
-        <div class="market-list__scroll">
+        <div :if={@bids != []} class="market-list__scroll">
           <table class="market-list__table covered-calls__table">
             <caption class="visually-hidden">Bids for calls on {@market.symbol}</caption>
             <thead>
@@ -715,9 +790,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           The best {length(@bids)} of {@reading.bids_total} bids
         </p>
         <.sale_ticket
-          :for={bid <- @bids}
-          :if={@bid == bid.id}
-          bid={bid}
+          :if={@ticket_bid}
+          bid={@ticket_bid}
+          unlisted={unlisted(@ticket_bid, @bids, @reading, &Terms.for_sellers(&1, spot(@reading)))}
           market={@market}
           reading={@reading}
           line={@line}
@@ -1014,6 +1089,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   attr :bid, :map, required: true
+
+  attr :unlisted, :atom,
+    default: nil,
+    doc: "why a bid opened by its link is not in the list (`unlisted/4`)"
+
   attr :market, :map, required: true
   attr :reading, :map, required: true
   attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
@@ -1044,6 +1124,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         order: amount && %{bid_id: bid.id, amount: amount},
         sale: amount && Terms.sale(bid, amount, unit),
         exercise: amount && Terms.usdc_for(amount, bid.strike_per_token, unit),
+        least: Terms.least_sale(bid),
         max: assigns.balance && min(assigns.balance, Terms.available(bid)),
         under: under_price(bid, amount || unit, reading)
       )
@@ -1055,6 +1136,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <h3 id={"#{@id}-title"} class="covered-calls__title">Sell now</h3>
         </div>
         <CoveredCallComponent.stock id={"#{@id}-stock"} market={@market} />
+        <p :if={@unlisted} id={"#{@id}-unlisted"} class="covered-calls__note">
+          {unlisted_words(@unlisted, :bid, @symbol)}
+        </p>
         <PriceChart.price_line id={"#{@id}-price"} points={@line}>
           <:level price={dollars(@bid.strike_per_token)} name="Strike" />
         </PriceChart.price_line>
@@ -1143,9 +1227,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
               <dt>If exercised</dt>
               <dd id={"#{@id}-exercised"} data-count>{F.usd(@exercise)}</dd>
             </div>
-            <div :if={@bid.min_sale != @unit}>
+            <div>
+              <dt>Wanted</dt>
+              <dd id={"#{@id}-wanted"}>{F.tokens(Terms.available(@bid), @unit)} {@symbol}</dd>
+            </div>
+            <div :if={@least != @unit}>
               <dt>Minimum</dt>
-              <dd id={"#{@id}-minimum"}>{F.tokens(@bid.min_sale, @unit)} {@symbol}</dd>
+              <dd id={"#{@id}-minimum"}>{F.tokens(@least, @unit)} {@symbol}</dd>
             </div>
             <.window id={@id} expiry={@bid.expiry} />
           </dl>
@@ -1465,6 +1553,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   attr :listing, :map, required: true
+
+  attr :unlisted, :atom,
+    default: nil,
+    doc: "why a listing opened by its link is not in the list (`unlisted/4`)"
+
   attr :market, :map, required: true
   attr :reading, :map, required: true
   attr :line, :list, required: true, doc: "from `Autolaunch.CoveredCalls.PriceLine.line/1`"
@@ -1503,6 +1596,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <h3 id={"#{@id}-title"} class="covered-calls__title">Buy calls</h3>
         </div>
         <CoveredCallComponent.stock id={"#{@id}-stock"} market={@market} />
+        <p :if={@unlisted} id={"#{@id}-unlisted"} class="covered-calls__note">
+          {unlisted_words(@unlisted, :listing, @symbol)}
+        </p>
         <PriceChart.price_line id={"#{@id}-price"} points={@line}>
           <:level price={dollars(@listing.strike_per_token)} name="Strike" />
           <:level price={dollars(@break_even)} name="Break-even" dotted />
@@ -1711,6 +1807,95 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       }
     end
   end
+
+  # The listing or bid a link names, for its ticket: the list's own, else the
+  # one read from the chain for the link, while it is open there.
+  defp offer(_offered, _linked, _kind, id) when not is_integer(id), do: nil
+
+  defp offer(offered, linked, kind, id) do
+    Enum.find(offered, &(&1.id == id)) ||
+      case linked do
+        %{kind: ^kind, id: ^id, result: {:ok, %{record: record, now: now}}} ->
+          if open?(kind, record, now), do: record
+
+        _unread ->
+          nil
+      end
+  end
+
+  defp open?(:listing, listing, now), do: Terms.stage(listing, now) == :open
+  defp open?(:bid, bid, now), do: Terms.bid_stage(bid, now) == :open
+
+  # Why a link opens no ticket, from the contract's own state at the latest
+  # block: the only case a link is turned away. Nil while there is a ticket,
+  # or the link is still being read.
+  defp shut(kind, :unknown, _linked), do: "There is no #{kind} by that number."
+
+  defp shut(kind, id, %{kind: kind, id: id, result: result}) do
+    case result do
+      {:ok, %{record: record, now: now}} ->
+        stage_words(kind, id, record, now)
+
+      {:error, unknown} when unknown in [:unknown_listing, :unknown_bid] ->
+        shut(kind, :unknown, nil)
+
+      {:error, _unread} ->
+        "#{name(kind)} #{id} couldn't be read just now. Try again in a moment."
+
+      :reading ->
+        nil
+    end
+  end
+
+  defp shut(_kind, _id, _linked), do: nil
+
+  defp stage_words(:listing, id, listing, now) do
+    case Terms.stage(listing, now) do
+      :open -> nil
+      :stopped -> "Listing #{id} was stopped."
+      :sold -> "Listing #{id} has sold out."
+      _window -> "Listing #{id} has passed its expiry."
+    end
+  end
+
+  defp stage_words(:bid, id, bid, now) do
+    case Terms.bid_stage(bid, now) do
+      :open -> nil
+      :cancelled -> "Bid #{id} was stopped."
+      :sold -> "Bid #{id} has nothing left to sell into."
+      :expired -> "Bid #{id} has passed its expiry."
+    end
+  end
+
+  defp name(:listing), do: "Listing"
+  defp name(:bid), do: "Bid"
+
+  # Why a listing or bid opened by its link is not in the list, for its
+  # ticket to say: an expiry the site doesn't list, less than a whole token
+  # left, or below the best fifty of its Friday (`rank`, best first). Nil for
+  # one in the list, or one opened since the reading was taken.
+  defp unlisted(offer, offered, reading, rank) do
+    same = Enum.filter(offered, &(&1.expiry == offer.expiry))
+
+    cond do
+      Enum.any?(offered, &(&1.id == offer.id)) -> nil
+      offer.expiry not in Terms.expiries(reading.now) -> :expiry
+      Terms.dust?(offer, reading.unit) -> :dust
+      length(same) == Book.shown() and rank.(offer) > rank.(List.last(same)) -> :ranked
+      true -> nil
+    end
+  end
+
+  defp unlisted_words(:expiry, _kind, _symbol),
+    do: "Not in the list: its expiry isn't one the site lists."
+
+  defp unlisted_words(:dust, _kind, symbol), do: "Not in the list: less than 1 #{symbol} is left."
+
+  defp unlisted_words(:ranked, :bid, _symbol),
+    do: "Not in the list: #{Book.shown()} bids on its Friday pay a seller more."
+
+  defp unlisted_words(:ranked, :listing, _symbol),
+    do: "Not in the list: #{Book.shown()} listings on its Friday cost less."
 
   defp spot(reading) do
     case Quote.spot(reading) do
