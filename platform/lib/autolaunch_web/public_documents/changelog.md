@@ -1,7 +1,7 @@
 # Changelog
 
 ## 13 November 2026: Agent guides
-- The agent guides and agents.md now name Regents CLI 1.10.26, the newest release, with its source commit and the fingerprint of its published package.
+- The agent guides and agents.md now name Regents CLI 1.10.27, the newest release, with its source commit and the fingerprint of its published package.
 - The skill names `auctions counts` for counting live and graduated auctions, and agents.md no longer says `regents browser` waits for a later release.
 
 ## 13 November 2026: Covered calls
