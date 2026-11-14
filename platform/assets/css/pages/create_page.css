@@ -75,8 +75,8 @@
 /* Beside the form: the summary card, then the launch button and what it still needs. */
 /* The launch card's buttons and notes land in this place in the side column. */
 .create-page__launch-card { display: contents; }
-/* The side column stays in view beside the form, and scrolls within itself when it is taller than the screen, so its button is always reachable. */
-.create-page__side { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); min-width: 0; max-block-size: calc(100dvh - 2 * var(--space-4)); overflow-y: auto; }
+/* The side column stays in view beside the form, its top under the sticky header (`--shell-top-end`), and scrolls within itself when it is taller than the screen below the header, so its button is always reachable. */
+.create-page__side { position: sticky; top: calc(var(--shell-top-end) + var(--space-4)); display: grid; gap: var(--space-3); min-width: 0; max-block-size: calc(100dvh - var(--shell-top-end) - 2 * var(--space-4)); overflow-y: auto; }
 .create-page__launch { display: grid; gap: var(--space-2); }
 .create-page__launch > p { margin: 0; }
 .create-page__launch-button { width: 100%; min-height: 3.25rem; font-size: 1.0625rem; }

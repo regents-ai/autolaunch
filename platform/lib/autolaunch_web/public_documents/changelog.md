@@ -16,6 +16,7 @@
 
 ## 14 November 2026: Create pages
 - In the launch review, Review this launch now sits at the top of the card with the token's details just under it, instead of above a wide empty gap.
+- On a wide screen, the column beside the form or the review now stops just under the bar at the top of the page as you scroll, instead of its top sliding under that bar.
 
 ## 14 November 2026: Create
 - Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. Either way the page shows the review, or the form, from its top. The launch button that opens your wallet sits at the foot of the review.
