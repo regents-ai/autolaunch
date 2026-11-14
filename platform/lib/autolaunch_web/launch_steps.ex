@@ -317,13 +317,20 @@ defmodule AutolaunchWeb.LaunchSteps do
   the account's wallets while another one is open (`followed/1`). While the
   review is open the same button reads "Continue Editing" and takes the review
   off the page, which brings the form back; it steps aside while the launch
-  is on its way or made.
+  is on its way or made. Each time the review opens or closes, the form's
+  place comes into view from its top when that top is out of view.
   """
   def review_button(assigns) do
     assigns = assign(assigns, editable: editable?(steps(assigns)))
 
     ~H"""
-    <div class="launch-wallet-open" hidden={@hidden}>
+    <div
+      id={"#{@id}-open"}
+      class="launch-wallet-open"
+      hidden={@hidden}
+      phx-hook=".FormPlace"
+      data-review={!!@review}
+    >
       <p class="launch-wallet-from" hidden={!@signer || !!@review}>
         Launching from
         <Regent.Primitives.address
@@ -346,6 +353,29 @@ defmodule AutolaunchWeb.LaunchSteps do
         {if @review, do: "Continue Editing", else: "Review launch"}
       </Regent.Primitives.button>
     </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".FormPlace">
+      // The form's place shows the open review, or the form while none is
+      // open. When the review opens or closes, the place comes into view from
+      // its top if that top is out of view, so the review, or the form
+      // Continue Editing brings back, reads from its start. A made launch
+      // hides this button as its review closes, and the page stays where the
+      // person is, beside the card that says the launch is made.
+      export default {
+        mounted() {
+          this.open = this.el.hasAttribute("data-review")
+        },
+        updated() {
+          const open = this.el.hasAttribute("data-review")
+          if (open === this.open) return
+          this.open = open
+          if (this.el.hidden) return
+          const place = this.el.closest(".create-page__layout").querySelector(".create-page__main")
+          const {top} = place.getBoundingClientRect()
+          const margin = parseFloat(getComputedStyle(place).scrollMarginBlockStart)
+          if (top < margin || top > window.innerHeight) place.scrollIntoView({block: "start"})
+        }
+      }
+    </script>
     """
   end
 

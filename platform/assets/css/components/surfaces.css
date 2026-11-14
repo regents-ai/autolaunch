@@ -164,10 +164,11 @@
   height: 1.5rem;
 }
 
-/* On a phone a page's main action stays in reach: a bid's wallet button, and
-   Launch (or what it still needs, or Sign in) under the create form, ride at
-   the foot of the screen, above the market ticker, on a band of the card's
-   surface, while their form is on screen. Only the button rides; the notes
+/* On a phone a page's main action stays in reach: a bid's wallet button, or
+   its countdown until bidding opens, and Launch (or what it still needs, or
+   Sign in) under the create form, ride at the foot of the screen, above the
+   market ticker, on a band of the card's surface, while their form is on
+   screen. Only the button rides; the notes
    around it stay where they are, and what it does is unchanged. Their row, and
    the create page's side column that holds it, step aside (`display: contents`)
    so the whole form is the button's track. */
@@ -178,7 +179,7 @@
     display: contents;
   }
 
-  .bid-actions > .token-swap__wallet-step,
+  .bid-actions > :is(.token-swap__wallet-step, .bid-opens),
   .create-page__launch > .create-page__launch-button {
     position: sticky;
     bottom: var(--space-2);
@@ -186,7 +187,7 @@
     box-shadow: 0 0 0 var(--space-2) var(--color-surface);
   }
 
-  body:has(.market-ticker) :is(.bid-actions > .token-swap__wallet-step, .create-page__launch > .create-page__launch-button) {
+  body:has(.market-ticker) :is(.bid-actions > :is(.token-swap__wallet-step, .bid-opens), .create-page__launch > .create-page__launch-button) {
     bottom: calc(var(--market-ticker-height) + var(--space-2));
   }
 }
