@@ -21,7 +21,7 @@ defmodule Autolaunch.NearFunding.Start do
     %{auction_id: auction_id, usdc_amount: usdc_amount, refund_to: refund_to} =
       changeset.arguments
 
-    case Intents.quote(actor, auction_id, usdc_amount, refund_to, false) do
+    case Intents.quote(actor, auction_id, usdc_amount, refund_to) do
       {:ok, terms} ->
         Ash.Changeset.force_change_attributes(
           changeset,

@@ -174,6 +174,10 @@ unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
   config :regent_agents, req_options: [plug: {Req.Test, RegentAgents.Broker}]
 end
 
+# Nothing under test reaches the NEAR Intents 1Click service: a funding case
+# installs Autolaunch.TestNearIntents, and any other call meets an empty stub.
+config :regent_near_intents, req_options: [plug: {Req.Test, RegentNearIntents}]
+
 # The agent journeys' server (scripts/agent-journeys.sh) checks signed agent
 # requests with a sign-in service of its own on this machine.
 if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and System.get_env("AUTOLAUNCH_SIWA_URL") do

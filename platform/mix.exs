@@ -120,6 +120,9 @@ defmodule Autolaunch.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
+      # NEAR Intents 1Click, for funding a bid from NEAR (Autolaunch.NearFunding.Intents).
+      {:regent_near_intents,
+       git: @elixir_utils, ref: "2068be21f542e215ae60f8f51e684e2ae453279b", sparse: "near_intents"},
       {:mdex, "== 0.14.6"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},

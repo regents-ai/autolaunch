@@ -46,13 +46,7 @@ defmodule Autolaunch.NearFunding do
       argument :usdc_amount, :integer, allow_nil?: false, constraints: [min: 1]
 
       run fn %{arguments: arguments}, context ->
-        case Intents.quote(
-               context.actor,
-               arguments.auction_id,
-               arguments.usdc_amount,
-               nil,
-               true
-             ) do
+        case Intents.quote(context.actor, arguments.auction_id, arguments.usdc_amount, nil) do
           {:ok, terms} -> {:ok, Map.drop(terms, [:deposit_address, :deadline])}
           {:error, reason} -> {:error, Ash.Error.Unknown.UnknownError.exception(error: reason)}
         end
