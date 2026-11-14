@@ -3,7 +3,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   The wallet step of a Stocks launch on Base: one review, then the one launch
   transaction. There is no launch fee.
 
-  The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`.
+  The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`:
+  the card stands in the form's place while its review is open, and its
+  buttons and notes show at the page's `side` selector.
   The review is saved (`Autolaunch.Stocks.LaunchOperation`) so the launch it
   carries out is listed for this account: as soon as this page sees it
   confirmed and Base answers for it, otherwise when discovery finds it.
@@ -67,25 +69,30 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     ~H"""
     <section
       id={@id}
-      class="launch-wallet"
+      class="launch-wallet create-page__review rg-panel rg-panel--surface"
       phx-hook="OnchainSteps"
+      hidden={!@review}
     >
-      <LaunchSteps.launched_panel
-        id={"#{@id}-launched"}
-        launched={@launched}
-        chain={explorer_chain()}
-        target={@myself}
-      />
-      <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
+      <.portal id={"#{@id}-side"} target={@side} class="launch-wallet">
+        <LaunchSteps.launched_panel
+          id={"#{@id}-launched"}
+          launched={@launched}
+          chain={explorer_chain()}
+          target={@myself}
+        />
+        <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <LaunchSteps.review_button
-        id={@id}
-        hidden={!!@review or !!@launched}
-        signer={@signer}
-        mismatch={@mismatch}
-        disabled={@launches_paused?}
-        target={@myself}
-      />
+        <LaunchSteps.review_button
+          id={@id}
+          hidden={!!@launched}
+          review={@review}
+          presses={@presses}
+          signer={@signer}
+          mismatch={@mismatch}
+          disabled={@launches_paused?}
+          target={@myself}
+        />
+      </.portal>
 
       <LaunchSteps.review_panel
         id={@id}

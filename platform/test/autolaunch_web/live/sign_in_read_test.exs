@@ -144,9 +144,10 @@ defmodule AutolaunchWeb.SignInReadTest do
     |> element("#launch-token-details")
     |> render_change(%{"launch_draft" => %{"name" => "Kept back"}})
 
+    # A Memestock field saves when the person leaves it.
     stocks
-    |> element("#stocks-token-details")
-    |> render_change(%{"stock_draft" => %{"name" => "Kept back"}})
+    |> element("#stocks-token-details-name")
+    |> render_blur(%{"value" => "Kept back"})
 
     for view <- [revstake, stocks],
         do:

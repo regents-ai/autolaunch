@@ -315,12 +315,16 @@ defmodule AutolaunchWeb.CreateLive do
         id="autolaunch-create"
         class="create-page__layout"
       >
-        <section class="create-page__form rg-panel rg-panel--surface" aria-label="Your Revstake token">
-          <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
-            :if={@active_draft}
-            draft={@active_draft}
-          />
-          <fieldset class="create-page__lock" disabled={@reviewing?}>
+        <%!-- The launch card's review takes the form's place while it is open. --%>
+        <div class="create-page__main">
+          <section
+            class="create-page__form rg-panel rg-panel--surface"
+            aria-label="Your Revstake token"
+          >
+            <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
+              :if={@active_draft}
+              draft={@active_draft}
+            />
             <form
               id="launch-token-details"
               class="create-page__fields"
@@ -436,8 +440,25 @@ defmodule AutolaunchWeb.CreateLive do
                 />
               </form>
             </.fold>
-          </fieldset>
-        </section>
+          </section>
+          <.live_component
+            :if={
+              @active_draft &&
+                (@launched? ||
+                   (((@launch_ready? && !@confirm_treasury?) || @reviewing?) &&
+                      (@has_connections || @connections_waived)))
+            }
+            module={AutolaunchWeb.LaunchWalletComponent}
+            id={"autolaunch-launch-wallet-#{@active_draft.id}"}
+            draft={@active_draft}
+            authenticated
+            launches_paused?={@launches_paused?}
+            listings={@listings}
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            side="#launch-side"
+          />
+        </div>
 
         <aside id="create-preview" class="create-page__side" aria-label="Your launch">
           <.summary_card
@@ -478,22 +499,7 @@ defmodule AutolaunchWeb.CreateLive do
               :if={@launch_ready? && !@confirm_treasury? && !@has_connections && !@connections_waived}
               typed={@no_connections_typed}
             />
-            <.live_component
-              :if={
-                @active_draft &&
-                  (@launched? ||
-                     (((@launch_ready? && !@confirm_treasury?) || @reviewing?) &&
-                        (@has_connections || @connections_waived)))
-              }
-              module={AutolaunchWeb.LaunchWalletComponent}
-              id={"autolaunch-launch-wallet-#{@active_draft.id}"}
-              draft={@active_draft}
-              authenticated
-              launches_paused?={@launches_paused?}
-              listings={@listings}
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
+            <div id="launch-side" class="create-page__launch-card"></div>
             <%= if @current_human_id && !@launch_ready? && !@reviewing? && !@launched? do %>
               <Regent.Primitives.button type="button" class="create-page__launch-button" disabled>
                 Review launch
@@ -542,11 +548,11 @@ defmodule AutolaunchWeb.CreateLive do
     """
   end
 
-  # A launch card opened its review: the details lock so the review always
-  # matches them, and a saved-draft note no longer describes what this page is
-  # doing and comes down. Once the review closes they open again, read anew,
-  # blank when the launch was listed. A launch just made keeps its card, which
-  # says so, until the person dismisses it.
+  # A launch card opened its review, which takes the form's place, so the
+  # review always matches the details; a saved-draft note no longer describes
+  # what this page is doing and comes down. Once the review closes the form
+  # comes back, read anew, blank when the launch was listed. A launch just
+  # made keeps its card, which says so, until the person dismisses it.
   def handle_info({:launch_review, :open}, socket),
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
@@ -577,8 +583,8 @@ defmodule AutolaunchWeb.CreateLive do
 
   # The person's paired agent saved this draft: the form and the list of what
   # the agent filled in show it, and what the person typed that could not be
-  # saved stays in its box with its mark. During a review the details stay
-  # locked; they are read anew when it closes.
+  # saved stays in its box with its mark. During a review the form is put
+  # away; it is read anew when the review closes.
   def handle_info({:agent_draft_saved, "revstake"}, %{assigns: %{reviewing?: true}} = socket),
     do: {:noreply, socket}
 
