@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   @moduledoc """
   The Isolated Exposure to After-hours Stocks HTTP routes against a stubbed Base chain: off,
   every route is an address with nothing at it and nothing advertises them; on,
-  the public reads answer anyone, a series' terms are served as the exact bytes
+  the public reads answer anyone, a week's terms are served as the exact bytes
   its fingerprint names, and a paired agent's steps are built only for a wallet
   of the account it acts for.
   """
@@ -12,18 +12,18 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   alias RegentAgents.Person
 
   @moduletag :capture_log
-  @series ExposureChain.series()
+  @week ExposureChain.week()
   # The page itself is checked in AutolaunchWeb.ExposureLiveTest.
   @routes [
     {:get, "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"},
     {:get, "/assets/js/exposure.css"},
     {:get, "/api/v1/after-hour-stocks"},
-    {:get, "/api/v1/after-hour-stocks/#{ExposureChain.series()}"},
-    {:get, "/api/v1/me/after-hour-stocks/#{ExposureChain.series()}"},
-    {:get, "/api/agent/v1/after-hour-stocks/#{ExposureChain.series()}/holdings"},
-    {:post, "/api/agent/v1/after-hour-stocks/#{ExposureChain.series()}/steps"}
+    {:get, "/api/v1/after-hour-stocks/#{@week}"},
+    {:get, "/api/v1/me/after-hour-stocks/#{@week}"},
+    {:get, "/api/agent/v1/after-hour-stocks/#{@week}/holdings"},
+    {:post, "/api/agent/v1/after-hour-stocks/#{@week}/steps"}
   ]
-  @tools ~w(autolaunch_after_hour_stocks_list autolaunch_after_hour_stocks_series autolaunch_my_after_hour_stocks autolaunch_after_hour_stocks_prepare)
+  @tools ~w(autolaunch_after_hour_stocks_list autolaunch_after_hour_stocks_week autolaunch_my_after_hour_stocks autolaunch_after_hour_stocks_prepare)
 
   # Past the prelaunch gate, which refuses wallet steps until the site opens.
   defp open_site do
@@ -115,43 +115,97 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
 
       assert Enum.all?(@tools, &(&1 in names)) == offered?
       assert Enum.any?(@tools, &(&1 in names)) == offered?
-      assert Map.has_key?(paths, "/api/v1/after-hour-stocks/{series}") == offered?
+      assert Map.has_key?(paths, "/api/v1/after-hour-stocks/{week}") == offered?
       assert guide =~ "Isolated Exposure to After-hours Stocks" == offered?
       assert home =~ ~s(/assets/js/exposure.css) == offered?
     end
   end
 
-  test "the public reads give the series' tokens, values, prices and schedule" do
-    ExposureChain.install()
+  test "the public reads give this week and the weeks that opened, with tokens, values, prices and schedule" do
+    ExposureChain.install(%{
+      weeks: %{
+        (@week - 1) => %{
+          status: 2,
+          end_reason: 1,
+          prices: List.duplicate(250 * ExposureChain.wad(), 11),
+          pools: %{}
+        }
+      }
+    })
 
-    [listed] =
+    list =
+      build_conn() |> get("/api/v1/after-hour-stocks") |> json_response(200) |> Map.fetch!("data")
+
+    assert %{"current_week" => @week, "opening_paused" => false} = list
+    assert list["factory"] == ExposureChain.factory()
+
+    assert [%{"week" => @week, "current" => true}, %{"week" => past, "current" => false}] =
+             list["weeks"]
+
+    assert past == @week - 1
+
+    week =
       build_conn()
-      |> get("/api/v1/after-hour-stocks")
+      |> get("/api/v1/after-hour-stocks/#{@week}")
       |> json_response(200)
       |> Map.fetch!("data")
 
-    series =
+    assert week["series"] == ExposureChain.series()
+
+    assert %{"opened" => true, "status" => "active", "prices_applied" => 2, "prices_waiting" => 0} =
+             week
+
+    assert week["price"] == 256 * ExposureChain.wad()
+    assert week["after_hours"]["ledger"] == 131 * ExposureChain.wad()
+    assert week["market_hours"]["ledger"] == 125 * ExposureChain.wad()
+    assert week["after_hours"]["symbol"] == "AMZNc-AH-1120"
+    assert week["after_hours"]["pool"]["usdc_per_token"] == 2_640_000
+    assert length(week["schedule"]) == 11
+
+    assert [
+             %{
+               "kind" => "close",
+               "price" => 250_000_000_000_000_000_000,
+               "feed_round_id" => close
+             },
+             %{"kind" => "open", "after_hours" => 131_000_000_000_000_000_000}
+           ] = week["prices"]
+
+    # The last week's eleven prices came first; its last close is this week's first.
+    assert close == Bitwise.bsl(ExposureChain.phase(), 64) + 11
+    assert %{"kind" => "close", "index" => 2} = week["next"]
+    assert week["next"]["applies_at"] == week["next"]["at"] + 3_600
+    assert week["terms_url"] =~ "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"
+
+    ended = build_conn() |> get("/api/v1/after-hour-stocks/#{@week - 1}") |> json_response(200)
+    assert %{"status" => "ended", "end_reason" => "maturity", "next" => nil} = ended["data"]
+
+    for {path, status, code} <- [
+          {"/api/v1/after-hour-stocks/#{@week - 2}", 404, "unknown_week"},
+          {"/api/v1/after-hour-stocks/#{@week + 1}", 404, "unknown_week"},
+          {"/api/v1/after-hour-stocks/soon", 422, "invalid_request"}
+        ] do
+      assert build_conn() |> get(path) |> json_response(status) |> code() == code
+    end
+  end
+
+  test "a week not open yet is read at the address it will open at, with the terms it would open with" do
+    ExposureChain.install(%{week: %{opened: false}, paused: true})
+
+    week =
       build_conn()
-      |> get("/api/v1/after-hour-stocks/#{@series}")
+      |> get("/api/v1/after-hour-stocks/#{@week}")
       |> json_response(200)
       |> Map.fetch!("data")
 
-    assert listed["address"] == series["address"]
-    assert series["status"] == "active"
-    assert series["price"] == 256 * ExposureChain.wad()
-    assert series["after_hours"]["ledger"] == 131 * ExposureChain.wad()
-    assert series["market_hours"]["ledger"] == 125 * ExposureChain.wad()
-    assert series["after_hours"]["symbol"] == "AMZNc-AH-1106"
-    assert series["after_hours"]["pool"]["usdc_per_token"] == 2_640_000
-    assert length(series["schedule"]) == 11
-    assert [%{"kind" => "close", "price" => _}, %{"kind" => "open"}] = series["prints"]
-    assert series["next"]["kind"] == "close"
-    assert series["terms_url"] =~ "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"
+    assert %{"opened" => false, "status" => "unopened", "opening_paused" => true, "prices" => []} =
+             week
 
-    unknown =
-      build_conn() |> get("/api/v1/after-hour-stocks/0x1234567890123456789012345678901234567890")
-
-    assert unknown |> json_response(404) |> code() == "unknown_series"
+    assert week["series"] == ExposureChain.series()
+    assert week["after_hours"]["address"] == nil
+    assert week["after_hours"]["symbol"] == "AMZNc-AH-1120"
+    assert week["deposit_cap"] == 40_000_000
+    assert week["deposited"] == 0
   end
 
   # A node that answers, but not as Base or not with a block or a figure.
@@ -183,12 +237,12 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     for fault <- [:wrong_chain, :invalid_block_header, :invalid_chain_response] do
       Application.put_env(:autolaunch, :exposure_odd_node, fault)
 
-      answer = build_conn() |> get("/api/v1/after-hour-stocks/#{@series}")
+      answer = build_conn() |> get("/api/v1/after-hour-stocks/#{@week}")
       assert answer |> json_response(503) |> code() == Atom.to_string(fault)
     end
   end
 
-  test "a series' terms are served as the exact bytes its fingerprint names" do
+  test "a week's terms are served as the exact bytes its fingerprint names" do
     ExposureChain.install()
 
     terms = build_conn() |> get("/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}")
@@ -202,7 +256,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   end
 
   test "every terms file the site serves is named by the keccak256 of its own bytes" do
-    for path <- Path.wildcard(Application.app_dir(:autolaunch, "priv/exposure_terms/*.md")) do
+    for path <- Path.wildcard(Application.app_dir(:autolaunch, "priv/exposure_terms/0x*.md")) do
       hash = "0x" <> Base.encode16(ExKeccak.hash_256(File.read!(path)), case: :lower)
       assert Path.basename(path, ".md") == hash
     end
@@ -214,31 +268,51 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     {wallet, signed} = paired_agent()
 
     steps = fn body ->
-      send_json(signed.(), "POST", "/api/agent/v1/after-hour-stocks/#{@series}/steps", body)
+      send_json(signed.(), "POST", "/api/agent/v1/after-hour-stocks/#{@week}/steps", body)
     end
 
     stranger = "0x" <> String.duplicate("ab", 20)
-    mint = %{"kind" => "mint", "amount" => 1_000_000}
+    deposit = %{"kind" => "deposit", "amount" => 1_000_000}
 
-    assert steps.(Map.put(mint, "signer", stranger)) |> json_response(403) |> code() ==
+    assert steps.(Map.put(deposit, "signer", stranger)) |> json_response(403) |> code() ==
              "wrong_signer"
 
-    prepared = steps.(mint) |> json_response(200)
-    assert %{"kind" => "mint", "signer" => ^wallet, "approved" => false} = prepared["data"]
+    prepared = steps.(deposit) |> json_response(200)
+
+    assert %{"kind" => "deposit", "week" => @week, "signer" => ^wallet, "approved" => false} =
+             prepared["data"]
+
     assert prepared["data"]["blocked"]["code"] == "approve_first"
-    assert Enum.map(prepared["data"]["steps"], & &1["step"]) == ["stock_approval", "mint"]
+    assert Enum.map(prepared["data"]["steps"], & &1["step"]) == ["stock_approval", "deposit"]
 
-    assert steps.(Map.put(mint, "extra", 1)) |> json_response(422) |> code() == "invalid_request"
+    assert Enum.map(prepared["data"]["steps"], & &1["to"]) == [
+             ExposureChain.stock(),
+             ExposureChain.factory()
+           ]
 
-    assert steps.(%{"kind" => "mint", "amount" => "1"}) |> json_response(422) |> code() ==
+    assert steps.(Map.put(deposit, "extra", 1)) |> json_response(422) |> code() ==
              "invalid_request"
+
+    assert steps.(%{"kind" => "deposit", "amount" => "1"}) |> json_response(422) |> code() ==
+             "invalid_request"
+
+    assert steps.(%{"kind" => "mint", "amount" => 1}) |> json_response(422) |> code() ==
+             "invalid_request"
+
+    settle = steps.(%{"kind" => "settle"}) |> json_response(200)
+    assert [%{"step" => "settle", "to" => series}] = settle["data"]["steps"]
+    assert series == ExposureChain.series()
+
+    assert %{"due" => 0, "ends" => false, "next" => %{"kind" => "close", "index" => 2}} =
+             settle["data"]["facts"]
 
     holdings =
       signed.()
-      |> get("/api/agent/v1/after-hour-stocks/#{@series}/holdings")
+      |> get("/api/agent/v1/after-hour-stocks/#{@week}/holdings")
       |> json_response(200)
 
-    assert %{"wallet" => ^wallet, "stock" => 50_000_000, "usdc" => 0} = holdings["data"]
+    assert %{"week" => @week, "wallet" => ^wallet, "stock" => 50_000_000, "usdc" => 0} =
+             holdings["data"]
 
     # Buying a token: the agent names it and the USDC to spend; a token it can't name is refused.
     buy =
@@ -256,5 +330,14 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
            |> json_response(422)
            |> code() ==
              "invalid_request"
+
+    # A week not open yet takes a deposit, and nothing that needs its tokens.
+    ExposureChain.put(%{week: %{opened: false}})
+
+    assert steps.(deposit) |> json_response(200) |> get_in(["data", "steps"]) |> length() == 2
+
+    assert steps.(%{"kind" => "redeem", "overnight" => 1, "session" => 1})
+           |> json_response(409)
+           |> code() == "week_not_open"
   end
 end
