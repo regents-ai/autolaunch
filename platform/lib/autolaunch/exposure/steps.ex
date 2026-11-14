@@ -145,13 +145,24 @@ defmodule Autolaunch.Exposure.Steps do
   # week is past its last close (or ended, or still waiting on its first
   # price), opening a new week is paused, the series holds less stock than it
   # owes, or the amount is past the cap, the wallet's stock or its allowance.
-  defp deposit_blocked(reading, wallet, amount, room) do
+  defp deposit_blocked(reading, wallet, amount, room),
+    do: week_blocked(reading) || amount_blocked(wallet, amount, room)
+
+  defp week_blocked(%{current?: false}), do: :deposits_closed
+
+  defp week_blocked(reading) do
     cond do
-      not reading.current? or reading.now >= List.last(reading.boundaries) -> :deposits_closed
+      reading.now >= List.last(reading.boundaries) -> :deposits_closed
       not reading.opened? and reading.paused -> :paused
       reading.status == :ended -> :ended
       reading.status == :pending -> :not_open
       reading.held < reading.accounted -> :backing_short
+      true -> nil
+    end
+  end
+
+  defp amount_blocked(wallet, amount, room) do
+    cond do
       amount > room -> :above_cap
       wallet.stock < amount -> :not_enough_stock
       wallet.allowance < amount -> :approve_first

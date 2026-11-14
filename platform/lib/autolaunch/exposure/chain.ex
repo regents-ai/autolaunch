@@ -638,17 +638,13 @@ defmodule Autolaunch.Exposure.Chain do
         {to, Call.encode(signature, args)}
       end)
 
-    with {:ok, answers} <- Multicall.read(calls, block, opts) do
-      reads
-      |> Enum.zip(answers)
-      |> each(fn {{key, _to, _signature, _args, type}, answer} ->
-        with {:ok, value} <- decode(answer, type), do: {:ok, {key, value}}
-      end)
-      |> case do
-        {:ok, values} -> {:ok, Map.new(values)}
-        error -> error
-      end
-    end
+    with {:ok, answers} <- Multicall.read(calls, block, opts),
+         {:ok, values} <- reads |> Enum.zip(answers) |> each(&named/1),
+         do: {:ok, Map.new(values)}
+  end
+
+  defp named({{key, _to, _signature, _args, type}, answer}) do
+    with {:ok, value} <- decode(answer, type), do: {:ok, {key, value}}
   end
 
   defp decode(:reverted, {:maybe, _type}), do: {:ok, nil}
