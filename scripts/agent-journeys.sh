@@ -11,7 +11,7 @@
 # The stack, all on this machine and all started here:
 #   - a copy of Base (Anvil, chain 31337) carrying the version 3 contracts as deployed,
 #     with stand-in stock tokens, launches switched on and AMZNc covered calls
-#     and an Isolated Exposure to After-hours Stocks series deployed, on the copy only (test/journeys/support/base_fork.py);
+#     and the Isolated Exposure to After-hours Stocks weekly factory deployed, on the copy only (test/journeys/support/base_fork.py);
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
 #   - Autolaunch in the test environment on its own database, open for launches,
@@ -163,14 +163,14 @@ contracts() {
   done
   mkdir -p "$work"
   git -C "$root" archive HEAD contracts/stocks-v3 contracts/revstake-v3 contracts/stocks-v2 contracts/revstake-v2 \
-    contracts/stocks contracts/covered-calls-v2 contracts/exposure | tar -x -C "$work"
+    contracts/stocks contracts/covered-calls-v2 contracts/exposure-v2 | tar -x -C "$work"
   [ -d "$work/contracts/stocks-v3/lib" ] || (cd "$work/contracts/stocks-v3" && python3 bootstrap-deps.py "$from")
   # Covered calls and exposure build against stocks-v2's forge-std and solady.
   [ -d "$work/contracts/stocks-v2/lib" ] || (cd "$work/contracts/stocks-v2" && python3 bootstrap-deps.py "$from")
   (cd "$work/contracts/stocks-v3" && forge build) >"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/revstake-v3" && forge build) >>"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/covered-calls-v2" && forge build) >>"$out/contracts-build.log" 2>&1
-  (cd "$work/contracts/exposure" && forge build) >>"$out/contracts-build.log" 2>&1
+  (cd "$work/contracts/exposure-v2" && forge build) >>"$out/contracts-build.log" 2>&1
 }
 
 up() {

@@ -126,6 +126,10 @@ closing sitting through to maturity.
 
 ## 6. The site (`Autolaunch.Exposure`, built 29 October 2026)
 
+Version 1's site as it was built. From version 2 the site reads only the weekly factory, and its
+routes and tools name weeks: [exposure-v2-design.md](exposure-v2-design.md) and
+[exposure.md](../lib/autolaunch_web/public_documents/exposure.md).
+
 Behind `AUTOLAUNCH_EXPOSURE=true` with `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT` naming the series the
 site offers (`Autolaunch.Exposure.Deployment`); off, every route below is not found and nothing
 advertises them. Same patterns as Covered Calls. Nothing is stored: every figure is read from the

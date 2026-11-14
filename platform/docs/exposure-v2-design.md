@@ -1,7 +1,8 @@
 # Isolated Exposure to After-hours Stocks, version 2: design note
 
 **Status:** candidate only, 14 November 2026. Nothing deployed, broadcast or signed. Version 1
-(`contracts/exposure`) and the site are unchanged.
+(`contracts/exposure`) is unchanged. The site's move to version 2 is built on branch
+`al/exposure-v2-site-1114`, for release once the factory is deployed.
 **Decision it implements:** Sean, 14 November 2026. Version 2 runs itself: prices record themselves
 from Chainlink when anyone trades or redeems, and each week's series opens with no Safe signature.
 **Contracts:** [`contracts/exposure-v2`](../../contracts/exposure-v2/README.md) (branch
@@ -391,8 +392,9 @@ false-positive rules), run by hand rather than by its helper agents.
   that is first seen.
 - **Wallet estimates.** The gas figures are forge's, taken with each call isolated. Wallet
   estimates were not measured.
-- **The site and agent surfaces** for version 2 (deposit by week, no Record price button, leg names
-  by week) are not built. Version 1's site is unchanged.
+- **The site and agent surfaces** for version 2 (deposit by week, Update prices in place of Record
+  price, weeks in place of series addresses) are built on branch `al/exposure-v2-site-1114` and run
+  end to end on a copy of Base against a stand-in feed, not against Base itself.
 - **No outside review.** The adversarial pass is the author's own.
 
 ## 10. Open questions

@@ -296,9 +296,6 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert steps.(%{"kind" => "deposit", "amount" => "1"}) |> json_response(422) |> code() ==
              "invalid_request"
 
-    assert steps.(%{"kind" => "mint", "amount" => 1}) |> json_response(422) |> code() ==
-             "invalid_request"
-
     settle = steps.(%{"kind" => "settle"}) |> json_response(200)
     assert [%{"step" => "settle", "to" => series}] = settle["data"]["steps"]
     assert series == ExposureChain.series()

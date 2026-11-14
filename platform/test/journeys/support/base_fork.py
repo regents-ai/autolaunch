@@ -5,7 +5,7 @@ on, for the agent journeys (scripts/agent-journeys.sh).
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
   python3 base_fork.py configs RUN CONTRACTS   the site's two Base settings files, from the deployed manifests
   python3 base_fork.py covered-calls RUN CONTRACTS   AMZNc covered calls: the contract and its settings file
-  python3 base_fork.py exposure RUN CONTRACTS   AMZNc Isolated Exposure to After-hours Stocks: a series and its settings file
+  python3 base_fork.py exposure RUN CONTRACTS   AMZNc Isolated Exposure to After-hours Stocks: the weekly factory and its settings file
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
 
 RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v3
@@ -22,9 +22,9 @@ On the copy only:
   change; then CoveredCallsV2 is deployed for AMZNc against Base's USDC and live REGENT staking.
   FORK_BLOCK predates its deploy on Base, so the copy builds it from this checkout's source and
   refuses to go on unless its code hashes to the code recorded from Base in its deployed.json.
-- For Isolated Exposure to After-hours Stocks, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
-  feed's phase) are deployed and one AMZNc series created whose three prices (a close, an open and
-  a close) fall in the copy's next few hours, so a journey can record and apply each one.
+- For Isolated Exposure to After-hours Stocks, ExposureFactoryV2 is deployed for AMZNc's stand-in against a
+  stand-in feed (FormulaFeed, contracts/exposure-v2's test doubles), because nothing reports to the
+  real AMZN feed once the copy's clock moves. No week is open: a journey's first deposit opens one.
 - Whatever of the switch-on Base does not already have is done from the impersonated Safe: each stock
   admitted with its route, the hook's executor named (Anvil's last development account), the
   version 3 Revstake factory and Memestock launchpad open, and the version 2 and version 1 pairs
@@ -242,31 +242,27 @@ class Fork:
         print(f"AMZNc covered calls at {contract}; {self.run / 'covered-calls.json'} written")
 
     def exposure(self):
-        """One AMZNc Isolated Exposure to After-hours Stocks series, its factory and oracle, and the site's
-        settings file. Its prices are a close ten minutes after the copy's time, an open two
-        hours later and a close two hours after that."""
-        package = self.contracts / "exposure"
-        oracle = self.create(package, "src/ChainlinkPrintOracleV2.sol:ChainlinkPrintOracleV2", AMZN_FEED)
-        factory = self.create(package, "src/ExposureFactoryV1.sol:ExposureFactoryV1", DEPLOYER)
+        """The AMZNc Isolated Exposure to After-hours Stocks factory, its stand-in feed and the site's
+        settings file. The feed has a round every half hour from two weeks before the copy's time
+        to four months after it, so every open and close a journey reaches has a price."""
+        package = self.contracts / "exposure-v2"
         now = int(self.rpc("eth_getBlockByNumber", ["latest", False])["timestamp"], 16)
-        first = now + 600
-        boundaries = f"[{first},{first + 7_200},{first + 14_400}]"
-        feed_id = self.call(oracle, "feedId()(bytes32)")
-        terms = (
-            f"({AMZNC},{oracle},{feed_id},{EXPOSURE_TERMS},604800,40000000,{boundaries},"
-            '"AMZNc After-hours journey","AMZNc-AH-J","AMZNc Market-hours journey","AMZNc-MH-J")'
-        )
-        signature = (
-            "createSeries((address,address,bytes32,bytes32,uint64,uint256,uint64[],string,string,string,string))"
-        )
-        series = self.cast("call", "--from", DEPLOYER, factory, signature + "(address)", terms).lower()
-        self.send_as(DEPLOYER, factory, signature, terms)
-        if self.call(factory, "isSeries(address)(bool)", series) != "true":
-            sys.exit("the factory did not list the journey's series")
+        start, step, rounds = now - 14 * 86_400, 1_800, (14 + 120) * 48
+        feed = self.create(package, "test/doubles/Doubles.sol:FormulaFeed", str(start), str(step), "1", str(rounds), "1")
+        template = f'({AMZNC},{feed},2,40000000,{EXPOSURE_TERMS},"AMZNc")'
+        factory = self.create(package, "src/ExposureFactoryV2.sol:ExposureFactoryV2", DEPLOYER, template, "[]", "[]")
+        week = int(self.call(factory, "currentWeek()(uint256)").split()[0])
         usdc = json.loads((self.run / "base-memestock.json").read_text())["addresses"]["usdc"]
-        settings = {"chain_id": CHAIN_ID, "usdc": usdc, "pool_factory": AERODROME_FACTORY, "router": AERODROME_ROUTER, "series": [series]}
+        settings = {
+            "chain_id": CHAIN_ID,
+            "factory": factory,
+            "first_week": week,
+            "usdc": usdc,
+            "pool_factory": AERODROME_FACTORY,
+            "router": AERODROME_ROUTER,
+        }
         (self.run / "exposure.json").write_text(json.dumps(settings, indent=1) + "\n")
-        print(f"AMZNc series {series} (prices at {boundaries}); {self.run / 'exposure.json'} written")
+        print(f"AMZNc factory {factory} (feed {feed}, week {week}); {self.run / 'exposure.json'} written")
 
     def create(self, package, contract, *args):
         """Deploys `contract` from the unlocked deployer and returns its address."""
