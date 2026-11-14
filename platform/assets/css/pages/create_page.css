@@ -66,8 +66,9 @@
 
 /* The form's place. An open launch review takes it, at the form's width, with
    the launch's wallet button at its foot, and the form steps aside until
-   Continue Editing brings it back as it was. */
-.create-page__main { display: grid; gap: var(--space-4); min-width: 0; }
+   Continue Editing brings it back as it was. Brought into view as either
+   opens (`LaunchSteps.review_button/1`), its top stops under the header. */
+.create-page__main { display: grid; gap: var(--space-4); min-width: 0; scroll-margin-block-start: calc(var(--shell-top-end) + var(--space-4)); }
 .create-page__main:has(> .create-page__review:not([hidden])) > .create-page__form { display: none; }
 .launch-wallet.create-page__review { padding: var(--space-4); border-top: 0; animation: create-review-in var(--duration-base) var(--ease-out); }
 @keyframes create-review-in { from { opacity: 0; transform: translateY(4px); } }

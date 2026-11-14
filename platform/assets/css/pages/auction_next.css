@@ -144,11 +144,12 @@
 .auction-next-howto__advice { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .auction-next-howto__advice strong { color: var(--color-fg); }
 
-/* What a bidder can do now, beside the stage rail. */
+/* What a bidder can do now, beside the stage rail. Every label is as tall as
+   the tip beside Pool liquidity, so the boxes match when the row wraps. */
 .auction-next-stage { display: grid; gap: 10px; min-width: 0; }
 .auction-next-facts { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0; }
 .auction-next-facts > div { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--hairline); border-radius: var(--radius); font-size: .75rem; }
-.auction-next-facts dt { display: inline-flex; align-items: center; gap: 4px; color: var(--color-fg-muted); }
+.auction-next-facts dt { display: inline-flex; align-items: center; gap: 4px; min-block-size: 1.5rem; color: var(--color-fg-muted); }
 .auction-next-facts dd { margin: 0; }
 .auction-next-facts > div[data-on="true"] { border-color: color-mix(in srgb, var(--color-success) 50%, var(--hairline)); }
 .auction-next-facts > div[data-on="true"] dd { color: var(--color-success); }
