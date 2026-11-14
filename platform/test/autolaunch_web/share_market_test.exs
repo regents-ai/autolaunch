@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareMarketTest do
   @moduledoc """
   The share picture and video of covered calls and of an Isolated Exposure to After-hours Stocks
-  series: everyone's at the market's own address, a signed-in person's own only
+  week: everyone's at the market's own address, a signed-in person's own only
   at their wallet's address and only once they switch it on in the share window,
   each a real picture and a real video drawn from the chain doubles
   (`Autolaunch.CoveredCallsChain`, `Autolaunch.ExposureChain`).
@@ -214,10 +214,10 @@ defmodule AutolaunchWeb.ShareMarketTest do
     assert build_conn() |> get("/stock/covered-call/AMZNc/share.mp4") |> response(404)
   end
 
-  test "switched off, a series' picture and videos are not there", %{conn: conn} do
-    series = ExposureChain.series()
-    assert conn |> get("/stock/isolated-afters/#{series}/share.png") |> response(404)
-    assert build_conn() |> get("/stock/isolated-afters/#{series}/share.mp4") |> response(404)
+  test "switched off, a week's picture and videos are not there", %{conn: conn} do
+    week = ExposureChain.week()
+    assert conn |> get("/stock/isolated-afters/#{week}/share.png") |> response(404)
+    assert build_conn() |> get("/stock/isolated-afters/#{week}/share.mp4") |> response(404)
   end
 
   describe "Isolated Exposure to After-hours Stocks" do
@@ -228,6 +228,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
 
     test "the feed's rounds since a moment, from the one in force then" do
       now = ExposureChain.now()
+      [close, open | _rest] = ExposureChain.boundaries()
       {:ok, config} = Autolaunch.Exposure.Deployment.current()
       {:ok, block, opts} = Autolaunch.Exposure.Chain.latest(config.lab)
 
@@ -235,8 +236,8 @@ defmodule AutolaunchWeb.ShareMarketTest do
                Autolaunch.PriceFeedHistory.since(ExposureChain.feed(), now - 86_400, block, opts)
 
       assert points == [
-               {now - 3 * 86_400, 25_000_000_000},
-               {now - 7_200, 25_600_000_000},
+               {close - 60, 25_000_000_000},
+               {open - 60, 25_600_000_000},
                {now - 60, 25_700_000_000}
              ]
 
@@ -244,21 +245,24 @@ defmodule AutolaunchWeb.ShareMarketTest do
                Autolaunch.PriceFeedHistory.since(ExposureChain.feed(), now - 3_600, block, opts)
     end
 
-    test "a series that ended before its first price shows the price and that none was applied" do
-      ExposureChain.put(%{status: 2, end_reason: 4, prices: []})
+    test "a week that ended before its first price shows the price and that none was applied" do
+      ExposureChain.put(%{week: %{status: 2, end_reason: 4, prices: []}})
 
-      assert {:ok, story} = MarketStory.read(:exposure, ExposureChain.series(), nil)
+      assert {:ok, story} = MarketStory.read(:exposure, week(), nil)
       assert [{"Price", "$257.00"}, {"Prices", "None applied"}] = story.figures
       assert story.bands == []
       assert story.badge == "Ended"
     end
 
+    test "a week not open yet has no story to tell" do
+      ExposureChain.put(%{week: %{opened: false}})
+      assert {:error, :week_not_open} = MarketStory.read(:exposure, week(), nil)
+    end
+
     test "a wallet's own holdings, only at the address of the account that links it",
          %{conn: conn} do
       account = TestSupport.register_creator!()
-
-      path =
-        "/stock/isolated-afters/#{ExposureChain.series()}/wallets/#{account.wallet_address}/share.mp4"
+      path = "/stock/isolated-afters/#{week()}/wallets/#{account.wallet_address}/share.mp4"
 
       assert_error_sent(404, fn -> get(conn, path) end)
 
@@ -266,15 +270,11 @@ defmodule AutolaunchWeb.ShareMarketTest do
       assert %{"ahead" => 0} = signed_in |> get(path) |> json_response(202)
 
       assert {:ok, %{figures: [{"After-hours", "0 " <> _}, {"Market-hours", "0 " <> _}]}} =
-               MarketStory.read(
-                 :exposure,
-                 ExposureChain.series(),
-                 String.downcase(account.wallet_address)
-               )
+               MarketStory.read(:exposure, week(), String.downcase(account.wallet_address))
     end
 
     test "the story colours the line by window and closes on what each token is worth" do
-      assert {:ok, story} = MarketStory.read(:exposure, ExposureChain.series(), nil)
+      assert {:ok, story} = MarketStory.read(:exposure, week(), nil)
       [close, open | _rest] = ExposureChain.boundaries()
 
       assert [%{from: ^close, to: ^open, window: :after}, %{from: ^open, window: :market} | _rest] =
@@ -291,23 +291,31 @@ defmodule AutolaunchWeb.ShareMarketTest do
       assert story.badge == "Live"
     end
 
-    test "the picture and everyone's video are there for a series the site offers",
+    test "the picture and everyone's video are there for a week that opened, and for no other",
          %{conn: conn} do
-      series = ExposureChain.series()
-      "0x" <> hex = series
-      conn = get(conn, "/stock/isolated-afters/0x#{String.upcase(hex)}/share.png")
+      conn = get(conn, "/stock/isolated-afters/#{week()}/share.png")
       assert <<@png, _rest::binary>> = response(conn, 200)
 
       now = DateTime.utc_now()
-      assert {:waiting, 0} = ShareVideo.fetch_market(:exposure, series, nil, nil, now)
+      assert {:waiting, 0} = ShareVideo.fetch_market(:exposure, week(), nil, nil, now)
       assert %{success: 1} = Oban.drain_queue(queue: :share_videos)
 
       assert {:ok, <<_size::32, "ftyp", _rest::binary>>} =
-               ShareVideo.fetch_market(:exposure, series, nil, nil, now)
+               ShareVideo.fetch_market(:exposure, week(), nil, nil, now)
+
+      for other <- ["#{ExposureChain.week() - 3}", "0#{week()}", "soon"] do
+        assert_error_sent(404, fn ->
+          get(build_conn(), "/stock/isolated-afters/#{other}/share.png")
+        end)
+      end
+
+      ExposureChain.put(%{week: %{opened: false}})
 
       assert_error_sent(404, fn ->
-        get(build_conn(), "/stock/isolated-afters/0x#{String.duplicate("1", 40)}/share.png")
+        get(build_conn(), "/stock/isolated-afters/#{week()}/share.png")
       end)
     end
   end
+
+  defp week, do: Integer.to_string(ExposureChain.week())
 end

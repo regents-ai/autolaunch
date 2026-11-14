@@ -81,8 +81,8 @@ paths:
       operationId: getMyExposure
       summary: Read your Isolated Exposure to After-hours Stocks holding
       description: What the signed-in wallet holds of one week and what it can redeem now, read at the
-        latest block. Only the wallet the person signed in with is read. Needs the site's sign-in in the
-        same browser.
+        latest block; before the week opens, its stock and USDC alone. Only the wallet the person
+        signed in with is read. Needs the site's sign-in in the same browser.
       security:
       - SiteSession: []
       parameters:
@@ -107,8 +107,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '409':
-          description: The account has no wallet to read (wallet_required), or the week has not opened yet
-            (week_not_open)
+          description: The account has no wallet to read (wallet_required)
           content:
             application/json:
               schema:
@@ -155,8 +154,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '409':
-          description: The person's account has no wallet to read (wallet_required), or the week has not
-            opened yet (week_not_open)
+          description: The person's account has no wallet to read (wallet_required)
           content:
             application/json:
               schema:
