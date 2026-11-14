@@ -185,17 +185,21 @@ than a partial success. Cannot bid, trade, settle, stake or claim.
 
 Read canonical Points without earning rewards. Route:
 `GET /api/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
-`earned_yesterday`, `rank`, `activity_being_verified`, `to_do` (`label`, `repeats`,
-`points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`),
+`earned_yesterday`, `rank`, `activity_being_verified`, `to_do` (`site`, `actions`:
+`label`, `repeats`, `points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`),
 `leaderboard` (`rank`, `name`, `wallet`, `ens_name`, `points`, `you`), `entries`
 (`label`, `points`, `status`, `allowance_reduction`, `by`, `agent`, `earned_at`),
 `period_bonuses` (`period`, `points`, `nft_count`, `bonus_percent`) and `more`, the
 same figures the Points page shows. Points amounts are decimal strings, truncated to
 at most two decimal places, and a whole number has no ".00". `rank` is your person's
 place, or null with no Points. `activity_being_verified` is a count of actions still
-being checked, not an amount. `repeats` is `once` or `daily`; `left` is true while
-the action can still earn; `today` is `{"done", "of"}` for an action that counts more
-than once a day. `leaderboard` is the ten highest totals; `name` is null for a person
+being checked, not an amount. `to_do` is one group per site, in order: `site` is
+`Account`, `Autolaunch`, `Keyfleet`, `Patchbay` or `Cloak`, and `actions` lists every
+action of that site, whichever site earns it. `repeats` is `once` or `daily`; a
+one-time action is `done` once earned on any site, a daily one once today's count is
+used; `left` is true while the action can still earn on this site, so an action only
+another site earns is never `left` here; `today` is `{"done", "of"}` for an action
+that counts more than once a day. `leaderboard` is the ten highest totals; `name` is null for a person
 shown by their `wallet`, under its `ens_name` when it has one; `you` marks your
 person's row. `status` is `counted`, `allowance_reached` or `correction`; `by` is
 `agent` or `person`; `agent` is the agent's name, or null. A `note` explains when
@@ -251,3 +255,9 @@ drop the trailing ".00". While the leaderboard is not read, the whole answer is 
 (`account_credits_history`, `POST /api/agent/v1/account/credits/history`) are
 removed, with their entries in the tool list; both addresses answer 404. They leave
 in the same OpenAPI 2.0.0 as the Points change above.
+
+14 November 2026: `account points` answers `to_do` as one group per site, each
+`{"site", "actions"}`, with every action a Points page lists, whichever site earns
+it; each action keeps its fields. A one-time action earned on any site is `done`, and
+`left` is true only for an action this site earns. The OpenAPI document moves to
+4.0.0. No command changes.

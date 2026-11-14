@@ -27,7 +27,7 @@ surface are in `operations/FEATURES.md`.
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane. The regents-cli the site names (`fd325437`) asks `account points` at `/api/agent/v1/account/points`, an address the site no longer answers; it closes when the site names a regents-cli that asks `/api/v1/account/points` |
+| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | `regents autolaunch account points`: the regents-cli the site names (1.10.28, `1608c835`) asks `/api/v1/account/points`. Gap: regents-cli lane, its copy of this site's contract still describes the 3.0.0 answer, a flat `to_do`; it closes when regents-cli takes contract 4.0.0, `to_do` by site |
 
 ## Covered calls
 

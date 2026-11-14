@@ -1,5 +1,5 @@
 {
-  "total": 219,
+  "total": 221,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2049,78 +2049,78 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 66,
+      "line": 68,
       "test_name": "the first render carries the person's figures, open actions and place",
-      "keep_because": "The Points page's first render already shows the person's total, today's points, their place, the actions still open with where to do them, and their own row marked on the leaderboard; nothing waits on a second read.",
+      "keep_because": "The Points page's first render already shows the person's total, today's points, their place, every action by its site, done or still open with where to do it, and their own row marked on the leaderboard; nothing waits on a second read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 204,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 95,
+      "line": 193,
       "test_name": "two people with one name, level on points, each keep their own picture",
       "keep_because": "Names are not unique and many people share a place: two people with one name at one place each keep their own picture on the leaderboard.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 205,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 140,
+      "line": 238,
       "test_name": "a person with no name shows by their wallet, with its copy icon",
       "keep_because": "Another person with no name shows by their public wallet with its copy icon, and nothing else about their account, such as their Privy id, reaches the page.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 206,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 161,
+      "line": 259,
       "test_name": "a paired agent is answered with the page's figures",
-      "keep_because": "A paired agent's Points answer carries the same total, place, open actions and leaderboard the page shows, each leaderboard row with only its place, name or wallet and total.",
+      "keep_because": "A paired agent's Points answer carries the same total, place, actions by site and leaderboard the page shows, each leaderboard row with only its place, name or wallet and total.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 207,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 187,
+      "line": 284,
       "test_name": "a signed-out visitor is asked to sign in and gets nothing from the board",
       "keep_because": "A signed-out visitor is asked to sign in and gets no name, wallet or total from the leaderboard held for signed-in readers.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 208,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 205,
+      "line": 302,
       "test_name": "while the board is not read, the agent's whole answer is unavailable",
       "keep_because": "While the shared leaderboard is not read, a paired agent's Points answer is 503 account_unavailable rather than half an answer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "869c7974aec7e56977ee86da84c0ca66a68dd01e3a79a853a03fdab32e570717"
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     },
     {
       "id": 209,
@@ -2849,6 +2849,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "a637a19e048f21fb2902a496edfcbdbdc45a288376f7942dbe18f25a9c61ce52"
+    },
+    {
+      "id": 266,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 100,
+      "test_name": "every listed action shows under its site, offered only where this site earns it",
+      "keep_because": "Every action a Points page lists shows under its site, whichever site earns it: a one-time action earned on any site is ticked, a daily one shows today's count, and the hidden rule never shows. It fails if an action this site does not earn is offered as left to do here, or if the agent's groups differ from the page's.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+    },
+    {
+      "id": 267,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/points_page_test.exs",
+      "line": 151,
+      "test_name": "a daily action earned here counts today's times against its count and the limit",
+      "keep_because": "A daily action this site earns stays to do until today's count is used or the shared daily limit is spent, and that limit shows on the page and in the agent's answer with what is used of it today.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
     }
   ],
   "legacy_folders_to_remove": [

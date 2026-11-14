@@ -24,30 +24,48 @@ defmodule AutolaunchWeb.PointsEntries do
   def agent_name(_entry, _names), do: nil
 
   @doc """
-  The actions this site lists, in two groups, with what the account has done of
-  each: `[%{title, limit, items}]`. `open?` is false until earning opens; an
-  action then carries no points and nothing is done or left.
+  Every action a Points page lists (`RegentPoints.Rules.groups/0`), under the
+  site it belongs to, whichever site earns it, with what the account has done of
+  each: `[%{title, items}]`, `title` the site's name. A one-time action is done
+  once it was earned on any site; a daily one shows today's times against its
+  daily count. An action is left to do only while earning is open (`open?`) and
+  this site earns it; before earning opens an action carries no points.
   """
   def todo(summary, open?) do
-    rules = Rules.tracked()
-    room = Map.new(summary.allowances, &{&1.scope, &1})
+    room = daily_room(summary)
 
-    [
+    for %{site: site, rules: rules} <- Rules.groups() do
       %{
-        title: "Once",
-        limit: nil,
-        items: for(%{"category" => "milestone"} = rule <- rules, do: once(rule, summary, open?))
-      },
-      %{
-        title: "Daily",
-        limit: limit(room["activity:account"]),
-        items:
-          for(%{"category" => "activity"} = rule <- rules, do: daily(rule, summary, room, open?))
+        title: site,
+        items: Enum.map(rules, &item(&1, Map.fetch!(summary.done, &1["id"]), room, open?))
       }
-    ]
+    end
   end
 
-  @doc "How many listed actions can still earn: today for a daily one."
+  @doc """
+  The one limit every daily action shares, whoever acted and on whichever site:
+  `%{label, used, of, value}`, or nil while no daily action earns on this site.
+  """
+  def daily_limit(summary) do
+    case daily_room(summary) do
+      nil ->
+        nil
+
+      %{limit: limit, remaining: remaining} ->
+        used = whole(limit - remaining)
+
+        %{
+          label: "Daily limit",
+          used: used,
+          of: whole(limit),
+          value: "#{used} of #{whole(limit)} today"
+        }
+    end
+  end
+
+  defp daily_room(summary), do: Enum.find(summary.allowances, &(&1.scope == "activity:account"))
+
+  @doc "How many listed actions can still earn here: today for a daily one."
   def left(groups), do: groups |> Enum.flat_map(& &1.items) |> Enum.count(& &1.left)
 
   @doc """
@@ -102,14 +120,20 @@ defmodule AutolaunchWeb.PointsEntries do
       rank: board.rank,
       activity_being_verified: summary.pending,
       to_do:
-        for group <- todo(summary, open?), item <- group.items do
+        for group <- todo(summary, open?) do
           %{
-            label: item.label,
-            repeats: String.downcase(group.title),
-            points: item.points,
-            done: item.done,
-            left: item.left,
-            today: item[:count]
+            site: group.title,
+            actions:
+              for item <- group.items do
+                %{
+                  label: item.label,
+                  repeats: item.repeats,
+                  points: item.points,
+                  done: item.done,
+                  left: item.left,
+                  today: item[:count]
+                }
+              end
           }
         end,
       daily_limits:
@@ -151,51 +175,45 @@ defmodule AutolaunchWeb.PointsEntries do
 
   defp limit_name("activity:account"), do: "Daily actions, you and your agents"
 
-  defp once(%{"id" => id, "points" => points}, summary, open?) do
-    done = open? and Map.fetch!(summary.done, id) >= 1
+  # The summary's `done` entry for a rule: how many times the account has had it on
+  # any site (ever, or today for a daily one), and whether this site earns it.
+  defp item(
+         %{"id" => id, "category" => "milestone", "points" => points},
+         %{times: times, here: here},
+         _room,
+         open?
+       ) do
+    done = times >= 1
 
     %{
       id: id,
       label: Rules.label(id),
+      repeats: "once",
       points: open? && to_string(points),
       done: done,
-      left: open? and not done
+      left: open? and here and not done
     }
   end
 
-  defp daily(%{"id" => id, "points" => points, "count" => of}, summary, room, open?)
+  # A daily action stays to do here until today's count is used, unless the daily
+  # limit every daily action shares is spent.
+  defp item(
+         %{"id" => id, "category" => "activity", "points" => points, "count" => of},
+         %{times: times, here: here},
+         room,
+         open?
+       )
        when is_integer(of) do
-    item = %{
+    %{
       id: id,
       label: Rules.label(id),
+      repeats: "daily",
       points: open? && to_string(points),
-      done: false,
-      left: false
+      note: "#{times} of #{of} today",
+      done: times >= of,
+      left: open? and here and times < of and match?(%{remaining: r} when r > 0, room)
     }
-
-    case room["activity:account"] do
-      %{remaining: remaining} ->
-        done = Map.fetch!(summary.done, id)
-
-        item
-        |> Map.merge(%{
-          note: "#{done} of #{of} today",
-          done: done >= of,
-          left: done < of and remaining > 0
-        })
-        |> then(&if of > 1, do: Map.put(&1, :count, %{done: done, of: of}), else: &1)
-
-      nil ->
-        item
-    end
-  end
-
-  # The one limit every daily action shares, whoever acted.
-  defp limit(nil), do: nil
-
-  defp limit(%{limit: limit, remaining: remaining}) do
-    used = whole(limit - remaining)
-    %{label: "Limit", used: used, of: whole(limit), value: "#{used} of #{whole(limit)} today"}
+    |> then(&if of > 1, do: Map.put(&1, :count, %{done: times, of: of}), else: &1)
   end
 
   defp whole(micro), do: div(micro, Rules.unit())

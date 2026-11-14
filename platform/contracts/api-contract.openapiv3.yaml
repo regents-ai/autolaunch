@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Autolaunch API
-  version: 3.0.0
+  version: 4.0.0
   description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; the shared profile answers the person signed in on this site, or an agent they paired. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
 paths:
@@ -701,7 +701,7 @@ paths:
     "get":
       "operationId": "account_points"
       "summary": "Read Points"
-      "description": "The account's Points as decimal text, what it earned today and yesterday, its place, the actions still open, daily limits, the leaderboard by name or wallet, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off. Signed; needs a pairing."
+      "description": "The account's Points as decimal text, what it earned today and yesterday, its place, every action by the site it belongs to, done or still open here, daily limits, the leaderboard by name or wallet, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off. Signed; needs a pairing."
       "security":
         -
           "SiwaProof": []
@@ -963,25 +963,33 @@ components:
         note: {type: string}
         to_do:
           type: array
-          description: Every action this site lists, done or not.
+          description: Every action a Points page lists, one group per site in order, whichever site earns it.
           items:
             type: object
             additionalProperties: false
-            required: [label, repeats, points, done, left, today]
+            required: [site, actions]
             properties:
-              label: {type: string}
-              repeats: {type: string, enum: [once, daily]}
-              points: {type: [string, boolean], description: "The whole points the action earns, as text; false until earning opens."}
-              done: {type: boolean}
-              left: {type: boolean, description: "The action can still earn: today, for a daily one."}
-              today:
-                type: [object, "null"]
-                description: For a daily action done more than once a day, how many times today out of how many; else null.
-                additionalProperties: false
-                required: [done, of]
-                properties:
-                  done: {type: integer, minimum: 0}
-                  of: {type: integer, minimum: 1}
+              site: {type: string, enum: [Account, Autolaunch, Keyfleet, Patchbay, Cloak]}
+              actions:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [label, repeats, points, done, left, today]
+                  properties:
+                    label: {type: string}
+                    repeats: {type: string, enum: [once, daily]}
+                    points: {type: [string, boolean], description: "The whole points the action earns, as text; false until earning opens."}
+                    done: {type: boolean, description: "A one-time action earned on any site; a daily one whose count today is used, on any site."}
+                    left: {type: boolean, description: "The action can still earn on this site: today, for a daily one. An action only another site earns is never left here."}
+                    today:
+                      type: [object, "null"]
+                      description: For a daily action done more than once a day, how many times today out of how many; else null.
+                      additionalProperties: false
+                      required: [done, of]
+                      properties:
+                        done: {type: integer, minimum: 0}
+                        of: {type: integer, minimum: 1}
         daily_limits:
           type: array
           items:

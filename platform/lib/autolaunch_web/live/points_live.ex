@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.PointsLive do
   @moduledoc """
-  `/account/points`, the template's page: the total, the actions left, the
-  leaderboard, the NFT bonus added at the end of each 30-day period, and the
-  activity. The pieces are `Regent.Points`; this page supplies their words.
+  `/account/points`, the template's page: the total, every action by the site it
+  belongs to, the leaderboard, the NFT bonus added at the end of each 30-day
+  period, and the activity. The pieces are `Regent.Points`; this page supplies
+  their words.
 
   The person's Points are read during the render (`Read.now`) and again on their
   Points notice. The board is the one every signed-in reader shares
@@ -62,6 +63,7 @@ defmodule AutolaunchWeb.PointsLive do
         summary: summary,
         groups: Enum.map(groups, &linked/1),
         left: if(summary && open?, do: PointsEntries.left(groups)),
+        limit: summary && PointsEntries.daily_limit(summary),
         places: board,
         rows: if(summary, do: Enum.map(summary.entries, &row(&1, summary.agent_names)), else: [])
       )
@@ -99,6 +101,11 @@ defmodule AutolaunchWeb.PointsLive do
         <:main>
           <Regent.Points.todo :if={@summary} id="points-todo" left={@left} groups={@groups}>
             <p :if={!@open?} role="status">Earning hasn’t opened yet.</p>
+            <p :if={@limit} id="points-limit" class="rg-points-todo__limit rg-figure">
+              <span>{@limit.label}</span>
+              <progress max={@limit.of} value={@limit.used}>{@limit.value}</progress>
+              <span>{@limit.value}</span>
+            </p>
           </Regent.Points.todo>
           <Regent.Points.activity
             :if={@summary}
@@ -155,8 +162,9 @@ defmodule AutolaunchWeb.PointsLive do
     """
   end
 
-  # The page where each action is done, for the ones this site has a page for.
-  # Connected accounts are on the Account page here.
+  # The page where each action is done, for the ones this site has a page for,
+  # linked while the action can still earn here. Connected accounts are on the
+  # Account page here.
   @links %{
     "social.x" => "/account",
     "social.github" => "/account",
@@ -167,9 +175,11 @@ defmodule AutolaunchWeb.PointsLive do
   defp linked(group) do
     items =
       Enum.map(group.items, fn item ->
+        href = item.left && @links[item.id]
+
         item
         |> Map.put(:points, item.points && "+" <> item.points)
-        |> then(&if href = @links[item.id], do: Map.put(&1, :href, href), else: &1)
+        |> then(&if href, do: Map.put(&1, :href, href), else: &1)
       end)
 
     %{group | items: items}

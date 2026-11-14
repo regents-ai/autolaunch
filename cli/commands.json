@@ -580,7 +580,7 @@
     },
     {
       "command": "account points",
-      "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: the CLI signs it with your own agent key.",
+      "description": "Read your person's Points, what they earned today and yesterday, their place, every action by the site it belongs to, done or still open here, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: the CLI signs it with your own agent key.",
       "operation_id": "account_points",
       "method": "GET",
       "path": "/api/v1/account/points",

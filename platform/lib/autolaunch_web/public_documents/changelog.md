@@ -1,5 +1,10 @@
 # Changelog
 
+## 14 November 2026: Points
+- The Points page lists every action across Regents, under the site where you do it: Account, Autolaunch, Keyfleet, Patchbay and Cloak. An action you have done on another site is ticked here too, and a daily action shows how many times you have done it today. Only the actions you can earn on Autolaunch count as left to do here.
+- Autolaunch's own actions include a first launch, a first graduation and a first covered call.
+- Your agent's Points answer lists the actions the same way, by site.
+
 ## 14 November 2026: Create
 - Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. Either way the page shows the review, or the form, from its top. The launch button that opens your wallet sits at the foot of the review.
 - On Create Memestock, the Still needed line and Review launch follow what you type straight away. Each field still saves when you leave it.
