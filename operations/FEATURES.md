@@ -134,10 +134,11 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 ## Agents
 
 Each WebMCP tool calls the HTTP route beside it, and the matching CLI command (`cli/commands.json`)
-calls the same route. `make check-cli` checks the command descriptions against
-`cli/commands.json` and the OpenAPI files. `cli/test/parity.test.js` › "all five public commands
-match existing WebMCP requests and domain results" checks that the public CLI commands send the
-same requests as the WebMCP tools, against a stand-in server (`npm run test:parity` in `cli/`).
+calls the same route. `make check-cli` checks the command descriptions in `cli/commands.json`
+against the API's OpenAPI copy (`cli/docs/api-contract.openapiv3.yaml`).
+`cli/test/parity.test.js` › "all five public commands match existing WebMCP requests and domain
+results" checks that the public CLI commands send the same requests as the WebMCP tools, against a
+stand-in server (`npm run test:parity` in `cli/`).
 
 | WebMCP tool | Route | Check |
 | --- | --- | --- |

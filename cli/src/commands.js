@@ -1,4 +1,3 @@
-import {profileTarget} from "./profile.js";
 import {UsageError, pathSegment, query, required} from "./cli.js";
 
 // The website's discovery options, with the same names and meanings as the API and WebMCP.
@@ -22,15 +21,6 @@ function listQuery(path, values, flags) {
 
 // The product's OpenAPI owns domain schemas; this table owns CLI dispatch and discovery.
 export const commands = [
-  {command: "profile get", operation_id: "profile_get", webmcp: "profile_get", method: "GET", path: "/api/v1/profile", flags: [],
-    description: "Get your private shared profile using paired Privy proof piped on stdin.", authority: "privy-proof-pair", effect: "read",
-    request: (_args, values) => profileTarget("get", values)},
-  {command: "profile sync", operation_id: "profile_sync", webmcp: "profile_sync", method: "POST", path: "/api/v1/profile/sync", flags: [],
-    description: "Sync your private shared profile using paired Privy proof piped on stdin.", authority: "privy-proof-pair", effect: "write",
-    request: (_args, values) => profileTarget("sync", values)},
-  {command: "profile update", operation_id: "profile_update", webmcp: "profile_update", method: "PATCH", path: "/api/v1/profile", flags: ["display-name", "wallet-address", "clear-wallet"],
-    description: "Update your private shared profile using paired Privy proof piped on stdin.", authority: "privy-proof-pair", effect: "write",
-    request: (_args, values) => profileTarget("update", values)},
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
     method: "GET", path: "/api/v1/auctions", flags: ["q", "state", "sort", "chain", "kind", "limit", "after"], switches: verified,
@@ -83,7 +73,6 @@ export const commands = [
 ];
 
 export const notes = [
-  "Private profile commands read paired Privy proof from stdin, ignore public origin environment variables, and never sign or pay. See docs/private-profile.md.",
   "API results are JSON {ok, status, body}; body preserves the complete domain response. Errors exit nonzero.",
   "Public reads need no wallet or login. AUTOLAUNCH_BASE_URL or --base-url selects the origin (default https://autolaunch.sh).",
   "Launch, chat, private portfolio and on-chain administration are not implemented by this package.",

@@ -80,13 +80,9 @@ To try a local server, pass its loopback origin: `autolaunch auctions list --bas
 
 See the [product directory](https://github.com/regents-ai/autolaunch#related-products) for the other Regent CLIs and sites.
 
-## Shared personal profile
-
-Private `profile get`, `profile sync`, and `profile update` use the owner's access and identity tokens from an approved Privy credential provider. See [the private profile contract](docs/private-profile.md). These standalone CLI commands do not obtain a session or grant payment authority. Profile operations are not native browser tools or unified CLI paired-agent commands.
-
 ## Signed agent access
 
-`commands.json` contains typed descriptions for the unified Regents CLI: seven public reads that need no sign-in, and signed commands that take private JSON on stdin. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.
+`commands.json` contains typed descriptions for the unified Regents CLI: seven public reads that need no sign-in, and signed commands that take private JSON on stdin. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing.
 
 The unified command names are `regents autolaunch drafts revstake show`, `regents autolaunch drafts revstake save`, `regents autolaunch drafts memestock show`, and `regents autolaunch drafts memestock save`. Saves take metadata as private JSON stdin and remain refused while prelaunch read-only mode is enabled. See [COMMANDS.md](COMMANDS.md) for every signed command, its route, inputs, answers and refusals.
 
