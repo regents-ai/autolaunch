@@ -11,15 +11,18 @@ defmodule Autolaunch.Funding do
   use Ash.Domain, otp_app: :autolaunch
 
   # An argument that does not cast or fails its constraint is refused by the
-  # same atom a refusal from the service or the account would be.
+  # same atom a refusal from the service or the account would be; a funding id
+  # that names nothing is not found.
   @argument_reasons %{
     auction_id: :unknown_auction,
     usdc_amount: :invalid_amount,
-    refund_to: :invalid_refund_account
+    refund_to: :invalid_refund_account,
+    id: :not_found
   }
 
   @doc "The refusal an operation answered with, as the atom its surfaces turn into words."
   def reason(%{errors: [%{error: reason} | _]}) when is_atom(reason), do: reason
+  def reason(%{errors: [%Ash.Error.Query.NotFound{} | _]}), do: :not_found
 
   def reason(%{errors: [%{field: field} | _]}) when is_map_key(@argument_reasons, field),
     do: Map.fetch!(@argument_reasons, field)

@@ -241,6 +241,9 @@ defmodule AutolaunchWeb.Router do
     get "/drafts/:kind", AgentAccountController, :draft
     patch "/drafts/:kind", AgentAccountController, :save_draft
     get "/positions", AgentAccountController, :positions
+    post "/auctions/:id/near-funding/quote", NearFundingAgentController, :quote_funding
+    post "/auctions/:id/near-funding", NearFundingAgentController, :start
+    get "/near-fundings/:id", NearFundingAgentController, :show
   end
 
   # A paired agent's read of its person's Points, at the address every Regent
