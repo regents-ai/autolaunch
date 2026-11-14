@@ -1,40 +1,33 @@
 defmodule Autolaunch.NearFunding.Refresh do
   @moduledoc """
-  Reads a funding's swap status from the 1Click service once and stores it; a
-  change of state is broadcast on `"near_funding:<id>"` as
-  `{:near_funding, funding}`.
+  The `:refresh` action of `Autolaunch.NearFunding`: reads a funding's swap
+  status from the 1Click service once, outside any database transaction, then
+  stores it (`:store_status`, which broadcasts a change of state). The funding
+  is given as itself or by its id, read as the caller, so only its own account
+  or the system refreshes it.
   """
-  use Ash.Resource.Change
 
+  alias Autolaunch.NearFunding
   alias Autolaunch.NearFunding.Intents
 
-  @impl true
-  def change(changeset, _opts, _context) do
-    changeset
-    |> Ash.Changeset.before_action(&status/1)
-    |> Ash.Changeset.after_action(fn changeset, funding ->
-      if Ash.Changeset.changing_attribute?(changeset, :state) do
-        Phoenix.PubSub.broadcast(
-          Autolaunch.PubSub,
-          "near_funding:#{funding.id}",
-          {:near_funding, funding}
-        )
-      end
-
-      {:ok, funding}
-    end)
+  @spec run(Ash.Resource.record() | String.t(), keyword()) ::
+          {:ok, Ash.Resource.record()} | {:error, term()}
+  def run(funding, opts) do
+    with {:ok, funding} <- funding(funding, opts),
+         {:ok, status} <- status(funding) do
+      funding
+      |> Ash.Changeset.for_update(:store_status, status, opts)
+      |> Ash.update()
+    end
   end
 
-  defp status(changeset) do
-    case Intents.status(changeset.data.deposit_address) do
-      {:ok, status} ->
-        Ash.Changeset.force_change_attributes(changeset, status)
+  defp funding(%NearFunding{} = funding, _opts), do: {:ok, funding}
+  defp funding(id, opts), do: Autolaunch.Funding.near_funding(id, opts)
 
-      {:error, reason} ->
-        Ash.Changeset.add_error(
-          changeset,
-          Ash.Error.Unknown.UnknownError.exception(error: reason)
-        )
+  defp status(funding) do
+    case Intents.status(funding.deposit_address) do
+      {:ok, status} -> {:ok, status}
+      {:error, reason} -> {:error, Ash.Error.Unknown.UnknownError.exception(error: reason)}
     end
   end
 end

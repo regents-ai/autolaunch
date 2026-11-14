@@ -36,7 +36,7 @@ defmodule Autolaunch.Funding do
       define :start_near_funding, action: :start, args: [:auction_id, :usdc_amount, :refund_to]
       define :near_funding, action: :read, get_by: [:id]
       define :near_fundings_for, action: :for_auction, args: [:auction_id]
-      define :refresh_near_funding, action: :refresh
+      define :refresh_near_funding, action: :refresh, args: [:funding]
     end
   end
 end

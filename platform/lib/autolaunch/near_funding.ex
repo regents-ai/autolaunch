@@ -20,7 +20,7 @@ defmodule Autolaunch.NearFunding do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.NearFunding.Intents
+  alias Autolaunch.NearFunding.{Intents, Refresh}
 
   # A NEAR account name: 2 to 64 lowercase letters, digits and single `-`, `_`
   # or `.` between them (NEAR's own rule), which also covers an implicit
@@ -72,22 +72,50 @@ defmodule Autolaunch.NearFunding do
       prepare build(sort: [inserted_at: :desc])
     end
 
-    # Reads the swap's status from the service once and stores it, so no
-    # database transaction is held open around the call.
-    update :refresh do
-      transaction? false
+    # Reads the swap's status from the service once and stores it. `funding` is
+    # the funding or its id.
+    action :refresh, :struct do
+      constraints instance_of: __MODULE__
+      argument :funding, :term, allow_nil?: false
+
+      run fn input, context ->
+        Refresh.run(input.arguments.funding, Ash.Context.to_opts(context))
+      end
+    end
+
+    # A status read from the service; a change of state is broadcast once
+    # stored.
+    update :store_status do
+      accept [:state, :origin_tx, :destination_tx]
       require_atomic? false
-      change Autolaunch.NearFunding.Refresh
+
+      change after_transaction(fn
+               changeset, {:ok, funding}, _context ->
+                 if Ash.Changeset.changing_attribute?(changeset, :state) do
+                   Phoenix.PubSub.broadcast(
+                     Autolaunch.PubSub,
+                     "near_funding:#{funding.id}",
+                     {:near_funding, funding}
+                   )
+                 end
+
+                 {:ok, funding}
+
+               _changeset, error, _context ->
+                 error
+             end)
     end
   end
 
   policies do
-    policy action([:quote, :start]) do
+    policy action([:quote, :start, :refresh]) do
       authorize_if actor_present()
     end
 
+    # The system (`Autolaunch.Actors.System`, the status job) or the funding's
+    # own account.
     policy action_type([:read, :update]) do
-      authorize_if Autolaunch.Checks.SystemActor
+      authorize_if actor_attribute_equals(:role, :system)
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
   end

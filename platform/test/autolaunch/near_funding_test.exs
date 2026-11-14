@@ -127,7 +127,8 @@ defmodule Autolaunch.NearFundingTest do
 
     assert {:error, %Ash.Error.Invalid{}} = Funding.near_funding(funding.id, actor: stranger)
     assert {:ok, []} = Funding.near_fundings_for(auction.id, actor: stranger)
-    assert {:error, _forbidden} = Funding.refresh_near_funding(funding.id, actor: stranger)
+    assert {:error, _not_found} = Funding.refresh_near_funding(funding.id, actor: stranger)
+    assert {:error, _forbidden} = Funding.refresh_near_funding(funding, actor: stranger)
 
     agent = %Agent{
       wallet_address: "0x" <> String.duplicate("a", 40),
@@ -181,15 +182,12 @@ defmodule Autolaunch.NearFundingTest do
     assert {:ok, %{state: :refunded}} = Funding.refresh_near_funding(funding, actor: actor)
     assert :ok = perform_job(NearFunding.Watch, %{id: funding.id})
 
-    {:ok, late} = Funding.start_near_funding(auction.id, @usdc, "sean.near", actor: actor)
-
-    late
-    |> Ecto.Changeset.change(deadline: DateTime.add(DateTime.utc_now(:second), -16, :minute))
-    |> Repo.update!()
-
     TestNearIntents.put(%{
+      deadline_in: -16 * 60,
       status: %{state: :pending_deposit, origin_tx: nil, destination_tx: nil}
     })
+
+    {:ok, late} = Funding.start_near_funding(auction.id, @usdc, "sean.near", actor: actor)
 
     assert :ok = perform_job(NearFunding.Watch, %{id: late.id})
   end

@@ -3,7 +3,8 @@ defmodule Autolaunch.TestNearIntents do
   A stand-in for `RegentNearIntents`, answering in its shapes from the 1Click
   service's own answers (`test/support/fixtures/near_intents`): its token list,
   and the dry quote of 14 Nov 2026 for 5 USDC on Base, with a deposit address
-  added when the quote is not dry and a deadline an hour from now. A swap's status is what the test
+  added when the quote is not dry and a deadline `deadline_in` seconds from
+  now, an hour unless the test says otherwise. A swap's status is what the test
   scripts. Every quote asked for is recorded, newest first. It is never
   installed outside a test.
   """
@@ -25,7 +26,11 @@ defmodule Autolaunch.TestNearIntents do
       :autolaunch,
       @key,
       Map.merge(
-        %{asked: [], status: %{state: :pending_deposit, origin_tx: nil, destination_tx: nil}},
+        %{
+          asked: [],
+          deadline_in: 3600,
+          status: %{state: :pending_deposit, origin_tx: nil, destination_tx: nil}
+        },
         state
       )
     )
@@ -85,7 +90,10 @@ defmodule Autolaunch.TestNearIntents do
            amount_out: String.to_integer(quote["amountOut"]),
            amount_out_formatted: quote["amountOutFormatted"],
            time_estimate_s: quote["timeEstimate"],
-           deadline: DateTime.utc_now(:second) |> DateTime.add(1, :hour) |> DateTime.to_iso8601(),
+           deadline:
+             DateTime.utc_now(:second)
+             |> DateTime.add(state().deadline_in)
+             |> DateTime.to_iso8601(),
            deposit_address: if(dry, do: nil, else: @deposit_address),
            raw: @quote
          }}
