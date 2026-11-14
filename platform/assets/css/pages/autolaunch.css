@@ -41,6 +41,10 @@
 :where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl > div { min-width: 0; padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
 :where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dt { color: var(--rg-local-ink, var(--color-fg-muted)); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
 :where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+/* The launch review's heading sits over its facts at the review's own gap: no
+   browser margin around it, and the list under it drops its top margin. */
+.launch-wallet-review > h4 { margin: 0; }
+.launch-wallet-review > h4 + dl { margin-block-start: 0; }
 /* The launch review reads label above value; the value carries the weight. */
 .launch-wallet-review dt { font-size: .6875rem; }
 .launch-wallet-review dd { margin-top: var(--space-1); font-size: 1.0625rem; color: var(--color-fg); line-height: 1.35; }

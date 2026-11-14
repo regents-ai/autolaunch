@@ -14,6 +14,9 @@
 - That review now fades in as it rises into place over its form, as the launch review on the create pages does, instead of snapping in. Its wallet button works from the moment it appears, and with reduced motion turned on it only fades in.
 - When your bid lands, "Your bid on … is placed." now arrives with a green tick that draws itself in.
 
+## 14 November 2026: Create pages
+- In the launch review, Review this launch now sits at the top of the card with the token's details just under it, instead of above a wide empty gap.
+
 ## 14 November 2026: Create
 - Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. Either way the page shows the review, or the form, from its top. The launch button that opens your wallet sits at the foot of the review.
 - On Create Memestock, the Still needed line and Review launch follow what you type straight away. Each field still saves when you leave it.
