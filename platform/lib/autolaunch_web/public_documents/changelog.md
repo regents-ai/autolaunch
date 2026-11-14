@@ -1,5 +1,9 @@
 # Changelog
 
+## 14 November 2026: Create
+- Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. The launch button that opens your wallet sits at the foot of the review.
+- On Create Memestock, the Still needed line and Review launch follow what you type straight away. Each field still saves when you leave it.
+
 ## 14 November 2026: Account
 - The public name on your Account page now saves. Save keeps it with your sign-in on this site, and the card at the top of the page shows it straight away.
 - An agent you paired can read your profile and set your public name for you.

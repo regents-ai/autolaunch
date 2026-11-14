@@ -87,57 +87,64 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     ~H"""
     <section
       id={@id}
-      class="launch-wallet"
+      class="launch-wallet create-page__review rg-panel rg-panel--surface"
       phx-hook="OnchainSteps"
+      hidden={!@review}
     >
-      <LaunchSteps.launched_panel
-        id={"#{@id}-launched"}
-        launched={@launched}
-        chain={explorer_chain(@local_lab?)}
-        target={@myself}
-      />
-      <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
+      <.portal id={"#{@id}-side"} target={@side} class="launch-wallet">
+        <LaunchSteps.launched_panel
+          id={"#{@id}-launched"}
+          launched={@launched}
+          chain={explorer_chain(@local_lab?)}
+          target={@myself}
+        />
+        <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <section
-        :if={!@local_lab?}
-        id={"#{@id}-treasury"}
-        class="treasury-verification"
-        aria-label="Treasury verification"
-      >
-        <h4>Verify immutable treasury</h4>
-        <p>
-          <Regent.Primitives.address
-            id={"#{@id}-treasury-address"}
-            address={@draft.treasury}
-            chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
-          />
-        </p>
-        <p :if={verified?(@treasury_report)} data-treasury-verification-state="verified">
-          Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
-        </p>
-        <p :if={!verified?(@treasury_report)} data-treasury-verification-state="unverified">
-          Unverified. No launch can be prepared on the official Safe path.
-        </p>
-        <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
-          <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
-          <label>REGENT receipt transaction <input name="regent" autocomplete="off" /></label>
-          <label>Outbound Safe execution transaction <input name="outbound" autocomplete="off" /></label>
-          <Regent.Primitives.button type="submit">Verify deployed address on Base</Regent.Primitives.button>
-        </form>
-      </section>
+        <section
+          :if={!@local_lab?}
+          id={"#{@id}-treasury"}
+          class="treasury-verification"
+          aria-label="Treasury verification"
+        >
+          <h4>Verify immutable treasury</h4>
+          <p>
+            <Regent.Primitives.address
+              id={"#{@id}-treasury-address"}
+              address={@draft.treasury}
+              chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+            />
+          </p>
+          <p :if={verified?(@treasury_report)} data-treasury-verification-state="verified">
+            Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
+          </p>
+          <p :if={!verified?(@treasury_report)} data-treasury-verification-state="unverified">
+            Unverified. No launch can be prepared on the official Safe path.
+          </p>
+          <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
+            <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
+            <label>REGENT receipt transaction <input name="regent" autocomplete="off" /></label>
+            <label>
+              Outbound Safe execution transaction <input name="outbound" autocomplete="off" />
+            </label>
+            <Regent.Primitives.button type="submit">Verify deployed address on Base</Regent.Primitives.button>
+          </form>
+        </section>
 
-      <p :if={!@authenticated} class="launch-wallet-empty">
-        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
-      </p>
+        <p :if={!@authenticated} class="launch-wallet-empty">
+          <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
+        </p>
 
-      <LaunchSteps.review_button
-        id={@id}
-        hidden={!(@authenticated && !@review && !@launched)}
-        signer={@signer}
-        mismatch={@mismatch}
-        disabled={@launches_paused?}
-        target={@myself}
-      />
+        <LaunchSteps.review_button
+          id={@id}
+          hidden={!@authenticated or !!@launched}
+          review={@review}
+          presses={@presses}
+          signer={@signer}
+          mismatch={@mismatch}
+          disabled={@launches_paused?}
+          target={@myself}
+        />
+      </.portal>
 
       <LaunchSteps.review_panel
         id={@id}
