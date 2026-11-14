@@ -129,6 +129,20 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 /* A row the chosen currency does not use keeps its room, so a switch never changes the form's height. */
 .bid-box--unused { visibility: hidden; }
 
+/* Fund with NEAR: beside a USDC bid the wallet can't cover yet. */
+.near-fund { gap: 10px; }
+.near-fund__title { margin: 0; font-size: .9375rem; font-weight: 500; }
+.near-fund__rows, .near-fund__form, .near-fund__deposit { display: grid; gap: 6px; min-width: 0; }
+.near-fund__input { width: 100%; min-width: 0; min-height: 2.75rem; padding: 0 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: 1rem; }
+.near-fund__input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.near-fund__address { display: flex; align-items: flex-start; gap: 8px; min-width: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: .875rem; overflow-wrap: anywhere; }
+.near-fund__address > span:first-child { min-width: 0; }
+.near-fund__status { display: inline-flex; align-items: center; gap: 10px; color: var(--color-fg); }
+.near-fund__check { padding: 0; border: 0; background: none; color: var(--color-fg-muted); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) { .near-fund__check:hover { color: var(--color-fg); } }
+.near-fund__check:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+@media (hover: none), (pointer: coarse) { .near-fund__check { min-block-size: 44px; } }
+
 /* The currency paid in: a chip, with the switch between two above it. */
 .bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-size: .9375rem; white-space: nowrap; }
 .bid-switch { display: flex; margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: var(--radius); }

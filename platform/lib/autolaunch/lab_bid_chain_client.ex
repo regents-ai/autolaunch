@@ -13,6 +13,9 @@ defmodule Autolaunch.LabBidChainClient do
   (`Autolaunch.Chain.CcaLists.tick_hint/4`).
   There is no partial answer: a review is derived from one snapshot or from none.
 
+  `eth_balance/1` answers whether a wallet can pay a bid's network fee, after
+  NEAR funding has brought its USDC.
+
   A test answers both callbacks itself, installed under
   `:autolaunch_bid_chain_client` (`Autolaunch.BidActions`).
   """
@@ -179,6 +182,19 @@ defmodule Autolaunch.LabBidChainClient do
       false -> {:error, :stock_not_admitted}
       :error -> {:error, :invalid_chain_response}
       {:error, :stocks_deployment_missing} -> {:error, :usdc_bids_unavailable}
+      {:error, reason} -> {:error, reason}
+      _other -> {:error, :invalid_chain_response}
+    end
+  end
+
+  @doc "The wallet's ETH on Base, in wei: what pays a bid's network fee."
+  def eth_balance(wallet) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, "0x" <> hex} <-
+           Rpc.request("eth_getBalance", [wallet, "latest"], LabRpc.opts(config)),
+         {wei, ""} <- Integer.parse(hex, 16) do
+      {:ok, wei}
+    else
       {:error, reason} -> {:error, reason}
       _other -> {:error, :invalid_chain_response}
     end

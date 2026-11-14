@@ -22,10 +22,20 @@ defmodule AutolaunchWeb.BidComponent do
   import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
 
   alias Autolaunch.{AuctionBook, BidActions, Lab, LabProjection, Limits}
+  alias Autolaunch.Stocks.Amounts
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
   alias AutolaunchWeb.Live.Session
-  alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
+
+  alias AutolaunchWeb.{
+    NearFundingComponent,
+    OnchainSteps,
+    Paths,
+    ShareCard,
+    TokenDisplay,
+    UsdValue
+  }
+
   alias Phoenix.LiveView.AsyncResult
   alias RegentChain.{Presses, Review}
 
@@ -96,6 +106,16 @@ defmodule AutolaunchWeb.BidComponent do
       %{id: ^review_id} -> {:ok, rebuilt(socket, nil)}
       _other -> {:ok, socket}
     end
+  end
+
+  # NEAR funding brought this wallet's USDC (`NearFundingComponent`): Base is
+  # read again, and the bid's steps are built from the auction as it is now.
+  def update(%{near_funded: true}, %{assigns: %{review: review}} = socket) do
+    socket = read_balance(socket)
+
+    if review,
+      do: {:ok, rebuilt(socket, nil)},
+      else: {:ok, socket |> assign(prepared_for: nil, notice: nil) |> prepare_when_ready()}
   end
 
   def update(assigns, socket) do
@@ -245,6 +265,17 @@ defmodule AutolaunchWeb.BidComponent do
             >
               {@notice}
             </p>
+            <.live_component
+              :if={@usdc_bids?}
+              module={NearFundingComponent}
+              id={"#{@id}-near"}
+              bid_id={@id}
+              auction_id={@auction.id}
+              wallet={@wallet}
+              short={usdc_short(@form, @balances)}
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
             <.summary
               prepared={@shown_prepared}
               rate={@rate}
@@ -841,4 +872,16 @@ defmodule AutolaunchWeb.BidComponent do
   # The wallet's balance of the currency the budget is paid in, in whole units.
   defp balance(balances, currency) when is_map(balances), do: balances[currency]
   defp balance(_unread, _currency), do: nil
+
+  # The USDC a USDC bid needs beyond what Base last read in the wallet, in
+  # base units, or nil while it is covered, unread or not a USDC bid.
+  defp usdc_short(%{pay_with: "USDC", amount: amount}, %{"USDC" => held}) do
+    with {:ok, wanted} <- Amounts.parse_units(amount, 6),
+         {:ok, held} <- Amounts.parse_units(held, 6),
+         true <- wanted > held,
+         do: wanted - held,
+         else: (_covered -> nil)
+  end
+
+  defp usdc_short(_form, _balances), do: nil
 end
