@@ -171,7 +171,8 @@ config :autolaunch,
     Autolaunch,
     Autolaunch.CoveredCalls,
     Autolaunch.Exposure,
-    Autolaunch.Agents
+    Autolaunch.Agents,
+    Autolaunch.Funding
   ],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
