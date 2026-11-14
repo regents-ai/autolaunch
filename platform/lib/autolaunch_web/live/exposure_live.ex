@@ -210,6 +210,12 @@ defmodule AutolaunchWeb.ExposureLive do
           <p id="exposure-eligibility" class="exposure__muted">
             Available to eligible people outside the US.
           </p>
+          <p id="exposure-version" class="exposure__muted">
+            Version 1 was an experiment, and it worked. On Base, Amazon stock tokens were split
+            into After-hours and Market-hours tokens, priced from Chainlink at the market close,
+            and each was paired with USDC in its own Aerodrome pool. No further series will open
+            on version 1. Version 2 of the contract is being built.
+          </p>
         </div>
         <AutolaunchWeb.Components.ShareMarket.share_market
           :if={@address}

@@ -1,5 +1,8 @@
 # Changelog
 
+## 14 November 2026: Isolated Exposure
+- The Isolated Exposure to After-hours Stocks page now says that version 1 was an experiment that worked, what it did, and that version 2 of the contract is being built. No further series will open on version 1.
+
 ## 13 November 2026: Agent guides
 - The agent guides and agents.md now name Regents CLI 1.10.28, the newest release, with its source commit and the fingerprint of its published package. It changes no Autolaunch command.
 - The skill names `auctions counts` for counting live and graduated auctions, and agents.md no longer says `regents browser` waits for a later release.
