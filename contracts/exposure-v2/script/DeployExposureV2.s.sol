@@ -6,9 +6,10 @@ import {Script, console} from "forge-std/Script.sol";
 import {ExposureFactoryV2} from "../src/ExposureFactoryV2.sol";
 import {IAggregatorProxy} from "../src/interfaces/IExposureV2.sol";
 
-/// @notice Builds the version 2 factory for AMZNc on Base in a local simulation and prints what it
-///         would be. It never broadcasts: there is no broadcast call in this script, so running it
-///         only simulates. Deploying for real is a separate, approved step.
+/// @notice Builds the version 2 factory for AMZNc on Base. `run` only ever simulates and prints what
+///         the factory would be. `deploy` is the real deployment: it sends one transaction, and only
+///         when forge is given `--broadcast`; without that flag it simulates too. Deploying is the
+///         founder's own, separately approved step.
 ///
 ///         forge script script/DeployExposureV2.s.sol --sig "run(bytes32)" <terms hash> \
 ///             --network base --fork-url <Base RPC>
@@ -37,6 +38,26 @@ contract DeployExposureV2 is Script {
         console.log("its series at", factory.predictSeries(week));
         console.log("starts", factory.startOf(week));
         console.log("matures", factory.startOf(week + 1));
+    }
+
+    /// @notice Deploys the factory on Base with `termsHash`, owned by the Safe, and checks what it
+    ///         made before finishing.
+    function deploy(bytes32 termsHash) external returns (ExposureFactoryV2 factory) {
+        require(block.chainid == 8453, "not Base");
+        require(termsHash != bytes32(0), "no terms hash");
+        vm.startBroadcast();
+        factory = build(termsHash);
+        vm.stopBroadcast();
+
+        ExposureFactoryV2.Template memory t = factory.template();
+        require(factory.owner() == SAFE, "owner is not the Safe");
+        require(t.asset == AMZNC && t.feed == AMZN_FEED, "wrong stock or feed");
+        require(t.depositCap == DEPOSIT_CAP && t.termsHash == termsHash, "wrong cap or terms");
+        require(!factory.paused(), "paused");
+        console.log("ExposureFactoryV2", address(factory));
+        console.log("owner", factory.owner());
+        console.log("feed phase", t.phase);
+        console.log("current week", factory.currentWeek());
     }
 
     /// @notice The factory, built from the feed's current phase and the market calendar below.
