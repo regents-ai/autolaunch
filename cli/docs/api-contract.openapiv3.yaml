@@ -1,21 +1,21 @@
 openapi: 3.1.0
 info:
   title: Autolaunch API
-  version: 2.1.0
-  description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
+  version: 3.0.0
+  description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; the shared profile answers the person signed in on this site, or an agent they paired. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
 paths:
   /api/v1/profile:
     get:
       operationId: profile_get
-      summary: Get the verified owner’s shared profile
-      description: The signed-in person's own shared profile. Needs their sign-in.
+      summary: Read your shared profile
+      description: The person's own shared profile, the same on every Regent site. The person sends it from this site's pages, signed in; an agent the person paired sends it signed with its own key, acting as them.
       security:
-        - PrivyAccess: []
-          PrivyIdentity: []
+        - SiteSession: []
+        - SiwaProof: []
       responses:
         "200":
-          description: Owner-only shared profile
+          description: The person's shared profile
           headers:
             RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
             RateLimit: {$ref: "#/components/headers/RateLimit"}
@@ -24,31 +24,19 @@ paths:
               schema:
                 type: object
         "401":
-          description: Paired proof required
+          description: Neither a signed-in session on this site nor a verified agent signature (authentication_required, or the signature's own refusal)
           content:
             application/json:
               schema:
                 type: object
         "403":
-          description: Owner access refused
+          description: The signing agent is paired with nobody (agent_not_paired), or the profile belongs to another account (profile_forbidden)
           content:
             application/json:
               schema:
                 type: object
         "404":
-          description: Profile not created
-          content:
-            application/json:
-              schema:
-                type: object
-        "409":
-          description: Conflicting or stale verification
-          content:
-            application/json:
-              schema:
-                type: object
-        "422":
-          description: Invalid profile edit
+          description: The person has no profile yet (profile_not_created); it is made when they sign in on this site
           content:
             application/json:
               schema:
@@ -63,14 +51,15 @@ paths:
         default: {$ref: "#/components/responses/OtherError"}
     patch:
       operationId: profile_update
-      summary: Update the verified owner’s shared profile
-      description: Changes the signed-in person's own shared profile. Needs their sign-in.
+      summary: Change your display name or selected wallet
+      description: Changes the person's own shared profile. The person sends it from this site's pages, signed in, with the session's forms token in x-csrf-token; an agent the person paired sends it signed with its own key, acting as them.
       security:
-        - PrivyAccess: []
-          PrivyIdentity: []
+        - SiteSession: []
+          CsrfToken: []
+        - SiwaProof: []
       responses:
         "200":
-          description: Owner-only shared profile
+          description: The changed shared profile
           headers:
             RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
             RateLimit: {$ref: "#/components/headers/RateLimit"}
@@ -79,25 +68,19 @@ paths:
               schema:
                 type: object
         "401":
-          description: Paired proof required
+          description: Neither a signed-in session on this site with its forms token nor a verified agent signature (authentication_required, or the signature's own refusal)
           content:
             application/json:
               schema:
                 type: object
         "403":
-          description: Owner access refused
+          description: The signing agent is paired with nobody (agent_not_paired), or the profile belongs to another account (profile_forbidden)
           content:
             application/json:
               schema:
                 type: object
         "404":
-          description: Profile not created
-          content:
-            application/json:
-              schema:
-                type: object
-        "409":
-          description: Conflicting or stale verification
+          description: The person has no profile yet (profile_not_created); it is made when they sign in on this site
           content:
             application/json:
               schema:
@@ -135,62 +118,6 @@ paths:
                     - string
                     - "null"
                   pattern: ^0x[a-fA-F0-9]{40}$
-  /api/v1/profile/sync:
-    post:
-      operationId: profile_sync
-      summary: Sync the verified owner’s shared profile
-      description: Brings the signed-in person's shared profile up to date. Needs their sign-in.
-      security:
-        - PrivyAccess: []
-          PrivyIdentity: []
-      responses:
-        "200":
-          description: Owner-only shared profile
-          headers:
-            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
-            RateLimit: {$ref: "#/components/headers/RateLimit"}
-          content:
-            application/json:
-              schema:
-                type: object
-        "401":
-          description: Paired proof required
-          content:
-            application/json:
-              schema:
-                type: object
-        "403":
-          description: Owner access refused
-          content:
-            application/json:
-              schema:
-                type: object
-        "404":
-          description: Profile not created
-          content:
-            application/json:
-              schema:
-                type: object
-        "409":
-          description: Conflicting or stale verification
-          content:
-            application/json:
-              schema:
-                type: object
-        "422":
-          description: Invalid profile edit
-          content:
-            application/json:
-              schema:
-                type: object
-        "503":
-          description: Profile unavailable
-          content:
-            application/json:
-              schema:
-                type: object
-        "429": {$ref: "#/components/responses/TooManyRequests"}
-        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/health:
     get:
       operationId: getHealth
@@ -799,13 +726,11 @@ components:
       type: apiKey
       in: cookie
       name: _autolaunch_key
-    PrivyAccess:
-      type: http
-      scheme: bearer
-    PrivyIdentity:
+    CsrfToken:
       type: apiKey
       in: header
-      name: privy-id-token
+      name: x-csrf-token
+      description: The signed-in session's forms token, as the site's pages carry it.
   headers:
     RateLimitPolicy:
       description: 'The budgets this request counted against, as "policy";q=requests;w=window seconds, comma-separated. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address; GET /api/v1/auctions also counts against "auction-list", 6 per 60 seconds. Every answer under /api carries this header.'

@@ -81,7 +81,7 @@ defmodule AutolaunchWeb.AccountLive do
           </Regent.Account.identity>
         </:identity>
         <:profile>
-          <%!-- The name is saved from the browser with the sign-in's own proof. --%>
+          <%!-- The name is saved from the browser with the page's session and forms token. --%>
           <div id="account-profile" phx-hook="PublicName" phx-update="ignore">
             <Regent.Profile.panel
               id="account-public-name"

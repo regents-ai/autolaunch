@@ -103,16 +103,16 @@ defmodule Autolaunch.SharedReading do
       bytes: 8_192,
       within: 330
     },
-    # Ten rows of about 3.6 KB at most (a name, a 2.3 KB square pattern and a
-    # picture address) and 8 bytes for each account with points: 10,000 such
-    # accounts take about 116 KB.
+    # Ten rows, however many accounts have points: with a 1 KB name, a 2.3 KB
+    # square pattern, a 1 KB picture address and an ENS name each, ten rows
+    # measure about 48 KB.
     points_board: %{
       audience:
         "signed-in people and paired agents, the readers the Points page and the agent's " <>
-          "Points answer admit; each gets the rows without account ids and their own place, " <>
-          "never the list of totals (Autolaunch.Points.Board)",
+          "Points answer admit; each gets the rows without account ids " <>
+          "(Autolaunch.Points.Board)",
       keys: 1,
-      bytes: 131_072,
+      bytes: 65_536,
       within: 150
     }
   }

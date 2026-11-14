@@ -1,4 +1,3 @@
-import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
   walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
@@ -13,14 +12,13 @@ export type IdentityRequest = {
 
 export type PrivyBridgeHandle = {
   isAvailable?: () => boolean
-  profile?: ProfileAction
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
 }
 
 export type PrivyBridgeStartupOptions = {
-  mode?: "ordinary" | "sign-out-only" | "profile-only"
+  mode?: "ordinary" | "sign-out-only"
 }
 
 export type PrivyBridgeModule = {
@@ -627,15 +625,13 @@ export function createLazyAuthLoader(
     return attempt
   }
 
-  const prepare = (profileOnly = false): Promise<void> => {
+  const prepare = (): Promise<void> => {
     const attempt = withinWindow(importer(), 15_000, "Privy bridge import timed out")
       .then(module => {
         if (typeof module.startPrivyBridge !== "function") {
           throw new Error("Privy bridge module is invalid")
         }
-        return profileOnly && !startupOptions.mode
-          ? module.startPrivyBridge({mode: "profile-only"})
-          : startupOptions.mode
+        return startupOptions.mode
           ? module.startPrivyBridge(startupOptions)
           : module.startPrivyBridge()
       })
@@ -695,17 +691,6 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
-    async profile(...args: Parameters<ProfileAction>): ReturnType<ProfileAction> {
-      discardUnavailableHandle()
-      if (state === "handoff-preterminal") {
-        return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
-      }
-      return loadProfileAction(async () => {
-        if (!handle) await (preparing ?? prepare(true))
-        if (!handle?.profile) throw new Error("Profile bridge is unavailable")
-        return handle.profile
-      }, ...args)
-    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -713,15 +698,6 @@ export function createLazyAuthLoader(
       handle?.finishSignOutOnly?.()
     },
   }
-}
-
-// The Account page's name form saves through the page's own sign-in loader.
-const profileOpeners = new WeakMap<Document, () => ProfileAction>()
-
-export function openProfile(documentRoot: Document = document): ProfileAction {
-  const open = profileOpeners.get(documentRoot)
-  if (!open) throw new Error("The account loader is not installed")
-  return open()
 }
 
 export function installAccountAuthLazyLoader(
@@ -746,7 +722,6 @@ export function installAccountAuthLazyLoader(
     importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null}),
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
-  profileOpeners.set(documentRoot, () => (...args) => loader.profile(...args))
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -880,7 +855,6 @@ export function installAccountAuthLazyLoader(
   }
   return () => {
     installed = false
-    profileOpeners.delete(documentRoot)
     walletEvents.removeEventListener("storage", onWalletStorage)
     walletEvents.removeEventListener("focus", onWalletFocus)
     documentRoot.removeEventListener("visibilitychange", onWalletFocus)

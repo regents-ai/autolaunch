@@ -1,4 +1,3 @@
-import {createProfileClient, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {
   PrivyProvider,
   type PrivyEvents,
@@ -383,7 +382,6 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
 
 type PrivyLoginCallbackOptions = {
   isAvailable?: () => boolean
-  allowAutomatic?: boolean
   completeLogin: () => Promise<void>
   completeAutomaticLogin?: () => Promise<void>
   loginOpen: {current: boolean}
@@ -398,7 +396,6 @@ type PrivyLoginCallbackOptions = {
 // release the guard for the next click.
 export function createPrivyLoginCallbacks({
   isAvailable = () => true,
-  allowAutomatic = true,
   completeLogin,
   completeAutomaticLogin = completeLogin,
   loginOpen,
@@ -409,7 +406,6 @@ export function createPrivyLoginCallbacks({
       if (!isAvailable()) return
       const opened = loginOpen.current
       loginOpen.current = false
-      if (!opened && !allowAutomatic) return
       // A Privy session the browser already held is never the visitor's own
       // sign-in: a page's sign-in logs Privy out first. So after a Disconnect
       // it stays signed out.
@@ -433,7 +429,7 @@ export function createPrivyLoginCallbacks({
 }
 
 type AccountBridgeProps = {
-  mode: "ordinary" | "sign-out-only" | "profile-only"
+  mode: "ordinary" | "sign-out-only"
   isAvailable: () => boolean
   providerState?: PrivyBridgeProviderState
   publishRequestHandler: (
@@ -441,7 +437,6 @@ type AccountBridgeProps = {
     identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
     finishSignOutOnly: () => void,
     ready: boolean,
-    profileHandler: ProfileAction,
   ) => void
 }
 
@@ -513,11 +508,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
         completeLogin: completeExplicitLogin,
         // Bootstrap callbacks are passive even though the SDK calls them login.
         completeAutomaticLogin: () => completeAutomaticLogin(),
-        allowAutomatic: mode !== "profile-only",
         loginOpen,
         showFailure: () => showAccountAuthFailure("sign-in"),
       }),
-    [completeExplicitLogin, mode, isAvailable],
+    [completeExplicitLogin, isAvailable],
   )
   const {login} = useLogin(loginCallbacks)
   // The published handler outlives every render, so the click it answers reads
@@ -527,11 +521,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const subject = providerState?.userId ?? privy.user?.id ?? null
   // Until the first commit, even a ready SDK render is only a candidate state.
   const provider = React.useRef({authenticated, login, logout, ready: false, subject})
-  const profileGeneration = React.useRef(0)
   React.useEffect(() => {
-    const changed = provider.current.authenticated !== authenticated || provider.current.subject !== subject
     provider.current = {authenticated, login, logout, ready, subject}
-    if (changed) profileGeneration.current += 1
   }, [authenticated, login, logout, ready, subject])
   const signIn = React.useMemo(
     () =>
@@ -548,9 +539,9 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const completeAutomaticLogin = React.useCallback(
     () => completeExplicitLogin(() =>
       provider.current.ready && provider.current.authenticated && !walletDisconnected() &&
-      !signOutOnly && mode !== "profile-only",
+      !signOutOnly,
     ),
-    [completeExplicitLogin, signOutOnly, mode],
+    [completeExplicitLogin, signOutOnly],
   )
   const tokenCallbacks = React.useMemo(
     () => createPrivyTokenCallbacks(completeAutomaticLogin),
@@ -567,23 +558,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     [getAccessToken, providerState?.getIdentityToken],
   )
   acquireTokensRef.current = acquireTokens
-  const profileHandler = React.useMemo(() => createProfileClient({
-    async acquireProof({signal}) {
-      if (!isAvailable()) throw new Error("Privy provider is unavailable")
-      while (!provider.current.ready) {
-        signal.throwIfAborted()
-        if (!isAvailable()) throw new Error("Privy provider is unavailable")
-        await new Promise(resolve => setTimeout(resolve, 25))
-      }
-      const state = provider.current
-      if (!state.authenticated || !state.subject ||
-          (signOutOnly && signOutOnlyState.current !== "terminal")) return null
-      const generation = profileGeneration.current
-      const tokens = await acquireTokensRef.current()
-      return {...tokens, subject: state.subject, isCurrent: () =>
-        isAvailable() && provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
-    },
-  }), [signOutOnly, isAvailable])
   const notifyIdentityState = React.useCallback((error: string | null) => {
     if (!isAvailable()) return
     window.dispatchEvent(
@@ -777,8 +751,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const finishSignOutOnly = signOutOnlyBridge.finish
 
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, profileHandler),
-    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, profileHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler],
   )
 
   return null
@@ -791,9 +765,9 @@ type ProviderFailureBoundaryProps = {
 
 // A provider that cannot start, such as one given an app id it rejects, throws
 // while React renders it. Without a boundary that throw unmounts the tree and
-// the startup promise below never settles, so a Sign in press or a profile
-// load waits on nothing. The boundary reports the failure once and renders
-// nothing in the provider's place.
+// the startup promise below never settles, so a Sign in press waits on
+// nothing. The boundary reports the failure once and renders nothing in the
+// provider's place.
 export class ProviderFailureBoundary extends React.Component<
   ProviderFailureBoundaryProps,
   {failed: boolean}
@@ -815,10 +789,10 @@ export class ProviderFailureBoundary extends React.Component<
 
 // How long a provider may take to report ready before this startup gives up.
 // A provider that cannot reach its service, or is refused by it, may neither
-// throw nor become ready; a Sign in press or a profile load must not wait on
-// that forever. The window only bounds this startup: the rejected provider is
-// unmounted, nothing about the local session changes, and the lazy loader
-// starts a fresh provider on the next request.
+// throw nor become ready; a Sign in press must not wait on that forever. The
+// window only bounds this startup: the rejected provider is unmounted, nothing
+// about the local session changes, and the lazy loader starts a fresh provider
+// on the next request.
 export const providerReadyWindowMs = 15_000
 
 export function startPrivyBridge(
@@ -837,7 +811,6 @@ export function startPrivyBridge(
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
-    let currentProfileHandler: ProfileAction | null = null
     let settled = false
     let unavailable = false
     let rejectWork!: (error: Error) => void
@@ -855,7 +828,6 @@ export function startPrivyBridge(
       clearTimeout(readyWindow)
       currentRequestHandler = null
       currentIdentityHandler = null
-      currentProfileHandler = null
       currentFinishSignOutOnly = null
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
@@ -873,11 +845,6 @@ export function startPrivyBridge(
     }
     const handle: PrivyBridgeHandle = {
       isAvailable,
-      profile(...args) {
-        return currentProfileHandler
-          ? Promise.race([currentProfileHandler(...args), failure])
-          : Promise.reject(new Error("Profile is unavailable"))
-      },
       request(request) {
         return currentRequestHandler
           ? Promise.race([currentRequestHandler(request), failure])
@@ -897,10 +864,8 @@ export function startPrivyBridge(
       identityHandler,
       finishSignOutOnly,
       ready,
-      profileHandler,
     ) => {
       if (unavailable) return
-      currentProfileHandler = profileHandler
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly

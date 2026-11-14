@@ -1,5 +1,6 @@
+import {createProfileClient} from "../../vendor/regent_identity/profile_client.mjs"
 import {mountProfile} from "../../vendor/regent_ui/profile.mjs"
-import {openProfile} from "../auth_lazy"
+import {browserCsrfToken} from "../auth_lazy"
 import type {Hook} from "../hook_composition"
 
 type PublicNameHook = {
@@ -8,13 +9,18 @@ type PublicNameHook = {
   stop?: () => void
 }
 
-// Saves the person's Public Display Name with their sign-in's own proof, then
-// asks the page to read the account again so every place showing the name
-// shows the new one.
+// Saves the person's Public Display Name with the page's own sign-in, its
+// session cookie and forms token, then asks the page to read the account again
+// so every place showing the name shows the new one. Each save keeps the forms
+// token of the press of Save: a switch of account renews the session and its
+// token, so a save pressed before one changes nothing after it.
 export const PublicName: Hook = {
   mounted(this: PublicNameHook) {
     this.stop = mountProfile(this.el, {
-      openProfile: () => openProfile(document),
+      openProfile: () => {
+        const token = browserCsrfToken()
+        return createProfileClient({csrfToken: () => token})
+      },
       onSaved: () => this.pushEvent("public_name_saved", {}),
     })
   },

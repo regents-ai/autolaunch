@@ -54,11 +54,7 @@ defmodule AutolaunchWeb.PointsLive do
 
     board =
       assigns.account && assigns.board.value &&
-        PointsEntries.board(
-          assigns.board.value,
-          assigns.account.id,
-          summary && summary.balance_micro
-        )
+        PointsEntries.board(assigns.board.value, assigns.account.id, summary)
 
     assigns =
       assign(assigns,

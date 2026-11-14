@@ -56,6 +56,12 @@ defmodule AutolaunchWeb.Router do
     plug :protect_from_forgery
   end
 
+  # The profile API's owner: the person signed in here, with the forms token on a
+  # change, or the person a paired agent acts for (AutolaunchWeb.Plugs.ProfileOwner).
+  pipeline :profile_owner do
+    plug AutolaunchWeb.Plugs.ProfileOwner
+  end
+
   # The signed-in person's own share video: the session names the account.
   pipeline :session_video do
     plug :fetch_session
@@ -256,9 +262,10 @@ defmodule AutolaunchWeb.Router do
     post "/after-hour-stocks/:series/steps", ExposureAgentController, :prepare
   end
 
+  # The person's own shared profile (RegentIdentity.HTTP), for its owner.
   scope "/api/v1" do
-    pipe_through :api
-    forward "/profile", RegentIdentity.HTTP, otp_app: :autolaunch
+    pipe_through [:api, :profile_owner]
+    forward "/profile", RegentIdentity.HTTP
   end
 
   scope "/api/v1", AutolaunchWeb do

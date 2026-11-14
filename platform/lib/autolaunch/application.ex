@@ -67,9 +67,6 @@ defmodule Autolaunch.Application do
         id: Autolaunch.Agents.ActivityReading.cache()
       ),
       Autolaunch.Repo,
-      # The connector's sign-in store: the site's database with a small pool of
-      # its own, only while the connector is on.
-      if(RegentOAuth.enabled?(), do: RegentOAuth.Repo),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # The wallet of each connected app's own identity, kept once given.
       Supervisor.child_spec(

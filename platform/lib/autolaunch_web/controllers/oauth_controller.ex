@@ -8,7 +8,8 @@ defmodule AutolaunchWeb.OAuthController do
   """
   use AutolaunchWeb, :controller
 
-  plug :rate_limit when action in [:register, :token, :revoke]
+  # Consent may read a connecting app's published identity, so it is limited too.
+  plug :rate_limit when action in [:register, :token, :revoke, :authorize, :approve]
 
   for action <- [:resource_metadata, :server_metadata, :register, :token, :revoke] do
     def unquote(action)(conn, _params), do: RegentOAuth.Protocol.call(conn, unquote(action))

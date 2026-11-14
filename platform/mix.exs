@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "dd2d3c6e631df4c20f5055a45184dcb8e4d33139"
+  @elixir_utils_ref "f21387188c7438bec659ebb1672cebbfdb12e901"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "dfd18f87354db8b7d04acbe4057ffc12b5838757"
 
@@ -135,7 +135,8 @@ defmodule Autolaunch.MixProject do
       {:jason, "~> 1.2"},
       {:error_tracker, "~> 0.9"},
       # Keeps crash saving on when one save fails (RegentHttp.ErrorSaving).
-      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http"},
+      # regent_oauth names regent_http by a sibling path; this pin replaces it.
+      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http", override: true},
       # Ethereum Keccak-256, which OTP's NIST `:sha3_256` is not.
       {:ex_keccak, "~> 0.7.8"},
       # Signs the transaction that finishes an ended auction.
