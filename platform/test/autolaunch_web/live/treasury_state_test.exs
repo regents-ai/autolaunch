@@ -124,13 +124,13 @@ defmodule AutolaunchWeb.TreasuryStateTest do
     render_async(view)
     waive_connections(view)
 
-    treasury = "#autolaunch-launch-wallet-#{setup[:draft].id}-treasury"
+    # The card's treasury check shows beside the form, through the card's
+    # portal, which LiveViewTest reads whole.
+    side = view |> element("#autolaunch-launch-wallet-#{setup[:draft].id}-side") |> render()
 
-    assert view
-           |> element(~s(#{treasury} [data-treasury-verification-state="verified"]))
-           |> render() =~ "#{report.source_block_number}"
-
-    refute has_element?(view, ~s(#{treasury} [data-treasury-verification-state="unverified"]))
+    assert side =~ ~s(data-treasury-verification-state="verified")
+    assert side =~ "#{report.source_block_number}"
+    refute side =~ ~s(data-treasury-verification-state="unverified")
   end
 
   defp waive_connections(view) do

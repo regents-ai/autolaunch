@@ -3,9 +3,13 @@ defmodule AutolaunchWeb.LaunchSteps do
   What the three launch cards share (`AutolaunchWeb.LaunchWalletComponent`,
   `AutolaunchWeb.StocksLaunchWalletComponent` and
   `AutolaunchWeb.RobinhoodStocksLaunchComponent`): the wallet that may act,
-  "Review launch", the review on the page with its one "Create the launch"
-  step, and the lines and buttons under it (`review_button/1`,
-  `review_panel/1`).
+  "Review launch" and "Continue Editing", the review on the page with its one
+  "Create the launch" step, and the lines and buttons under it
+  (`review_button/1`, `review_panel/1`).
+
+  A card sits in its page's form place, where its review takes the form's
+  place while it is open; its buttons and notes are shown in the page's side
+  column, at the `side` selector the page names, through a portal.
 
   "Review launch" prepares the review on the server for Privy's active wallet
   when the signed-in account links it (`AutolaunchWeb.OnchainSteps`); with no
@@ -180,8 +184,8 @@ defmodule AutolaunchWeb.LaunchSteps do
   def reverted(socket, _earlier_review, _current, _prepare), do: socket
 
   @doc """
-  Takes the review off the page. The page's details forms, locked while a
-  review is open (`{:launch_review, :open}`), open again
+  Takes the review off the page. The page's form, which gave the review its
+  place while it was open (`{:launch_review, :open}`), comes back as it was
   (`{:launch_review, :closed}`).
   """
   def withdrawn(socket), do: off_page(socket, :closed)
@@ -301,19 +305,26 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   attr :id, :string, required: true
   attr :hidden, :boolean, required: true
+  attr :review, :map, default: nil
+  attr :presses, :any, required: true
   attr :signer, :string, default: nil
   attr :mismatch, :string, default: nil
-  attr :disabled, :boolean, default: false
+  attr :disabled, :boolean, default: false, doc: "Review launch only; Continue Editing never is"
   attr :target, :any, required: true
 
   @doc """
   "Review launch", with the wallet the launch goes from, or the note naming
-  the account's wallets while another one is open (`followed/1`).
+  the account's wallets while another one is open (`followed/1`). While the
+  review is open the same button reads "Continue Editing" and takes the review
+  off the page, which brings the form back; it steps aside while the launch
+  is on its way or made.
   """
   def review_button(assigns) do
+    assigns = assign(assigns, editable: editable?(steps(assigns)))
+
     ~H"""
     <div class="launch-wallet-open" hidden={@hidden}>
-      <p class="launch-wallet-from" hidden={!@signer}>
+      <p class="launch-wallet-from" hidden={!@signer || !!@review}>
         Launching from
         <Regent.Primitives.address
           :if={@signer}
@@ -322,15 +333,17 @@ defmodule AutolaunchWeb.LaunchSteps do
           variant="compact"
         />
       </p>
-      <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
+      <p class="onchain-note" role="status" hidden={!@mismatch || !!@review}>{@mismatch}</p>
       <Regent.Primitives.button
         class="launch-wallet-primary"
         type="button"
-        phx-click="review_launch"
+        phx-click={if @review, do: "cancel_review", else: "review_launch"}
         phx-target={@target}
-        disabled={@disabled}
+        variant={if @review, do: "secondary", else: "primary"}
+        disabled={!@review && @disabled}
+        hidden={!!@review && !@editable}
       >
-        Review launch
+        {if @review, do: "Continue Editing", else: "Review launch"}
       </Regent.Primitives.button>
     </div>
     """
@@ -464,8 +477,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   attr :target, :any, required: true
 
   # The review's progress, with each sent step's transaction on the explorer
-  # and a button to copy its hash, the wallet button, and "Cancel" while
-  # nothing is on its way.
+  # and a button to copy its hash, then the wallet button, last in the review.
   defp progress(assigns) do
     assigns =
       assign(assigns,
@@ -510,17 +522,6 @@ defmodule AutolaunchWeb.LaunchSteps do
       check_event="check_again"
       target={@target}
     />
-    <div class="launch-wallet-controls">
-      <Regent.Primitives.button
-        type="button"
-        phx-click="cancel_review"
-        phx-target={@target}
-        variant="secondary"
-        hidden={!cancellable?(@steps)}
-      >
-        Cancel
-      </Regent.Primitives.button>
-    </div>
     """
   end
 
@@ -597,8 +598,10 @@ defmodule AutolaunchWeb.LaunchSteps do
   defp chip(%{state: :reverted}), do: "Reverted"
   defp chip(%{state: :other}), do: "Unresolved"
 
-  defp cancellable?([]), do: false
-  defp cancellable?(steps), do: not Enum.any?(steps, &(&1.state in [:sent, :stalled, :done]))
+  # Continue Editing takes the review away only while nothing from it is on
+  # its way or confirmed.
+  defp editable?([]), do: false
+  defp editable?(steps), do: not Enum.any?(steps, &(&1.state in [:sent, :stalled, :done]))
 
   defp progress_copy(steps, chain_name) do
     case Enum.find(steps, &(&1.state in [:sent, :stalled, :other])) do

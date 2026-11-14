@@ -57,7 +57,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
 
     view
     |> form("#stocks-token-details", stock_draft: %{name: "Apple Pair", symbol: "APLP"})
-    |> render_change()
+    |> render_submit()
 
     view
     |> form("#stocks-terms", stock_draft: %{stock_address: @aapl})
@@ -88,7 +88,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
         website: "https://example.com"
       }
     )
-    |> render_change()
+    |> render_submit()
 
     # The image a launch carries is always one the site stored and serves.
     {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(actor: actor)

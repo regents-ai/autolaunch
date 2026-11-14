@@ -73,24 +73,44 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     ~H"""
     <section
       id={@id}
-      class="launch-wallet"
+      class="launch-wallet create-page__review rg-panel rg-panel--surface"
       phx-hook="OnchainSteps"
+      hidden={!@review}
     >
-      <LaunchSteps.launched_panel
-        id={"#{@id}-launched"}
-        launched={@launched}
-        chain={explorer_chain()}
-        target={@myself}
-      />
-      <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
+      <.portal id={"#{@id}-side"} target={@side} class="launch-wallet">
+        <LaunchSteps.launched_panel
+          id={"#{@id}-launched"}
+          launched={@launched}
+          chain={explorer_chain()}
+          target={@myself}
+        />
+        <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <LaunchSteps.review_button
-        id={@id}
-        hidden={!!@review or !!@launched}
-        signer={@signer}
-        mismatch={@mismatch}
-        target={@myself}
-      />
+        <LaunchSteps.review_button
+          id={@id}
+          hidden={!!@launched}
+          review={@review}
+          presses={@presses}
+          signer={@signer}
+          mismatch={@mismatch}
+          target={@myself}
+        />
+        <section :if={@launches != []} class="launch-wallet-settled" aria-label="Your launches">
+          <h4>Your Robinhood launches</h4>
+          <ul role="list">
+            <li :for={launch <- @launches}>
+              Launch #{launch["launch_id"]} · {lifecycle(launch["lifecycle"])} ·
+              <.link :if={launch["page"]} navigate={launch["page"]}>Auction</.link>
+              <span :if={!launch["page"]}>Auction</span>
+              <Regent.Primitives.address
+                id={"#{@id}-launch-#{launch["launch_id"]}"}
+                address={launch["auction"]}
+                chain={LaunchSteps.address_chain(explorer_chain())}
+              />
+            </li>
+          </ul>
+        </section>
+      </.portal>
 
       <LaunchSteps.review_panel
         id={@id}
@@ -147,22 +167,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </dl>
         </Regent.Primitives.disclosure>
       </LaunchSteps.review_panel>
-
-      <section :if={@launches != []} class="launch-wallet-settled" aria-label="Your launches">
-        <h4>Your Robinhood launches</h4>
-        <ul role="list">
-          <li :for={launch <- @launches}>
-            Launch #{launch["launch_id"]} · {lifecycle(launch["lifecycle"])} ·
-            <.link :if={launch["page"]} navigate={launch["page"]}>Auction</.link>
-            <span :if={!launch["page"]}>Auction</span>
-            <Regent.Primitives.address
-              id={"#{@id}-launch-#{launch["launch_id"]}"}
-              address={launch["auction"]}
-              chain={LaunchSteps.address_chain(explorer_chain())}
-            />
-          </li>
-        </ul>
-      </section>
     </section>
     """
   end

@@ -40,9 +40,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
   import AutolaunchWeb.Components.StockSelect, only: [stock_select: 1]
 
   @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
+  @token_detail_params ~w(name symbol description website) ++ @link_params
 
   @sections %{
-    "autosave_stocks_token_details" => ~w(name symbol description website) ++ @link_params,
+    "autosave_stocks_token_details" => @token_detail_params,
     "autosave_stocks_terms" => ~w(stock_address)
   }
 
@@ -197,6 +198,23 @@ defmodule AutolaunchWeb.StocksCreateLive do
     {:noreply, autosaved(socket, event, values)}
   end
 
+  # The token's details reach the page as they are typed, so the card, the
+  # field marks and the Still needed line follow them at once. Each is saved
+  # when the person leaves its field (`autosave_stocks_field`).
+  def handle_event("type_stocks_token_details", params, socket) do
+    values = Map.take(params["stock_draft"] || %{}, @token_detail_params)
+    {:noreply, assign(socket, draft_values: Map.merge(socket.assigns.draft_values, values))}
+  end
+
+  # A field the person left, saved as its section's save saves it. One left
+  # as it is saved, with no refusal to clear, is not saved again.
+  def handle_event("autosave_stocks_field", %{"field" => field, "value" => value}, socket)
+      when field in @token_detail_params and is_binary(value) do
+    if value == saved_value(socket, field) and not is_map_key(socket.assigns.draft_errors, field),
+      do: {:noreply, socket},
+      else: {:noreply, autosaved(socket, "autosave_stocks_token_details", %{field => value})}
+  end
+
   def handle_event("read_stocks", _params, socket),
     do: {:noreply, socket |> assign_stocks() |> assign_market()}
 
@@ -244,11 +262,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  # A launch card opened its review: the details lock so the review always
-  # matches them, and the saved note no longer describes what this page is
-  # doing and comes down. Once the review closes they open again, read anew,
-  # blank when the launch was listed. A launch just made keeps its card, which
-  # says so, until the person dismisses it.
+  # A launch card opened its review, which takes the form's place, so the
+  # review always matches the details; the saved note no longer describes
+  # what this page is doing and comes down. Once the review closes the form
+  # comes back, read anew, blank when the launch was listed. A launch just
+  # made keeps its card, which says so, until the person dismisses it.
   def handle_info({:launch_review, :open}, socket),
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
@@ -276,8 +294,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # The person's paired agent saved this draft: the form and the list of what
   # the agent filled in show it, and what the person typed that could not be
-  # saved stays in its box with its mark. During a review the details stay
-  # locked; they are read anew when it closes.
+  # saved stays in its box with its mark. During a review the form is put
+  # away; it is read anew when the review closes.
   def handle_info({:agent_draft_saved, "memestock"}, %{assigns: %{reviewing?: true}} = socket),
     do: {:noreply, socket}
 
@@ -307,7 +325,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
 
   def render(assigns) do
-    draft = assigns.draft
+    draft = assigns.draft && typed(assigns.draft, assigns.draft_values)
     stock = stock_for(assigns.stocks, assigns.draft_values["stock_address"])
 
     assigns =
@@ -339,18 +357,19 @@ defmodule AutolaunchWeb.StocksCreateLive do
       </div>
 
       <div :if={@status != :error} class="create-page__layout">
-        <section
-          id="memestock-form"
-          class="create-page__form memestock rg-panel rg-panel--surface"
-          data-chain={@launch_chain}
-          aria-label="Your memestock"
-        >
-          <AutolaunchWeb.Components.AgentSetFields.agent_set_fields :if={@draft} draft={@draft} />
-          <fieldset class="create-page__lock" disabled={@reviewing?}>
+        <%!-- The launch card's review takes the form's place while it is open. --%>
+        <div class="create-page__main">
+          <section
+            id="memestock-form"
+            class="create-page__form memestock rg-panel rg-panel--surface"
+            data-chain={@launch_chain}
+            aria-label="Your memestock"
+          >
+            <AutolaunchWeb.Components.AgentSetFields.agent_set_fields :if={@draft} draft={@draft} />
             <form
               id="stocks-token-details"
               class="create-page__fields"
-              phx-change="autosave_stocks_token_details"
+              phx-change="type_stocks_token_details"
               phx-submit="autosave_stocks_token_details"
             >
               <div class="create-page__identity">
@@ -520,8 +539,33 @@ defmodule AutolaunchWeb.StocksCreateLive do
               phx-submit="autosave_stocks_terms"
             >
             </form>
-          </fieldset>
-        </section>
+          </section>
+          <.live_component
+            :if={
+              @launch_chain == :robinhood && @robinhood_open? &&
+                (@launch_ready? || @reviewing? || @launched?)
+            }
+            module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
+            id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
+            draft={@draft}
+            listings={@listings}
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            side="#stocks-launch-side"
+          />
+          <.live_component
+            :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
+            module={AutolaunchWeb.StocksLaunchWalletComponent}
+            id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
+            draft={@draft}
+            authenticated
+            launches_paused?={@launches_paused?}
+            listings={@listings}
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            side="#stocks-launch-side"
+          />
+        </div>
 
         <aside
           id="create-preview"
@@ -598,29 +642,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
             >
               Sign in to save and launch
             </Regent.Primitives.button>
-            <.live_component
-              :if={
-                @launch_chain == :robinhood && @robinhood_open? &&
-                  (@launch_ready? || @reviewing? || @launched?)
-              }
-              module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
-              id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
-              draft={@draft}
-              listings={@listings}
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
-            <.live_component
-              :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
-              module={AutolaunchWeb.StocksLaunchWalletComponent}
-              id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
-              draft={@draft}
-              authenticated
-              launches_paused?={@launches_paused?}
-              listings={@listings}
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
+            <div id="stocks-launch-side" class="create-page__launch-card"></div>
             <%= if @current_human_id && (@launch_chain == :base || @robinhood_open?) &&
                    !@launch_ready? && !@reviewing? && !@launched? do %>
               <Regent.Primitives.button type="button" class="create-page__launch-button" disabled>
@@ -1046,6 +1068,19 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
+  # The saved draft with its details as the form holds them now, the ticker in
+  # capitals as a save writes it, so whether it is ready and what it still
+  # needs follow the typing rather than the last save.
+  defp typed(draft, values) do
+    typed = Map.new(@token_detail_params, &{String.to_existing_atom(&1), values[&1]})
+    Map.merge(draft, %{typed | symbol: String.upcase(typed.symbol)})
+  end
+
+  # A field's text as the account's draft, or signed out the unsaved one, holds it.
+  defp saved_value(socket, field),
+    do:
+      Map.get(socket.assigns.draft || socket.assigns.sketch, String.to_existing_atom(field)) || ""
+
   attr :form_id, :string, required: true
   attr :param, :string, required: true
   attr :label, :string, required: true
@@ -1087,7 +1122,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
         placeholder={@placeholder}
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="blur"
+        phx-debounce="150"
+        phx-blur="autosave_stocks_field"
+        phx-value-field={@param}
       >{@value}</textarea>
       <input
         :if={@kind == :text}
@@ -1100,7 +1137,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="blur"
+        phx-debounce="150"
+        phx-blur="autosave_stocks_field"
+        phx-value-field={@param}
       />
       <p :if={@hint} id={"#{@id}-hint"} class="create-page__hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
