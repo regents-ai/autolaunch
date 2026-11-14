@@ -184,6 +184,8 @@
 .token-swap__error { color: var(--color-error); }
 .token-swap__rate { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 
+/* The review over its form arrives as the create pages' launch review does
+   (`review-in`, components/motion.css). */
 .token-swap__review {
   align-self: end;
   z-index: 2;
@@ -192,6 +194,7 @@
   padding: clamp(1rem, 4vw, 1.5rem);
   border: 1px solid var(--hairline-strong);
   background: var(--color-surface-elevated);
+  animation: review-in var(--duration-base) var(--ease-out);
 }
 .token-swap__review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .token-swap__review-head h3 { margin: 0; color: var(--color-fg-muted); font-family: var(--font-family-ui); font-size: 1rem; font-weight: 400; text-transform: none; letter-spacing: normal; }

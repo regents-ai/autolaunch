@@ -11,6 +11,7 @@
 - On /stock/covered-call, /stock/isolated-afters and the covered calls in your portfolio, the line saying the page lost its connection during a press now has its own room at the foot of the panel, so nothing below it jumps when it shows or goes. It reads "Connection lost. Nothing was sent."
 - Raise on a covered-call bid and Exercise on calls you hold keep a line under the button for the reason it can't be pressed, so what is below no longer jumps while you type an amount.
 - In the review you sign from when you swap, stake, claim, convert or trade covered calls, a step that confirms while you watch now gets a green tick that draws itself in. A step that was already done when the review opened, or when you came back to the page, simply shows its tick, and nothing around it moves.
+- That review now fades in as it rises into place over its form, as the launch review on the create pages does, instead of snapping in. Its wallet button works from the moment it appears, and with reduced motion turned on it only fades in.
 - When your bid lands, "Your bid on … is placed." now arrives with a green tick that draws itself in.
 
 ## 14 November 2026: Create
