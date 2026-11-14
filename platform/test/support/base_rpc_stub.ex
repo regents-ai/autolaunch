@@ -170,9 +170,6 @@ defmodule Autolaunch.BaseRpcStub do
 
   defp result("eth_getLogs", [_filter], state), do: Map.get(state, :logs, [])
 
-  defp result("eth_getBalance", [_wallet, "latest"], state),
-    do: Map.get(state, :eth_balance, "0x0")
-
   defp restore(key, nil), do: Application.delete_env(:autolaunch, key)
   defp restore(key, value), do: Application.put_env(:autolaunch, key, value)
 end
