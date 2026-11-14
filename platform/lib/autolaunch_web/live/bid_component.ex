@@ -77,6 +77,7 @@ defmodule AutolaunchWeb.BidComponent do
        preparing: nil,
        reviews: %{},
        notice: nil,
+       opens_at: nil,
        carried_note: nil,
        placed: nil,
        x_connection: nil,
@@ -113,6 +114,7 @@ defmodule AutolaunchWeb.BidComponent do
        %{BidForm.blank() | pay_with: bid_currency(auction)}
      end)
      |> assign_book()
+     |> assign_opening()
      |> assign_usd_rate()
      |> preset()
      |> OnchainSteps.adopt()
@@ -273,7 +275,19 @@ defmodule AutolaunchWeb.BidComponent do
               View on Basescan ↗
             </a>
             <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
+            <Regent.Primitives.button
+              :if={@opens_at}
+              id={"#{@id}-opens"}
+              type="button"
+              class="token-swap__submit bid-opens"
+              disabled
+              phx-hook=".OpensIn"
+              data-opens-at={DateTime.to_unix(@opens_at, :millisecond)}
+            >
+              {opens_in(DateTime.diff(@opens_at, DateTime.utc_now(), :millisecond))}
+            </Regent.Primitives.button>
             <SwapForm.wallet_step
+              :if={!@opens_at}
               id={@id <> "-sender"}
               next_step={@next_step}
               steps={@steps}
@@ -287,6 +301,43 @@ defmodule AutolaunchWeb.BidComponent do
           </div>
         </div>
       </div>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".OpensIn">
+        // Counts down each second to the time the auction's start block is
+        // due, written as the server's first render writes it. At zero it asks
+        // the panel to read the chain again, at most every two seconds, until
+        // the chain says bidding is open.
+        const pad = (value) => String(value).padStart(2, "0")
+
+        const words = (left) => {
+          const seconds = Math.max(Math.ceil(left / 1000), 0)
+          const hours = Math.floor(seconds / 3600)
+          const clock = `${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`
+          return hours > 0 ? `Opens in ${hours}:${clock}` : `Opens in ${clock}`
+        }
+
+        export default {
+          mounted() {
+            this.asked = 0
+            this.tick()
+            this.timer = setInterval(() => this.tick(), 1000)
+          },
+          updated() {
+            this.tick()
+          },
+          destroyed() {
+            clearInterval(this.timer)
+          },
+          tick() {
+            const left = Number(this.el.dataset.opensAt) - Date.now()
+            const text = words(left)
+            if (this.el.textContent !== text) this.el.textContent = text
+            if (left <= 0 && Date.now() - this.asked >= 2000) {
+              this.asked = Date.now()
+              this.pushEventTo(this.el, "opening_due", {})
+            }
+          }
+        }
+      </script>
     </section>
     """
   end
@@ -337,6 +388,10 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
+  # The countdown reached the time the start block was due: the chain is read
+  # again, and says whether bidding is open.
+  def handle_event("opening_due", _params, socket), do: {:noreply, read_opening(socket)}
+
   def handle_event("share_opened", _params, socket), do: {:noreply, load_x(socket)}
 
   def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
@@ -345,10 +400,23 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_async(:prepare, {:ok, {key, inputs, result}}, socket) do
     socket = assign(socket, preparing: nil)
 
-    if key == bid_key(socket.assigns),
+    # One started before the chain said the auction has not opened is dropped.
+    if key == bid_key(socket.assigns) and is_nil(socket.assigns.opens_at),
       do: {:noreply, reviewed(socket, key, inputs, result)},
       else: {:noreply, prepare_when_ready(socket)}
   end
+
+  # Until the chain's latest block reaches the start block the bid is certain
+  # to fail, so the button counts down instead (rule 11). A read that fails
+  # leaves the button as it was.
+  def handle_async(:opening, {:ok, {:ok, opens_at}}, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(opens_at: opens_at, prepared_for: nil, notice: nil)
+       |> prepare_when_ready()}
+
+  def handle_async(:opening, _failed, socket), do: {:noreply, socket}
 
   def handle_async(:prepare, {:exit, _reason}, socket),
     do: {:noreply, assign(socket, preparing: nil, notice: @generic)}
@@ -443,6 +511,7 @@ defmodule AutolaunchWeb.BidComponent do
 
     cond do
       is_nil(key) or assigns.placed -> socket
+      assigns.opens_at -> socket
       assigns.preparing -> socket
       assigns.prepared_for in [key, {:refused, key}] -> socket
       true -> start_prepare(socket, key)
@@ -796,6 +865,32 @@ defmodule AutolaunchWeb.BidComponent do
       assign_async(socket, :book, fn ->
         with {:ok, book} <- AuctionBook.base(auction), do: {:ok, %{book: book}}
       end)
+
+  # An auction that has not opened is read once per auction for when its start
+  # block is due (`AuctionBook.opening/1`).
+  defp assign_opening(%{assigns: %{auction: %{id: id}, opening_for: id}} = socket), do: socket
+
+  defp assign_opening(%{assigns: %{auction: %{state: :created} = auction}} = socket),
+    do: socket |> assign(:opening_for, auction.id) |> read_opening()
+
+  defp assign_opening(%{assigns: %{auction: auction}} = socket),
+    do: assign(socket, opening_for: auction.id, opens_at: nil)
+
+  defp read_opening(%{assigns: %{auction: auction}} = socket),
+    do: start_async(socket, :opening, fn -> AuctionBook.opening(auction) end)
+
+  # The time left on the countdown button, as its hook writes it.
+  defp opens_in(left) do
+    seconds = max(div(left + 999, 1000), 0)
+    clock = "#{pad(div(rem(seconds, 3600), 60))}:#{pad(rem(seconds, 60))}"
+
+    case div(seconds, 3600) do
+      0 -> "Opens in #{clock}"
+      hours -> "Opens in #{hours}:#{clock}"
+    end
+  end
+
+  defp pad(value), do: value |> Integer.to_string() |> String.pad_leading(2, "0")
 
   # An amount, and a most per token, chosen before the panel opened are entered
   # once. A preset most per token replaces the slider.
