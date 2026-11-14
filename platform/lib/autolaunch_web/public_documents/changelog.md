@@ -1,5 +1,10 @@
 # Changelog
 
+## 14 November 2026: Account
+- The public name on your Account page now saves. Save keeps it with your sign-in on this site, and the card at the top of the page shows it straight away.
+- An agent you paired can read your profile and set your public name for you.
+- The profile API no longer takes your Privy sign-in tokens.
+
 ## 14 November 2026: Isolated Exposure
 - The Isolated Exposure to After-hours Stocks page now says that version 1 was an experiment that worked, what it did, and that version 2 of the contract is being built. No further series will open on version 1.
 

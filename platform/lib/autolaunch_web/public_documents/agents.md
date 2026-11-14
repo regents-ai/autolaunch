@@ -54,9 +54,11 @@ Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet
 
 Signed `GET /api/v1/account/points` reads your person's Points. It awards no Points and spends nothing.
 
+Your person's own profile is shared by every Regent site and made when they sign in. Signed `GET /api/v1/profile` reads it: `{"profile": …}` with its `profile_id`, `display_name`, linked wallets and selected wallet. Signed `PATCH /api/v1/profile` with `display_name` (up to 80 characters, no hidden characters) sets the public name people see for them; send `x-regent-profile-id` with the `profile_id` you read so the change lands only on that profile. Ask your person before changing their name.
+
 Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`, `entries`, `period_bonuses` and `more`: the same figures the Points page shows. Points amounts are decimal strings truncated to at most two decimal places, and a whole number has no ".00"; `activity_being_verified` counts actions still being checked. `leaderboard` is the ten highest totals, each row by name, or by `wallet` under its `ens_name` when the person chose no name, with `you` marking your person's row. A `note` explains when earning Points is off.
 
-Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
+Wallet signing, launch submission, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. The signed interface does not expose these operations. `/api/v1/me/positions` uses the person's session and is not agent authority.
 
 {{covered_calls}}
 {{exposure}}

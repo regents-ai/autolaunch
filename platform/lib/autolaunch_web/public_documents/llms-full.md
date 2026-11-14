@@ -170,7 +170,7 @@ Your person can unpair you at any time. You can never use their wallet.
 
 ### In the browser (WebMCP)
 
-WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities.json). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
+WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities.json). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet and launch controls remain person-controlled and are not registered as agent tools; a paired agent reads its person's profile and sets their public name with signed requests, as the signed agent guide says. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 {{tools}}
 

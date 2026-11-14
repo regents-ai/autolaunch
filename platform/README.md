@@ -360,7 +360,9 @@ tool's.
 The Claude connector (`Autolaunch.OAuth`, Boruta through elixir-utils' `RegentOAuth`) adds the
 sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in
 the pairing box and `/agents/claude`, all behind `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`. Its
-tables, `oauth_*` in `autolaunch_app`, are added by migration `20261109231500`. Switching it on
+tables, `oauth_*` in `autolaunch_app` and on the site's own repo, are added by migrations
+`20261109231500` and `20261114120000` (`oauth_client_documents`: an app that connects by its
+published identity, which consent and token exchange read). Switching it on
 needs, in order: the migration run; `autolaunch` in the
 sign-in service's hosted signing list (elixir-utils' `RegentMCPAgents` knows it from 466ca10f);
 this site's `SIWA_HOSTED_SIGNING_KEY`; then the switch, which is a sign-in release.
@@ -389,8 +391,11 @@ still reads every second.
 ## Shared private profile
 
 `/account` uses the shared Regent UI and Regents-owned Ash identity domain.
-The private `/api/v1/profile` contract provides `GET`, `PATCH`, and `POST /sync`;
-the product CLI and browser WebMCP use the same actions and response schema.
+The private `/api/v1/profile` contract provides `GET` and `PATCH` (`RegentIdentity.HTTP`).
+`AutolaunchWeb.Plugs.ProfileOwner` names its owner: the person signed in on this site, whose
+change also carries the page's forms token, or the person a paired agent acts for, signing with
+its own key. Privy tokens are not taken there; a request with no owner answers 401
+`authentication_required`. The profile is made at sign-in.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 
@@ -399,4 +404,4 @@ one PostgreSQL destination before profiles can be shared between sites.
 Regents owns the explicit identity migration; consumers do not run it on startup.
 Do not repoint existing databases or replay migration histories: legacy identity
 mappings, schema collisions and a recovery copy require a separate verified cutover.
-See the identity package README and CLI private-profile contract for proof handling.
+See the identity package README.
