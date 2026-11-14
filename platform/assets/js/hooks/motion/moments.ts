@@ -1,7 +1,8 @@
 /**
  * Motion for things the server decides: a list that changes, such as a stack
- * of notes, and a figure that moves. The page renders every result first;
- * these islands only animate from the old picture to the new one.
+ * of notes, a figure that moves, a refusal and a tick for something just done.
+ * The page renders every result first; these islands only animate from the
+ * old picture to the new one.
  */
 import {
   animate,
@@ -15,7 +16,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, CLIPPED_CHAR, SLOW, still} from "./shared"
+import {BASE, CLIPPED_CHAR, EASE_OUT, SLOW, play, rest, still, watched} from "./shared"
 import {deny} from "./press"
 import type {Hook} from "../../hook_composition"
 
@@ -44,7 +45,8 @@ type ListHook = {el: HTMLElement; scope?: Scope}
  * `data-layout-id` on the list and on every item, names the items in
  * `data-children` and the version in `data-variant`. An item that is leaving
  * is hidden for a moment before the server drops it, so it can fade out while
- * its neighbours close the gap.
+ * its neighbours close the gap. A list that changed while the connection was
+ * away simply shows its new order when it comes back.
  */
 export const listHook = (layouts: Record<string, () => LayoutAnimationParams>): Hook => ({
   mounted(this: ListHook) {
@@ -62,7 +64,7 @@ export const listHook = (layouts: Record<string, () => LayoutAnimationParams>): 
   },
 
   updated(this: ListHook) {
-    if (!still(this.el)) this.scope?.methods.move()
+    if (watched(this.el) && !still(this.el)) this.scope?.methods.move()
   },
 
   destroyed(this: ListHook) {
@@ -106,7 +108,8 @@ function join(hook: CountHook, split: TextSplitter) {
  * carry a unit, such as "12.5 USDC". Only the characters that changed move,
  * the ones nearest the end first, like a counter turning over. The figure is
  * split into pieces for the move and joined back as soon as it ends, so the
- * page always patches the plain figure it rendered.
+ * page always patches the plain figure it rendered. A figure that changed
+ * while the connection was away simply shows its new value when it comes back.
  */
 export const countHook = (rolls: Record<string, Roll>): Hook => ({
   mounted(this: CountHook) {
@@ -132,7 +135,7 @@ export const countHook = (rolls: Record<string, Roll>): Hook => ({
   updated(this: CountHook) {
     const before = this.before ?? []
     const after = figures(this.el)
-    if (still(this.el) || after.length !== before.length) return
+    if (still(this.el) || !watched(this.el) || after.length !== before.length) return
 
     const {clip} = rolls[this.el.dataset.variant ?? ""]
     after.forEach((figure, index) => {
@@ -184,5 +187,62 @@ export const MotionRefusal: Hook = {
 
   destroyed(this: RefusalHook) {
     this.scope?.revert()
+  },
+}
+
+// A tick's stroke drawn in once, from its start to its end. Its path is one
+// unit long (`pathLength="1"`) and one dash as long covers it (`.motion-tick`
+// in components/motion.css), so the page renders it whole; the draw slides
+// that dash in from just before the path's start, then hands the path back to
+// the stylesheet.
+export const drawTick = (path: Element, delay = 0) =>
+  play(path, {strokeDashoffset: [1, 0], delay, duration: SLOW, ease: EASE_OUT})
+
+// The line of the tick inside `el`, if it shows one.
+const tickLine = (el: Element) => el.querySelector(".motion-tick path")
+
+type TickHook = {el: HTMLElement}
+
+/**
+ * A tick (`AutolaunchWeb.Motion.tick/1`) that arrives with the news of
+ * something just done. It draws itself in when it arrives on a live page; one
+ * already there when the page opens or its connection comes back shows whole
+ * and still. The page leaves its line's style alone while it draws, so an
+ * update that lands mid-draw lets it finish.
+ */
+export const MotionTick: Hook = {
+  mounted(this: TickHook) {
+    if (watched(this.el) && !still(this.el)) drawTick(tickLine(this.el)!)
+  },
+
+  destroyed(this: TickHook) {
+    rest(tickLine(this.el)!)
+  },
+}
+
+type StepHook = {el: HTMLElement; done?: boolean}
+
+/**
+ * One step of a wallet review, whose mark is a tick once its `data-state` is
+ * `done`. The tick draws itself in when a newer reading first shows the step
+ * done while the reader watches. A step that is already done when it first
+ * shows, when the page opens or when its connection comes back shows its tick
+ * whole and still, and so does one drawn again or moved in the list. The page
+ * leaves the tick's line alone while it draws, so an update that lands
+ * mid-draw lets it finish.
+ */
+export const MotionStep: Hook = {
+  beforeUpdate(this: StepHook) {
+    this.done = this.el.dataset.state === "done"
+  },
+
+  updated(this: StepHook) {
+    if (this.done || this.el.dataset.state !== "done") return
+    if (watched(this.el) && !still(this.el)) drawTick(tickLine(this.el)!)
+  },
+
+  destroyed(this: StepHook) {
+    const line = tickLine(this.el)
+    if (line) rest(line)
   },
 }

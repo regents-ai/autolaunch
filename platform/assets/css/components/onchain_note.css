@@ -8,6 +8,10 @@
   overflow-wrap: anywhere;
 }
 .token-swap__review-note { color: var(--color-error); }
+/* The line a wallet press leaves when it could not reach the server. Its words
+   keep their room at every width, unseen and unread until the OnchainSteps hook
+   marks it `data-shown`, so nothing below it moves when it comes or goes. */
+[data-onchain-lost]:not([data-shown]) > * { visibility: hidden; }
 .token-swap__review-label {
   display: block;
   color: var(--color-fg-muted);

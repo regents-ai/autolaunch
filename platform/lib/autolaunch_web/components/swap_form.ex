@@ -363,11 +363,13 @@ defmodule AutolaunchWeb.Components.SwapForm do
       <ol class="token-swap__steps" role="list">
         <li
           :for={{step, index} <- Enum.with_index(@steps, 1)}
+          id={"#{@id}-#{step.name}"}
+          phx-hook="MotionStep"
           data-step={step.name}
           data-state={step.state}
           data-current={@next_step && @next_step.name == step.name}
         >
-          <span class="token-swap__step-mark" aria-hidden="true"></span>
+          <.step_mark id={"#{@id}-#{step.name}-tick"} done={step.state == :done} />
           <span>
             <AutolaunchWeb.TokenDisplay.marked
               text={step.label}
@@ -582,6 +584,23 @@ defmodule AutolaunchWeb.Components.SwapForm do
     do: "Step #{index} of #{count}"
 
   def step_note(_step, _index, _count, _next), do: nil
+
+  attr :id, :string, required: true, doc: "the tick's, one per step"
+  attr :done, :boolean, required: true
+
+  @doc """
+  The mark beside one step of a review panel: a tick once the step is done.
+  The step's row, with the `MotionStep` hook, draws it in when the step lands
+  while the reader watches. Its id keeps a tick in its own row when another
+  step joins the list in front of it.
+  """
+  def step_mark(assigns) do
+    ~H"""
+    <span class="token-swap__step-mark" aria-hidden="true">
+      <AutolaunchWeb.Motion.tick :if={@done} id={@id} />
+    </span>
+    """
+  end
 
   defp output(:unread), do: "No quote right now"
   defp output(amount) when is_binary(amount), do: AutolaunchWeb.TokenDisplay.short(amount)

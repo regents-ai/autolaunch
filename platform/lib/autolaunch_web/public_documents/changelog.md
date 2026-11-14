@@ -5,6 +5,24 @@
 - Autolaunch's own actions include a first launch, a first graduation and a first covered call.
 - Your agent's Points answer lists the actions the same way, by site.
 
+## 14 November 2026: Home
+- When the auctions in Coming next change while you watch, the cards glide to their new places, a new one fades in where it lands, and one that leaves fades away while the others close the gap. Nothing moves when the page opens or reconnects, and with reduced motion turned on the new order simply appears.
+
+## 14 November 2026: Auctions
+- On an auction's page, the price and the amount raised now roll to their new figure when they change while you watch, instead of flashing. Nothing beside or below them moves, the bid form included, and with reduced motion turned on the new figure simply appears.
+- A figure anywhere on the site that changed while the page had lost its connection now simply shows its new value when the connection comes back, instead of rolling.
+
+## 14 November 2026: Wallet
+- On /stock/covered-call, /stock/isolated-afters and the covered calls in your portfolio, the line saying the page lost its connection during a press now has its own room at the foot of the panel, so nothing below it jumps when it shows or goes. It reads "Connection lost. Nothing was sent."
+- Raise on a covered-call bid and Exercise on calls you hold keep a line under the button for the reason it can't be pressed, so what is below no longer jumps while you type an amount.
+- In the review you sign from when you swap, stake, claim, convert or trade covered calls, a step that confirms while you watch now gets a green tick that draws itself in. A step that was already done when the review opened, or when you came back to the page, simply shows its tick, and nothing around it moves.
+- That review now fades in as it rises into place over its form, as the launch review on the create pages does, instead of snapping in. Its wallet button works from the moment it appears, and with reduced motion turned on it only fades in.
+- When your bid lands, "Your bid on … is placed." now arrives with a green tick that draws itself in.
+
+## 14 November 2026: Create pages
+- In the launch review, Review this launch now sits at the top of the card with the token's details just under it, instead of above a wide empty gap.
+- On a wide screen, the column beside the form or the review now stops just under the bar at the top of the page as you scroll, instead of its top sliding under that bar.
+
 ## 14 November 2026: Create
 - Review launch now shows the review where the form was, at the same width, instead of in the narrow column beside a grayed form. The button beside it reads Continue Editing while the review is open and brings the form back with everything you typed. Either way the page shows the review, or the form, from its top. The launch button that opens your wallet sits at the foot of the review.
 - On Create Memestock, the Still needed line and Review launch follow what you type straight away. Each field still saves when you leave it.

@@ -407,9 +407,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp typed?(kind), do: kind in @typed
 
-  # A ticket keeps a line for the reason under its button, so the receipt under
-  # it on a phone never moves when a reason comes or goes.
-  defp ticket?(kind), do: kind in @tickets
+  # A ticket, or a form with an amount, keeps a line for the reason under its
+  # button, so what is under it never moves when a reason comes or goes.
+  defp reason_line?(kind), do: kind in @tickets or kind in @typed
 
   defp defaults(%{kind: :exercise, listing: listing, unit: unit, holding: held}),
     do: %{"amount" => F.tokens(held || listing.filled, unit)}
@@ -497,8 +497,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         />
       </div>
 
-      <p class="token-swap__error" role="status" data-onchain-lost hidden>
-        This page lost its connection, so nothing was sent. Press again once it's back.
+      <p class="covered-call-panel__problem" role="status" data-onchain-lost>
+        <span>Connection lost. Nothing was sent.</span>
       </p>
     </section>
     """
@@ -576,7 +576,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     >
       Sign in
     </P.button>
-    <p :if={@blocked || ticket?(@kind)} id={"#{@id}-why"} class="covered-call-panel__reason">
+    <p :if={@blocked || reason_line?(@kind)} id={"#{@id}-why"} class="covered-call-panel__reason">
       {@blocked}
     </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
