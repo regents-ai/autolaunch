@@ -50,8 +50,10 @@
 .exposure__trade { justify-self: start; }
 
 #exposure-act-panel { display: grid; }
-/* Four equal tabs, each wide enough for its word, narrowing only to fit a phone. */
-#exposure-act .token-trade__tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); inline-size: min(100%, 24rem); }
+/* Equal tabs, one per action the week offers, each wide enough for its word, narrowing only to fit a phone. */
+#exposure-act .token-trade__tabs { display: grid; grid-template-columns: repeat(var(--exposure-tabs, 4), minmax(0, 1fr)); inline-size: min(100%, calc(var(--exposure-tabs, 4) * 6rem)); }
+#exposure-act .token-trade__tabs[data-tabs="1"] { --exposure-tabs: 1; }
+#exposure-act .token-trade__tabs[data-tabs="3"] { --exposure-tabs: 3; }
 #exposure-act .token-trade__tabs [role="tab"] { min-width: 0; padding-inline: var(--space-1); }
 @media (max-width: 23.99rem) { #exposure-act .token-trade__tabs [role="tab"] { padding-inline: 0; font-size: .875rem; } }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }

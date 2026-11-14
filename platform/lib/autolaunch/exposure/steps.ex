@@ -127,13 +127,19 @@ defmodule Autolaunch.Exposure.Steps do
        steps: [Review.step("settle", reading.address, Call.encode("settle()", []))],
        blocked: nil,
        approved: true,
-       facts: %{
-         due: reading.waiting,
-         ends: reading.end_waiting?,
-         next: reading.next && Map.take(reading.next, [:index, :at, :open?, :due_at])
-       }
+       facts: %{due: reading.waiting, ends: reading.end_waiting?, next: next(reading.next)}
      }}
   end
+
+  defp next(nil), do: nil
+
+  defp next(next),
+    do: %{
+      index: next.index,
+      at: next.at,
+      kind: if(next.open?, do: :open, else: :close),
+      applies_at: next.due_at
+    }
 
   # Every reason the factory's `deposit` would revert at the latest block: the
   # week is past its last close (or ended, or still waiting on its first

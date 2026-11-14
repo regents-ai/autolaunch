@@ -6,7 +6,13 @@
 - The profile API no longer takes your Privy sign-in tokens.
 
 ## 14 November 2026: Isolated Exposure
-- The Isolated Exposure to After-hours Stocks page now says that version 1 was an experiment that worked, what it did, and that version 2 of the contract is being built. No further series will open on version 1.
+- Isolated Exposure to After-hours Stocks on /stock/isolated-afters now runs on version 2 on Base, one trading week at a time. Each week opens with its first deposit: Deposit takes the stock token during the week and gives you the same amount of each of the week's two tokens.
+- Prices apply themselves. An hour after each open and close, the week reads that time's Chainlink price from the feed's history the next time anyone deposits, redeems or presses Update prices, so nobody has to record a price and Record and Apply are gone. Update prices is open to anyone.
+- The page shows the week's dates, each open and close with its price or when it is due, both tokens' values, the deposit cap and the room left, the terms and the Basescan links. Past weeks opens any of the last eight weeks that opened.
+- Redeem returns one of each token for one stock token at any time, and each token on its own once the week has ended. Buy and Sell trade a token for USDC through its pool, and say so when a token has no pool yet.
+- The portfolio shows your tokens from this week and recent weeks.
+- Version 1's two series stay redeemable on Base, and the page links both on Basescan. The site no longer shows them.
+- For agents: every Isolated Exposure route and tool names a week number in place of a series address, `autolaunch_after_hour_stocks_series` is now `autolaunch_after_hour_stocks_week`, and the steps prepared are buy, sell, deposit, redeem and settle.
 
 ## 13 November 2026: Agent guides
 - The agent guides and agents.md now name Regents CLI 1.10.28, the newest release, with its source commit and the fingerprint of its published package. It changes no Autolaunch command.

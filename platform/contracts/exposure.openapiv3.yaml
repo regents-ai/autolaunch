@@ -4,22 +4,23 @@
 paths:
   /api/v1/after-hour-stocks:
     get:
-      operationId: listExposureSeries
-      summary: List Isolated Exposure to After-hours Stocks series
-      description: Every Isolated Exposure to After-hours Stocks series this site offers on Base, newest first, as each stands at the
-        latest block. A series splits one stock token for a fixed term into an After-hours token (the
-        stock's moves from each close to the next open) and a Market-hours token (its moves from each
-        open to the close). Stock and token amounts are raw token units, prices and ledger values WAD
-        dollars per stock token, pool quotes micro-USDC, times Unix seconds. Needs no account; the page
-        tool autolaunch_after_hour_stocks_list calls it.
+      operationId: listExposureWeeks
+      summary: List Isolated Exposure to After-hours Stocks weeks
+      description: This week and the last eight weeks that opened, newest first, as each stands at the latest
+        block on Base. Each week splits one stock token for one trading week into an After-hours token (the
+        stock's moves from each close to the next open) and a Market-hours token (its moves from each open
+        to the close). A week opens with its first deposit; until then it is listed with the address it will
+        open at and the terms it would open with. Stock and token amounts are raw token units, prices and
+        ledger values WAD dollars per stock token, pool quotes micro-USDC, times Unix seconds. Needs no
+        account; the page tool autolaunch_after_hour_stocks_list calls it.
       security: []
       responses:
         '200':
-          description: Every series
+          description: The factory, this week and the recent weeks
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExposureSeriesListEnvelope'
+                $ref: '#/components/schemas/ExposureWeekListEnvelope'
         '422':
           description: A query parameter was sent (invalid_request)
           content:
@@ -36,30 +37,31 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/after-hour-stocks/{series}:
+  /api/v1/after-hour-stocks/{week}:
     get:
-      operationId: getExposureSeries
-      summary: Read an Isolated Exposure to After-hours Stocks series
-      description: One Isolated Exposure to After-hours Stocks series at the latest block, in the shape of each entry of
-        listExposureSeries. Needs no account; the page tool autolaunch_after_hour_stocks_series calls it.
+      operationId: getExposureWeek
+      summary: Read an Isolated Exposure to After-hours Stocks week
+      description: One week at the latest block, in the shape of each week of listExposureWeeks, with every
+        price its series has applied. Needs no account; the page tool autolaunch_after_hour_stocks_week
+        calls it.
       security: []
       parameters:
-      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      - $ref: '#/components/parameters/ExposureWeek'
       responses:
         '200':
-          description: The series
+          description: The week
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExposureSeriesEnvelope'
+                $ref: '#/components/schemas/ExposureWeekEnvelope'
         '404':
-          description: No series at that address on this site (unknown_series)
+          description: Neither this week nor one that has opened (unknown_week)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '422':
-          description: A query parameter was sent (invalid_request)
+          description: The week is not a number, or a query parameter was sent (invalid_request)
           content:
             application/json:
               schema:
@@ -74,17 +76,17 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/me/after-hour-stocks/{series}:
+  /api/v1/me/after-hour-stocks/{week}:
     get:
       operationId: getMyExposure
       summary: Read your Isolated Exposure to After-hours Stocks holding
-      description: What the signed-in wallet holds of one series and what it can return now, read at the
+      description: What the signed-in wallet holds of one week and what it can redeem now, read at the
         latest block. Only the wallet the person signed in with is read. Needs the site's sign-in in the
         same browser.
       security:
       - SiteSession: []
       parameters:
-      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      - $ref: '#/components/parameters/ExposureWeek'
       responses:
         '200':
           description: The signed-in wallet's holding
@@ -99,13 +101,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '404':
-          description: No series at that address on this site (unknown_series)
+          description: Neither this week nor one that has opened (unknown_week)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '409':
-          description: The account has no wallet to read (wallet_required)
+          description: The account has no wallet to read (wallet_required), or the week has not opened yet
+            (week_not_open)
           content:
             application/json:
               schema:
@@ -120,16 +123,16 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/agent/v1/after-hour-stocks/{series}/holdings:
+  /api/agent/v1/after-hour-stocks/{week}/holdings:
     get:
       operationId: autolaunch_my_after_hour_stocks
       summary: Read your person's Isolated Exposure to After-hours Stocks holding
-      description: What the paired person's signed-in wallet holds of one series and what it can return
-        now, read at the latest block. Changes nothing.
+      description: What the paired person's signed-in wallet holds of one week and what it can redeem now,
+        read at the latest block. Changes nothing.
       security:
       - SiwaProof: []
       parameters:
-      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      - $ref: '#/components/parameters/ExposureWeek'
       responses:
         '200':
           description: The person's holding
@@ -146,13 +149,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '404':
-          description: No series at that address on this site (unknown_series)
+          description: Neither this week nor one that has opened (unknown_week)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '409':
-          description: The person's account has no wallet to read (wallet_required)
+          description: The person's account has no wallet to read (wallet_required), or the week has not
+            opened yet (week_not_open)
           content:
             application/json:
               schema:
@@ -163,18 +167,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
-  /api/agent/v1/after-hour-stocks/{series}/steps:
+  /api/agent/v1/after-hour-stocks/{week}/steps:
     post:
       operationId: autolaunch_after_hour_stocks_prepare
       summary: Prepare an Isolated Exposure to After-hours Stocks step
-      description: The wallet steps for one Isolated Exposure to After-hours Stocks action, built from the chain at the latest block,
+      description: The wallet steps for one action on one week, built from the chain at the latest block,
         for one of the person's own wallets (`signer`, or the wallet they signed in with). The site only
-        prepares; the wallet's own key signs and sends each step. An action the chain's current state
-        makes certain to fail answers 200 with `blocked`, and its steps. Changes nothing.
+        prepares; the wallet's own key signs and sends each step. An action the chain's current state makes
+        certain to fail answers 200 with `blocked`, and its steps. Changes nothing.
       security:
       - SiwaProof: []
       parameters:
-      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      - $ref: '#/components/parameters/ExposureWeek'
       requestBody:
         required: true
         content:
@@ -199,20 +203,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '404':
-          description: No series at that address on this site (unknown_series)
+          description: Neither this week nor one that has opened (unknown_week)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '409':
-          description: The person's account has no wallet to act with (wallet_required)
+          description: The person's account has no wallet to act with (wallet_required), or the action needs
+            the week's tokens and the week has not opened yet (week_not_open)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
         '422':
-          description: An unknown field, kind or type, or amounts that come to nothing (invalid_request,
-            invalid_amount)
+          description: An unknown field, kind or type, a missing token, or amounts that come to nothing
+            (invalid_request, leg_required, invalid_amount)
           content:
             application/json:
               schema:
@@ -221,14 +226,15 @@ paths:
           description: The chain could not be read, or the site is not open yet (chain_unavailable, prelaunch_read_only)
 components:
   parameters:
-    ExposureSeriesAddress:
-      name: series
+    ExposureWeek:
+      name: week
       in: path
       required: true
-      description: The series contract's address on Base, 0x and 40 hex digits.
+      description: The factory's week number, as listExposureWeeks gives it. Week w runs from the Monday
+        7w - 3 to the Sunday 7w + 3, in days since 1970-01-01.
       schema:
-        type: string
-        pattern: ^0x[0-9a-fA-F]{40}$
+        type: integer
+        minimum: 1
   schemas:
     ExposureToken:
       type: object
@@ -247,47 +253,84 @@ components:
         decimals:
           type: integer
     ExposureLeg:
-      allOf:
-      - $ref: '#/components/schemas/ExposureToken'
-      - type: object
-        required:
-        - ledger
-        - supply
-        - pool
-        properties:
-          ledger:
-            type: integer
-            description: What one token is worth now in its share of the stock, WAD dollars per stock token.
-          supply:
-            type: integer
-            description: Raw units in existence.
-          pool:
-            description: Null without an Aerodrome pool against USDC; otherwise the pool and what one whole
-              token sells for there now (null when it holds nothing to quote).
-            oneOf:
-            - type: 'null'
-            - type: object
-              required:
-              - address
-              - usdc_per_token
-              properties:
-                address:
-                  type: string
-                usdc_per_token:
-                  type:
-                  - integer
-                  - 'null'
-    ExposureSeries:
       type: object
       required:
       - address
+      - symbol
+      - name
+      - decimals
+      - ledger
+      - supply
+      - pool
+      properties:
+        address:
+          description: Null until the week opens; the token is made by the week's first deposit.
+          type:
+          - string
+          - 'null'
+        symbol:
+          type: string
+        name:
+          type: string
+        decimals:
+          type: integer
+        ledger:
+          type: integer
+          description: What one token is worth now in its share of the stock, WAD dollars per stock token.
+        supply:
+          type: integer
+          description: Raw units in existence.
+        pool:
+          description: Null without an Aerodrome pool against USDC; otherwise the pool and what one whole
+            token sells for there now (null when it holds nothing to quote).
+          oneOf:
+          - type: 'null'
+          - type: object
+            required:
+            - address
+            - usdc_per_token
+            properties:
+              address:
+                type: string
+              usdc_per_token:
+                type:
+                - integer
+                - 'null'
+    ExposureMoment:
+      type: object
+      required:
+      - index
+      - at
+      - kind
+      - applies_at
+      properties:
+        index:
+          type: integer
+        at:
+          type: integer
+          description: The open or close, Unix seconds.
+        kind:
+          type: string
+          enum:
+          - open
+          - close
+        applies_at:
+          type: integer
+          description: From when the series applies this price, an hour after it.
+    ExposureWeek:
+      type: object
+      required:
+      - week
+      - current
+      - opened
+      - series
+      - factory
       - block
       - now
       - read_at
       - stock
       - after_hours
       - market_hours
-      - oracle
       - feed
       - feed_phase
       - terms_hash
@@ -298,12 +341,26 @@ components:
       - deposit_cap
       - deposited
       - held
-      - max_report_delay
+      - opening_paused
+      - prices_applied
+      - prices_waiting
+      - feed_unreadable
+      - feed_unreadable_since
       - schedule
-      - prints
       - next
       properties:
-        address:
+        week:
+          type: integer
+        current:
+          type: boolean
+          description: Whether this is the week that takes deposits now.
+        opened:
+          type: boolean
+          description: Whether the week's first deposit has opened its series.
+        series:
+          type: string
+          description: The week's series contract; before the week opens, the address it will open at.
+        factory:
           type: string
         block:
           type: integer
@@ -319,22 +376,25 @@ components:
           $ref: '#/components/schemas/ExposureLeg'
         market_hours:
           $ref: '#/components/schemas/ExposureLeg'
-        oracle:
-          type: string
         feed:
           type: string
-          description: The Chainlink price feed proxy the oracle reads.
+          description: The Chainlink price feed proxy the series reads.
         feed_phase:
           type: integer
-          description: The feed phase the oracle is pinned to.
+          description: The version of the feed the series reads, fixed when it opens.
         terms_hash:
           type: string
-          description: keccak256 of the exact bytes at terms_url.
+          description: keccak256 of the exact bytes of the week's terms.
         terms_url:
-          type: string
+          description: Where this site serves those bytes; null when it has no terms with that fingerprint.
+          type:
+          - string
+          - 'null'
         status:
           type: string
+          description: What updating the prices now would leave; unopened before the first deposit.
           enum:
+          - unopened
           - pending
           - active
           - ended
@@ -346,11 +406,13 @@ components:
           - maturity
           - overnight_depleted
           - session_depleted
-          - missing_print
+          - stale_feed
+          - bad_price
+          - feed_unreadable
           - null
         price:
           type: integer
-          description: The last applied price, WAD dollars per stock token; 0 before the first.
+          description: The last price, WAD dollars per stock token; 0 before the first.
         deposit_cap:
           type: integer
         deposited:
@@ -359,106 +421,113 @@ components:
         held:
           type: integer
           description: Raw stock the series holds; below deposited only after the issuer took some.
-        max_report_delay:
+        opening_paused:
+          type: boolean
+          description: Whether opening new weeks is paused; open weeks run on either way.
+        prices_applied:
           type: integer
-          description: Seconds after its time by which a price must be recorded.
+          description: Prices the series has once its due prices are applied.
+        prices_waiting:
+          type: integer
+          description: Due prices nobody has applied on the chain yet; any wallet can apply them.
+        feed_unreadable:
+          type: boolean
+          description: Whether the next price is due and the feed could not be read for it.
+        feed_unreadable_since:
+          description: When the series first found the feed unreadable, Unix seconds; the week ends if it
+            still is 7 days later.
+          type:
+          - integer
+          - 'null'
         schedule:
           type: array
           items:
-            type: object
-            required:
-            - index
-            - at
-            - kind
-            properties:
-              index:
-                type: integer
-              at:
-                type: integer
-              kind:
-                type: string
-                enum:
-                - open
-                - close
-        prints:
-          type: array
-          items:
-            type: object
-            required:
-            - index
-            - at
-            - kind
-            - price
-            - after_hours
-            - market_hours
-            - feed_round_id
-            - feed_updated_at
-            - recorded_at
-            properties:
-              index:
-                type: integer
-              at:
-                type: integer
-              kind:
-                type: string
-                enum:
-                - open
-                - close
-              price:
-                type: integer
-              after_hours:
-                type: integer
-                description: After-hours ledger after this price, WAD.
-              market_hours:
-                type: integer
-                description: Market-hours ledger after this price, WAD.
-              feed_round_id:
-                type: integer
-              feed_updated_at:
-                type: integer
-              recorded_at:
-                type: integer
+            $ref: '#/components/schemas/ExposureMoment'
         next:
-          description: Null once ended; otherwise the price to record and apply next.
+          description: Null once the week has ended on the chain; otherwise the next price to apply.
           oneOf:
           - type: 'null'
+          - $ref: '#/components/schemas/ExposureMoment'
+    ExposurePrice:
+      type: object
+      required:
+      - index
+      - at
+      - kind
+      - price
+      - after_hours
+      - market_hours
+      - feed_round_id
+      - feed_updated_at
+      properties:
+        index:
+          type: integer
+        at:
+          type: integer
+        kind:
+          type: string
+          enum:
+          - open
+          - close
+        price:
+          type: integer
+        after_hours:
+          type: integer
+          description: After-hours ledger after this price, WAD.
+        market_hours:
+          type: integer
+          description: Market-hours ledger after this price, WAD.
+        feed_round_id:
+          type: integer
+        feed_updated_at:
+          type: integer
+    ExposureWeekEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          allOf:
+          - $ref: '#/components/schemas/ExposureWeek'
           - type: object
             required:
-            - index
-            - at
-            - kind
-            - recordable_at
-            - deadline
+            - prices
             properties:
-              index:
-                type: integer
-              at:
-                type: integer
-              kind:
-                type: string
-                enum:
-                - open
-                - close
-              recordable_at:
-                type: integer
-              deadline:
-                type: integer
-    ExposureSeriesEnvelope:
+              prices:
+                description: Every price applied, oldest first; null when the feed refused to give back a
+                  round the series used.
+                oneOf:
+                - type: 'null'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ExposurePrice'
+    ExposureWeekListEnvelope:
       type: object
       required:
       - data
       properties:
         data:
-          $ref: '#/components/schemas/ExposureSeries'
-    ExposureSeriesListEnvelope:
-      type: object
-      required:
-      - data
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExposureSeries'
+          type: object
+          required:
+          - factory
+          - current_week
+          - opening_paused
+          - read_at
+          - weeks
+          properties:
+            factory:
+              type: string
+            current_week:
+              type: integer
+            opening_paused:
+              type: boolean
+            read_at:
+              type: string
+              format: date-time
+            weeks:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExposureWeek'
     ExposureHoldingsEnvelope:
       type: object
       required:
@@ -467,6 +536,7 @@ components:
         data:
           type: object
           required:
+          - week
           - series
           - wallet
           - read_at
@@ -477,6 +547,8 @@ components:
           - usdc
           - returnable
           properties:
+            week:
+              type: integer
             series:
               type: string
             wallet:
@@ -495,7 +567,7 @@ components:
               description: The wallet's USDC, in micro-units, for buying a token.
             stock_allowance:
               type: integer
-              description: Raw stock the wallet lets the series take.
+              description: Raw stock the wallet lets the factory take for a deposit.
             returnable:
               type: object
               description: What redeem takes now (whole pairs before the end, every token after it) and
@@ -522,10 +594,9 @@ components:
           enum:
           - buy
           - sell
-          - mint
+          - deposit
           - redeem
-          - update
-          - end
+          - settle
         leg:
           type: string
           enum:
@@ -538,15 +609,16 @@ components:
         amount:
           type: integer
           minimum: 1
-          description: For buy, USDC micro-units to spend; for sell, raw token units; for mint, raw stock units.
+          description: For buy, USDC micro-units to spend; for sell, raw token units; for deposit, raw stock
+            units, this week only.
         overnight:
           type: integer
           minimum: 0
-          description: For redeem, raw After-hours units; equal to session before the series ends.
+          description: For redeem, raw After-hours units; equal to session before the week ends.
         session:
           type: integer
           minimum: 0
-          description: For redeem, raw Market-hours units; equal to overnight before the series ends.
+          description: For redeem, raw Market-hours units; equal to overnight before the week ends.
     ExposureStepsEnvelope:
       type: object
       required:
@@ -556,6 +628,7 @@ components:
           type: object
           required:
           - kind
+          - week
           - signer
           - chain
           - steps
@@ -568,10 +641,11 @@ components:
               enum:
               - buy
               - sell
-              - mint
+              - deposit
               - redeem
-              - update
-              - end
+              - settle
+            week:
+              type: integer
             signer:
               type: string
             chain:
@@ -610,11 +684,9 @@ components:
                     - buy
                     - sell
                     - stock_approval
-                    - mint
+                    - deposit
                     - redeem
-                    - record
                     - settle
-                    - end
                   to:
                     type: string
                   data:
@@ -638,6 +710,8 @@ components:
                     - no_liquidity
                     - too_small
                     - not_enough_usdc
+                    - deposits_closed
+                    - paused
                     - not_open
                     - ended
                     - above_cap
@@ -646,15 +720,14 @@ components:
                     - approve_first
                     - pair_required
                     - more_than_held
-                    - too_early
-                    - price_too_old
-                    - missed_deadline
-                    - price_available
-                    - not_overdue
                   message:
                     type: string
             facts:
               type: object
+              description: 'buy and sell: leg, amount, expected, minimum, usdc_decimals, slippage_bps.
+                deposit: amount, room (raw stock the cap still takes). redeem: overnight, session, paid (null
+                for unequal amounts before the end). settle: due (prices it would apply), ends (whether it
+                ends the week), next (the next price, as in a week''s next).'
     ExposureError:
       type: object
       required:
@@ -670,7 +743,8 @@ components:
             code:
               type: string
               enum:
-              - unknown_series
+              - unknown_week
+              - week_not_open
               - unknown_terms
               - invalid_amount
               - leg_required
@@ -679,6 +753,9 @@ components:
               - wallet_required
               - authentication_required
               - chain_unavailable
+              - invalid_chain_response
+              - invalid_block_header
+              - wrong_chain
               - agent_not_paired
             message:
               type: string

@@ -590,8 +590,8 @@ defmodule AutolaunchWeb.ExposureComponent do
     <dd id="exposure-due">{due_words(@facts)}</dd>
     <dt :if={@facts.next}>Next</dt>
     <dd :if={@facts.next}>
-      {if @facts.next.open?, do: "Open", else: "Close"}, {F.moment(@facts.next.at)}, applies from {F.time(
-        @facts.next.due_at
+      {if @facts.next.kind == :open, do: "Open", else: "Close"}, {F.moment(@facts.next.at)}, applies from {F.time(
+        @facts.next.applies_at
       )} New York
     </dd>
     """

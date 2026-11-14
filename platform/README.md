@@ -165,11 +165,11 @@ tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 Isolated Exposure to After-hours Stocks (`/stock/isolated-afters`, the portfolio's section and their
 agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
 `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=/abs/path/exposure.json` is required, naming the
-`ExposureSeriesV1` series the site offers, oldest first, on the Base description's chain (`chain_id`,
-`usdc`, `pool_factory`, `series`). On autolaunch.sh it is
-`contracts/exposure/deployments/base-mainnet/site-series.json`, copied to
-`platform/deployment/exposure.json` before deploying. Design and evidence:
-[docs/exposure-design.md](docs/exposure-design.md).
+`ExposureFactoryV2` the site reads and the first week it shows, on the Base description's chain
+(`chain_id`, `factory`, `first_week`, `usdc`, `pool_factory`, `router`). On autolaunch.sh it is
+`contracts/exposure-v2/deployments/base-mainnet/site-factory.json`, filled in after the factory is
+deployed and copied to `platform/deployment/exposure.json` before deploying. Design and evidence:
+[docs/exposure-v2-design.md](docs/exposure-v2-design.md).
 
 ## Protected paths
 
