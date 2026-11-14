@@ -19,7 +19,7 @@ defmodule Autolaunch.AuctionBook do
 
   alias Autolaunch.{BidActions, BidPrice}
   alias Autolaunch.Chain.{Abi, Rpc}
-  alias Autolaunch.Lab
+  alias Autolaunch.{Lab, LaunchChain}
   alias Autolaunch.LabAbi
   alias Autolaunch.LabRpc
   alias Autolaunch.Robinhood.BlockClock
@@ -38,6 +38,27 @@ defmodule Autolaunch.AuctionBook do
   end
 
   def base(_auction), do: {:error, :no_auction_contract}
+
+  @doc """
+  When a Base auction opens, read at the latest block: nil once that block
+  has reached the auction's start block, otherwise the time the start block
+  is due, from the latest block's time and the chain's block time.
+  """
+  @spec opening(map()) :: {:ok, DateTime.t() | nil} | {:error, atom()}
+  def opening(%{auction_address: address} = auction) when is_binary(address) do
+    with {:ok, opts} <- base_opts(auction),
+         {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, start} <- uint(address, "startBlock()", block, opts),
+         do: {:ok, opens_at(block, start)}
+  end
+
+  defp opens_at(%{number: number}, start) when number >= start, do: nil
+
+  defp opens_at(%{number: number, timestamp: seconds}, start),
+    do:
+      seconds
+      |> DateTime.from_unix!()
+      |> DateTime.add(round(LaunchChain.seconds(:base, start - number)))
 
   @doc """
   A Robinhood auction's book, read at the latest block by its address alone:
