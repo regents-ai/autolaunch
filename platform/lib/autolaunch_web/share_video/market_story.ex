@@ -258,8 +258,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
 
   defp exposure_figures(%{applied: 0} = series, _config, history, nil, _block, _opts),
     do:
-      {:ok,
-       [feed_price(history), {"First price", ExposureFormat.moment(hd(series.boundaries))}]}
+      {:ok, [feed_price(history), {"First price", ExposureFormat.moment(hd(series.boundaries))}]}
 
   defp exposure_figures(series, _config, _history, nil, _block, _opts),
     do:

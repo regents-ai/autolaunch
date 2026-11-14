@@ -288,9 +288,8 @@ defmodule Autolaunch.Exposure.Chain do
             {{reading.week, :overnight_pool}, config.pool_factory,
              "getPool(address,address,bool)", [reading.overnight.address, config.usdc, false],
              :address},
-            {{reading.week, :session_pool}, config.pool_factory,
-             "getPool(address,address,bool)", [reading.session.address, config.usdc, false],
-             :address}
+            {{reading.week, :session_pool}, config.pool_factory, "getPool(address,address,bool)",
+             [reading.session.address, config.usdc, false], :address}
           ],
           do: read
   end
@@ -320,7 +319,11 @@ defmodule Autolaunch.Exposure.Chain do
             session: pool(around[{reading.week, :session_pool}])
           }
         },
-        else: %{held: 0, supply: %{overnight: 0, session: 0}, pools: %{overnight: nil, session: nil}}
+        else: %{
+          held: 0,
+          supply: %{overnight: 0, session: 0},
+          pools: %{overnight: nil, session: nil}
+        }
 
     reading
     |> Map.merge(legs)
@@ -630,7 +633,10 @@ defmodule Autolaunch.Exposure.Chain do
   # value. A type list gives the values in order; `{:tuple, types}` a dynamic
   # tuple's; `{:maybe, type}` nil for a read the contract refuses.
   defp read(reads, block, opts) do
-    calls = Enum.map(reads, fn {_key, to, signature, args, _type} -> {to, Call.encode(signature, args)} end)
+    calls =
+      Enum.map(reads, fn {_key, to, signature, args, _type} ->
+        {to, Call.encode(signature, args)}
+      end)
 
     with {:ok, answers} <- Multicall.read(calls, block, opts) do
       reads

@@ -450,7 +450,11 @@ defmodule AutolaunchWeb.ExposureLive do
           </P.disclosure>
         </section>
 
-        <section id="exposure-prices" class="exposure__section" aria-labelledby="exposure-prices-title">
+        <section
+          id="exposure-prices"
+          class="exposure__section"
+          aria-labelledby="exposure-prices-title"
+        >
           <h2 id="exposure-prices-title" class="exposure__title">Prices</h2>
           <.price_chart
             :if={match?([_ | _], @series[:prints])}
@@ -538,7 +542,11 @@ defmodule AutolaunchWeb.ExposureLive do
             </li>
           </ul>
           <p class="exposure__muted">
-            <.link :if={@terms?} id="exposure-terms" href={~p"/stock/isolated-afters/terms/#{@series.terms_hash}"}>
+            <.link
+              :if={@terms?}
+              id="exposure-terms"
+              href={~p"/stock/isolated-afters/terms/#{@series.terms_hash}"}
+            >
               Full terms
             </.link>
             <span :if={@terms?}>·</span>

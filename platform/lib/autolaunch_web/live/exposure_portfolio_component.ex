@@ -86,9 +86,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <td data-label="Value">{value(holding)}</td>
               <td class="exposure__row-action">
                 <.link
-                  navigate={
-                    ~p"/stock/isolated-afters?#{[week: holding.week.week, tab: "redeem"]}"
-                  }
+                  navigate={~p"/stock/isolated-afters?#{[week: holding.week.week, tab: "redeem"]}"}
                   class="rg-button rg-button--secondary"
                 >
                   Redeem
