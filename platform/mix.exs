@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "f21387188c7438bec659ebb1672cebbfdb12e901"
+  @elixir_utils_ref "0e4c5e34d408fcd22524a6217063ff93b8636d3f"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "dfd18f87354db8b7d04acbe4057ffc12b5838757"
 
@@ -121,8 +121,7 @@ defmodule Autolaunch.MixProject do
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
       # NEAR Intents 1Click, for funding a bid from NEAR (Autolaunch.NearFunding.Intents).
-      {:regent_near_intents,
-       git: @elixir_utils, ref: "2068be21f542e215ae60f8f51e684e2ae453279b", sparse: "near_intents"},
+      {:regent_near_intents, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "near_intents"},
       {:mdex, "== 0.14.6"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
