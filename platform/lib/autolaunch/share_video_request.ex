@@ -2,8 +2,8 @@ defmodule Autolaunch.ShareVideoRequest do
   @moduledoc """
   One share video asked for (`AutolaunchWeb.ShareVideo`) and, once made, the
   video itself: what it is of (a launch's token or running auction, by
-  `auction_id`; a covered-call market or an Isolated Exposure to After-hours Stocks series, by
-  `subject`, its symbol or address), and for a person's own video the
+  `auction_id`; a covered-call market or an Isolated Exposure to After-hours Stocks week, by
+  `subject`, its symbol or week number), and for a person's own video the
   signed-in account and its wallet.
   A launch's own video is named by `key`, which moves on every fifteen minutes;
   a person's are theirs for that launch or market, kind and wallet.
@@ -127,7 +127,7 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
     end
 
-    # A person's requests for one market or series, kind and wallet in the
+    # A person's requests for one market or week, kind and wallet in the
     # last day, newest first.
     read :own_market do
       argument :human_account_id, :integer, allow_nil?: false
@@ -218,7 +218,7 @@ defmodule Autolaunch.ShareVideoRequest do
 
     # The launch, for a token's or an auction's video.
     attribute :auction_id, :uuid
-    # The market's symbol or the series' address, for a covered-call or an
+    # The market's symbol or the week's number, for a covered-call or an
     # Isolated Exposure to After-hours Stocks video.
     attribute :subject, :string
     # The signed-in account a person's own video is for; nil for a launch's own.

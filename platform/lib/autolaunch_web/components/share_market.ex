@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   @moduledoc """
   The "Share" button of the covered calls page (`:covered_calls`, by the
   market's symbol) and of the Isolated Exposure to After-hours Stocks page (`:exposure`, by the
-  series' address): the share window (`AutolaunchWeb.Components.ShareDialog`)
+  week's number): the share window (`AutolaunchWeb.Components.ShareDialog`)
   with the market's picture, a post naming it, and its share video.
 
   The video is the one for everyone. A signed-in person with a wallet also
@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.Components.ShareMarket do
 
   attr :id, :string, required: true
   attr :kind, :atom, required: true, values: [:covered_calls, :exposure]
-  attr :subject, :string, required: true, doc: "the market's symbol, or the series' address"
+  attr :subject, :string, required: true, doc: "the market's symbol, or the week's number"
 
   attr :account_control, :map,
     required: true,
@@ -61,8 +61,8 @@ defmodule AutolaunchWeb.Components.ShareMarket do
     "#{meta.title}: #{StockIdentity.sentence(:base, symbol)}. #{meta.url}"
   end
 
-  defp message(:exposure, series) do
-    meta = ShareCard.market_meta(:exposure, series)
+  defp message(:exposure, week) do
+    meta = ShareCard.market_meta(:exposure, week)
     "#{meta.title} (Base). #{meta.url}"
   end
 
@@ -70,5 +70,5 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   defp mine_label(:exposure), do: "My holdings"
 
   defp video_name(:covered_calls, symbol), do: "#{symbol}-covered-calls-autolaunch.mp4"
-  defp video_name(:exposure, _series), do: "after-hours-autolaunch.mp4"
+  defp video_name(:exposure, _week), do: "after-hours-autolaunch.mp4"
 end

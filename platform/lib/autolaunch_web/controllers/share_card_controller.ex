@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.ShareCardController do
   use AutolaunchWeb, :controller
 
+  alias Autolaunch.Exposure
   alias AutolaunchWeb.{NotFoundError, Paths, ShareCard, ShareVideo, UnavailableError}
   alias RegentChain.Address
 
@@ -120,27 +121,27 @@ defmodule AutolaunchWeb.ShareCardController do
     market_wallet_video(conn, :covered_calls, symbol, wallet)
   end
 
-  @doc "An Isolated Exposure to After-hours Stocks series' picture, for any series the site offers."
-  def exposure(conn, %{"series" => series}) do
-    series = exposure_series!(series)
-    send_card(conn, ShareCard.market_png(:exposure, series, DateTime.utc_now()))
+  @doc "An Isolated Exposure to After-hours Stocks week's picture, for any week that has opened."
+  def exposure(conn, %{"week" => week}) do
+    week = exposure_week!(week)
+    send_card(conn, ShareCard.market_png(:exposure, week, DateTime.utc_now()))
   end
 
-  @doc "An Isolated Exposure to After-hours Stocks series' share video for everyone."
-  def exposure_video(conn, %{"series" => series}) do
-    series = exposure_series!(series)
+  @doc "An Isolated Exposure to After-hours Stocks week's share video for everyone."
+  def exposure_video(conn, %{"week" => week}) do
+    week = exposure_week!(week)
 
     send_video(
       conn,
       "public",
-      ShareVideo.fetch_market(:exposure, series, nil, nil, DateTime.utc_now())
+      ShareVideo.fetch_market(:exposure, week, nil, nil, DateTime.utc_now())
     )
   end
 
-  @doc "One wallet's share video of an Isolated Exposure to After-hours Stocks series, on the same terms as `wallet_video/2`."
-  def exposure_wallet_video(conn, %{"series" => series, "wallet" => wallet}) do
-    series = exposure_series!(series)
-    market_wallet_video(conn, :exposure, series, wallet)
+  @doc "One wallet's share video of an Isolated Exposure to After-hours Stocks week, on the same terms as `wallet_video/2`."
+  def exposure_wallet_video(conn, %{"week" => week, "wallet" => wallet}) do
+    week = exposure_week!(week)
+    market_wallet_video(conn, :exposure, week, wallet)
   end
 
   defp market_wallet_video(conn, kind, subject, wallet) do
@@ -175,11 +176,19 @@ defmodule AutolaunchWeb.ShareCardController do
     end
   end
 
-  # The series' address as the site's description lists it, in any case.
-  defp exposure_series!(series) do
-    case Autolaunch.Exposure.Deployment.series(series) do
-      {:ok, address} -> address
-      {:error, _unknown} -> raise NotFoundError
+  # A week the factory has opened, by its number as the page writes it; any
+  # other is not there. One that cannot be read just now is the site's
+  # try-again page.
+  defp exposure_week!(week) do
+    with {number, ""} <- Integer.parse(week),
+         true <- Integer.to_string(number) == week,
+         {:ok, config} <- Exposure.Deployment.current(),
+         {:ok, block, opts} <- Exposure.Chain.latest(config.lab),
+         {:ok, factory} <- Exposure.Chain.factory(config, block, opts) do
+      if List.keymember?(factory.opened, number, 0), do: week, else: raise(NotFoundError)
+    else
+      {:error, _unreadable} -> raise UnavailableError
+      _not_a_week -> raise NotFoundError
     end
   end
 

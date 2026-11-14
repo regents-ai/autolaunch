@@ -112,8 +112,8 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   The page details for the covered calls page (`:covered_calls`, by the
-  market's symbol) or an Isolated Exposure to After-hours Stocks series (`:exposure`, by its
-  address): the page's own title and words, its address and the market's
+  market's symbol) or an Isolated Exposure to After-hours Stocks week (`:exposure`, by its
+  week number): the page's own title and words, its address and the market's
   picture.
   """
   @spec market_meta(:covered_calls | :exposure, String.t()) :: map()
@@ -133,7 +133,7 @@ defmodule AutolaunchWeb.ShareCard do
   defp page_path(:exposure), do: "/stock/isolated-afters"
 
   defp page_url(:covered_calls, _symbol), do: url(~p"/stock/covered-call")
-  defp page_url(:exposure, series), do: url(~p"/stock/isolated-afters?#{[series: series]}")
+  defp page_url(:exposure, week), do: url(~p"/stock/isolated-afters?#{[week: week]}")
 
   @doc "The page details for How Autolaunch works."
   @spec how_it_works_meta() :: map()
@@ -313,14 +313,14 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   Where a covered-call market's (`:covered_calls`, by symbol) or an
-  Isolated Exposure to After-hours Stocks series' (`:exposure`, by address) picture is served;
+  Isolated Exposure to After-hours Stocks week's (`:exposure`, by week number) picture is served;
   its price keeps moving, so its address does too.
   """
   @spec market_image_url(:covered_calls | :exposure, String.t(), DateTime.t()) :: String.t()
   def market_image_url(kind, subject, now), do: Paths.market_image_url(kind, subject, bucket(now))
 
   @doc """
-  A covered-call market's or an Isolated Exposure to After-hours Stocks series' picture as PNG
+  A covered-call market's or an Isolated Exposure to After-hours Stocks week's picture as PNG
   bytes, from its story (`AutolaunchWeb.ShareVideo.MarketStory`): the stock's
   mark, the product's name, where it stands, its two figures and the stock's
   price as a line under them.

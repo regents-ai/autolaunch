@@ -1,28 +1,30 @@
 defmodule Autolaunch.Exposure.Deployment do
   @moduledoc """
   Whether Exposure is on, and the description of its contracts:
-  `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT` names a JSON file listing every
-  `ExposureSeriesV1` the site offers, oldest first, with the USDC its legs trade
-  against and the Aerodrome pool factory and router they trade through.
+  `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT` names a JSON file naming the
+  `ExposureFactoryV2` that opens one series a week, the first week the site
+  lists, the USDC each week's tokens trade against and the Aerodrome pool
+  factory and router they trade through.
 
       {"chain_id": 8453,
+       "factory": "0x…",
+       "first_week": 2968,
        "usdc": "0x8335…",
        "pool_factory": "0x420D…",
-       "router": "0xcF77…",
-       "series": ["0xcae5…"]}
+       "router": "0xcF77…"}
 
   Exposure is on only when `AUTOLAUNCH_EXPOSURE=true`, and then the
   description is required (`config/runtime.exs`). It extends the Base
   deployment (`Autolaunch.Lab`): the description must name its chain, and every
   read and step goes through its RPC doors. Off, the page and the routes answer
-  not found and no tool offers it. Everything else about a series (its stock,
-  legs, oracle, schedule and terms) is read from the series itself.
+  not found and no tool offers it. Everything else (each week's series, stock,
+  tokens, feed, dates and terms) is read from the factory and the series.
   """
 
   alias Autolaunch.Lab
   alias RegentChain.Address
 
-  @keys ~w(chain_id pool_factory router series usdc)
+  @keys ~w(chain_id factory first_week pool_factory router usdc)
 
   @doc "Whether this site offers Exposure."
   def enabled?, do: Application.get_env(:autolaunch, :exposure, :off) == :on
@@ -32,10 +34,11 @@ defmodule Autolaunch.Exposure.Deployment do
           {:ok,
            %{
              chain_id: pos_integer(),
+             factory: String.t(),
+             first_week: pos_integer(),
              usdc: String.t(),
              pool_factory: String.t(),
              router: String.t(),
-             series: [String.t()],
              lab: map()
            }}
           | {:error, atom()}
@@ -50,19 +53,6 @@ defmodule Autolaunch.Exposure.Deployment do
       {:ok, Map.put(config, :lab, lab)}
     end
   end
-
-  @doc "`address` when it is one of the series the description lists, matched in any case."
-  @spec series(String.t()) :: {:ok, String.t()} | {:error, :unknown_series | atom()}
-  def series(address) when is_binary(address) do
-    with {:ok, config} <- current() do
-      case Enum.find(config.series, &Address.equal?(&1, address)) do
-        nil -> {:error, :unknown_series}
-        series -> {:ok, series}
-      end
-    end
-  end
-
-  def series(_address), do: {:error, :unknown_series}
 
   def load!(path) do
     case load(path) do
@@ -79,18 +69,20 @@ defmodule Autolaunch.Exposure.Deployment do
          {:ok, decoded} when is_map(decoded) <- Jason.decode(body),
          true <- Enum.sort(Map.keys(decoded)) == @keys || {:error, :invalid_shape},
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
+         {:ok, factory} <- address(decoded["factory"]),
+         {:ok, first_week} <- week(decoded["first_week"]),
          {:ok, usdc} <- address(decoded["usdc"]),
          {:ok, pool_factory} <- address(decoded["pool_factory"]),
-         {:ok, router} <- address(decoded["router"]),
-         {:ok, series} <- series_list(decoded["series"]) do
+         {:ok, router} <- address(decoded["router"]) do
       {:ok,
        %{
          path: path,
          chain_id: chain_id,
+         factory: factory,
+         first_week: first_week,
          usdc: usdc,
          pool_factory: pool_factory,
-         router: router,
-         series: series
+         router: router
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -103,18 +95,8 @@ defmodule Autolaunch.Exposure.Deployment do
 
   def load(_path), do: {:error, :absolute_path_required}
 
-  defp series_list([_ | _] = entries) do
-    series = Enum.map(entries, &Address.normalize/1)
-
-    if Enum.all?(series, &match?({:ok, _}, &1)) do
-      series = Enum.map(series, &elem(&1, 1))
-      if Enum.uniq(series) == series, do: {:ok, series}, else: {:error, :invalid_series}
-    else
-      {:error, :invalid_series}
-    end
-  end
-
-  defp series_list(_entries), do: {:error, :invalid_series}
+  defp week(value) when is_integer(value) and value > 0, do: {:ok, value}
+  defp week(_value), do: {:error, :invalid_week}
 
   defp address(value) do
     case Address.normalize(value) do

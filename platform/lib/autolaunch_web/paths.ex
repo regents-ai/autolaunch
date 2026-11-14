@@ -75,17 +75,17 @@ defmodule AutolaunchWeb.Paths do
 
   @doc """
   A covered-call market's (`:covered_calls`, by symbol) or an Isolated Exposure to After-hours
-  Stocks series' (`:exposure`, by address) share picture; `version` moves on
-  as its figures do.
+  Stocks week's (`:exposure`, by its week number) share picture; `version`
+  moves on as its figures do.
   """
   def market_image_url(:covered_calls, symbol, version),
     do: url(~p"/stock/covered-call/#{symbol}/share.png?#{[v: version]}")
 
-  def market_image_url(:exposure, series, version),
-    do: url(~p"/stock/isolated-afters/#{series}/share.png?#{[v: version]}")
+  def market_image_url(:exposure, week, version),
+    do: url(~p"/stock/isolated-afters/#{week}/share.png?#{[v: version]}")
 
   @doc """
-  A covered-call market's or an Isolated Exposure to After-hours Stocks series' share video for
+  A covered-call market's or an Isolated Exposure to After-hours Stocks week's share video for
   everyone, or `wallet`'s own for its signed-in owner.
   """
   def market_video_url(:covered_calls, symbol, nil, version),
@@ -94,11 +94,11 @@ defmodule AutolaunchWeb.Paths do
   def market_video_url(:covered_calls, symbol, wallet, version),
     do: url(~p"/stock/covered-call/#{symbol}/wallets/#{wallet}/share.mp4?#{[v: version]}")
 
-  def market_video_url(:exposure, series, nil, version),
-    do: url(~p"/stock/isolated-afters/#{series}/share.mp4?#{[v: version]}")
+  def market_video_url(:exposure, week, nil, version),
+    do: url(~p"/stock/isolated-afters/#{week}/share.mp4?#{[v: version]}")
 
-  def market_video_url(:exposure, series, wallet, version),
-    do: url(~p"/stock/isolated-afters/#{series}/wallets/#{wallet}/share.mp4?#{[v: version]}")
+  def market_video_url(:exposure, week, wallet, version),
+    do: url(~p"/stock/isolated-afters/#{week}/wallets/#{wallet}/share.mp4?#{[v: version]}")
 
   @doc """
   The one listed auction a page address names, or `:error` when none does or

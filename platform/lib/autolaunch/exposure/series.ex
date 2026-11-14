@@ -1,13 +1,18 @@
 defmodule Autolaunch.Exposure.Series do
   @moduledoc """
-  The four Exposure operations every surface calls — the page, the HTTP routes
-  and the browser tools — so each answers with the same figures and the same
-  refusals:
+  The Exposure operations every surface calls — the page, the portfolio, the
+  HTTP routes and the browser tools — so each answers with the same figures
+  and the same refusals. A week is named by the factory's week number.
 
-    * `:list` — every series the site offers, as each stands now (public)
-    * `:series` — one series with every price it has applied (public)
-    * `:holdings` — what a wallet of the acting account holds of a series
-    * `:prepare` — the wallet steps for one action, for a wallet of the acting account
+    * `:list` — the current week and the last eight open weeks before it, as
+      each stands now (public)
+    * `:week` — one week with every price its series has applied; nil is the
+      current week (public)
+    * `:holdings` — what a wallet of the acting account holds for one week
+    * `:portfolio` — what a wallet of the acting account holds of each listed
+      week, leaving out the weeks it holds nothing of
+    * `:prepare` — the wallet steps for one action on one week, for a wallet
+      of the acting account
 
   Nothing is stored: the contracts are the record. The acting account comes
   from the actor the caller authenticated; a wallet named in the request is
@@ -23,32 +28,43 @@ defmodule Autolaunch.Exposure.Series do
   alias Autolaunch.Exposure.{Chain, Deployment, Steps}
 
   actions do
-    action :list, {:array, :map} do
+    action :list, :map do
       run fn _input, _context -> __MODULE__.refused(__MODULE__.list()) end
     end
 
-    action :series, :map do
-      argument :series, :string, allow_nil?: false
+    action :week, :map do
+      argument :week, :integer, constraints: [min: 1]
 
       run fn input, _context ->
-        input.arguments.series |> __MODULE__.read() |> __MODULE__.refused()
+        input.arguments[:week] |> __MODULE__.read() |> __MODULE__.refused()
       end
     end
 
     action :holdings, :map do
-      argument :series, :string, allow_nil?: false
+      argument :week, :integer, allow_nil?: false, constraints: [min: 1]
       argument :wallet, :string
 
       run fn input, %{actor: actor} ->
         with {:ok, wallet} <- Signer.wallet(actor, input.arguments[:wallet]) do
-          __MODULE__.holdings(input.arguments.series, wallet)
+          __MODULE__.holdings(input.arguments.week, wallet)
+        end
+        |> __MODULE__.refused()
+      end
+    end
+
+    action :portfolio, {:array, :map} do
+      argument :wallet, :string
+
+      run fn input, %{actor: actor} ->
+        with {:ok, wallet} <- Signer.wallet(actor, input.arguments[:wallet]) do
+          __MODULE__.portfolio(wallet)
         end
         |> __MODULE__.refused()
       end
     end
 
     action :prepare, :map do
-      argument :series, :string, allow_nil?: false
+      argument :week, :integer, allow_nil?: false, constraints: [min: 1]
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
       argument :signer, :string
       argument :leg, :atom, constraints: [one_of: [:overnight, :session]]
@@ -70,38 +86,45 @@ defmodule Autolaunch.Exposure.Series do
   def list do
     with {:ok, config} <- Deployment.current(),
          {:ok, block, opts} <- Chain.latest(config.lab),
-         do: read_each(Enum.reverse(config.series), config, block, opts, [])
-  end
-
-  defp read_each([], _config, _block, _opts, kept), do: {:ok, Enum.reverse(kept)}
-
-  defp read_each([address | rest], config, block, opts, kept) do
-    with {:ok, series} <- Chain.series(address, config, block, opts),
-         do: read_each(rest, config, block, opts, [read_at(series) | kept])
-  end
-
-  @doc false
-  def read(address) do
-    with {:ok, config} <- Deployment.current(),
-         {:ok, address} <- Deployment.series(address),
-         {:ok, block, opts} <- Chain.latest(config.lab),
-         {:ok, series} <- Chain.series(address, config, block, opts),
-         do: {:ok, read_at(series)}
-  end
-
-  @doc false
-  def holdings(address, wallet) do
-    with {:ok, config} <- Deployment.current(),
-         {:ok, address} <- Deployment.series(address),
-         {:ok, block, opts} <- Chain.latest(config.lab),
-         {:ok, series} <- Chain.series(address, config, block, opts),
-         {:ok, holdings} <- Chain.holdings(series, wallet, block, opts),
-         {:ok, usdc} <- Chain.token_balance(config.usdc, wallet, block, opts) do
-      {:ok, holdings |> Map.merge(%{usdc: usdc, series: read_at(series)}) |> read_at()}
+         {:ok, factory} <- Chain.factory(config, block, opts),
+         {:ok, weeks} <- Chain.listed(config, factory, block, opts) do
+      {:ok,
+       read_at(%{
+         factory: factory.address,
+         current_week: factory.current,
+         paused: factory.paused,
+         weeks: Enum.map(weeks, &read_at/1)
+       })}
     end
   end
 
-  defp read_at(series), do: Map.put(series, :read_at, DateTime.utc_now())
+  @doc false
+  def read(week) do
+    with {:ok, config} <- Deployment.current(),
+         {:ok, reading, block, opts} <- Chain.read_week(config, week),
+         {:ok, reading} <- Chain.prints(reading, block, opts),
+         do: {:ok, read_at(reading)}
+  end
+
+  @doc false
+  def holdings(week, wallet) do
+    with {:ok, config} <- Deployment.current(),
+         {:ok, reading, block, opts} <- Chain.read_week(config, week),
+         {:ok, holding} <- Chain.holding(reading, config, wallet, block, opts),
+         do: {:ok, holding |> Map.put(:week, read_at(reading)) |> read_at()}
+  end
+
+  @doc false
+  def portfolio(wallet) do
+    with {:ok, config} <- Deployment.current(),
+         {:ok, block, opts} <- Chain.latest(config.lab),
+         {:ok, factory} <- Chain.factory(config, block, opts),
+         {:ok, weeks} <- Chain.listed(config, factory, block, opts),
+         {:ok, held} <- Chain.holdings(weeks, wallet, block, opts),
+         do: {:ok, Enum.map(held, &Map.update!(&1, :week, fn week -> read_at(week) end))}
+  end
+
+  defp read_at(reading), do: Map.put(reading, :read_at, DateTime.utc_now())
 
   # Ash turns a bare `{:error, atom}` into text, so a refusal is handed over as
   # an error that keeps its atom for `Autolaunch.Exposure.reason/1`.
@@ -112,11 +135,11 @@ defmodule Autolaunch.Exposure.Series do
   def refused(result), do: result
 
   policies do
-    policy action([:list, :series]) do
+    policy action([:list, :week]) do
       authorize_if always()
     end
 
-    policy action([:holdings, :prepare]) do
+    policy action([:holdings, :portfolio, :prepare]) do
       authorize_if actor_present()
     end
   end

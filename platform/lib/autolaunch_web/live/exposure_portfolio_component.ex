@@ -1,16 +1,16 @@
 defmodule AutolaunchWeb.ExposurePortfolioComponent do
   @moduledoc """
-  The portfolio's Isolated Exposure to After-hours Stocks: for each series the site offers, what
-  the signed-in wallet holds of its two tokens and what they are worth at the
-  series' last price, each read now from the chain
-  (`Autolaunch.Exposure.exposure_holdings/3`), with a link to the series'
-  Redeem tab. Series the wallet holds nothing of are left out.
+  The portfolio's Isolated Exposure to After-hours Stocks: for this week and
+  the last eight weeks that opened, what the signed-in wallet holds of each
+  week's two tokens and what they are worth at its last price, read now from
+  the chain in one go (`Autolaunch.Exposure.exposure_portfolio/1`), with a
+  link to the week's Redeem tab. Weeks the wallet holds nothing of are left
+  out.
   """
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Exposure
-  alias Autolaunch.Exposure.Deployment
   alias AutolaunchWeb.ExposureFormat, as: F
   alias Phoenix.LiveView.AsyncResult
 
@@ -38,23 +38,12 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
     actor = %Human{human_account_id: socket.assigns.current_human_id}
 
     start_async(socket, :holdings, fn ->
-      {:ok, %{series: all}} = Deployment.current()
-
-      all
-      |> Enum.reverse()
-      |> Enum.map(&Exposure.exposure_holdings(&1, %{}, actor: actor))
-      |> Enum.reduce_while({:ok, []}, fn
-        {:ok, holding}, {:ok, kept} -> {:cont, {:ok, [holding | kept]}}
-        {:error, error}, _kept -> {:halt, {:error, Exposure.reason(error)}}
-      end)
-      |> case do
-        {:ok, kept} -> {:ok, kept |> Enum.reverse() |> Enum.filter(&held?/1)}
-        error -> error
+      case Exposure.exposure_portfolio(actor: actor) do
+        {:ok, holdings} -> {:ok, holdings}
+        {:error, error} -> {:error, Exposure.reason(error)}
       end
     end)
   end
-
-  defp held?(holding), do: holding.overnight + holding.session > 0
 
   @impl true
   def render(assigns) do
@@ -76,7 +65,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
           <caption class="visually-hidden">Your After-hours and Market-hours tokens</caption>
           <thead>
             <tr>
-              <th scope="col">Series</th>
+              <th scope="col">Week</th>
               <th scope="col">After-hours</th>
               <th scope="col">Market-hours</th>
               <th scope="col">Value</th>
@@ -84,21 +73,21 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
             </tr>
           </thead>
           <tbody>
-            <tr :for={holding <- elem(@holdings.result, 1)} id={"#{@id}-#{holding.series.address}"}>
-              <td data-label="Series">
-                {holding.series.stock.symbol} to {F.moment(List.last(holding.series.boundaries))}
+            <tr :for={holding <- elem(@holdings.result, 1)} id={"#{@id}-#{holding.week.week}"}>
+              <td data-label="Week">
+                {holding.week.stock.symbol} to {F.moment(List.last(holding.week.boundaries))}
               </td>
               <td data-label="After-hours">
-                {F.tokens(holding.overnight, holding.series.stock.decimals)}
+                {F.tokens(holding.overnight, holding.week.stock.decimals)}
               </td>
               <td data-label="Market-hours">
-                {F.tokens(holding.session, holding.series.stock.decimals)}
+                {F.tokens(holding.session, holding.week.stock.decimals)}
               </td>
               <td data-label="Value">{value(holding)}</td>
               <td class="exposure__row-action">
                 <.link
                   navigate={
-                    ~p"/stock/isolated-afters?#{[series: holding.series.address, tab: "redeem"]}"
+                    ~p"/stock/isolated-afters?#{[week: holding.week.week, tab: "redeem"]}"
                   }
                   class="rg-button rg-button--secondary"
                 >
@@ -111,24 +100,24 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
       </div>
       <div :if={@holdings.result == {:ok, []}} class="market-list__scroll market-list__empty">
         <h2>No tokens yet</h2>
-        <p>After-hours and Market-hours tokens you mint or buy appear here.</p>
+        <p>After-hours and Market-hours tokens you deposit for or buy appear here.</p>
         <.link navigate={~p"/stock/isolated-afters"} class="rg-button rg-button--secondary">
-          Mint tokens
+          Deposit
         </.link>
       </div>
     </section>
     """
   end
 
-  # Before the first close no price has been applied, so the tokens have no value
-  # yet. After the end they are worth the stock a return pays now.
-  defp value(%{series: %{settled: 0}}), do: "—"
+  # Before the first price applies the tokens have no value yet. After the end
+  # they are worth the stock a redemption pays now.
+  defp value(%{week: %{applied: 0}}), do: "—"
 
-  defp value(%{series: %{status: :ended} = series, redeemable: %{paid: paid}}),
-    do: "#{F.tokens(paid, series.stock.decimals)} #{series.stock.symbol}"
+  defp value(%{week: %{status: :ended} = week, redeemable: %{paid: paid}}),
+    do: "#{F.tokens(paid, week.stock.decimals)} #{week.stock.symbol}"
 
-  defp value(%{series: series} = holding) do
-    unit = Integer.pow(10, series.stock.decimals)
-    F.usd(div(holding.overnight * series.night + holding.session * series.day, unit))
+  defp value(%{week: week} = holding) do
+    unit = Integer.pow(10, week.stock.decimals)
+    F.usd(div(holding.overnight * week.night + holding.session * week.day, unit))
   end
 end

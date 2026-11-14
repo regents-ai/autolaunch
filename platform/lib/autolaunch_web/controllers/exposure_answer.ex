@@ -3,9 +3,10 @@ defmodule AutolaunchWeb.ExposureAnswer do
   The Exposure answers every HTTP route gives (`AutolaunchWeb.ExposureController`,
   `AutolaunchWeb.ExposureAgentController`), so the public, signed-in and
   signed-agent doors share one shape and one set of refusals. The figures come
-  unchanged from `Autolaunch.Exposure`: stock and leg amounts in raw token
+  unchanged from `Autolaunch.Exposure`: stock and token amounts in raw token
   units, prices and ledgers in WAD (18-decimal) dollars per stock token, pool
-  quotes in micro-USDC (6 decimals), times in Unix seconds.
+  quotes in micro-USDC (6 decimals), times in Unix seconds. A week is the
+  factory's week number.
 
   A step the chain's own state makes certain to fail is not a refusal: it is
   answered 200 with `blocked` naming the reason, beside the steps themselves.
@@ -23,32 +24,31 @@ defmodule AutolaunchWeb.ExposureAnswer do
     no_liquidity:
       "This token's pool has no liquidity yet, so it can't be bought or sold until liquidity is added.",
     not_enough_usdc: "This wallet holds less USDC than the amount to spend.",
-    not_open: "Minting opens once the series has applied its first close.",
-    ended: "This series has ended.",
-    above_cap: "This amount would take the series past its deposit cap.",
+    deposits_closed:
+      "Deposits for this week have closed. The next week takes deposits from an hour after the week's last close.",
+    paused: "Opening new weeks is paused, so this week can't open with a deposit now.",
+    not_open: "This week takes deposits once its first price, the previous close, is applied.",
+    ended: "This week has ended.",
+    above_cap: "This amount would take the week past its deposit cap.",
     backing_short:
       "The series holds less stock than it owes, after the stock's issuer took some, so it takes no new deposits and this return would pay nothing.",
-    not_enough_stock: "This wallet holds less of the stock than the amount to mint.",
+    not_enough_stock: "This wallet holds less of the stock than the amount to deposit.",
     approve_first:
       "Approve the amount first; the next step can be sent once the approval is on the chain.",
-    pair_required: "Until the series ends, only equal amounts of each token can be returned.",
-    more_than_held: "This wallet holds less of a token than the amount to return or sell.",
-    too_early: "The next price can be recorded only from an hour after its time.",
-    price_too_old:
-      "The feed had no price in the 84 hours before this moment, so it can never be recorded; the series can be ended once its recording window has passed.",
-    missed_deadline:
-      "The recording window for the next price has passed, so it can no longer be applied; the series can be ended.",
-    price_available: "The next price was recorded in time, so the series cannot be ended for it.",
-    not_overdue: "The recording window for the next price is still open."
+    pair_required: "Until the week ends, only equal amounts of each token can be redeemed.",
+    more_than_held: "This wallet holds less of a token than the amount to redeem or sell."
   }
 
   @chain_unavailable {:service_unavailable,
                       "Isolated Exposure to After-hours Stocks could not be read from the chain just now."}
 
   @refusals %{
-    unknown_series:
+    unknown_week:
       {:not_found,
-       "There is no Isolated Exposure to After-hours Stocks series at that address on this site."},
+       "That week of Isolated Exposure to After-hours Stocks is neither this week nor one that has opened."},
+    week_not_open:
+      {:conflict,
+       "This week has not opened yet: its tokens exist once its first deposit opens it."},
     unknown_terms:
       {:not_found,
        "There are no Isolated Exposure to After-hours Stocks terms with that fingerprint on this site."},
@@ -103,58 +103,28 @@ defmodule AutolaunchWeb.ExposureAnswer do
   defp prepare_field?(_field), do: false
 
   # Inputs the action itself refuses (a kind it does not know, a negative
-  # amount) are the caller's to fix; a refusal the operation names keeps its
-  # own reason.
+  # amount, a week that is not a number) are the caller's to fix; a refusal
+  # the operation names keeps its own reason.
   defp reason(%Ash.Error.Invalid{}), do: :invalid_request
   defp reason(error), do: Exposure.reason(error)
 
-  defp present(:list, list), do: Enum.map(list, &present(:series, &1))
-
-  defp present(:series, series) do
+  defp present(:list, list) do
     %{
-      address: series.address,
-      block: series.block,
-      now: series.now,
-      read_at: series.read_at,
-      stock: series.stock,
-      after_hours:
-        Map.merge(series.overnight, %{
-          ledger: series.night,
-          supply: series.supply.overnight,
-          pool: series.pools.overnight
-        }),
-      market_hours:
-        Map.merge(series.session, %{
-          ledger: series.day,
-          supply: series.supply.session,
-          pool: series.pools.session
-        }),
-      oracle: series.oracle,
-      feed: series.feed,
-      feed_phase: series.phase,
-      terms_hash: series.terms_hash,
-      terms_url:
-        AutolaunchWeb.Endpoint.url() <> "/stock/isolated-afters/terms/" <> series.terms_hash,
-      status: series.status,
-      end_reason: series.end_reason,
-      price: series.price,
-      deposit_cap: series.deposit_cap,
-      deposited: series.accounted,
-      held: series.held,
-      max_report_delay: series.max_report_delay,
-      schedule:
-        Enum.with_index(
-          series.boundaries,
-          &%{index: &2, at: &1, kind: if(rem(&2, 2) == 1, do: :open, else: :close)}
-        ),
-      prints: Enum.map(series.prints, &print/1),
-      next: next(series.next)
+      factory: list.factory,
+      current_week: list.current_week,
+      opening_paused: list.paused,
+      read_at: list.read_at,
+      weeks: Enum.map(list.weeks, &week/1)
     }
   end
 
+  defp present(:week, reading),
+    do: reading |> week() |> Map.put(:prices, prices(reading.prints))
+
   defp present(:holdings, holdings) do
     %{
-      series: holdings.series.address,
+      week: holdings.week.week,
+      series: holdings.week.address,
       wallet: holdings.wallet,
       read_at: holdings.read_at,
       after_hours: holdings.overnight,
@@ -173,6 +143,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
   defp present(:prepare, prepared) do
     %{
       kind: prepared.kind,
+      week: prepared.week,
       signer: prepared.signer,
       chain: prepared.chain,
       steps: prepared.steps,
@@ -182,31 +153,91 @@ defmodule AutolaunchWeb.ExposureAnswer do
     }
   end
 
-  defp next(nil), do: nil
-
-  defp next(next) do
+  defp week(reading) do
     %{
-      index: next.index,
-      at: next.at,
-      kind: if(next.open?, do: :open, else: :close),
-      recordable_at: next.recordable_at,
-      deadline: next.deadline
+      week: reading.week,
+      current: reading.current?,
+      opened: reading.opened?,
+      series: reading.address,
+      factory: reading.factory,
+      block: reading.block,
+      now: reading.now,
+      read_at: reading.read_at,
+      stock: reading.stock,
+      after_hours:
+        Map.merge(reading.overnight, %{
+          ledger: reading.night,
+          supply: reading.supply.overnight,
+          pool: reading.pools.overnight
+        }),
+      market_hours:
+        Map.merge(reading.session, %{
+          ledger: reading.day,
+          supply: reading.supply.session,
+          pool: reading.pools.session
+        }),
+      feed: reading.feed,
+      feed_phase: reading.phase,
+      terms_hash: reading.terms_hash,
+      terms_url: terms_url(reading.terms_hash),
+      status: reading.status,
+      end_reason: reading.end_reason,
+      price: reading.price,
+      deposit_cap: reading.deposit_cap,
+      deposited: reading.accounted,
+      held: reading.held,
+      opening_paused: reading.paused,
+      prices_applied: reading.applied,
+      prices_waiting: reading.waiting,
+      feed_unreadable: reading.unreadable?,
+      feed_unreadable_since: reading.unreadable_since,
+      schedule:
+        Enum.with_index(
+          reading.boundaries,
+          &%{
+            index: &2,
+            at: &1,
+            kind: kind(rem(&2, 2) == 1),
+            applies_at: &1 + Exposure.Chain.settle_delay()
+          }
+        ),
+      next:
+        reading.next &&
+          %{
+            index: reading.next.index,
+            at: reading.next.at,
+            kind: kind(reading.next.open?),
+            applies_at: reading.next.due_at
+          }
     }
   end
 
-  defp print(print) do
-    %{
-      index: print.index,
-      at: print.at,
-      kind: if(print.open?, do: :open, else: :close),
-      price: print.price,
-      after_hours: print.night,
-      market_hours: print.day,
-      feed_round_id: print.round_id,
-      feed_updated_at: print.updated_at,
-      recorded_at: print.finalized_at
-    }
+  # The terms are linked only when the site has their text.
+  defp terms_url(hash) do
+    if match?({:ok, _text}, Exposure.terms(hash)),
+      do: AutolaunchWeb.Endpoint.url() <> "/stock/isolated-afters/terms/" <> hash
   end
+
+  # Nil when the feed refused a read of a round the series applied.
+  defp prices(nil), do: nil
+
+  defp prices(prints) do
+    Enum.map(prints, fn print ->
+      %{
+        index: print.index,
+        at: print.at,
+        kind: kind(print.open?),
+        price: print.price,
+        after_hours: print.night,
+        market_hours: print.day,
+        feed_round_id: print.round_id,
+        feed_updated_at: print.updated_at
+      }
+    end)
+  end
+
+  defp kind(true), do: :open
+  defp kind(false), do: :close
 
   defp blocked(nil), do: nil
   defp blocked(reason), do: %{code: reason, message: Map.fetch!(@blocked, reason)}

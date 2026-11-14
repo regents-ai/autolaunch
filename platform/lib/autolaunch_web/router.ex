@@ -258,8 +258,8 @@ defmodule AutolaunchWeb.Router do
 
   scope "/api/agent/v1", AutolaunchWeb do
     pipe_through [:api, :exposure]
-    get "/after-hour-stocks/:series/holdings", ExposureAgentController, :holdings
-    post "/after-hour-stocks/:series/steps", ExposureAgentController, :prepare
+    get "/after-hour-stocks/:week/holdings", ExposureAgentController, :holdings
+    post "/after-hour-stocks/:week/steps", ExposureAgentController, :prepare
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.
@@ -302,14 +302,14 @@ defmodule AutolaunchWeb.Router do
     get "/exposure.css", ExposureController, :stylesheet
   end
 
-  # A series' terms, the exact bytes its `termsHash` fingerprints, and the
-  # picture and video a shared series link shows.
+  # A week's terms, the exact bytes its `termsHash` fingerprints, and the
+  # picture and video a shared week link shows.
   scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through :exposure
 
     get "/terms/:hash", ExposureController, :terms
-    get "/:series/share.png", ShareCardController, :exposure
-    get "/:series/share.mp4", ShareCardController, :exposure_video
+    get "/:week/share.png", ShareCardController, :exposure
+    get "/:week/share.mp4", ShareCardController, :exposure_video
   end
 
   # The picture and video a shared covered-calls link shows.
@@ -324,7 +324,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through [:api, :public_read, :exposure]
 
     get "/after-hour-stocks", ExposureController, :index
-    get "/after-hour-stocks/:series", ExposureController, :show
+    get "/after-hour-stocks/:week", ExposureController, :show
   end
 
   scope "/api/v1", AutolaunchWeb do
@@ -354,7 +354,7 @@ defmodule AutolaunchWeb.Router do
   scope "/api/v1", AutolaunchWeb do
     pipe_through [:session_api, :exposure]
 
-    get "/me/after-hour-stocks/:series", ExposureController, :mine
+    get "/me/after-hour-stocks/:week", ExposureController, :mine
   end
 
   # A wallet's own share video, for the signed-in account that links it.
@@ -377,7 +377,7 @@ defmodule AutolaunchWeb.Router do
   scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through [:session_video, :exposure]
 
-    get "/:series/wallets/:wallet/share.mp4", ShareCardController, :exposure_wallet_video
+    get "/:week/wallets/:wallet/share.mp4", ShareCardController, :exposure_wallet_video
   end
 
   scope "/", AutolaunchWeb do

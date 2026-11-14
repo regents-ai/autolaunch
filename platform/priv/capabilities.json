@@ -227,7 +227,7 @@
       }
     },
     {
-      "operation": "autolaunch_after_hour_stocks_series",
+      "operation": "autolaunch_after_hour_stocks_week",
       "authority": "public",
       "switch": "exposure",
       "surfaces": {

@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.ShareVideo do
   `AutolaunchWeb.ShareVideo.Film`). A launch still in its auction has its
   video at the auction's address; a graduated one at its token's.
 
-  A covered-call market and an Isolated Exposure to After-hours Stocks series have theirs too
+  A covered-call market and an Isolated Exposure to After-hours Stocks week have theirs too
   (`AutolaunchWeb.ShareVideo.MarketStory`, drawn by
   `AutolaunchWeb.ShareVideo.MarketFilm`): one for everyone, and one with a
   signed-in person's own calls or holdings, made only when they ask for it.
@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.ShareVideo do
 
   @doc """
   Where a covered-call market's (`:covered_calls`, by its symbol) or an
-  Isolated Exposure to After-hours Stocks series' (`:exposure`, by its address) video is served
+  Isolated Exposure to After-hours Stocks week's (`:exposure`, by its week number) video is served
   as it stands at `now`: everyone's, or `wallet`'s own when one is given.
   """
   @spec market_url(:covered_calls | :exposure, String.t(), String.t() | nil, DateTime.t()) ::
@@ -96,7 +96,7 @@ defmodule AutolaunchWeb.ShareVideo do
     do: Paths.market_video_url(kind, subject, wallet && String.downcase(wallet), bucket(now))
 
   @doc """
-  A covered-call market's or an Isolated Exposure to After-hours Stocks series' video as it
+  A covered-call market's or an Isolated Exposure to After-hours Stocks week's video as it
   stands, answered as `fetch/5` answers a launch's.
   """
   @spec fetch_market(

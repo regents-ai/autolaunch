@@ -47,9 +47,10 @@ kill_timeout = "60s"
   guest_path = "/app/deployment/covered-calls.json"
   local_path = "deployment/covered-calls.json"
 
-# The Isolated Exposure to After-hours Stocks series:
-# contracts/exposure/deployments/base-mainnet/site-series.json, copied to
-# deployment/exposure.json beside the others. Every read goes through the Base
+# Isolated Exposure to After-hours Stocks, version 2: the weekly factory,
+# contracts/exposure-v2/deployments/base-mainnet/site-factory.json, copied to
+# deployment/exposure.json beside the others once its placeholders are filled
+# (the site refuses to start with them). Every read goes through the Base
 # deployment's RPC door.
 [[files]]
   guest_path = "/app/deployment/exposure.json"

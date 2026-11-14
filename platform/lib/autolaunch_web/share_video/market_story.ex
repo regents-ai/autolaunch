@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareVideo.MarketStory do
   @moduledoc """
   What the share picture and video of a stock market on Autolaunch tell, read
-  once at the latest block: covered calls on a Base stock, or one series of
+  once at the latest block: covered calls on a Base stock, or one week of
   Isolated Exposure to After-hours Stocks. Both draw the stock's Chainlink price as a line
   (`Autolaunch.PriceFeedHistory`), in dollars per token as the pages show it.
 
@@ -54,9 +54,10 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   end
 
   @doc """
-  A covered-call market's (`:covered_calls`) or an Exposure series' (`:exposure`)
-  story, with `wallet`'s own figures when one is given. A wallet is lowercase,
-  as its request stores it.
+  A covered-call market's (`:covered_calls`, by symbol) or an Exposure week's
+  (`:exposure`, by its week number as text) story, with `wallet`'s own figures
+  when one is given. A wallet is lowercase, as its request stores it.
+  An Exposure week is told only once its series is open.
   """
   @spec read(:covered_calls | :exposure, String.t(), String.t() | nil) ::
           {:ok, t()} | {:error, atom()}
@@ -85,14 +86,15 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     end
   end
 
-  def read(:exposure, address, wallet) do
+  def read(:exposure, week, wallet) do
     with {:ok, config} <- Exposure.Deployment.current(),
-         {:ok, address} <- Exposure.Deployment.series(address),
-         {:ok, block, opts} <- Exposure.Chain.latest(config.lab),
-         {:ok, series} <- Exposure.Chain.series(address, config, block, opts),
+         {:ok, number} <- week_number(week),
+         {:ok, series, block, opts} <- Exposure.Chain.read_week(config, number),
+         true <- series.opened? || {:error, :week_not_open},
+         {:ok, series} <- Exposure.Chain.prints(series, block, opts),
          from = exposure_from(series, block.timestamp),
          {:ok, history} <- PriceFeedHistory.since(series.feed, from, block, opts),
-         {:ok, figures} <- exposure_figures(series, history, wallet, block, opts) do
+         {:ok, figures} <- exposure_figures(series, config, history, wallet, block, opts) do
       {:ok,
        %{
          kind: :exposure,
@@ -104,7 +106,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          now: block.timestamp,
          line: line(history, from, block.timestamp),
          bands: bands(series, block.timestamp),
-         dots: Enum.map(series.prints, &{&1.at, &1.price / @wad}),
+         dots: dots(series.prints),
          levels: [],
          figures: figures
        }}
@@ -212,6 +214,18 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   defp exposure_from(%{boundaries: [first | _]}, now),
     do: min(first - @exposure_lead, now - @exposure_days * 86_400)
 
+  defp week_number(week) do
+    case Integer.parse(week) do
+      {number, ""} -> {:ok, number}
+      _not_a_week -> {:error, :unknown_week}
+    end
+  end
+
+  # A dot at each price the series applied; none when the feed refused a read
+  # of one of their rounds.
+  defp dots(nil), do: []
+  defp dots(prints), do: Enum.map(prints, fn print -> {print.at, print.price / @wad} end)
+
   # The series' windows: from its first close, close to open is after hours and
   # open to close is market hours. A window still to come is left out, and so
   # is every window after a series ended early: it ends at its last price.
@@ -227,25 +241,27 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     end)
   end
 
-  defp last_print_at(%{settled: 0, boundaries: [first | _]}), do: first
+  defp last_print_at(%{applied: 0, boundaries: [first | _]}), do: first
 
-  defp last_print_at(%{settled: settled, boundaries: boundaries}),
-    do: Enum.at(boundaries, settled - 1)
+  defp last_print_at(%{applied: applied, boundaries: boundaries}),
+    do: Enum.at(boundaries, applied - 1)
 
   defp status_badge(:pending), do: "Opens soon"
   defp status_badge(:active), do: "Live"
   defp status_badge(:ended), do: "Ended"
 
   # Before its first price the series has no token values yet: the stock's
-  # price now and when the series opens, or, for one that ended before any
-  # price, that none was applied.
-  defp exposure_figures(%{status: :pending} = series, history, nil, _block, _opts),
-    do: {:ok, [feed_price(history), {"Opens", ExposureFormat.moment(series.next.at)}]}
-
-  defp exposure_figures(%{settled: 0}, history, nil, _block, _opts),
+  # price now and the moment of that first price, or, for one that ended
+  # before any price, that none was applied.
+  defp exposure_figures(%{applied: 0, status: :ended}, _config, history, nil, _block, _opts),
     do: {:ok, [feed_price(history), {"Prices", "None applied"}]}
 
-  defp exposure_figures(series, _history, nil, _block, _opts),
+  defp exposure_figures(%{applied: 0} = series, _config, history, nil, _block, _opts),
+    do:
+      {:ok,
+       [feed_price(history), {"First price", ExposureFormat.moment(hd(series.boundaries))}]}
+
+  defp exposure_figures(series, _config, _history, nil, _block, _opts),
     do:
       {:ok,
        [
@@ -253,8 +269,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          {"Market-hours", leg_value(series, series.day)}
        ]}
 
-  defp exposure_figures(series, _history, wallet, block, opts) do
-    with {:ok, held} <- Exposure.Chain.holdings(series, wallet, block, opts) do
+  defp exposure_figures(series, config, _history, wallet, block, opts) do
+    with {:ok, held} <- Exposure.Chain.holding(series, config, wallet, block, opts) do
       decimals = series.stock.decimals
 
       {:ok,

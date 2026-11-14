@@ -1,26 +1,27 @@
 defmodule AutolaunchWeb.ExposureComponent do
   @moduledoc """
-  The wallet panel for one Exposure action: buy one token (`leg`) with USDC or
-  sell it for USDC through its Aerodrome pool, split the stock into a pair,
-  redeem tokens for the stock, record and apply the next price, or end a
-  series whose price can no longer be recorded. The server builds every step
-  (`Autolaunch.Exposure.prepare_exposure/4`, the same action agents call) for
-  the wallet that may act (`AutolaunchWeb.OnchainSteps`), and every press goes
-  straight to the wallet.
+  The wallet panel for one Exposure action on one week: buy one token (`leg`)
+  with USDC or sell it for USDC through its Aerodrome pool, deposit the stock
+  for a pair, redeem tokens for the stock, or update prices. The server builds
+  every step (`Autolaunch.Exposure.prepare_exposure/4`, the same action agents
+  call) for the wallet that may act (`AutolaunchWeb.OnchainSteps`), and every
+  press goes straight to the wallet.
 
   An approval is its own step and stays pressable once done. The action is
   disabled only when the chain, read at the latest block for this panel, makes
-  it certain to fail, with the reason beside it; a press made before a new
-  amount reached the server asks for the matching steps first.
+  it certain to fail, with the reason beside it; Update prices never is. A
+  press made before a new amount reached the server asks for the matching
+  steps first.
 
-  The page passes `kind`, the `series` reading, and the panel's
+  The page passes `kind`, the week's reading as `series`, and the panel's
   `session_lease` and `current_human_id`. A landed step tells the page with
-  `{:exposure_changed, series_address}`.
+  `{:exposure_changed, week}`.
   """
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Exposure
+  alias Autolaunch.Exposure.Chain
   alias AutolaunchWeb.ExposureFormat, as: F
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
@@ -111,7 +112,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     if inputs == socket.assigns.inputs and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, socket |> put_prepared(signer, prepared) |> refresh_later(prepared)}
+          {:noreply, socket |> put_prepared(signer, prepared) |> refresh_later()}
 
         {:error, reason} ->
           {:noreply,
@@ -136,20 +137,21 @@ defmodule AutolaunchWeb.ExposureComponent do
   def handle_async({:onchain_step, hash}, result, socket) do
     {:noreply,
      OnchainSteps.checked(socket, hash, result, fn socket, entry ->
-       send(self(), {:exposure_changed, socket.assigns.series.address})
+       send(self(), {:exposure_changed, socket.assigns.series.week})
        done(socket, entry.step.step)
        socket |> read_holdings() |> sync()
      end)}
   end
 
-  # A split or a redemption that landed tells the page what it moved, for its toast.
+  # A trade, a deposit or a redemption that landed tells the page what it
+  # moved, for its toast.
   defp done(%{assigns: %{prepared: %{facts: facts}, series: series}}, step)
-       when step in ["buy", "sell", "mint", "redeem"],
+       when step in ["buy", "sell", "deposit", "redeem"],
        do: send(self(), {:exposure_done, %{kind: step, lines: done_lines(step, facts, series)}})
 
   defp done(_socket, _step), do: :ok
 
-  defp done_lines("mint", %{amount: amount}, series) do
+  defp done_lines("deposit", %{amount: amount}, series) do
     tokens = F.tokens(amount, series.stock.decimals)
     ["You received #{tokens} #{series.overnight.symbol} and #{tokens} #{series.session.symbol}."]
   end
@@ -169,7 +171,7 @@ defmodule AutolaunchWeb.ExposureComponent do
       "You sold #{F.tokens(amount, series.stock.decimals)} #{Map.fetch!(series, leg).symbol} for USDC."
     ]
 
-  @doc "The note a landed split or redemption leaves on the page, with View portfolio."
+  @doc "The note a landed trade, deposit or redemption leaves on the page, with View portfolio."
   attr :id, :string, required: true
   attr :done, :map, required: true
   attr :dismiss, :string, required: true
@@ -203,7 +205,7 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   defp done_title("buy"), do: "Bought"
   defp done_title("sell"), do: "Sold"
-  defp done_title("mint"), do: "Split done"
+  defp done_title("deposit"), do: "Deposited"
   defp done_title("redeem"), do: "Redeemed"
 
   # The steps follow the wallet that may act and the form as it stands.
@@ -231,17 +233,17 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   # A panel with an amount shows what the wallet holds, read for the wallet that may act.
   defp read_holdings(%{assigns: %{kind: kind}} = socket)
-       when kind in [:buy, :sell, :mint, :redeem] do
+       when kind in [:buy, :sell, :deposit, :redeem] do
     case signer(socket) do
       nil ->
         assign(socket, holdings: nil)
 
       signer ->
-        %{series: %{address: series}, current_human_id: human_id} = socket.assigns
+        %{series: %{week: week}, current_human_id: human_id} = socket.assigns
 
         start_async(socket, :holdings, fn ->
           actor = %Human{human_account_id: human_id}
-          {signer, Exposure.exposure_holdings(series, %{wallet: signer}, actor: actor)}
+          {signer, Exposure.exposure_holdings(week, %{wallet: signer}, actor: actor)}
         end)
     end
   end
@@ -260,34 +262,21 @@ defmodule AutolaunchWeb.ExposureComponent do
     |> OnchainSteps.put_review(review)
   end
 
-  # A review's deadlines are fifteen minutes long, so its steps are built again
-  # once it is ten minutes old, or as soon as the moment that lets a press
-  # blocked by time succeed has passed. Only the newest timer counts, so the
-  # page's own re-reads never stack them up.
-  defp refresh_later(socket, prepared) do
+  # A swap's deadline is twenty minutes after its review, so the steps are
+  # built again once they are ten minutes old. The page reads the week again
+  # whenever a price falls due, which builds them again too. Only the newest
+  # timer counts, so the page's own re-reads never stack them up.
+  defp refresh_later(socket) do
     ref = make_ref()
-    wait = refresh_in(prepared, socket.assigns.series)
-    Phoenix.LiveView.send_update_after(self(), socket.assigns.myself, %{refresh: ref}, wait)
+    Phoenix.LiveView.send_update_after(self(), socket.assigns.myself, %{refresh: ref}, @stale_ms)
     assign(socket, refresh: ref)
-  end
-
-  defp refresh_in(%{blocked: :too_early, facts: %{recordable_at: at}}, _series), do: until(at)
-
-  defp refresh_in(%{blocked: :not_overdue}, %{next: %{deadline: deadline}}),
-    do: until(deadline + 1)
-
-  defp refresh_in(_prepared, _series), do: @stale_ms
-
-  defp until(unix) do
-    wait = (unix - System.os_time(:second)) * 1_000 + 2_000
-    wait |> max(1_000) |> min(@stale_ms)
   end
 
   defp prepare(assigns, request, signer) do
     actor = %Human{human_account_id: assigns.current_human_id}
 
     case Exposure.prepare_exposure(
-           assigns.series.address,
+           assigns.series.week,
            assigns.kind,
            Map.put(request, :signer, signer),
            actor: actor
@@ -325,7 +314,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     end
   end
 
-  defp typed(%{kind: :mint, inputs: inputs, series: series}) do
+  defp typed(%{kind: :deposit, inputs: inputs, series: series}) do
     case F.parse_tokens(inputs["amount"] || "", series.stock.decimals) do
       nil -> {:error, :invalid_amount}
       amount -> {:ok, %{amount: amount}}
@@ -356,7 +345,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     if String.trim(text || "") in ["", "0"], do: 0, else: F.parse_tokens(text, decimals)
   end
 
-  defp inputs(kind, form) when kind in [:buy, :sell, :mint], do: Map.take(form, ~w(amount))
+  defp inputs(kind, form) when kind in [:buy, :sell, :deposit], do: Map.take(form, ~w(amount))
   defp inputs(:redeem, form), do: Map.take(form, ~w(pairs overnight session))
   defp inputs(_kind, _form), do: %{}
 
@@ -366,8 +355,8 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp filled(%{kind: :sell, leg: leg, series: series}, holdings),
     do: %{"amount" => F.tokens(Map.fetch!(holdings, leg), series.stock.decimals)}
 
-  defp filled(%{kind: :mint, series: series}, holdings),
-    do: %{"amount" => F.tokens(min(holdings.stock, room(series)), series.stock.decimals)}
+  defp filled(%{kind: :deposit, series: series}, holdings),
+    do: %{"amount" => F.tokens(min(holdings.stock, Chain.room(series)), series.stock.decimals)}
 
   defp filled(%{kind: :redeem, series: series}, holdings),
     do: %{
@@ -375,8 +364,6 @@ defmodule AutolaunchWeb.ExposureComponent do
       "overnight" => F.tokens(holdings.overnight, series.stock.decimals),
       "session" => F.tokens(holdings.session, series.stock.decimals)
     }
-
-  defp room(series), do: max(series.deposit_cap - series.accounted, 0)
 
   # Max fills the boxes in the browser at the press, with the wallet as last
   # read, so a press straight after it carries the amounts however long the
@@ -405,7 +392,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     ~H"""
     <section id={@id} class="exposure-panel" phx-hook="OnchainSteps" data-onchain-prepare>
       <form
-        :if={@kind in [:buy, :sell, :mint, :redeem]}
+        :if={@kind in [:buy, :sell, :deposit, :redeem]}
         id={"#{@id}-form"}
         class="exposure-panel__form"
         phx-change="change"
@@ -427,7 +414,7 @@ defmodule AutolaunchWeb.ExposureComponent do
           unit={Map.fetch!(@series, @leg).symbol}
         />
         <.amount
-          :if={@kind == :mint}
+          :if={@kind == :deposit}
           name="amount"
           label="Amount"
           value={@inputs["amount"]}
@@ -535,7 +522,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     do:
       "Wallet: #{F.tokens(Map.fetch!(holdings, leg), series.stock.decimals)} #{Map.fetch!(series, leg).symbol}"
 
-  defp balance(:mint, holdings, series, _leg),
+  defp balance(:deposit, holdings, series, _leg),
     do: "Wallet: #{F.tokens(holdings.stock, series.stock.decimals)} #{series.stock.symbol}"
 
   defp balance(:redeem, holdings, series, _leg),
@@ -574,7 +561,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     """
   end
 
-  defp facts(%{kind: :mint} = assigns) do
+  defp facts(%{kind: :deposit} = assigns) do
     ~H"""
     <dt>You deposit</dt>
     <dd>{F.tokens(@facts.amount, @series.stock.decimals)} {@series.stock.symbol}</dd>
@@ -597,36 +584,30 @@ defmodule AutolaunchWeb.ExposureComponent do
     """
   end
 
-  defp facts(%{kind: :update, facts: %{source: %{round: round}}} = assigns) do
-    assigns = assign(assigns, round: round)
-
+  defp facts(%{kind: :settle} = assigns) do
     ~H"""
-    <dt>Price</dt>
-    <dd>{kind_word(@facts.kind)} {F.moment(@facts.at)} New York</dd>
-    <dt>Feed round</dt>
-    <dd>{@round}</dd>
+    <dt>Due</dt>
+    <dd id="exposure-due">{due_words(@facts)}</dd>
+    <dt :if={@facts.next}>Next</dt>
+    <dd :if={@facts.next}>
+      {if @facts.next.open?, do: "Open", else: "Close"}, {F.moment(@facts.next.at)}, applies from {F.time(
+        @facts.next.due_at
+      )} New York
+    </dd>
     """
   end
 
-  defp facts(%{kind: :update} = assigns) do
-    ~H"""
-    <dt>Price</dt>
-    <dd>{kind_word(@facts.kind)} {F.moment(@facts.at)} New York</dd>
-    """
-  end
-
-  defp facts(%{kind: :end} = assigns) do
-    ~H"""
-    <dt>Missing price</dt>
-    <dd>{F.moment(@facts.at)} New York</dd>
-    """
-  end
+  # How many prices Update prices would write now, and whether one of them
+  # ends the week.
+  defp due_words(%{due: 0, ends: true}), do: "Ends the week"
+  defp due_words(%{due: 0}), do: "Nothing yet"
+  defp due_words(%{due: 1, ends: true}), do: "1 price, which ends the week"
+  defp due_words(%{due: 1}), do: "1 price"
+  defp due_words(%{due: due, ends: true}), do: "#{due} prices, the last of which ends the week"
+  defp due_words(%{due: due}), do: "#{due} prices"
 
   defp expected(nil, _decimals), do: "—"
   defp expected(amount, decimals), do: F.tokens(amount, decimals)
-
-  defp kind_word(:open), do: "Open,"
-  defp kind_word(:close), do: "Close,"
 
   # The steps shown before any review exists name the same buttons, so a
   # first press still has something to press.
@@ -662,11 +643,9 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   defp step_names(:buy, _prepared), do: ~w(usdc_approval buy)
   defp step_names(:sell, _prepared), do: ~w(token_approval sell)
-  defp step_names(:mint, _prepared), do: ~w(stock_approval mint)
+  defp step_names(:deposit, _prepared), do: ~w(stock_approval deposit)
   defp step_names(:redeem, _prepared), do: ~w(redeem)
-  defp step_names(:end, _prepared), do: ~w(end)
-  defp step_names(:update, %{steps: steps}) when steps != [], do: Enum.map(steps, & &1.step)
-  defp step_names(:update, _prepared), do: ~w(record settle)
+  defp step_names(:settle, _prepared), do: ~w(settle)
 
   defp label("usdc_approval", _assigns), do: "Approve USDC"
 
@@ -676,11 +655,9 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp label("buy", _assigns), do: "Buy"
   defp label("sell", _assigns), do: "Sell"
   defp label("stock_approval", %{series: series}), do: "Approve #{series.stock.symbol}"
-  defp label("mint", %{series: series}), do: "Split #{series.stock.symbol}"
+  defp label("deposit", %{series: series}), do: "Deposit #{series.stock.symbol}"
   defp label("redeem", _assigns), do: "Redeem"
-  defp label("record", _assigns), do: "Record price"
-  defp label("settle", _assigns), do: "Apply price"
-  defp label("end", _assigns), do: "End after missing price"
+  defp label("settle", _assigns), do: "Update prices"
 
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
@@ -688,15 +665,16 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp blocked_words(:too_small, _assigns), do: "Too small for the pool to pay anything back"
   defp blocked_words(:not_enough_usdc, _assigns), do: "Not enough USDC in this wallet"
 
-  defp blocked_words(:not_open, %{series: %{next: %{recordable_at: at}}}),
-    do: "Opens #{F.moment(at)} New York at the earliest"
+  defp blocked_words(:deposits_closed, _assigns),
+    do: "Deposits have closed; next week opens an hour after the close"
 
-  defp blocked_words(:not_open, _assigns), do: "Opens once the first close is applied"
-  defp blocked_words(:ended, _assigns), do: "This series has ended"
+  defp blocked_words(:paused, _assigns), do: "Opening new weeks is paused"
+  defp blocked_words(:not_open, _assigns), do: "Opens once the first price applies"
+  defp blocked_words(:ended, _assigns), do: "This week has ended"
 
   defp blocked_words(:above_cap, %{series: series}),
     do:
-      "Only #{F.tokens(room(series), series.stock.decimals)} #{series.stock.symbol} left under the cap"
+      "Only #{F.tokens(Chain.room(series), series.stock.decimals)} #{series.stock.symbol} left under the cap"
 
   defp blocked_words(:backing_short, _assigns),
     do: "The series holds less stock than it owes, so this can't go through now"
@@ -705,28 +683,15 @@ defmodule AutolaunchWeb.ExposureComponent do
     do: "Not enough #{series.stock.symbol} in this wallet"
 
   defp blocked_words(:pair_required, _assigns),
-    do: "Until the series ends, redeem equal amounts of each"
+    do: "Until the week ends, redeem equal amounts of each"
 
   defp blocked_words(:more_than_held, _assigns), do: "More than this wallet holds"
-
-  defp blocked_words(:too_early, %{prepared: %{facts: %{recordable_at: at}}}),
-    do: "Can be recorded from #{F.moment(at)} New York"
-
-  defp blocked_words(:price_too_old, _assigns),
-    do: "The feed had no price in the 84 hours before this moment"
-
-  defp blocked_words(:missed_deadline, _assigns),
-    do: "Too late to record this price; the series can be ended"
-
-  defp blocked_words(:price_available, _assigns), do: "This price can still be applied"
-
-  defp blocked_words(:not_overdue, %{series: %{next: next}}),
-    do: "Possible after #{F.moment(next.deadline)} New York"
 
   defp refusal_words(nil), do: nil
   defp refusal_words(:invalid_amount), do: nil
   defp refusal_words(:comma_amount), do: "Write amounts with a point, as in 0.4."
   defp refusal_words(:wrong_signer), do: nil
-  defp refusal_words(:unknown_series), do: "This series isn't on this site."
+  defp refusal_words(:unknown_week), do: "This week isn't on this site."
+  defp refusal_words(:week_not_open), do: "This week opens with its first deposit."
   defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
 end

@@ -1,32 +1,64 @@
 defmodule Autolaunch.Exposure.Chain do
   @moduledoc """
-  What an `ExposureSeriesV1`, its oracle, its legs and their pools say at one
-  block. Exposure keeps no records of its own: every figure a page or an agent
-  sees is read here, so it matches the chain after any reload.
+  What the version 2 factory (`ExposureFactoryV2`), its weekly series
+  (`ExposureSeriesV2`), their two tokens and their Aerodrome pools say at one
+  block, read through Multicall3 a batch at a time. Exposure keeps no records
+  of its own: every figure a page or an agent sees is read here, so it matches
+  the chain after any reload.
 
-  A series reading has the series' fixed terms (stock, legs, oracle, schedule,
-  cap, terms hash), its state (status, how many prints are applied, the last
-  price and both ledgers, the stock it accounts for and holds), every applied
-  print with the feed round it came from, the next print to apply, and each
-  leg's pool price in USDC when its pool exists.
+  A week is the factory's. The current week takes deposits; until its first
+  deposit opens it, it is shown at the address `predictSeries` names, with the
+  terms `seriesConfig` says it would open with. A week the factory's
+  `seriesOf` names a series for is open; the site trusts no other source for
+  which series are real.
+
+  An open week's figures are what `previewState` says `settle` would leave now
+  (status, end reason, prices applied, the last price and both ledgers),
+  beside what the series has written on the chain (`settled`, and whether it
+  has ended there), so a page can show the prices waiting to be applied.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
+  import Bitwise
+
+  alias Autolaunch.Chain.{Multicall, Rpc}
   alias Autolaunch.Exposure.Ledger
   alias Autolaunch.Lab
-  alias RegentChain.Call
+  alias RegentChain.{Abi, Call}
 
+  @zero "0x0000000000000000000000000000000000000000"
   @statuses %{0 => :pending, 1 => :active, 2 => :ended}
   @end_reasons %{
     0 => nil,
     1 => :maturity,
     2 => :overnight_depleted,
     3 => :session_depleted,
-    4 => :missing_print
+    4 => :stale_feed,
+    5 => :bad_price,
+    6 => :feed_unreadable
   }
-  @record_delay 3_600
-  @concurrency 8
-  @read_timeout 20_000
+  # A boundary's price applies this long after it (ExposureSeriesV2.SETTLE_DELAY).
+  @settle_delay 3_600
+  # An initial close and five trading days (ExposureSeriesV2.MAX_BOUNDARIES).
+  @max_boundaries 11
+  @past 8
+  @rounds 200
+  @uint {:uint, 256}
+  @config [
+    :address,
+    :address,
+    {:uint, 16},
+    {:uint, 8},
+    @uint,
+    :bytes32,
+    {:array, {:uint, 64}},
+    :bytes,
+    :bytes,
+    :bytes,
+    :bytes
+  ]
+
+  @doc "How long after its moment a boundary's price applies, in seconds."
+  def settle_delay, do: @settle_delay
 
   @doc "The read options and latest block of the Base deployment Exposure runs on."
   def latest(lab) do
@@ -34,212 +66,308 @@ defmodule Autolaunch.Exposure.Chain do
     with {:ok, block} <- Rpc.latest_block(opts), do: {:ok, block, opts}
   end
 
-  @doc "One series as it stands at `block`, with its legs' pool prices from `config`."
-  def series(address, config, block, opts) do
-    with {:ok, terms} <- terms(address, block, opts),
-         {:ok, state} <- state(address, terms, block, opts),
-         {:ok, prints} <- prints(terms, state, block, opts),
-         {:ok, pools} <- pools(terms, config, block, opts) do
+  @doc """
+  The factory at `block`: its current week, whether opening a new week is
+  paused, and each week from the description's first week to the current one
+  that has a series, oldest first, as `{week, series}`.
+  """
+  def factory(config, block, opts) do
+    # `currentWeek` is never past the week two after today's, its own first guess.
+    last = div(div(block.timestamp, 86_400) + 3, 7) + 2
+    weeks = Enum.to_list(config.first_week..last//1)
+
+    reads =
+      [
+        {:current, config.factory, "currentWeek()", [], @uint},
+        {:paused, config.factory, "paused()", [], :bool}
+      ] ++
+        for week <- weeks,
+            do: {{:series, week}, config.factory, "seriesOf(uint256)", [week], :address}
+
+    with {:ok, read} <- read(reads, block, opts) do
+      opened =
+        for {week, series} <- Enum.map(weeks, &{&1, read[{:series, &1}]}),
+            week <= read.current and series != @zero,
+            do: {week, series}
+
       {:ok,
-       terms
-       |> Map.merge(state)
-       |> Map.merge(%{
-         address: address,
-         block: block.number,
-         now: block.timestamp,
-         prints: prints,
-         next: next(terms, state, prints, block),
-         pools: pools
-       })}
+       %{address: config.factory, current: read.current, paused: read.paused, opened: opened}}
     end
   end
 
-  # What never changes once the series exists.
-  defp terms(address, block, opts) do
-    reads = [
-      asset: {:address, "asset()"},
-      overnight: {:address, "overnight()"},
-      session: {:address, "session()"},
-      oracle: {:address, "oracle()"},
-      feed_id: {:word, "feedId()"},
-      terms_hash: {:word, "termsHash()"},
-      max_report_delay: {:uint, "maxReportDelay()"},
-      deposit_cap: {:uint, "depositCap()"},
-      boundary_count: {:uint, "boundaryCount()"}
+  @doc """
+  Week `week` (nil for the current one) at the latest block, with the block
+  and the read options, or `:unknown_week` when it is neither current nor open.
+  """
+  def read_week(config, week) do
+    with {:ok, block, opts} <- latest(config.lab),
+         {:ok, factory} <- factory(config, block, opts),
+         {:ok, reading} <- week(config, factory, week, block, opts),
+         do: {:ok, reading, block, opts}
+  end
+
+  @doc "The current week, then the last eight open weeks before it, newest first."
+  def listed(config, factory, block, opts) do
+    past =
+      factory.opened
+      |> Enum.filter(fn {week, _series} -> week < factory.current end)
+      |> Enum.reverse()
+      |> Enum.take(@past)
+
+    weeks([current(factory) | past], config, factory, block, opts)
+  end
+
+  @doc "Week `week` (nil for the current one), or `:unknown_week` when it is neither current nor open."
+  def week(config, factory, week, block, opts) do
+    with {:ok, entry} <- entry(factory, week),
+         {:ok, [reading]} <- weeks([entry], config, factory, block, opts),
+         do: {:ok, reading}
+  end
+
+  defp entry(factory, nil), do: {:ok, current(factory)}
+  defp entry(%{current: week} = factory, week), do: {:ok, current(factory)}
+
+  defp entry(factory, week) do
+    case List.keyfind(factory.opened, week, 0) do
+      nil -> {:error, :unknown_week}
+      entry -> {:ok, entry}
+    end
+  end
+
+  defp current(factory),
+    do: List.keyfind(factory.opened, factory.current, 0) || {factory.current, nil}
+
+  # Three requests whatever the number of weeks: each series' own state, then
+  # its tokens, balances and pools, then the pools' reserves.
+  defp weeks(entries, config, factory, block, opts) do
+    with {:ok, own} <- read(Enum.flat_map(entries, &own_reads(&1, factory)), block, opts),
+         {:ok, readings} <- each(entries, &reading(&1, own, factory, block)),
+         {:ok, around} <- read(around_reads(readings, config), block, opts),
+         readings = Enum.map(readings, &with_around(&1, around)),
+         {:ok, reserves} <- read(reserve_reads(readings), block, opts) do
+      {:ok, Enum.map(readings, &with_prices(&1, reserves, config.usdc))}
+    end
+  end
+
+  defp own_reads({week, nil}, factory) do
+    [
+      {{week, :address}, factory.address, "predictSeries(uint256)", [week], :address},
+      {{week, :config}, factory.address, "seriesConfig(uint256)", [week], {:tuple, @config}}
     ]
+  end
 
-    with {:ok, terms} <- read_all(address, reads, block, opts),
-         {:ok, boundaries} <- boundaries(address, terms.boundary_count, block, opts),
-         {:ok, feed} <- Rpc.call_address(terms.oracle, Call.encode("feed()", []), block, opts),
-         {:ok, phase} <- Rpc.call_uint(terms.oracle, Call.encode("phase()", []), block, opts),
-         {:ok, legs} <- legs([terms.overnight, terms.session], block, opts),
-         {:ok, stock} <- token(terms.asset, block, opts) do
-      [overnight, session] = legs
+  defp own_reads({week, series}, _factory) do
+    [
+      {{week, :asset}, series, "asset()", [], :address},
+      {{week, :overnight}, series, "overnight()", [], :address},
+      {{week, :session}, series, "session()", [], :address},
+      {{week, :feed}, series, "feed()", [], :address},
+      {{week, :phase}, series, "phase()", [], {:uint, 16}},
+      {{week, :deposit_cap}, series, "depositCap()", [], @uint},
+      {{week, :terms_hash}, series, "termsHash()", [], :bytes32},
+      {{week, :boundary_count}, series, "boundaryCount()", [], @uint},
+      {{week, :preview}, series, "previewState()", [],
+       [{:uint, 8}, {:uint, 8}, @uint, @uint, @uint]},
+      {{week, :status}, series, "status()", [], {:uint, 8}},
+      {{week, :settled}, series, "settled()", [], {:uint, 8}},
+      {{week, :last_price}, series, "lastPriceWad()", [], @uint},
+      {{week, :last_round}, series, "lastRound()", [], {:uint, 64}},
+      {{week, :unreadable_since}, series, "unreadableSince()", [], {:uint, 64}},
+      {{week, :accounted}, series, "accountedAssets()", [], @uint}
+    ] ++
+      for index <- 0..(@max_boundaries - 1),
+          do:
+            {{week, {:boundary, index}}, series, "boundaries(uint256)", [index],
+             {:maybe, {:uint, 64}}}
+  end
 
+  # A week not open yet: the terms the factory would open it with now.
+  defp reading({week, nil}, read, factory, block) do
+    [asset, feed, phase, _decimals, cap, terms, boundaries | names] = read[{week, :config}]
+    [overnight_name, overnight_symbol, session_name, session_symbol] = names
+
+    {:ok,
+     base(week, read[{week, :address}], factory, block)
+     |> Map.merge(%{
+       opened?: false,
+       stock: %{address: asset},
+       overnight: %{address: nil, name: overnight_name, symbol: overnight_symbol},
+       session: %{address: nil, name: session_name, symbol: session_symbol},
+       feed: feed,
+       phase: phase,
+       deposit_cap: cap,
+       terms_hash: terms,
+       boundaries: boundaries,
+       status: :unopened,
+       end_reason: nil,
+       applied: 0,
+       price: 0,
+       night: 0,
+       settled: 0,
+       ended_on_chain?: false,
+       last_price: 0,
+       last_round: 0,
+       unreadable_since: nil,
+       accounted: 0
+     })}
+  end
+
+  defp reading({week, series}, read, factory, block) do
+    value = &read[{week, &1}]
+    count = value.(:boundary_count)
+    boundaries = for index <- 0..(count - 1)//1, do: value.({:boundary, index})
+    [status, reason, applied, price, night] = value.(:preview)
+
+    if count in 1..@max_boundaries and Enum.all?(boundaries, &is_integer/1) do
       {:ok,
-       terms
-       |> Map.drop([:boundary_count, :overnight, :session])
+       base(week, series, factory, block)
        |> Map.merge(%{
+         opened?: true,
+         stock: %{address: value.(:asset)},
+         overnight: %{address: value.(:overnight)},
+         session: %{address: value.(:session)},
+         feed: value.(:feed),
+         phase: value.(:phase),
+         deposit_cap: value.(:deposit_cap),
+         terms_hash: value.(:terms_hash),
          boundaries: boundaries,
-         feed: String.downcase(feed),
-         phase: phase,
-         stock: Map.put(stock, :address, terms.asset),
-         overnight: Map.put(overnight, :address, terms.overnight),
-         session: Map.put(session, :address, terms.session)
-       })}
-    end
-  end
-
-  # What the prints, mints and redemptions change.
-  defp state(address, terms, block, opts) do
-    reads = [
-      status: {:uint, "status()"},
-      end_reason: {:uint, "endReason()"},
-      settled: {:uint, "settled()"},
-      price: {:uint, "lastPriceWad()"},
-      night: {:uint, "overnightLedgerWad()"},
-      accounted: {:uint, "accountedAssets()"}
-    ]
-
-    with {:ok, state} <- read_all(address, reads, block, opts),
-         {:ok, held} <- balance(terms.asset, address, block, opts),
-         {:ok, overnight_supply} <- supply(terms.overnight.address, block, opts),
-         {:ok, session_supply} <- supply(terms.session.address, block, opts) do
-      {:ok,
-       %{
-         status: Map.fetch!(@statuses, state.status),
-         end_reason: Map.fetch!(@end_reasons, state.end_reason),
-         settled: state.settled,
-         price: state.price,
-         night: state.night,
-         day: state.price - state.night,
-         accounted: state.accounted,
-         held: held,
-         supply: %{overnight: overnight_supply, session: session_supply}
-       }}
-    end
-  end
-
-  # Each applied print with the feed round it came from, and the ledgers it
-  # left, worked out from the prices exactly as the contract does.
-  defp prints(terms, state, block, opts) do
-    terms.boundaries
-    |> Enum.take(state.settled)
-    |> Enum.with_index()
-    |> read_concurrently(fn {at, index} -> recorded(terms, at, index, block, opts) end)
-    |> case do
-      {:ok, recorded} ->
-        steps = recorded |> Enum.map(& &1.price) |> Ledger.path()
-        {:ok, Enum.zip_with(recorded, steps, &Map.merge(&1, Map.take(&2, [:night, :day])))}
-
-      error ->
-        error
-    end
-  end
-
-  @doc """
-  The print the oracle recorded for boundary `index` at `at`, with its feed
-  round, or `price: 0` while none is recorded.
-  """
-  def recorded(terms, at, index, block, opts) do
-    open? = rem(index, 2) == 1
-
-    with {:ok, [price, observed_at, finalized_at]} <-
-           Rpc.call_words(
-             terms.oracle,
-             Call.encode("getPrint(bytes32,uint64,bool)", [terms.feed_id, at, open?]),
-             block,
-             3,
-             opts
-           ),
-         {:ok, [round_id, updated_at]} <-
-           Rpc.call_words(
-             terms.oracle,
-             Call.encode("sourceOf(uint64,bool)", [at, open?]),
-             block,
-             2,
-             opts
-           ) do
-      {:ok,
-       %{
-         index: index,
-         at: at,
-         open?: open?,
+         status: Map.fetch!(@statuses, status),
+         end_reason: Map.fetch!(@end_reasons, reason),
+         applied: applied,
          price: price,
-         observed_at: observed_at,
-         finalized_at: finalized_at,
-         round_id: round_id,
-         updated_at: updated_at
-       }}
+         night: night,
+         settled: value.(:settled),
+         ended_on_chain?: value.(:status) == 2,
+         last_price: value.(:last_price),
+         last_round: value.(:last_round),
+         unreadable_since: if(value.(:unreadable_since) > 0, do: value.(:unreadable_since)),
+         accounted: value.(:accounted)
+       })}
+    else
+      {:error, :invalid_chain_response}
     end
   end
 
-  # The print to apply next and when it can be recorded, or nil once ended.
-  defp next(_terms, %{status: :ended}, _prints, _block), do: nil
-
-  defp next(terms, state, _prints, block) do
-    at = Enum.at(terms.boundaries, state.settled)
-
-    %{
-      index: state.settled,
-      at: at,
-      open?: rem(state.settled, 2) == 1,
-      recordable_at: at + @record_delay,
-      deadline: at + terms.max_report_delay,
-      due?: block.timestamp >= at + @record_delay
+  defp base(week, address, factory, block),
+    do: %{
+      week: week,
+      address: address,
+      current?: week == factory.current,
+      factory: factory.address,
+      paused: factory.paused,
+      block: block.number,
+      now: block.timestamp
     }
+
+  # Every token's name, symbol and decimals, once each; each open series' held
+  # stock and token supplies; each token's pool against USDC.
+  defp around_reads(readings, config) do
+    tokens =
+      readings
+      |> Enum.flat_map(&[&1.stock.address, &1.overnight.address, &1.session.address])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    for(
+      token <- tokens,
+      {key, signature, type} <- [
+        {:symbol, "symbol()", :bytes},
+        {:name, "name()", :bytes},
+        {:decimals, "decimals()", {:uint, 8}}
+      ],
+      do: {{token, key}, token, signature, [], type}
+    ) ++
+      for %{opened?: true} = reading <- readings,
+          read <- [
+            {{reading.week, :held}, reading.stock.address, "balanceOf(address)",
+             [reading.address], @uint},
+            {{reading.week, :overnight_supply}, reading.overnight.address, "totalSupply()", [],
+             @uint},
+            {{reading.week, :session_supply}, reading.session.address, "totalSupply()", [],
+             @uint},
+            {{reading.week, :overnight_pool}, config.pool_factory,
+             "getPool(address,address,bool)", [reading.overnight.address, config.usdc, false],
+             :address},
+            {{reading.week, :session_pool}, config.pool_factory,
+             "getPool(address,address,bool)", [reading.session.address, config.usdc, false],
+             :address}
+          ],
+          do: read
   end
 
-  @doc """
-  Each leg's pool against USDC on the Aerodrome factory, and its price for one
-  whole leg token (USDC micro-units): the USDC it holds for each token it holds,
-  before any trade moves it. Nil where there is no pool or a side is empty.
-  """
-  def pools(terms, config, block, opts) do
-    [overnight: terms.overnight, session: terms.session]
-    |> read_concurrently(fn {leg, token} ->
-      with {:ok, pool} <- pool(token.address, config, block, opts),
-           {:ok, price} <- price(pool, token, config.usdc, block, opts) do
-        {:ok, {leg, pool && %{address: pool, usdc_per_token: price}}}
-      end
-    end)
-    |> case do
-      {:ok, pools} -> {:ok, Map.new(pools)}
-      error -> error
-    end
+  defp with_around(reading, around) do
+    token = fn token -> Map.merge(token, info(around, token.address)) end
+    stock = token.(reading.stock)
+
+    legs =
+      if reading.opened?,
+        do: %{overnight: token.(reading.overnight), session: token.(reading.session)},
+        else: %{
+          overnight: Map.put(reading.overnight, :decimals, stock.decimals),
+          session: Map.put(reading.session, :decimals, stock.decimals)
+        }
+
+    figures =
+      if reading.opened?,
+        do: %{
+          held: around[{reading.week, :held}],
+          supply: %{
+            overnight: around[{reading.week, :overnight_supply}],
+            session: around[{reading.week, :session_supply}]
+          },
+          pools: %{
+            overnight: pool(around[{reading.week, :overnight_pool}]),
+            session: pool(around[{reading.week, :session_pool}])
+          }
+        },
+        else: %{held: 0, supply: %{overnight: 0, session: 0}, pools: %{overnight: nil, session: nil}}
+
+    reading
+    |> Map.merge(legs)
+    |> Map.merge(figures)
+    |> Map.put(:stock, stock)
+    |> schedule()
   end
 
-  defp pool(token, config, block, opts) do
-    data = Call.encode("getPool(address,address,bool)", [token, config.usdc, false])
+  defp info(_around, nil), do: %{}
 
-    # The factory answers the zero address for a pair with no pool.
-    case Rpc.call_uint(config.pool_factory, data, block, opts) do
-      {:ok, 0} ->
-        {:ok, nil}
+  defp info(around, address),
+    do: %{
+      symbol: around[{address, :symbol}],
+      name: around[{address, :name}],
+      decimals: around[{address, :decimals}]
+    }
 
-      {:ok, word} ->
-        {:ok,
-         "0x" <>
-           (word |> Integer.to_string(16) |> String.pad_leading(40, "0") |> String.downcase())}
+  # The factory answers the zero address for a pair with no pool.
+  defp pool(@zero), do: nil
+  defp pool(address), do: %{address: address, usdc_per_token: nil}
 
-      error ->
-        error
-    end
+  defp reserve_reads(readings) do
+    for reading <- readings,
+        {leg, %{address: pool}} <- reading.pools,
+        do: {{reading.week, leg}, pool, "getReserves()", [], [@uint, @uint, @uint]}
   end
 
-  defp price(nil, _token, _usdc, _block, _opts), do: {:ok, nil}
+  # Each pool's price for one whole token (USDC micro-units): the USDC it holds
+  # for each token it holds, before any trade moves it. Nil while a side is empty.
+  defp with_prices(reading, reserves, usdc) do
+    pools =
+      Map.new(reading.pools, fn
+        {leg, nil} ->
+          {leg, nil}
 
-  defp price(pool, token, usdc, block, opts) do
-    with {:ok, [reserve0, reserve1, _last]} <-
-           Rpc.call_words(pool, Call.encode("getReserves()", []), block, 3, opts) do
-      # Aerodrome orders a pool's two tokens by address.
-      {held, dollars} =
-        if String.downcase(token.address) < String.downcase(usdc),
-          do: {reserve0, reserve1},
-          else: {reserve1, reserve0}
+        {leg, pool} ->
+          [reserve0, reserve1, _last] = reserves[{reading.week, leg}]
+          token = Map.fetch!(reading, leg)
 
-      {:ok, per_token(held, dollars, token.decimals)}
-    end
+          # Aerodrome orders a pool's two tokens by address.
+          {held, dollars} =
+            if token.address < usdc, do: {reserve0, reserve1}, else: {reserve1, reserve0}
+
+          {leg, %{pool | usdc_per_token: per_token(held, dollars, token.decimals)}}
+      end)
+
+    Map.put(reading, :pools, pools)
   end
 
   defp per_token(held, dollars, decimals) when held > 0 and dollars > 0,
@@ -247,157 +375,204 @@ defmodule Autolaunch.Exposure.Chain do
 
   defp per_token(_held, _dollars, _decimals), do: nil
 
+  # Where the week stands against its boundaries: the next one the series has
+  # not written on the chain, how many prices `settle` would write now, and
+  # whether a due price could not be read from the feed.
+  defp schedule(%{opened?: false} = reading),
+    do:
+      Map.merge(reading, %{
+        day: 0,
+        next: nil,
+        waiting: 0,
+        end_waiting?: false,
+        unreadable?: false
+      })
+
+  defp schedule(reading) do
+    %{boundaries: boundaries, settled: settled, applied: applied, now: now} = reading
+
+    next =
+      if not reading.ended_on_chain? and settled < length(boundaries) do
+        at = Enum.at(boundaries, settled)
+        %{index: settled, at: at, open?: rem(settled, 2) == 1, due_at: at + @settle_delay}
+      end
+
+    unread = Enum.at(boundaries, applied)
+
+    Map.merge(reading, %{
+      day: reading.price - reading.night,
+      next: next,
+      waiting: if(reading.ended_on_chain?, do: 0, else: applied - settled),
+      end_waiting?: reading.status == :ended and not reading.ended_on_chain?,
+      unreadable?:
+        reading.status != :ended and is_integer(unread) and now >= unread + @settle_delay
+    })
+  end
+
   @doc """
-  What `wallet` holds of the series' stock and legs, what it lets the series
-  take of its stock, and the raw stock its legs would redeem for now: whole
-  pairs before the end, every leg after it.
+  The prices `reading`'s series has written on the chain, each with the feed
+  round it came from and the ledgers it left: the round of the series' pinned
+  phase in force at each boundary, the last one updated at or before it.
+  Rounds are read newest first from the last one the series applied, 200 at a
+  time, until one in force at the first boundary is in hand. `prints` is nil
+  when the feed refuses the reads.
   """
-  def holdings(series, wallet, block, opts) do
-    with {:ok, overnight} <- balance(series.overnight.address, wallet, block, opts),
-         {:ok, session} <- balance(series.session.address, wallet, block, opts),
-         {:ok, stock} <- balance(series.stock.address, wallet, block, opts),
-         {:ok, allowance} <-
-           Rpc.call_uint(
-             series.stock.address,
-             Abi.encode_erc20("allowance", [wallet, series.address]),
-             block,
-             opts
-           ) do
+  def prints(%{settled: 0} = reading, _block, _opts), do: {:ok, Map.put(reading, :prints, [])}
+
+  def prints(reading, block, opts) do
+    with {:ok, rounds} <- rounds(reading, reading.last_round, [], block, opts),
+         do: {:ok, Map.put(reading, :prints, rounds && applied(reading, rounds))}
+  end
+
+  defp rounds(_reading, top, kept, _block, _opts) when top < 1, do: {:ok, kept}
+
+  defp rounds(reading, top, kept, block, opts) do
+    low = max(top - @rounds + 1, 1)
+    first = hd(reading.boundaries)
+
+    reads =
+      for round <- low..top,
+          do:
+            {round, reading.feed, "getRoundData(uint80)", [bsl(reading.phase, 64) + round],
+             {:maybe, [@uint, @uint, @uint, @uint, @uint]}}
+
+    with {:ok, read} <- read(reads, block, opts) do
+      found = for round <- low..top, do: {round, read[round]}
+
+      cond do
+        Enum.any?(found, &match?({_round, nil}, &1)) ->
+          {:ok, nil}
+
+        low == 1 or Enum.any?(found, fn {_round, [_, _, _, at, _]} -> at != 0 and at <= first end) ->
+          {:ok, found ++ kept}
+
+        true ->
+          rounds(reading, low - 1, found ++ kept, block, opts)
+      end
+    end
+  end
+
+  defp applied(reading, rounds) do
+    in_force =
+      for at <- Enum.take(reading.boundaries, reading.settled) do
+        rounds
+        |> Enum.filter(fn {_round, [_, _, _, updated, _]} -> updated != 0 and updated <= at end)
+        |> List.last()
+      end
+
+    {_round, [_, last_answer, _, _, _]} = List.keyfind(rounds, reading.last_round, 0)
+
+    if Enum.any?(in_force, &is_nil/1) or last_answer == 0 do
+      nil
+    else
+      # The series keeps prices in WAD; its feed answers in the feed's own decimals.
+      scale = div(reading.last_price, last_answer)
+      prices = Enum.map(in_force, fn {_round, [_, answer, _, _, _]} -> answer * scale end)
+
+      [in_force, Ledger.path(prices), reading.boundaries]
+      |> Enum.zip()
+      |> Enum.with_index()
+      |> Enum.map(fn {{{round, [_, _, _, updated, _]}, step, at}, index} ->
+        %{
+          index: index,
+          at: at,
+          open?: rem(index, 2) == 1,
+          price: step.price,
+          night: step.night,
+          day: step.day,
+          round_id: bsl(reading.phase, 64) + round,
+          updated_at: updated
+        }
+      end)
+    end
+  end
+
+  @doc """
+  What `wallet` holds of each open week's tokens in `readings`, and what they
+  return now, leaving out the weeks it holds nothing of.
+  """
+  def holdings(readings, wallet, block, opts) do
+    opened = Enum.filter(readings, & &1.opened?)
+
+    reads =
+      for reading <- opened,
+          leg <- [:overnight, :session],
+          do:
+            {{reading.week, leg}, Map.fetch!(reading, leg).address, "balanceOf(address)",
+             [wallet], @uint}
+
+    with {:ok, read} <- read(reads, block, opts) do
+      held =
+        for reading <- opened,
+            overnight = read[{reading.week, :overnight}],
+            session = read[{reading.week, :session}],
+            overnight + session > 0,
+            do: %{
+              week: reading,
+              overnight: overnight,
+              session: session,
+              redeemable: redeemable(reading, overnight, session)
+            }
+
+      {:ok, held}
+    end
+  end
+
+  @doc """
+  What `wallet` holds for one week: its two tokens (none before the week
+  opens), the stock and what it lets the factory take of it for a deposit,
+  its USDC, and the raw stock its tokens return now.
+  """
+  def holding(reading, config, wallet, block, opts) do
+    legs =
+      if reading.opened?,
+        do: [overnight: reading.overnight.address, session: reading.session.address],
+        else: []
+
+    reads =
+      [
+        {:stock, reading.stock.address, "balanceOf(address)", [wallet], @uint},
+        {:allowance, reading.stock.address, "allowance(address,address)",
+         [wallet, config.factory], @uint},
+        {:usdc, config.usdc, "balanceOf(address)", [wallet], @uint}
+      ] ++ for {leg, token} <- legs, do: {leg, token, "balanceOf(address)", [wallet], @uint}
+
+    with {:ok, read} <- read(reads, block, opts) do
+      overnight = Map.get(read, :overnight, 0)
+      session = Map.get(read, :session, 0)
+
       {:ok,
        %{
          wallet: wallet,
          overnight: overnight,
          session: session,
-         stock: stock,
-         allowance: allowance,
-         redeemable: redeemable(series, overnight, session)
+         stock: read.stock,
+         allowance: read.allowance,
+         usdc: read.usdc,
+         redeemable: redeemable(reading, overnight, session)
        }}
     end
   end
 
   @doc """
-  The amounts `redeem` takes from a holding of `overnight` and `session` now,
-  and the raw stock it would pay: before the end, the whole pairs held; after
-  it, every leg.
+  What trading one token against USDC through the Aerodrome router takes from
+  `wallet` now: its USDC and token balances and what each lets the router
+  take, and the token's pool, or nil where it has none.
   """
-  def redeemable(%{status: :ended} = series, overnight, session),
-    do: %{
-      overnight: overnight,
-      session: session,
-      paid: paid(series, overnight, session)
-    }
+  def trade_position(reading, config, leg, wallet, block, opts) do
+    token = Map.fetch!(reading, leg).address
 
-  def redeemable(series, overnight, session) do
-    pairs = min(overnight, session)
-    %{overnight: pairs, session: pairs, paid: paid(series, pairs, pairs)}
-  end
+    reads = [
+      {:usdc, config.usdc, "balanceOf(address)", [wallet], @uint},
+      {:usdc_allowance, config.usdc, "allowance(address,address)", [wallet, config.router],
+       @uint},
+      {:leg, token, "balanceOf(address)", [wallet], @uint},
+      {:leg_allowance, token, "allowance(address,address)", [wallet, config.router], @uint}
+    ]
 
-  @doc "The raw stock `redeem(overnight, session)` pays now, as the contract works it out."
-  def paid(series, overnight, session),
-    do: series |> owed(overnight, session) |> Ledger.paid(series.held, series.accounted)
-
-  @doc """
-  The raw stock the legs are owed before any cut for a seizure: whole pairs
-  before the end, the frozen ledgers' share after it.
-  """
-  def owed(_series, 0, 0), do: 0
-
-  def owed(%{status: :ended} = series, overnight, session),
-    do: Ledger.owed(overnight, session, series.price, series.night)
-
-  def owed(_series, pairs, pairs), do: pairs
-
-  @doc """
-  The round of the oracle's pinned feed phase in force at `at`: the last one
-  updated at or before it, with when it was updated, or `:no_round`. Rounds of
-  a phase count up from 1 and a missing round reads as zeros, so the search
-  doubles until it finds a missing round, then halves.
-  """
-  def round_in_force(series, at, block, opts) do
-    with {:ok, high} <- upper(series, 1, block, opts),
-         {:ok, round} <- search(series, at, 0, high, block, opts),
-         true <- round > 0 || {:error, :no_round},
-         {:ok, updated_at} <- updated_at(series, round, block, opts),
-         do: {:ok, %{round: round, updated_at: updated_at}}
-  end
-
-  defp upper(series, high, block, opts) do
-    case updated_at(series, high, block, opts) do
-      {:ok, 0} -> {:ok, high}
-      {:ok, _updated} -> upper(series, high * 2, block, opts)
-      error -> error
-    end
-  end
-
-  # Rounds low+1 .. high-1 may exist; `low` is the last known in force at `at`.
-  defp search(_series, _at, low, high, _block, _opts) when high - low <= 1, do: {:ok, low}
-
-  defp search(series, at, low, high, block, opts) do
-    mid = low + div(high - low, 2)
-
-    case updated_at(series, mid, block, opts) do
-      {:ok, updated} when updated != 0 and updated <= at ->
-        search(series, at, mid, high, block, opts)
-
-      {:ok, _later_or_missing} ->
-        search(series, at, low, mid, block, opts)
-
-      error ->
-        error
-    end
-  end
-
-  defp updated_at(series, round, block, opts) do
-    round_id = Bitwise.bsl(series.phase, 64) + round
-
-    with {:ok, [_round, _answer, _started, updated_at, _answered]} <-
-           Rpc.call_words(
-             series.feed,
-             Call.encode("getRoundData(uint80)", [round_id]),
-             block,
-             5,
-             opts
-           ),
-         do: {:ok, updated_at}
-  end
-
-  defp boundaries(address, count, block, opts) do
-    0..(count - 1)//1
-    |> read_concurrently(fn index ->
-      Rpc.call_uint(address, Call.encode("boundaries(uint256)", [index]), block, opts)
-    end)
-  end
-
-  defp legs(addresses, block, opts), do: read_concurrently(addresses, &token(&1, block, opts))
-
-  defp token(address, block, opts) do
-    with {:ok, symbol} <- Rpc.call_string(address, Call.encode("symbol()", []), block, opts),
-         {:ok, name} <- Rpc.call_string(address, Call.encode("name()", []), block, opts),
-         {:ok, decimals} <- Rpc.call_uint(address, Call.encode("decimals()", []), block, opts),
-         do: {:ok, %{symbol: symbol, name: name, decimals: decimals}}
-  end
-
-  @doc """
-  What trading one leg against USDC through the Aerodrome router takes from
-  `wallet` now: its USDC and leg balances and what each lets the router take,
-  and the leg's pool, or nil where it has none.
-  """
-  def trade_position(series, config, leg, wallet, block, opts) do
-    token = Map.fetch!(series, leg).address
-
-    with {:ok, pool} <- pool(token, config, block, opts),
-         {:ok, usdc} <- balance(config.usdc, wallet, block, opts),
-         {:ok, usdc_allowance} <- allowance(config.usdc, wallet, config.router, block, opts),
-         {:ok, held} <- balance(token, wallet, block, opts),
-         {:ok, leg_allowance} <- allowance(token, wallet, config.router, block, opts) do
-      {:ok,
-       %{
-         pool: pool,
-         usdc: usdc,
-         usdc_allowance: usdc_allowance,
-         leg: held,
-         leg_allowance: leg_allowance
-       }}
+    with {:ok, read} <- read(reads, block, opts) do
+      pool = reading.pools[leg]
+      {:ok, Map.put(read, :pool, pool && pool.address)}
     end
   end
 
@@ -420,53 +595,78 @@ defmodule Autolaunch.Exposure.Chain do
     end
   end
 
-  @doc "What `holder` holds of `token` at `block`, in its raw units."
-  def token_balance(token, holder, block, opts), do: balance(token, holder, block, opts)
+  @doc "The raw stock a week still takes before its deposit cap."
+  def room(reading), do: max(reading.deposit_cap - reading.accounted, 0)
 
-  defp allowance(token, owner, spender, block, opts),
-    do: Rpc.call_uint(token, Abi.encode_erc20("allowance", [owner, spender]), block, opts)
+  @doc """
+  The amounts `redeem` takes from a holding of `overnight` and `session` now,
+  and the raw stock it would pay: before the end, the whole pairs held; after
+  it, every token.
+  """
+  def redeemable(%{status: :ended} = reading, overnight, session),
+    do: %{overnight: overnight, session: session, paid: paid(reading, overnight, session)}
 
-  defp balance(token, holder, block, opts),
-    do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [holder]), block, opts)
+  def redeemable(reading, overnight, session) do
+    pairs = min(overnight, session)
+    %{overnight: pairs, session: pairs, paid: paid(reading, pairs, pairs)}
+  end
 
-  defp supply(token, block, opts),
-    do: Rpc.call_uint(token, Call.encode("totalSupply()", []), block, opts)
+  @doc "The raw stock `redeem(overnight, session)` pays now, as the contract works it out."
+  def paid(reading, overnight, session),
+    do: reading |> owed(overnight, session) |> Ledger.paid(reading.held, reading.accounted)
 
-  defp read_all(address, reads, block, opts) do
-    reads
-    |> read_concurrently(fn {key, {kind, signature}} ->
-      with {:ok, value} <- read(kind, address, signature, block, opts), do: {:ok, {key, value}}
-    end)
-    |> case do
-      {:ok, values} -> {:ok, Map.new(values)}
-      error -> error
+  @doc """
+  The raw stock the tokens are owed before any cut for a seizure: whole pairs
+  before the end, the final ledgers' share after it.
+  """
+  def owed(_reading, 0, 0), do: 0
+  def owed(_reading, pairs, pairs), do: pairs
+
+  def owed(%{status: :ended} = reading, overnight, session),
+    do: Ledger.owed(overnight, session, reading.price, reading.night)
+
+  # Named reads in as few requests as Multicall3 allows: each is `{key,
+  # contract, signature, args, type}`, and the answer maps each key to its
+  # value. A type list gives the values in order; `{:tuple, types}` a dynamic
+  # tuple's; `{:maybe, type}` nil for a read the contract refuses.
+  defp read(reads, block, opts) do
+    calls = Enum.map(reads, fn {_key, to, signature, args, _type} -> {to, Call.encode(signature, args)} end)
+
+    with {:ok, answers} <- Multicall.read(calls, block, opts) do
+      reads
+      |> Enum.zip(answers)
+      |> each(fn {{key, _to, _signature, _args, type}, answer} ->
+        with {:ok, value} <- decode(answer, type), do: {:ok, {key, value}}
+      end)
+      |> case do
+        {:ok, values} -> {:ok, Map.new(values)}
+        error -> error
+      end
     end
   end
 
-  defp read(:uint, to, signature, block, opts),
-    do: Rpc.call_uint(to, Call.encode(signature, []), block, opts)
+  defp decode(:reverted, {:maybe, _type}), do: {:ok, nil}
+  defp decode(answer, {:maybe, type}), do: decode(answer, type)
+  defp decode(:reverted, _type), do: {:error, :invalid_chain_response}
 
-  defp read(:address, to, signature, block, opts) do
-    with {:ok, address} <- Rpc.call_address(to, Call.encode(signature, []), block, opts),
-         do: {:ok, String.downcase(address)}
+  defp decode(<<32::256, body::binary>>, {:tuple, types}), do: decoded(Abi.decode(body, types))
+  defp decode(_answer, {:tuple, _types}), do: {:error, :invalid_chain_response}
+  defp decode(answer, types) when is_list(types), do: decoded(Abi.decode(answer, types))
+
+  defp decode(answer, type) do
+    with {:ok, [value]} <- decoded(Abi.decode(answer, [type])), do: {:ok, value}
   end
 
-  defp read(:word, to, signature, block, opts) do
-    with {:ok, word} <- Rpc.call_uint(to, Call.encode(signature, []), block, opts),
-         do:
-           {:ok,
-            "0x" <>
-              (word |> Integer.to_string(16) |> String.pad_leading(64, "0") |> String.downcase())}
-  end
+  defp decoded({:ok, values}), do: {:ok, values}
+  defp decoded(:error), do: {:error, :invalid_chain_response}
 
-  # Independent reads at one block, side by side; the first failure is the answer.
-  defp read_concurrently(items, read) do
+  defp each(items, fun) do
     items
-    |> Task.async_stream(read, max_concurrency: @concurrency, timeout: @read_timeout)
-    |> Enum.reduce_while({:ok, []}, fn
-      {:ok, {:ok, value}}, {:ok, kept} -> {:cont, {:ok, [value | kept]}}
-      {:ok, {:error, _reason} = error}, _kept -> {:halt, error}
-      {:exit, _reason}, _kept -> {:halt, {:error, :chain_unavailable}}
+    |> Enum.reduce_while({:ok, []}, fn item, {:ok, kept} ->
+      case fun.(item) do
+        {:ok, value} -> {:cont, {:ok, [value | kept]}}
+        error -> {:halt, error}
+      end
     end)
     |> case do
       {:ok, kept} -> {:ok, Enum.reverse(kept)}

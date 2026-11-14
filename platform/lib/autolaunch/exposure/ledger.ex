@@ -1,6 +1,6 @@
 defmodule Autolaunch.Exposure.Ledger do
   @moduledoc """
-  The arithmetic of an `ExposureSeriesV1`, exactly as the contract does it, so
+  The arithmetic of an `ExposureSeriesV2`, exactly as the contract does it, so
   a page can show what each print did and what a holding returns without
   asking the chain for every figure.
 

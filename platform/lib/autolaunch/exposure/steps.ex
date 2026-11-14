@@ -1,51 +1,51 @@
 defmodule Autolaunch.Exposure.Steps do
   @moduledoc """
-  The wallet steps for one Exposure action, built on the server from the chain
-  at the latest block, for a signer the caller has already proved is one of the
-  acting account's own wallets (`Autolaunch.Exposure.Series`).
+  The wallet steps for one Exposure action on one week, built on the server
+  from the chain at the latest block, for a signer the caller has already
+  proved is one of the acting account's own wallets
+  (`Autolaunch.Exposure.Series`).
 
-  Six actions, each one review of the steps the wallet sends in turn:
+  Five actions, each one review of the steps the wallet sends in turn:
 
     * `:buy` — an exact USDC approval to the Aerodrome router, then a swap of
-      `amount` USDC for one leg (`leg`) through its pool
-    * `:sell` — an exact approval of that leg to the router, then a swap of
+      `amount` USDC for one token (`leg`) through its pool
+    * `:sell` — an exact approval of that token to the router, then a swap of
       `amount` of it for USDC
-    * `:mint` — an exact stock approval, then `mint(amount)`
-    * `:redeem` — `redeem(overnight, session)`: equal amounts (whole pairs)
-      before the series ends, any mix after it
-    * `:update` — `record` the next price on the oracle when it is not yet
-      recorded, then `settle` it into the series; open to anyone
-    * `:end` — `endOnMissingPrint()`, once the next price can no longer be
-      recorded in time; open to anyone
+    * `:deposit` — an exact stock approval to the factory, then
+      `deposit(week, amount)` on the factory, which opens the week's series on
+      its first deposit and mints the signer that many of each token
+    * `:redeem` — `redeem(overnight, session)` on the series: equal amounts
+      (whole pairs) at any time, any mix once the series has ended
+    * `:settle` — `settle()` on the series, which applies every price that is
+      due; open to anyone, and it never fails for being early or late
 
   The approval is always a step of its own, so it stays pressable once done.
-  An action the chain's own state makes certain to fail (minting before the
-  first close or past the cap, returning more than the wallet holds, a price
-  not yet recordable) comes back with `blocked` set to the reason and
-  `approved` saying whether the allowance already covers it; its steps are
-  still built whenever they can be, so a press the chain has since allowed
-  reaches the wallet. A request that cannot name a real action (a zero amount)
-  is refused outright.
+  An action the chain's own state makes certain to fail (a deposit after the
+  week's last close or past the cap, returning more than the wallet holds)
+  comes back with `blocked` set to the reason and `approved` saying whether
+  the allowance already covers it; its steps are still built, so a press the
+  chain has since allowed reaches the wallet. A request that cannot name a
+  real action (a zero amount, or a token of a week not open yet) is refused
+  outright.
   """
 
   alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.Exposure.{Chain, Deployment, Ledger}
   alias RegentChain.{Call, Review}
 
-  @kinds [:buy, :sell, :mint, :redeem, :update, :end]
+  @kinds [:buy, :sell, :deposit, :redeem, :settle]
   @usdc_decimals 6
   # A swap reverts rather than paying out less than its quote minus this, in basis points.
   @slippage_bps 200
   # How long after its review a swap may still land.
   @swap_window 20 * 60
   @swap "swapExactTokensForTokens(uint256,uint256,(address,address,bool,address)[],address,uint256)"
-  # A recorded price may be at most this old at its moment (ChainlinkPrintOracleV2.MAX_STALENESS).
-  @max_staleness 84 * 3_600
 
   def kinds, do: @kinds
 
   @type prepared :: %{
           kind: atom(),
+          week: pos_integer(),
           chain: map(),
           steps: [map()],
           blocked: atom() | nil,
@@ -53,71 +53,64 @@ defmodule Autolaunch.Exposure.Steps do
           facts: map()
         }
 
-  @doc "The review for `request` on `series` signed by `signer`, or why there can be none."
+  @doc "The review for `request` on its week signed by `signer`, or why there can be none."
   @spec prepare(map(), String.t()) :: {:ok, prepared()} | {:error, atom()}
-  def prepare(%{kind: kind, series: address} = request, signer) when kind in @kinds do
+  def prepare(%{kind: kind, week: week} = request, signer) when kind in @kinds do
     with {:ok, config} <- Deployment.current(),
-         {:ok, address} <- Deployment.series(address),
-         {:ok, block, opts} <- Chain.latest(config.lab),
-         {:ok, series} <- Chain.series(address, config, block, opts),
-         {:ok, built} <- build(kind, request, series, config, signer, block, opts) do
-      {:ok, Map.merge(built, %{kind: kind, chain: Client.chain(config.lab)})}
+         {:ok, reading, block, opts} <- Chain.read_week(config, week),
+         {:ok, built} <- build(kind, request, reading, config, signer, block, opts) do
+      {:ok, Map.merge(built, %{kind: kind, week: reading.week, chain: Client.chain(config.lab)})}
     end
   end
 
   def prepare(_request, _signer), do: {:error, :unknown_action}
 
-  defp build(kind, request, series, config, signer, block, opts) when kind in [:buy, :sell],
-    do: trade(kind, request, series, config, signer, block, opts)
+  # Before its first deposit a week has no series and no tokens: only a deposit names it.
+  defp build(kind, _request, %{opened?: false}, _config, _signer, _block, _opts)
+       when kind != :deposit,
+       do: {:error, :week_not_open}
 
-  defp build(kind, request, series, _config, signer, block, opts),
-    do: build(kind, request, series, signer, block, opts)
+  defp build(kind, request, reading, config, signer, block, opts) when kind in [:buy, :sell],
+    do: trade(kind, request, reading, config, signer, block, opts)
 
-  defp build(:mint, request, series, signer, block, opts) do
+  defp build(:deposit, request, reading, config, signer, block, opts) do
     with {:ok, amount} <- positive(request[:amount]),
-         {:ok, wallet} <- Chain.holdings(series, signer, block, opts) do
-      room = max(series.deposit_cap - series.accounted, 0)
-
-      blocked =
-        cond do
-          series.status == :pending -> :not_open
-          series.status == :ended -> :ended
-          series.held < series.accounted -> :backing_short
-          amount > room -> :above_cap
-          wallet.stock < amount -> :not_enough_stock
-          wallet.allowance < amount -> :approve_first
-          true -> nil
-        end
+         {:ok, wallet} <- Chain.holding(reading, config, signer, block, opts) do
+      room = Chain.room(reading)
 
       {:ok,
        %{
          steps: [
            Review.step(
              "stock_approval",
-             series.stock.address,
-             Abi.encode_erc20("approve", [series.address, amount])
+             reading.stock.address,
+             Abi.encode_erc20("approve", [config.factory, amount])
            ),
-           Review.step("mint", series.address, Call.encode("mint(uint256)", [amount]))
+           Review.step(
+             "deposit",
+             config.factory,
+             Call.encode("deposit(uint256,uint256)", [reading.week, amount])
+           )
          ],
-         blocked: blocked,
+         blocked: deposit_blocked(reading, wallet, amount, room),
          approved: wallet.allowance >= amount,
          facts: %{amount: amount, room: room}
        }}
     end
   end
 
-  defp build(:redeem, request, series, signer, block, opts) do
+  defp build(:redeem, request, reading, config, signer, block, opts) do
     with {:ok, overnight, session} <- amounts(request),
-         {:ok, wallet} <- Chain.holdings(series, signer, block, opts) do
-      owed = owed(series, overnight, session)
-      paid = owed && Ledger.paid(owed, series.held, series.accounted)
+         {:ok, wallet} <- Chain.holding(reading, config, signer, block, opts) do
+      owed = owed(reading, overnight, session)
+      paid = owed && Ledger.paid(owed, reading.held, reading.accounted)
 
       {:ok,
        %{
          steps: [
            Review.step(
              "redeem",
-             series.address,
+             reading.address,
              Call.encode("redeem(uint256,uint256)", [overnight, session])
            )
          ],
@@ -128,57 +121,46 @@ defmodule Autolaunch.Exposure.Steps do
     end
   end
 
-  defp build(:update, _request, %{next: nil}, _signer, _block, _opts),
-    do: {:ok, %{steps: [], blocked: :ended, approved: true, facts: %{}}}
+  defp build(:settle, _request, reading, _config, _signer, _block, _opts) do
+    {:ok,
+     %{
+       steps: [Review.step("settle", reading.address, Call.encode("settle()", []))],
+       blocked: nil,
+       approved: true,
+       facts: %{
+         due: reading.waiting,
+         ends: reading.end_waiting?,
+         next: reading.next && Map.take(reading.next, [:index, :at, :open?, :due_at])
+       }
+     }}
+  end
 
-  defp build(:update, _request, %{next: next} = series, _signer, block, opts) do
-    with {:ok, print} <- Chain.recorded(series, next.at, next.index, block, opts) do
-      cond do
-        not next.due? ->
-          {:ok, update([settle(series)], :too_early, next, nil)}
-
-        print.price != 0 ->
-          {:ok, update([settle(series)], late(print, next), next, print)}
-
-        block.timestamp > next.deadline ->
-          {:ok, update([settle(series)], :missed_deadline, next, nil)}
-
-        true ->
-          record(series, next, block, opts)
-      end
+  # Every reason the factory's `deposit` would revert at the latest block: the
+  # week is past its last close (or ended, or still waiting on its first
+  # price), opening a new week is paused, the series holds less stock than it
+  # owes, or the amount is past the cap, the wallet's stock or its allowance.
+  defp deposit_blocked(reading, wallet, amount, room) do
+    cond do
+      not reading.current? or reading.now >= List.last(reading.boundaries) -> :deposits_closed
+      not reading.opened? and reading.paused -> :paused
+      reading.status == :ended -> :ended
+      reading.status == :pending -> :not_open
+      reading.held < reading.accounted -> :backing_short
+      amount > room -> :above_cap
+      wallet.stock < amount -> :not_enough_stock
+      wallet.allowance < amount -> :approve_first
+      true -> nil
     end
   end
 
-  defp build(:end, _request, %{next: nil}, _signer, _block, _opts),
-    do: {:ok, %{steps: [], blocked: :ended, approved: true, facts: %{}}}
-
-  defp build(:end, _request, %{next: next} = series, _signer, block, opts) do
-    with {:ok, print} <- Chain.recorded(series, next.at, next.index, block, opts) do
-      blocked =
-        cond do
-          print.price != 0 and print.finalized_at <= next.deadline -> :price_available
-          block.timestamp <= next.deadline -> :not_overdue
-          true -> nil
-        end
-
-      {:ok,
-       %{
-         steps: [Review.step("end", series.address, Call.encode("endOnMissingPrint()", []))],
-         blocked: blocked,
-         approved: true,
-         facts: %{at: next.at, deadline: next.deadline}
-       }}
-    end
-  end
-
-  # A buy pays `amount` USDC into the leg's pool; a sell pays `amount` of the leg.
-  # The quote is the pool's own; the swap takes nothing less than it minus the
-  # slippage allowance, and only until its deadline.
-  defp trade(kind, request, series, config, signer, block, opts) do
+  # A buy pays `amount` USDC into the token's pool; a sell pays `amount` of the
+  # token. The quote is the pool's own; the swap takes nothing less than it
+  # minus the slippage allowance, and only until its deadline.
+  defp trade(kind, request, reading, config, signer, block, opts) do
     with {:ok, leg} <- leg(request[:leg]),
          {:ok, amount} <- positive(request[:amount]),
-         {:ok, wallet} <- Chain.trade_position(series, config, leg, signer, block, opts),
-         side = side(kind, Map.fetch!(series, leg).address, config, wallet),
+         {:ok, wallet} <- Chain.trade_position(reading, config, leg, signer, block, opts),
+         side = side(kind, Map.fetch!(reading, leg).address, config, wallet),
          {:ok, out} <- quote(wallet.pool, amount, side.token_in, block, opts) do
       min_out = out && div(out * (10_000 - @slippage_bps), 10_000)
       route = {side.token_in, side.token_out, false, config.pool_factory}
@@ -250,11 +232,11 @@ defmodule Autolaunch.Exposure.Steps do
   defp leg(_leg), do: {:error, :leg_required}
 
   # Before the end only whole pairs have a price; unequal amounts owe nothing yet.
-  defp owed(%{status: :ended} = series, overnight, session),
-    do: Chain.owed(series, overnight, session)
+  defp owed(%{status: :ended} = reading, overnight, session),
+    do: Chain.owed(reading, overnight, session)
 
-  defp owed(series, pairs, pairs), do: Chain.owed(series, pairs, pairs)
-  defp owed(_series, _overnight, _session), do: nil
+  defp owed(reading, pairs, pairs), do: Chain.owed(reading, pairs, pairs)
+  defp owed(_reading, _overnight, _session), do: nil
 
   defp redeem_blocked(wallet, {overnight, session}, owed, paid) do
     cond do
@@ -264,50 +246,6 @@ defmodule Autolaunch.Exposure.Steps do
       true -> nil
     end
   end
-
-  # A price recorded after its deadline can never be applied.
-  defp late(%{finalized_at: at}, %{deadline: deadline}) when at > deadline, do: :missed_deadline
-  defp late(_print, _next), do: nil
-
-  # The round of the pinned feed phase in force at the price's moment; a round
-  # older than the oracle accepts can never be recorded.
-  defp record(series, next, block, opts) do
-    case Chain.round_in_force(series, next.at, block, opts) do
-      {:ok, %{round: round, updated_at: updated_at}} ->
-        step =
-          Review.step(
-            "record",
-            series.oracle,
-            Call.encode("record(uint64,bool,uint64)", [next.at, next.open?, round])
-          )
-
-        blocked = if next.at - updated_at > @max_staleness, do: :price_too_old
-
-        {:ok,
-         update([step, settle(series)], blocked, next, %{round: round, updated_at: updated_at})}
-
-      {:error, :no_round} ->
-        {:ok, update([settle(series)], :price_too_old, next, nil)}
-
-      error ->
-        error
-    end
-  end
-
-  defp settle(series), do: Review.step("settle", series.address, Call.encode("settle()", []))
-
-  defp update(steps, blocked, next, source),
-    do: %{
-      steps: steps,
-      blocked: blocked,
-      approved: true,
-      facts: %{
-        at: next.at,
-        kind: if(next.open?, do: :open, else: :close),
-        recordable_at: next.recordable_at,
-        source: source && Map.take(source, [:round, :round_id, :updated_at, :price])
-      }
-    }
 
   defp amounts(%{overnight: overnight, session: session})
        when is_integer(overnight) and is_integer(session) and overnight >= 0 and session >= 0 and
