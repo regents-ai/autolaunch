@@ -38,6 +38,8 @@ config :regent_points,
     autolaunch.auction_created
     autolaunch.first_graduation
     autolaunch.auction_bid
+    autolaunch.token_traded
+    autolaunch.token_staked
   )
 
 # Runtime production configuration, including reading
