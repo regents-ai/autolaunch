@@ -40,6 +40,7 @@ config :regent_points,
     autolaunch.auction_bid
     autolaunch.token_traded
     autolaunch.token_staked
+    autolaunch.first_covered_call
   )
 
 # Runtime production configuration, including reading
