@@ -1,9 +1,10 @@
 defmodule Autolaunch.CoveredCalls.Chain do
   @moduledoc """
-  What a `CoveredCallsV2` contract and its stock say at one block. Covered calls
-  keep no records of their own: every listing, bid, holding and balance a page
-  or an agent sees is read here from the contract, so it matches the chain after
-  any reload.
+  What a `CoveredCallsV2` contract and its stock say at one block. Every
+  listing, bid, holding and balance a page or an agent sees is read here from
+  the contract, so it matches the chain after any reload; the site's only
+  covered-call rows are the sales it saves for Regent Points
+  (`Autolaunch.CoveredCalls.Sales`).
 
   Listings, bids and a wallet's place on them are read through
   `Autolaunch.Chain.Multicall`, about two hundred to a request, never one

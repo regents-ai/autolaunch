@@ -12,11 +12,12 @@ defmodule AutolaunchWeb.Telemetry do
       `Autolaunch.TokenTrades` on passes that follow the head.
     * `[:autolaunch, :indexer, :lag]` — `blocks` between the chain head and
       the last indexed block, for `indexer` (`:launch_discovery`,
-      `:auction_activity`, `:token_trades` or `:stock_admissions`) on
-      `chain_id`. Each compares its new cursor with the latest head after each
-      committed pass; the token trades reader sends the furthest-behind cursor
-      among the chain's listed tokens that have one, not only the token it
-      just read; the stock list sends it only for a pass that left no stock
+      `:auction_activity`, `:token_trades`, `:stock_admissions` or
+      `:covered_call_sales`) on `chain_id`. Each compares its new cursor with
+      the latest head after each committed pass; the token trades reader sends
+      the furthest-behind cursor among the chain's listed tokens that have
+      one, and the covered-call sales reader among the chain's markets, not
+      only the one just read; the stock list sends it only for a pass that left no stock
       unread, and launch discovery, which reads at the head, only for a pass
       that recorded every launch the launchpad has made. Each
       event also counts one pass, so a reader that stops shows as passes that

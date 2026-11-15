@@ -133,7 +133,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 
 ## Points awards
 
-Earning opens in production at 16 November 2026 17:00 UTC for the four launch, graduation and bid rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself. Autolaunch token trade and Autolaunch token staked have their sources and checks built but are not approved there, so they earn nothing in production yet.
+Earning opens in production at 16 November 2026 17:00 UTC for the four launch, graduation and bid rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself. Autolaunch token trade, Autolaunch token staked and First Autolaunch covered call have their sources and checks built but are not approved there, so they earn nothing in production yet.
 
 | Action | Check |
 | --- | --- |
@@ -157,6 +157,14 @@ Earning opens in production at 16 November 2026 17:00 UTC for the four launch, g
 | A stake from a wallet no account held is still saved and earns nothing, refused as not linked; a stake of a hidden launch's token earns nothing | `autolaunch/points_token_awards_test.exs` › "a stake from a wallet no account holds is saved and earns nothing", › "the site's stake check answers the same each time it is asked" |
 | While earning is closed the token's reader still saves each stake and queues and writes nothing for Points | `autolaunch/points_token_awards_test.exs` › "while earning is closed, the reader still saves a stake and Points gets nothing" |
 | Revstake and Memestock launches, on Base and on Robinhood Chain, name their splitter to the token's reader | `autolaunch/base_launchers_test.exs` › "a graduated launch trades on the pool its own version's launcher recorded" (Base only; the Robinhood source is not checked) |
+| A covered call that changes hands, bought from a listing or sold into a bid, is saved once by the market's reader and earns First Autolaunch covered call once for its seller's account and once for its buyer's, each the account whose verified wallets held that side's wallet at the sale's block time; more sales earn nothing more | `autolaunch/points_covered_call_awards_test.exs` › "a sale earns its seller and its buyer First Autolaunch covered call, each once, however many follow" |
+| An account on both sides of a sale, selling into its own bid, earns First Autolaunch covered call once | `autolaunch/points_covered_call_awards_test.exs` › "an account on both sides of a sale earns it once" |
+| A sale read again keeps its row as first saved and offers nothing more | `autolaunch/points_covered_call_awards_test.exs` › "reading a sale again keeps it as first saved and offers nothing" |
+| A sale with a side no account held is still saved, and only the linked side earns; the other is refused as not linked, and a sale not saved earns nothing | `autolaunch/points_covered_call_awards_test.exs` › "a sale with a side no account holds is saved and earns only the linked side", › "the site's covered-call check answers the same each time it is asked" |
+| While earning is closed the market's reader still saves each sale and queues and writes nothing for Points | `autolaunch/points_covered_call_awards_test.exs` › "while earning is closed, the reader still saves a sale and Points gets nothing" |
+| With covered calls off, or their contracts not described, the sales reader has no job and reads nothing | `autolaunch/points_covered_call_awards_test.exs` › "with covered calls off or their contracts not described, the reader reads nothing" |
+| A saved sale the chain took back, or one read again that differs, stops the market's reader at its block; it reads nothing until an operator clears it (`bin/clear-covered-call-sales-stop`), then reads again from that block, and a sale saved again earns nothing more | `autolaunch/points_covered_call_awards_test.exs` › "a sale the chain took back stops the reader until an operator clears it, and saved again it earns nothing more", › "a sale read again that differs from the saved one stops the reader at its block" |
+| A pass whose cursor moved under it saves nothing and reads again at once; the first pass opens at the contract's deployment block, and each log search covers at most 10,000 blocks, the last 300 read again | `autolaunch/points_covered_call_awards_test.exs` › "a pass whose cursor moved under it saves nothing and reads again at once", › "the first pass opens at the contract's deployment block, and each pass reads at most ten thousand blocks" |
 
 ## Agents
 

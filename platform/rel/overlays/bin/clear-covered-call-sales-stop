@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+contract="${1:?usage: clear-covered-call-sales-stop <contract address>}"
+
+AUTOLAUNCH_RELEASE_COMMAND=migrate AUTOLAUNCH_STOPPED_CONTRACT="$contract" exec "$(dirname "$0")/autolaunch" eval 'Autolaunch.Release.clear_covered_call_sales_stop(System.fetch_env!("AUTOLAUNCH_STOPPED_CONTRACT"))'

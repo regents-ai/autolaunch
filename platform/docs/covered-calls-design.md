@@ -220,10 +220,10 @@ the reason beside it.
 
 Ash domain `Autolaunch.CoveredCalls`:
 
-- **No tables.** The contract is the record: `Chain` reads listings, holdings, balances and
-  allowances at the latest block, so every figure matches the chain after a reload, and no
-  migration is needed. (A new table needs Sean's go before production; reading the contract
-  avoids it.)
+- **The contract is the record.** `Chain` reads listings, holdings, balances and allowances
+  at the latest block, so every figure a page or an agent sees matches the chain after a
+  reload. The site's only covered-call tables are the sales it saves for Regent Points
+  ("Sales for Points" below), which no page reads.
 - `Book` — each market's open listings and open bids, read once and shared by every visitor for five minutes and
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. It holds the best fifty of each
@@ -294,6 +294,51 @@ root has one row per action.
 
 The agent's own key signs every step; the site prepares and never signs. CLI rows are gaps
 owned by the regents-cli lane until it adds them.
+
+### Sales for Points
+
+First Autolaunch covered call (`autolaunch.first_covered_call`) earns once per account, the
+first time it sells calls or buys them (founder decision, November 2026). `Sales`
+(`Autolaunch.CoveredCalls.Sales`) reads each market's contract for the calls that change
+hands and saves each once as a `Sale` (`covered_call_sales`), with its `Cursor`
+(`covered_call_cursors`) recording how far it has read; Points' check is
+`Autolaunch.Points.CoveredCall`.
+
+- **What is a sale.** `Filled` (a buyer buying from a listing) and `SoldToBid` (a seller
+  selling into a bid). A listing or a bid nobody bought from or sold into is no sale. Each
+  log names the wallet that called the contract (the buyer of a fill, the seller into a
+  bid); the other side is the listing's seller or the bid's bidder, read from the contract
+  at the head.
+- **Both sides earn.** Each saved sale is offered to Points twice, as the seller's
+  (`covered_call_seller`) and as the buyer's (`covered_call_buyer`), each for the account
+  whose verified wallets held that side's wallet at the sale's block time. An account on
+  both sides, or that both sells and buys, earns it once.
+- **How it reads.** At the latest block, one job per market while covered calls are on
+  (`Autolaunch.ChainWatch`), none while they are off or their contracts are not described.
+  The first pass opens the cursor at the block the contract was deployed in (found with
+  `eth_getCode`, about 26 requests once). Each pass reads the head, then one log search of at
+  most 10,000 blocks: the last 300 it read again (one minute of Base), then new ones. It waits
+  a second while behind and five minutes once caught up; a node that does not answer is one
+  warning and a minute's wait. Caught up and with no sales, a pass costs three requests
+  (chain id, head, log search); each block holding a sale adds one header read, and each
+  pass with sales one or two Multicall reads for the other sides.
+- **Written once.** A sale read again must match its saved row, and every saved sale in the
+  300 blocks read again must still sit in a block of the same hash. If not, the chain
+  changed under the record: the reader logs an error every five minutes, reads nothing more
+  on that contract, and its lag keeps rising.
+
+To restart a stopped reader, an operator first puts the record right by hand from the chain
+(a sale the chain no longer holds is taken out; its Points award, if any, stays), then runs,
+on the deployment:
+
+```sh
+/app/bin/clear-covered-call-sales-stop <contract address>
+```
+
+It prints each cleared contract and the block it will be read again from (where the chain
+disagreed), or that the contract is not stopped, in which case nothing changes. The running
+site reads the contract again at its next turn, within five minutes; a sale it saves again
+is offered again, and earns nothing for an account that already earned the rule.
 
 ### Reading a book anyone can fill
 

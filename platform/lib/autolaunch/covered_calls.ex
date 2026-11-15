@@ -5,7 +5,9 @@ defmodule Autolaunch.CoveredCalls do
   bid with its premium escrowed that a seller sells into and is paid at once;
   during the 24 hours after the Friday expiry a holder may pay the strike for
   the stock. The contract (`CoveredCallsV2`, `contracts/covered-calls-v2`) is
-  the record; see `platform/docs/covered-calls-design.md`.
+  the record every page and agent reads; see `platform/docs/covered-calls-design.md`.
+  The site saves only each call that changed hands (`Sale`, read by
+  `Autolaunch.CoveredCalls.Sales` with its `Cursor`), for Regent Points.
   """
 
   use Ash.Domain, otp_app: :autolaunch, extensions: [AshAi]
@@ -65,6 +67,28 @@ defmodule Autolaunch.CoveredCalls do
       define :read_covered_call_offer, action: :offer, args: [:symbol, :kind, :id]
       define :read_covered_call_positions, action: :positions, args: [:symbol]
       define :prepare_covered_call_steps, action: :prepare, args: [:symbol, :kind]
+    end
+
+    resource Autolaunch.CoveredCalls.Sale do
+      define :record_covered_call_sale, action: :record
+      define :get_covered_call_sale, action: :by_id, args: [:id], not_found_error?: false
+
+      define :covered_call_sales_in_blocks,
+        action: :in_blocks,
+        args: [:chain_id, :contract, :from, :to]
+    end
+
+    resource Autolaunch.CoveredCalls.Cursor do
+      define :covered_call_cursor,
+        action: :read,
+        get_by: [:chain_id, :contract],
+        not_found_error?: false
+
+      define :stopped_covered_call_cursors, action: :stopped, args: [:contract]
+      define :open_covered_call_cursor, action: :open
+      define :advance_covered_call_cursor, action: :advance
+      define :stop_covered_call_cursor, action: :stop, args: [:block]
+      define :clear_covered_call_cursor, action: :clear
     end
   end
 end
