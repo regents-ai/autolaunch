@@ -16,7 +16,6 @@ defmodule Autolaunch.Repo.Migrations.AddCoveredCallSales do
       add :head_block, :bigint
       add :head_block_hash, :text
       add :observed_at, :utc_datetime_usec
-      add :rescan_from, :bigint
     end
 
     create unique_index(:covered_call_cursors, [:chain_id, :contract],

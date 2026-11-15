@@ -15,17 +15,14 @@ defmodule Autolaunch.CoveredCalls.Sale do
   saved. Amounts are raw units: the stock's for `amount`, USDC's for `premium`
   (what the buyer paid) and `fee` (the part of it the seller did not get).
 
-  A row is written once and never changed: the same log read again must match
-  it, or the action is refused with `Autolaunch.CoveredCalls.Diverged` and the
-  reader stops its contract.
+  A row is written once and never changed, kept as first saved even when the
+  chain later moves or drops its log: the reader warns and carries on.
   """
   use Ash.Resource,
     otp_app: :autolaunch,
     domain: Autolaunch.CoveredCalls,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
-
-  alias Autolaunch.CoveredCalls.Diverged
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
@@ -61,17 +58,19 @@ defmodule Autolaunch.CoveredCalls.Sale do
       filter expr(id == ^arg(:id))
     end
 
-    # The sales already saved from one contract's blocks `from` to `to`, which
-    # the reader checks against the chain as it reads them again.
-    read :in_blocks do
+    # The sales already saved from one contract that a pass reads again: those
+    # in its blocks `from` to `to`, and any in the `transactions` it read.
+    read :seen do
       argument :chain_id, :integer, allow_nil?: false
       argument :contract, :string, allow_nil?: false
       argument :from, :integer, allow_nil?: false
       argument :to, :integer, allow_nil?: false
+      argument :transactions, {:array, :string}, allow_nil?: false
 
       filter expr(
                chain_id == ^arg(:chain_id) and contract == ^arg(:contract) and
-                 block_number >= ^arg(:from) and block_number <= ^arg(:to)
+                 ((block_number >= ^arg(:from) and block_number <= ^arg(:to)) or
+                    transaction_hash in ^arg(:transactions))
              )
     end
 
@@ -87,35 +86,23 @@ defmodule Autolaunch.CoveredCalls.Sale do
         dynamic?: true,
         description: "Only when this write saved the sale."
 
-      # A sale already saved skips the upsert and comes back as it was saved,
-      # which the log read again must match.
+      # A sale already saved skips the upsert and comes back as first saved.
       change after_action(fn changeset, sale, _context ->
-               cond do
-                 Ash.Resource.get_metadata(sale, :upsert_action) == :insert ->
-                   with :ok <-
-                          Ash.Signals.emit(
-                            changeset,
-                            Autolaunch.Signals,
-                            :covered_call_recorded,
-                            %{sale_id: sale.id}
-                          ),
-                        do: {:ok, sale}
-
-                 Enum.all?(
-                   @facts,
-                   &same?(Map.get(sale, &1), Ash.Changeset.get_attribute(changeset, &1))
-                 ) ->
-                   {:ok, sale}
-
-                 true ->
-                   {:error, Diverged.exception(block: sale.block_number)}
+               if Ash.Resource.get_metadata(sale, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(changeset, Autolaunch.Signals, :covered_call_recorded, %{
+                          sale_id: sale.id
+                        }),
+                      do: {:ok, sale}
+               else
+                 {:ok, sale}
                end
              end)
     end
   end
 
   policies do
-    policy action([:by_id, :in_blocks, :record]) do
+    policy action([:by_id, :seen, :record]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -146,8 +133,4 @@ defmodule Autolaunch.CoveredCalls.Sale do
   identities do
     identity :chain_log, [:chain_id, :transaction_hash, :log_index]
   end
-
-  defp same?(%Decimal{} = saved, %Decimal{} = read), do: Decimal.equal?(saved, read)
-  defp same?(%DateTime{} = saved, %DateTime{} = read), do: DateTime.compare(saved, read) == :eq
-  defp same?(saved, read), do: saved == read
 end

@@ -9,10 +9,9 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
   use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
   import Autolaunch.PointsTesting
-  import ExUnit.CaptureIO
   import ExUnit.CaptureLog
 
-  alias Autolaunch.{Accounts, BaseRpcStub, CoveredCallsChain, Release}
+  alias Autolaunch.{Accounts, BaseRpcStub, ChainWatch, CoveredCallsChain}
   alias Autolaunch.Actors.System
   alias Autolaunch.CoveredCalls.{Sale, Sales}
   alias Autolaunch.Points.CoveredCall
@@ -26,22 +25,32 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
   @head 120
   @fill_transaction "0x" <> String.duplicate("1a", 32)
   @sale_transaction "0x" <> String.duplicate("2b", 32)
+  @replaced "0x" <> String.duplicate("3d", 32)
   @filled "Filled(uint256,address,uint256,uint256,uint256)"
   @sold "SoldToBid(uint256,uint256,address,uint256,uint256,uint256)"
 
   defmodule Chain do
     @moduledoc false
 
-    # Contract reads go to the market's double; the rest is this chain.
+    # Contract reads go to the market's double; the rest is this chain. A read
+    # named in `down` gets no answer, as from a node that is down.
     def post(url, options) do
       %{method: method, params: params} = options[:json]
       state = Application.fetch_env!(:autolaunch, :points_covered_call_chain)
       send(state.test, {:rpc, method, params})
 
-      if method == "eth_call",
-        do: Autolaunch.CoveredCallsChain.post(url, options),
-        else: {:ok, %{status: 200, body: %{"result" => answer(method, params, state)}}}
+      cond do
+        read(method, params) in state.down -> {:ok, %{status: 503, body: ""}}
+        method == "eth_call" -> Autolaunch.CoveredCallsChain.post(url, options)
+        true -> {:ok, %{status: 200, body: %{"result" => answer(method, params, state)}}}
+      end
     end
+
+    defp read("eth_getBlockByNumber", ["latest", _full?]), do: :head
+    defp read("eth_getBlockByNumber", _params), do: :header
+    defp read("eth_getCode", _params), do: :code
+    defp read("eth_getLogs", _params), do: :logs
+    defp read(_method, _params), do: :other
 
     defp answer("eth_chainId", _params, _state), do: "0x2105"
 
@@ -84,10 +93,7 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     starts_at = open([@covered])
 
     # Listing 1 is the seller's; bid 1 is the buyer's.
-    CoveredCallsChain.install(%{
-      listings: [CoveredCallsChain.listing(%{seller: @seller})],
-      bids: [CoveredCallsChain.bid(%{bidder: @buyer})]
-    })
+    CoveredCallsChain.install(%{listings: listings(), bids: bids()})
 
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, Chain)
     on_exit(fn -> Application.delete_env(:autolaunch, :points_covered_call_chain) end)
@@ -141,7 +147,11 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
   end
 
   test "an account on both sides of a sale earns it once", %{seller: seller} do
-    CoveredCallsChain.put(%{bids: [CoveredCallsChain.bid(%{bidder: @seller})]})
+    CoveredCallsChain.put(%{
+      listings: listings(),
+      bids: [CoveredCallsChain.bid(%{bidder: @seller})]
+    })
+
     chain([sold(1, @sale_transaction, 1, 2, @seller)])
 
     assert {:snooze, 300} = pass()
@@ -160,12 +170,16 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     assert [saved] = sales()
     queued = all_enqueued(queue: :points)
 
-    # The head moves on, and the next pass reads the sale's block again.
-    put(head: 130)
-    assert {:snooze, 300} = pass()
-    assert sales() == [saved]
-    assert all_enqueued(queue: :points) == queued
-    assert %{next_block: 131, rescan_from: nil} = cursor()
+    # The head moves on, and the next passes read the sale's block again, the
+    # second for the last time.
+    for head <- [130, 430] do
+      put(head: head)
+      assert warnings(logged()) == 0
+      assert sales() == [saved]
+      assert all_enqueued(queue: :points) == queued
+      assert %{next_block: next} = cursor()
+      assert next == head + 1
+    end
 
     drain()
     assert [{_, 25}, {_, 25}] = earned(@covered)
@@ -195,79 +209,192 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     assert events() == []
   end
 
-  test "with covered calls off or their contracts not described, the reader reads nothing" do
+  test "with covered calls off or their contracts not described, the reader has no job and reads nothing" do
     chain([filled(1, @fill_transaction, 1, @buyer)])
 
     Application.put_env(:autolaunch, :covered_calls, :off)
     assert Sales.jobs() == []
+    assert :ok = perform_job(ChainWatch, %{})
     assert {:cancel, :covered_calls_off} = pass()
 
     Application.put_env(:autolaunch, :covered_calls, :on)
     Application.delete_env(:autolaunch, :autolaunch_base_covered_calls_deployment)
     assert Sales.jobs() == []
+    assert :ok = perform_job(ChainWatch, %{})
     assert {:cancel, :covered_calls_deployment_missing} = pass()
 
+    assert all_enqueued(worker: Sales) == []
     refute_received {:rpc, _method, _params}
     assert sales() == []
     assert all_enqueued(queue: :points) == []
   end
 
-  test "a sale the chain took back stops the reader until an operator clears it, and saved again it earns nothing more" do
+  test "the chain watch run twice leaves each market one reading job" do
+    chain([])
+
+    assert :ok = perform_job(ChainWatch, %{})
+    assert :ok = perform_job(ChainWatch, %{})
+
+    contract = contract()
+    assert [%{args: %{"contract" => ^contract}}] = all_enqueued(worker: Sales)
+    refute_received {:rpc, _method, _params}
+  end
+
+  test "a sale the chain moved to another block is kept as first saved, warned of once, and offers nothing more" do
     chain([filled(1, @fill_transaction, 1, @buyer)])
     assert {:snooze, 300} = pass()
     assert [saved] = sales()
     drain()
 
-    # Block 120 is replaced, and the sale lands in block 125 instead.
+    # Block 120 is replaced, and the sale lands in block 125 instead, at another
+    # place in its block. Read while block 120 is still among the 300 blocks the
+    # next pass reads again, the sale is not saved again, and not yet checked.
     put(
       head: 130,
-      hashes: %{@head => "0x" <> String.duplicate("3d", 32)},
-      logs: [filled(1, @fill_transaction, 1, @buyer, block: 125)]
+      hashes: %{@head => @replaced},
+      logs: [filled(7, @fill_transaction, 1, @buyer, block: 125)]
     )
 
-    {result, log} = with_log(&pass/0)
-    assert {:snooze, 300} = result
-    assert log =~ "stopped at block 120"
-    assert %{rescan_from: 120, next_block: 121} = cursor()
+    assert warnings(logged()) == 0
     assert sales() == [saved]
 
-    # Stopped, the reader asks the chain nothing.
-    flush_requests()
-    assert {{:snooze, 300}, _log} = with_log(&pass/0)
-    refute_received {:rpc, _method, _params}
+    # The pass that reads block 120 for the last time names the transaction.
+    put(head: 430)
+    log = logged()
+    assert warnings(log) == 1
+    assert log =~ "#{contract()} in transaction #{@fill_transaction} no longer match the chain"
+    assert sales() == [saved]
+    assert %{next_block: 431} = cursor()
 
-    # The operator takes the sale out of the record and clears the stop; the
-    # reader reads again from block 120.
-    Repo.delete_all(from s in Sale, where: s.id == ^saved.id)
+    # Wherever the chain puts it later, it is neither saved nor named again.
+    put(head: 440, logs: [filled(7, @fill_transaction, 1, @buyer, block: 435)])
+    assert warnings(logged()) == 0
+    assert sales() == [saved]
+    assert all_enqueued(queue: :points) == []
 
-    assert capture_io(fn -> Release.clear_covered_call_sales_stop!(contract()) end) =~
-             "will be read again from block 120"
-
-    assert %{rescan_from: nil, next_block: 120, observed_at: nil} = cursor()
-
-    assert capture_io(fn -> Release.clear_covered_call_sales_stop!(contract()) end) =~
-             "is not stopped; nothing changed"
-
-    assert {:snooze, 300} = pass()
-    assert [%{block_number: 125} = moved] = sales()
-    assert moved.id != saved.id
     drain()
-
-    # Both sides had earned it already.
     assert length(events(@covered)) == 2
     assert [{_, 25}, {_, 25}] = earned(@covered)
   end
 
-  test "a sale read again that differs from the saved one stops the reader at its block" do
+  test "a sale read again that differs from the saved one is kept as first saved, with one warning" do
     chain([filled(1, @fill_transaction, 1, @buyer)])
     assert {:snooze, 300} = pass()
     assert [saved] = sales()
+    queued = all_enqueued(queue: :points)
 
-    put(head: 130, logs: [filled(1, @fill_transaction, 1, @buyer, amount: 3)])
-    assert {{:snooze, 300}, log} = with_log(&pass/0)
-    assert log =~ "stopped at block 120"
-    assert %{rescan_from: 120, next_block: 121} = cursor()
+    put(head: 430, logs: [filled(1, @fill_transaction, 1, @buyer, amount: 3)])
+    log = logged()
+    assert warnings(log) == 1
+    assert log =~ "in transaction #{@fill_transaction} no longer match the chain"
+
+    put(head: 440)
+    assert warnings(logged()) == 0
     assert sales() == [saved]
+    assert all_enqueued(queue: :points) == queued
+  end
+
+  test "a sale the chain dropped stays saved and keeps what it earned, with one warning" do
+    chain([filled(1, @fill_transaction, 1, @buyer)])
+    assert {:snooze, 300} = pass()
+    assert [saved] = sales()
+    drain()
+
+    put(head: 430, hashes: %{@head => @replaced}, logs: [])
+    log = logged()
+    assert warnings(log) == 1
+    assert log =~ "in transaction #{@fill_transaction} no longer match the chain"
+
+    put(head: 440)
+    assert warnings(logged()) == 0
+    assert sales() == [saved]
+    assert %{next_block: 441} = cursor()
+    assert all_enqueued(queue: :points) == []
+    assert [{_, 25}, {_, 25}] = earned(@covered)
+  end
+
+  test "a node that fails on any read leaves the pass quietly to be read again, with nothing saved" do
+    chain([filled(1, @fill_transaction, 1, @buyer)])
+
+    # Before the cursor is open, the search for the contract's deployment block.
+    put(down: [:code])
+    quiet()
+    assert cursor() == nil
+
+    put(down: [])
+    assert {:snooze, 300} = pass()
+    assert [saved] = sales()
+    queued = all_enqueued(queue: :points)
+
+    # A sale into a bid lands in block 125, and each read the next pass makes
+    # fails in turn: the head, the log search, the block, then the bid's bidder.
+    put(
+      head: 130,
+      logs: [
+        filled(1, @fill_transaction, 1, @buyer),
+        sold(2, @sale_transaction, 1, 2, @seller, block: 125)
+      ]
+    )
+
+    for read <- [:head, :logs, :header, :contract] do
+      fail(read)
+      quiet()
+      assert sales() == [saved]
+      assert %{next_block: 121} = cursor()
+      assert all_enqueued(queue: :points) == queued
+    end
+
+    # The node answers again, and the pass saves the sale.
+    CoveredCallsChain.put(%{listings: listings(), bids: bids()})
+    assert {:snooze, 300} = pass()
+    assert [^saved, %{transaction_hash: @sale_transaction}] = sales()
+    assert %{next_block: 131} = cursor()
+  end
+
+  test "a pass its node holds up still reports the lag, which grows with the head" do
+    test = self()
+
+    :telemetry.attach(
+      "covered-call-sales-lag-test",
+      [:autolaunch, :indexer, :lag],
+      fn _event, %{blocks: blocks}, %{indexer: indexer}, _config ->
+        send(test, {:lag, indexer, blocks})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach("covered-call-sales-lag-test") end)
+
+    chain([])
+    assert {:snooze, 300} = pass()
+    assert_received {:lag, :covered_call_sales, 0}
+
+    put(head: 130, down: [:logs])
+    quiet()
+    assert_received {:lag, :covered_call_sales, 10}
+
+    put(head: 150)
+    quiet()
+    assert_received {:lag, :covered_call_sales, 30}
+
+    put(down: [])
+    assert {:snooze, 300} = pass()
+    assert_received {:lag, :covered_call_sales, 0}
+  end
+
+  test "a log that does not read as a sale is skipped with one warning, and the pass goes on" do
+    unreadable = Map.put(filled(2, @sale_transaction, 1, @buyer), "data", "0x1234")
+    chain([filled(1, @fill_transaction, 1, @buyer), unreadable])
+
+    log = logged()
+    assert warnings(log) == 1
+    assert log =~ "in transaction #{@sale_transaction} skipped: it does not read as a sale"
+    assert [%{transaction_hash: @fill_transaction}] = sales()
+
+    # Read again in the next pass's 300 blocks, it is skipped without a word.
+    put(head: 130)
+    assert warnings(logged()) == 0
+    assert [%{transaction_hash: @fill_transaction}] = sales()
   end
 
   test "a pass whose cursor moved under it saves nothing and reads again at once" do
@@ -275,12 +402,15 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     assert {:snooze, 300} = pass()
 
     # The next pass stops at its contract read while another moves the cursor on.
-    put(head: 130, logs: [filled(2, @sale_transaction, 1, @buyer, block: 125)])
+    put(
+      head: 130,
+      logs: [
+        filled(1, @fill_transaction, 1, @buyer),
+        filled(2, @sale_transaction, 1, @buyer, block: 125)
+      ]
+    )
 
-    CoveredCallsChain.put(%{
-      listings: [CoveredCallsChain.listing(%{seller: @seller})],
-      hold: self()
-    })
+    CoveredCallsChain.put(%{listings: listings(), hold: self()})
 
     running = Task.async(&pass/0)
     assert_receive {:held, reader}, 5_000
@@ -300,7 +430,7 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     send(reader, :go)
     assert {:snooze, 1} = Task.await(running)
     assert [%{block_number: @head}] = sales()
-    assert %{next_block: 131, rescan_from: nil} = cursor()
+    assert %{next_block: 131} = cursor()
   end
 
   test "the first pass opens at the contract's deployment block, and each pass reads at most ten thousand blocks" do
@@ -354,7 +484,39 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
   # One pass of the market's reader, as its job runs it.
   defp pass, do: perform_job(Sales, %{contract: contract()})
 
+  # A pass the node fails: the quiet minute's wait, with one warning of the
+  # reader's own and nothing louder.
+  defp quiet do
+    {result, log} = with_log(&pass/0)
+    assert result == {:snooze, 60}
+    assert length(Regex.scan(~r/Covered-call sales on #{contract()} not read/, log)) == 1
+    refute log =~ "[error]"
+  end
+
+  # A pass that read all it asked for, caught up, and what it logged.
+  defp logged do
+    {result, log} = with_log(&pass/0)
+    assert result == {:snooze, 300}
+    log
+  end
+
+  # The node fails `read` alone: the market's records, or one of the chain's own reads.
+  defp fail(:contract) do
+    put(down: [])
+    CoveredCallsChain.put(%{listings: listings(), bids: bids(), unreadable: true})
+  end
+
+  defp fail(read), do: put(down: [read])
+
+  # The warnings naming a transaction: a saved one that no longer matches, or a
+  # log skipped.
+  defp warnings(log),
+    do: length(Regex.scan(~r/Covered-call (sales|log) on .* in transaction/, log))
+
   defp contract, do: CoveredCallsChain.contract()
+
+  defp listings, do: [CoveredCallsChain.listing(%{seller: @seller})]
+  defp bids, do: [CoveredCallsChain.bid(%{bidder: @buyer})]
 
   # A saved sale has no read but the site's own check, so the test reads the rows back.
   defp sales, do: Repo.all(from s in Sale, order_by: [s.block_number, s.log_index])
@@ -364,14 +526,6 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
 
   defp verify(side, id),
     do: CoveredCall.verify(%{"source_kind" => side, "source_event_key" => id})
-
-  defp flush_requests do
-    receive do
-      {:rpc, _method, _params} -> flush_requests()
-    after
-      0 -> :ok
-    end
-  end
 
   # Every log search the chain answered, as its block range.
   defp log_ranges(ranges \\ []) do
@@ -387,7 +541,7 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
   end
 
   # The chain the reader reads: the contract deployed at block 100, the head at
-  # block 120, a minute ago, and the contract's `logs`.
+  # block 120, a minute ago, and the contract's `logs`, every read answered.
   defp chain(logs) do
     Application.put_env(:autolaunch, :points_covered_call_chain, %{
       test: self(),
@@ -395,6 +549,7 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
       deployed: @deployed,
       time: DateTime.to_unix(DateTime.utc_now()) - 60 - @head,
       hashes: %{},
+      down: [],
       logs: logs
     })
   end

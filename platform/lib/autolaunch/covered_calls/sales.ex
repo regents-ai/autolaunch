@@ -14,17 +14,28 @@ defmodule Autolaunch.CoveredCalls.Sales do
   covered calls are on). The first pass opens the contract's cursor at the
   block it was deployed in. Each pass reads the head, then, in one log search
   of at most 10,000 blocks that the node may make smaller, the last 300 blocks
-  it already read (one minute of Base) and the new ones after them, and saves
-  the sales and moves the cursor in one transaction. A sale it reads again
-  must match the saved row, and every saved sale in those 300 blocks must
-  still sit in a block of the same hash; if not, the chain changed under the
-  record, and the contract's cursor stops
-  at the earliest such block until an operator puts the record right and
-  clears it (`bin/clear-covered-call-sales-stop`). The job then waits a second
-  while the contract is behind the head and five minutes once it has caught
-  up; a node that does not answer is one warning line and a minute's wait. It
-  does nothing while covered calls are off or their contracts are not
-  described.
+  it already read (ten minutes of Base) and the new ones after them, and saves
+  the new sales and moves the cursor in one transaction. The cursor moves only
+  from where the pass found it, so of two passes that overlap only the first
+  saves; the other reads again a second later.
+
+  A transaction's sales are saved by the first pass that reads it and kept as
+  first saved: wherever the chain puts that transaction later, nothing from it
+  is saved or offered again. Each saved transaction is checked once, by the
+  pass that reads its block for the last time (the one whose search ends 300
+  blocks or more after it). If its sales then no longer match the saved ones
+  (moved to another block, in a block whose hash changed, changed, or gone),
+  that is one warning line naming the contract and the transaction, and the
+  pass carries on: the saved sales stay, with what they earned. A log that does
+  not read as a sale is skipped with one warning, when its block is first read.
+
+  The job then waits a second while the contract is behind the head and five
+  minutes once it has caught up. A node that does not answer, or answers with
+  something that is not what was asked, is one warning line and a minute's
+  wait, with nothing saved. Every pass that read the head reports how far the
+  chain's covered-call cursors trail it, committed or not, so a reader held up
+  by its node shows a lag that grows. It does nothing while covered calls are
+  off or their contracts are not described.
   """
   use Oban.Worker,
     queue: :chain,
@@ -37,7 +48,7 @@ defmodule Autolaunch.CoveredCalls.Sales do
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Chain, Cursor, Deployment, Diverged}
+  alias Autolaunch.CoveredCalls.{Chain, Cursor, Deployment}
   alias Autolaunch.Repo
   alias RegentChain.{Address, Event}
 
@@ -48,8 +59,8 @@ defmodule Autolaunch.CoveredCalls.Sales do
     "Filled(uint256,address,uint256,uint256,uint256)" => :filled,
     "SoldToBid(uint256,uint256,address,uint256,uint256,uint256)" => :sold_to_bid
   }
-  # The node did not answer, answered with something that is not a block, or
-  # answered for a block that has since moved.
+  # The node did not answer, answered with something that is not what was
+  # asked, or answered for a block that has since moved.
   @unavailable [
     :chain_unavailable,
     :invalid_chain_response,
@@ -85,15 +96,6 @@ defmodule Autolaunch.CoveredCalls.Sales do
   defp next({:ok, :behind}, _market), do: {:snooze, 1}
   defp next({:ok, :caught_up}, _market), do: {:snooze, 300}
 
-  defp next({:stopped, block}, market) do
-    Logger.error(
-      "Covered-call sales on #{market.contract} stopped at block #{block}: " <>
-        "the chain disagrees with the record"
-    )
-
-    {:snooze, 300}
-  end
-
   defp next({:error, reason}, market) when reason in @unavailable do
     Logger.warning(
       "Covered-call sales on #{market.contract} not read (#{reason}); reading again in a minute"
@@ -107,15 +109,15 @@ defmodule Autolaunch.CoveredCalls.Sales do
   defp read(market, lab) do
     with {:ok, cursor} <-
            CoveredCalls.covered_call_cursor(market.chain_id, market.contract, actor: @actor),
-         :ok <- running(cursor),
-         {:ok, head, opts} <- Chain.latest(lab),
-         {:ok, cursor} <- opened(cursor, market, head, opts) do
-      pass(cursor, market, head, opts)
+         {:ok, head, opts} <- Chain.latest(lab) do
+      result =
+        with {:ok, cursor} <- opened(cursor, market, head, opts),
+             do: pass(cursor, market, head, opts)
+
+      lag(market, head)
+      result
     end
   end
-
-  defp running(%{rescan_from: block}) when is_integer(block), do: {:stopped, block}
-  defp running(_cursor), do: :ok
 
   defp opened(nil, market, head, opts) do
     with {:ok, block} <- Rpc.deployment_block(market.contract, head.number, opts) do
@@ -139,31 +141,70 @@ defmodule Autolaunch.CoveredCalls.Sales do
     topics = Map.new(@events, fn {signature, event} -> {Event.topic0(signature), event} end)
 
     with {:ok, logs} <- Rpc.logs(market.contract, [Map.keys(topics)], from, to, opts),
+         {read, unread} = decode(logs, market, topics, cursor.next_block),
+         {:ok, headers} <- headers(read, opts),
+         {:ok, read} <- map_ok(read, &placed(&1, headers)),
          {:ok, saved} <-
-           CoveredCalls.covered_call_sales_in_blocks(
+           CoveredCalls.seen_covered_call_sales(
              market.chain_id,
              market.contract,
              from,
              cursor.next_block - 1,
+             read |> Enum.map(& &1.transaction_hash) |> Enum.uniq(),
              actor: @actor
            ),
-         {:ok, headers} <- headers(logs, saved, opts),
-         :ok <- unchanged(saved, headers),
-         {:ok, sales} <- map_ok(logs, &sale(&1, market, topics, headers)),
-         {:ok, sales} <- counterparties(sales, market, head, opts) do
-      cursor |> commit(sales, to, head) |> indexed(market, head)
+         {fresh, moved} = compare(read, saved, from, to - @reread),
+         {:ok, fresh} <- counterparties(fresh, market, head, opts),
+         {:ok, cursor} <- commit(cursor, fresh, to, head) do
+      Enum.each(unread, &Logger.warning/1)
+
+      for transaction <- moved,
+          do:
+            Logger.warning(
+              "Covered-call sales on #{market.contract} in transaction #{transaction} " <>
+                "no longer match the chain; the sales saved first are kept"
+            )
+
+      {:ok, if(cursor.next_block > head.number, do: :caught_up, else: :behind)}
     else
-      {:moved, block} -> stop(cursor, block)
+      :superseded -> {:ok, :behind}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  # The blocks of the logs read and of the sales saved. A log without a block
-  # number is refused when it is read (`sale/4`).
-  defp headers(logs, saved, opts) do
-    numbers = for log <- logs, {:ok, number} <- [quantity(log["blockNumber"])], do: number
+  # The logs that read as sales, and a warning for each one that does not,
+  # given only when its block is first read: one in the 300 blocks read again
+  # was named by the pass that first read it.
+  defp decode(logs, market, topics, next) do
+    decoded = Enum.map(logs, &{&1, decoded(&1, market, topics)})
+    sales = for {_log, {:ok, sale}} <- decoded, do: sale
 
-    (numbers ++ Enum.map(saved, & &1.block_number))
+    unread =
+      for {log, :error} <- decoded,
+          new?(log, next),
+          do:
+            "Covered-call log on #{market.contract} in transaction #{transaction(log)} " <>
+              "skipped: it does not read as a sale"
+
+    {sales, unread}
+  end
+
+  defp new?(%{"blockNumber" => number}, next) do
+    case quantity(number) do
+      {:ok, block} -> block >= next
+      :error -> true
+    end
+  end
+
+  defp new?(_log, _next), do: true
+
+  defp transaction(%{"transactionHash" => hash}) when is_binary(hash), do: hash
+  defp transaction(_log), do: "unknown"
+
+  # The blocks the sales were read in.
+  defp headers(sales, opts) do
+    sales
+    |> Enum.map(& &1.block_number)
     |> Enum.uniq()
     |> Task.async_stream(&header(&1, opts),
       max_concurrency: 4,
@@ -184,37 +225,58 @@ defmodule Autolaunch.CoveredCalls.Sales do
              opts
            ),
          true <- Rpc.valid_hash?(hash),
-         {:ok, seconds} <- quantity(timestamp) do
-      {:ok, {number, %{hash: String.downcase(hash), timestamp: seconds}}}
+         {:ok, seconds} <- quantity(timestamp),
+         {:ok, at} <- DateTime.from_unix(seconds) do
+      {:ok, {number, %{hash: String.downcase(hash), at: at}}}
     else
       _unavailable -> {:error, :header_unavailable}
     end
   end
 
-  # Every saved sale the pass reads again must still sit in its block: one
-  # whose block now has another hash was taken out of the chain.
-  defp unchanged(saved, headers) do
-    case for(sale <- saved, headers[sale.block_number].hash != sale.block_hash, do: sale) do
-      [] -> :ok
-      moved -> {:moved, moved |> Enum.map(& &1.block_number) |> Enum.min()}
-    end
+  # A sale in its block as the pass read it. A log from another block than
+  # the one read under its number is from a chain that has since moved, and
+  # the pass is read again.
+  defp placed(sale, headers) do
+    %{hash: hash, at: at} = headers[sale.block_number]
+
+    if sale.block_hash == hash,
+      do: {:ok, Map.put(sale, :occurred_at, at)},
+      else: {:error, :head_moved}
   end
 
-  # One sale log as its row, in its block as the pass read it. A log from
-  # another block than the one read under its number is from a chain that has
-  # since moved, and the pass is read again.
-  defp sale(log, market, topics, headers) do
-    with {:ok, sale} <- decoded(log, market, topics) do
-      %{hash: hash, timestamp: seconds} = headers[sale.block_number]
+  # The sales of transactions not saved yet, and each saved transaction this
+  # pass reads for the last time (in a block from `from` to `last`, which the
+  # next pass's search starts after) whose sales read now no longer match the
+  # saved ones. A transaction's sales are all in one block.
+  defp compare(read, saved, from, last) do
+    saved = Enum.group_by(saved, & &1.transaction_hash)
+    read_now = Enum.group_by(read, & &1.transaction_hash)
+    fresh = Enum.reject(read, &Map.has_key?(saved, &1.transaction_hash))
 
-      if String.downcase(log["blockHash"]) == hash,
-        do:
-          {:ok, Map.merge(sale, %{block_hash: hash, occurred_at: DateTime.from_unix!(seconds)})},
-        else: {:error, :head_moved}
-    end
+    moved =
+      for {transaction, [%{block_number: block} | _] = rows} <- saved,
+          from <= block and block <= last,
+          facts(rows) != facts(Map.get(read_now, transaction, [])),
+          do: transaction
+
+    {fresh, Enum.sort(moved)}
   end
 
-  defp decoded(log, market, topics) do
+  # What a sale's log says, the side read from the contract left out.
+  defp facts(sales) do
+    sales
+    |> Enum.map(fn sale ->
+      {sale.log_index, sale.block_number, sale.block_hash, sale.event, sale.listing_id,
+       sale.bid_id, named(sale), Decimal.to_integer(sale.amount),
+       Decimal.to_integer(sale.premium), Decimal.to_integer(sale.fee)}
+    end)
+    |> Enum.sort()
+  end
+
+  defp named(%{event: :filled, buyer: buyer}), do: buyer
+  defp named(%{event: :sold_to_bid, seller: seller}), do: seller
+
+  defp decoded(%{} = log, market, topics) do
     with false <- log["removed"],
          true <- Address.equal?(log["address"], market.contract),
          {:ok, number} <- quantity(log["blockNumber"]),
@@ -232,25 +294,30 @@ defmodule Autolaunch.CoveredCalls.Sales do
          event: event,
          transaction_hash: String.downcase(log["transactionHash"]),
          log_index: index,
-         block_number: number
+         block_number: number,
+         block_hash: String.downcase(log["blockHash"])
        }
        |> Map.merge(sides)
        |> Map.merge(amounts)}
     else
-      _malformed -> {:error, :invalid_covered_call_sale}
+      _malformed -> :error
     end
   end
 
+  defp decoded(_log, _market, _topics), do: :error
+
   # `Filled(listingId, buyer)` names the buyer; `SoldToBid(bidId, listingId,
-  # seller)` the seller.
+  # seller)` the seller. Listings and bids count from 1.
   defp sides(:filled, [listing, buyer]) do
     with {:ok, [listing, buyer]} <- words([listing, buyer]),
+         true <- listing > 0,
          {:ok, buyer} <- Event.address(buyer),
          do: {:ok, %{listing_id: listing, bid_id: nil, buyer: buyer}}
   end
 
   defp sides(:sold_to_bid, [bid, listing, seller]) do
     with {:ok, [bid, listing, seller]} <- words([bid, listing, seller]),
+         true <- bid > 0 and listing > 0,
          {:ok, seller} <- Event.address(seller),
          do: {:ok, %{listing_id: listing, bid_id: bid, seller: seller}}
   end
@@ -299,11 +366,10 @@ defmodule Autolaunch.CoveredCalls.Sales do
     end
   end
 
-  # The sales and the cursor's move commit together. A sale that differs from
-  # its saved row stops the cursor at its block; a cursor another pass or an
-  # operator moved first leaves this pass with nothing to add. An action that
-  # fails rolls the whole transaction back with its own error, in whichever
-  # form Ash gives it, so the errors are read through `Ash.Error.to_error_class/1`.
+  # The new sales and the cursor's move commit together. A cursor another pass
+  # moved first leaves this pass with nothing to add. An action that fails
+  # rolls the whole transaction back with its own error, in whichever form Ash
+  # gives it, so the errors are read through `Ash.Error.to_error_class/1`.
   defp commit(cursor, sales, to, head) do
     Repo.transaction(fn ->
       with :ok <- record(sales),
@@ -325,21 +391,16 @@ defmodule Autolaunch.CoveredCalls.Sales do
       end
     end)
     |> case do
-      {:ok, cursor} -> {:ok, cursor}
-      {:error, error} -> failed(cursor, error, Ash.Error.to_error_class(error).errors)
-    end
-  end
+      {:ok, cursor} ->
+        {:ok, cursor}
 
-  defp failed(cursor, error, errors) do
-    cond do
-      block = Enum.find_value(errors, &(match?(%Diverged{}, &1) && &1.block)) ->
-        stop(cursor, block)
-
-      Enum.any?(errors, &match?(%Ash.Error.Changes.StaleRecord{}, &1)) ->
-        {:ok, :superseded}
-
-      true ->
-        {:error, error}
+      {:error, error} ->
+        if Enum.any?(
+             Ash.Error.to_error_class(error).errors,
+             &match?(%Ash.Error.Changes.StaleRecord{}, &1)
+           ),
+           do: :superseded,
+           else: {:error, error}
     end
   end
 
@@ -352,30 +413,23 @@ defmodule Autolaunch.CoveredCalls.Sales do
     end)
   end
 
-  defp stop(cursor, block) do
-    CoveredCalls.stop_covered_call_cursor!(cursor, block, actor: @actor)
-    {:stopped, block}
-  end
-
-  # After a committed pass: how far the chain's furthest-behind covered-call
-  # cursor trails the head, and whether this contract has caught up.
-  defp indexed({:ok, %Cursor{next_block: next}}, market, head) do
+  # How far the chain's furthest-behind covered-call cursor trails the head,
+  # after every pass that read the head, whether it saved or not. None before
+  # any cursor on the chain is open.
+  defp lag(market, head) do
     least =
       Cursor
       |> Ash.Query.filter(chain_id == ^market.chain_id)
       |> Ash.min!(:next_block, actor: @actor)
 
-    :telemetry.execute(
-      [:autolaunch, :indexer, :lag],
-      %{blocks: max(head.number - (least - 1), 0)},
-      %{indexer: :covered_call_sales, chain_id: market.chain_id}
-    )
-
-    {:ok, if(next > head.number, do: :caught_up, else: :behind)}
+    if least,
+      do:
+        :telemetry.execute(
+          [:autolaunch, :indexer, :lag],
+          %{blocks: max(head.number - (least - 1), 0)},
+          %{indexer: :covered_call_sales, chain_id: market.chain_id}
+        )
   end
-
-  defp indexed({:ok, :superseded}, _market, _head), do: {:ok, :behind}
-  defp indexed(other, _market, _head), do: other
 
   defp quantity("0x" <> hex) when hex != "" do
     case Integer.parse(hex, 16) do

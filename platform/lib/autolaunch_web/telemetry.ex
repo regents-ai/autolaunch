@@ -17,9 +17,11 @@ defmodule AutolaunchWeb.Telemetry do
       the latest head after each committed pass; the token trades reader sends
       the furthest-behind cursor among the chain's listed tokens that have
       one, and the covered-call sales reader among the chain's markets, not
-      only the one just read; the stock list sends it only for a pass that left no stock
-      unread, and launch discovery, which reads at the head, only for a pass
-      that recorded every launch the launchpad has made. Each
+      only the one just read. The covered-call sales reader sends it after
+      every pass that read the head, committed or not, so one its node holds
+      up shows a lag that grows; the stock list sends it only for a pass that
+      left no stock unread, and launch discovery, which reads at the head,
+      only for a pass that recorded every launch the launchpad has made. Each
       event also counts one pass, so a reader that stops shows as passes that
       stop rising while its lag keeps its last value.
     * `[:autolaunch, :jobs, :oldest_unfinished]` — `age_ms` of the oldest

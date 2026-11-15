@@ -332,8 +332,11 @@ says why under the button and opens nothing: never a silent press.
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
 | `Market` | The four operations every surface calls (`book`, `quote`, `positions`, `prepare`), with Ash policies. |
+| `Sales`, `Sale`, `Cursor` | Each market's calls that changed hands (`Filled`, `SoldToBid`), read from the contract's logs and saved once each for Regent Points, with how far each contract has been read. |
 
-There are no database tables: the contract is the record.
+The contract is the record every page and agent reads. The site's only covered-call tables are
+`covered_call_sales` and `covered_call_cursors`, kept for Regent Points; no page reads them (see
+"Sales for Points" in `covered-calls-design.md`).
 
 ### 6.4 HTTP routes
 

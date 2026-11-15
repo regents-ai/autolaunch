@@ -73,9 +73,9 @@ defmodule Autolaunch.CoveredCalls do
       define :record_covered_call_sale, action: :record
       define :get_covered_call_sale, action: :by_id, args: [:id], not_found_error?: false
 
-      define :covered_call_sales_in_blocks,
-        action: :in_blocks,
-        args: [:chain_id, :contract, :from, :to]
+      define :seen_covered_call_sales,
+        action: :seen,
+        args: [:chain_id, :contract, :from, :to, :transactions]
     end
 
     resource Autolaunch.CoveredCalls.Cursor do
@@ -84,11 +84,8 @@ defmodule Autolaunch.CoveredCalls do
         get_by: [:chain_id, :contract],
         not_found_error?: false
 
-      define :stopped_covered_call_cursors, action: :stopped, args: [:contract]
       define :open_covered_call_cursor, action: :open
       define :advance_covered_call_cursor, action: :advance
-      define :stop_covered_call_cursor, action: :stop, args: [:block]
-      define :clear_covered_call_cursor, action: :clear
     end
   end
 end

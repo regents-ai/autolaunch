@@ -317,28 +317,31 @@ hands and saves each once as a `Sale` (`covered_call_sales`), with its `Cursor`
   (`Autolaunch.ChainWatch`), none while they are off or their contracts are not described.
   The first pass opens the cursor at the block the contract was deployed in (found with
   `eth_getCode`, about 26 requests once). Each pass reads the head, then one log search of at
-  most 10,000 blocks: the last 300 it read again (one minute of Base), then new ones. It waits
-  a second while behind and five minutes once caught up; a node that does not answer is one
-  warning and a minute's wait. Caught up and with no sales, a pass costs three requests
-  (chain id, head, log search); each block holding a sale adds one header read, and each
-  pass with sales one or two Multicall reads for the other sides.
-- **Written once.** A sale read again must match its saved row, and every saved sale in the
-  300 blocks read again must still sit in a block of the same hash. If not, the chain
-  changed under the record: the reader logs an error every five minutes, reads nothing more
-  on that contract, and its lag keeps rising.
-
-To restart a stopped reader, an operator first puts the record right by hand from the chain
-(a sale the chain no longer holds is taken out; its Points award, if any, stays), then runs,
-on the deployment:
-
-```sh
-/app/bin/clear-covered-call-sales-stop <contract address>
-```
-
-It prints each cleared contract and the block it will be read again from (where the chain
-disagreed), or that the contract is not stopped, in which case nothing changes. The running
-site reads the contract again at its next turn, within five minutes; a sale it saves again
-is offered again, and earns nothing for an account that already earned the rule.
+  most 10,000 blocks: the last 300 it read again (ten minutes of Base), then new ones. It
+  saves the new sales and moves the cursor in one transaction, and the cursor moves only from
+  where the pass found it, so of two passes that overlap only the first saves. It waits a
+  second while behind and five minutes once caught up. Caught up and with no sales in the
+  blocks it reads, a pass costs three requests (chain id, head, log search); each block
+  holding a sale it reads adds one header read, and a pass with new sales one Multicall read
+  for each kind (fills, sales into bids, 200 to a read) for the other sides.
+- **Quiet on node trouble.** A node that does not answer, or answers with something that is
+  not what was asked, on any read (the deployment block, the head, the log search, a block,
+  the other sides) is one warning line and a minute's wait, with nothing saved and the
+  cursor where it was. A log that does not read as a sale is skipped with one warning when
+  its block is first read; the pass goes on. Every pass that read the head reports the lag
+  (`[:autolaunch, :indexer, :lag]`, indexer `covered_call_sales`), saved or not, so a reader
+  its node holds up shows a lag that grows.
+- **Written once, and the reader carries on** (founder decision "5 a", November 2026). A
+  sale is saved as first read and kept: a transaction already saved is never saved or
+  offered again, wherever the chain puts it later. Each saved transaction is checked once,
+  by the pass that reads its block for the last time (300 blocks on). If its sales no longer
+  match the chain (moved to another block, in a block whose hash changed, changed, or gone),
+  the reader logs one warning line naming the contract and the transaction and carries on.
+  A sale the chain later dropped stays saved and keeps what it earned. Nothing stops the
+  reader, and nothing needs an operator.
+- **Saved while earning is closed.** A sale saved while `autolaunch.first_covered_call` is
+  not approved is never offered to Points, then or later: approving the rule earns only the
+  sales saved after it.
 
 ### Reading a book anyone can fill
 
@@ -405,8 +408,9 @@ What remains unbounded, and what it costs an attacker:
   sold out or in their window** by each portfolio view: calls can be held on any of them, and
   only the listing says which. A listing on a Friday decades away stays open, so a crowd of
   one-raw-unit listings there is read again by every portfolio view until it is stopped. The
-  real fix is a list of who bought from which listing kept from the contract's events, which
-  needs a table and Sean's go.
+  real fix is a list of who bought from which listing kept from the contract's events. The
+  site now keeps such a list for Regent Points (`covered_call_sales`, "Sales for Points"
+  above), but the portfolio does not read it yet.
 - **The first reading after a restart** reads every record once, settled ones included.
 - **Crowding the fifty.** To push real bids off one Friday's Sell list an attacker needs fifty
   bids for that expiry, each for at least one whole token and each paying at least the best real
