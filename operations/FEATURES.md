@@ -133,7 +133,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 
 ## Points awards
 
-Earning is closed here (no start time, no rule approved), so none of these earns yet; each check opens the rules for itself.
+Earning opens in production at 16 November 2026 17:00 UTC for the four rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself.
 
 | Action | Check |
 | --- | --- |

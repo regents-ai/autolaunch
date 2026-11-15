@@ -94,8 +94,9 @@ config :regent_agents,
 # Set at runtime (config/runtime.exs).
 config :autolaunch, :admins, []
 
-# Earning stays closed: no start time and no rule approved. Each adapter is the
-# site's check of one rule's source, from its own saved records.
+# Earning is closed outside production: no start time and no rule approved
+# (config/prod.exs sets both). Each adapter is the site's check of one rule's
+# source, from its own saved records.
 config :regent_points,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,

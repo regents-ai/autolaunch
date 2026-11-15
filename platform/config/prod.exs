@@ -26,5 +26,19 @@ config :logger, level: :info
 # each raw path and its parameters, so they are off.
 config :phoenix, :logger, false
 
+# Regent Points earning opens here with the program, at 16 November 2026 17:00
+# UTC (Sean's 1 a, 15 November). The start is final: the library never lets it
+# change or return to nil. These are the actions that earn from that moment;
+# pausing one means taking it off this list, and each further action is added
+# here once its source is built (config/config.exs names every adapter).
+config :regent_points,
+  starts_at: ~U[2026-11-16 17:00:00Z],
+  approved_rules: ~w(
+    autolaunch.first_launch
+    autolaunch.auction_created
+    autolaunch.first_graduation
+    autolaunch.auction_bid
+  )
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
