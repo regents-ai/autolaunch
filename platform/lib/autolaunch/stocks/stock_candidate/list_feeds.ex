@@ -14,8 +14,10 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
 
   A list that cannot be read, or that names no stock feed at all or more
   than two hundred, or that is larger than four megabytes, fails the run
-  and changes nothing; the job tries again. One read, fifteen seconds at
-  most, for each chain. Nothing here signs or sends a transaction.
+  and changes nothing; the job tries again. Each chain's read takes fifteen
+  seconds at most, and one that times out or is refused for the moment is
+  tried twice more, after half a minute and after a minute, before the run
+  fails. Nothing here signs or sends a transaction.
   """
 
   alias Autolaunch.AuctionFinish.Launchpads
@@ -76,7 +78,10 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
            redirect: false,
            connect_options: [timeout: 5_000],
            receive_timeout: 15_000,
-           retry: false,
+           retry: :transient,
+           retry_delay: &(&1 * 30_000 + 30_000),
+           max_retries: 2,
+           retry_log_level: false,
            # Asked for uncompressed and left as it arrives, so the size
            # counted is the size decoded.
            compressed: false,
