@@ -133,7 +133,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 
 ## Points awards
 
-Earning opens in production at 16 November 2026 17:00 UTC for the four rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself.
+Earning opens in production at 16 November 2026 17:00 UTC for the four launch, graduation and bid rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself. Autolaunch token trade has its source and check built but is not approved there, so it earns nothing in production yet.
 
 | Action | Check |
 | --- | --- |
@@ -147,6 +147,11 @@ Earning opens in production at 16 November 2026 17:00 UTC for the four rules bel
 | A bid from a wallet no account held is still saved and earns nothing, refused as not linked; a bid on a hidden or unlisted launch earns nothing; a launch's creator bidding on it earns like anyone | `autolaunch/points_awards_test.exs` › "a bid from a wallet no account holds is saved and earns nothing", › "the site's checks answer the same each time they are asked" |
 | While earning is closed the auction's reader still saves each bid and queues and writes nothing for Points | `autolaunch/points_awards_test.exs` › "while earning is closed, the reader still saves a bid and Points gets nothing" |
 | A Robinhood bid earns nothing: the site saves no position for it (`Autolaunch.Robinhood.Positions` reads them from the chain) | **gap** |
+| A trade the token's reader saves, with the wallet that sent its transaction as its trader, earns Autolaunch token trade once each UTC day for the account whose verified wallets held that wallet at the trade's block time; a second trade that day counts at nothing | `autolaunch/points_token_awards_test.exs` › "a trade from a linked wallet earns the day's trade award once, a second that day counting at nothing" |
+| Reading the same block again keeps each saved trade and its trader and offers nothing more; a rebuild after the chain changed saves each trade again under the same key, and Points records it once | `autolaunch/points_token_awards_test.exs` › "reading the same block again keeps each trade and its trader and offers nothing", › "a rebuild after the chain changed saves each trade again, and Points records it once" |
+| A trade from a wallet no account held is still saved and earns nothing, refused as not linked; a trade saved before the site recorded traders, or in a hidden launch's token, earns nothing | `autolaunch/points_token_awards_test.exs` › "a trade from a wallet no account holds is saved and earns nothing", › "the site's check answers the same each time it is asked" |
+| A pass whose trade transactions the node does not answer saves nothing and is read again a minute later | `autolaunch/points_token_awards_test.exs` › "a transaction the node does not name leaves the pass to be read again, with nothing saved" |
+| While earning is closed the token's reader still saves each trade with its trader and queues and writes nothing for Points | `autolaunch/points_token_awards_test.exs` › "while earning is closed, the reader still saves a trade with its trader and Points gets nothing" |
 
 ## Agents
 

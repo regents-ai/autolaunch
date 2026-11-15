@@ -13,6 +13,9 @@ defmodule Autolaunch.Points.Award do
     * A Base bid saved as its bidder's position (`autolaunch.auction_bid`, once
       a day), from `:bid_recorded`, keyed by the position row
       (`Autolaunch.Points.Bid`).
+    * A trade saved in a listed token's pool (`autolaunch.token_traded`, once a
+      day), from `:trade_recorded`, keyed by the pool log it came from
+      (`Autolaunch.Points.Trade`).
   """
 
   use Ash.Resource,
@@ -46,6 +49,14 @@ defmodule Autolaunch.Points.Award do
         record("autolaunch.auction_bid", "bid", id)
       end
     end
+
+    action :trade_recorded do
+      argument :signal, Autolaunch.Signals.TradeRecorded, allow_nil?: false
+
+      run fn %{arguments: %{signal: trade}}, _context ->
+        record("autolaunch.token_traded", "trade", Autolaunch.Points.Trade.key(trade))
+      end
+    end
   end
 
   policies do
@@ -62,6 +73,10 @@ defmodule Autolaunch.Points.Award do
     policy action(:bid_recorded) do
       authorize_if signal_in(Autolaunch.Signals, :bid_recorded)
     end
+
+    policy action(:trade_recorded) do
+      authorize_if signal_in(Autolaunch.Signals, :trade_recorded)
+    end
   end
 
   signals_in do
@@ -69,6 +84,7 @@ defmodule Autolaunch.Points.Award do
       on :launch_recorded, :launch_recorded
       on :token_graduated, :token_graduated
       on :bid_recorded, :bid_recorded
+      on :trade_recorded, :trade_recorded
     end
   end
 

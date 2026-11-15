@@ -41,6 +41,11 @@ defmodule Autolaunch do
 
     resource Autolaunch.TokenTrade do
       define :token_trades, action: :for_token, args: [:token_id]
+
+      define :get_token_trade,
+        action: :by_pool_log,
+        args: [:token_id, :transaction_hash, :log_index],
+        not_found_error?: false
     end
 
     resource Autolaunch.TokenRevenue do

@@ -7,6 +7,7 @@ defmodule Autolaunch.PointsAwardsTest do
   # auction's real reader, over a chain double.
   use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
+  import Autolaunch.PointsTesting
 
   alias Autolaunch.{
     Accounts,
@@ -49,19 +50,7 @@ defmodule Autolaunch.PointsAwardsTest do
   @q96 79_228_162_514_264_337_593_543_950_336
 
   setup do
-    # The site starts its Oban only with the database at start-up; Points queues on it.
-    start_supervised!({Oban, Application.fetch_env!(:autolaunch, Oban)})
-
-    previous =
-      Map.new([:starts_at, :approved_rules], &{&1, Application.fetch_env!(:regent_points, &1)})
-
-    on_exit(fn ->
-      Enum.each(previous, fn {key, value} -> Application.put_env(:regent_points, key, value) end)
-    end)
-
-    starts_at = DateTime.add(DateTime.utc_now(), -3 * 86_400)
-    Application.put_env(:regent_points, :starts_at, starts_at)
-    Application.put_env(:regent_points, :approved_rules, @rules)
+    starts_at = open(@rules)
 
     account =
       Accounts.register_verified!("did:privy:points-awards", @wallet, [@wallet], actor: %System{})
@@ -346,18 +335,6 @@ defmodule Autolaunch.PointsAwardsTest do
     auction
   end
 
-  # A version of the account's verified wallets from an earlier time, as the
-  # library's capture would have written it then.
-  defp held_since(account, wallet, at) do
-    Repo.query!(
-      """
-      INSERT INTO regent_points.wallet_snapshots(account_id, wallet_addresses, effective_at)
-      VALUES ($1, $2, $3)
-      """,
-      [account.id, [wallet], DateTime.to_naive(at)]
-    )
-  end
-
   # A listed Base launch, open for bids, the chain double's auction. Someone else
   # launched it.
   defp bid_auction,
@@ -458,24 +435,4 @@ defmodule Autolaunch.PointsAwardsTest do
   defp hex(value), do: "0x" <> Integer.to_string(value, 16)
 
   defp key(record), do: %{"source_event_key" => record.id}
-
-  defp drain,
-    do: assert(%{failure: 0, discard: 0} = Oban.drain_queue(queue: :points, with_recursion: true))
-
-  defp events, do: RegentPoints.read_events!(actor: Store.system())
-  defp events(rule), do: Enum.filter(events(), &(&1.rule_id == rule))
-
-  defp entries(rule, points) do
-    RegentPoints.read_entries!(actor: Store.system())
-    |> Enum.filter(&(&1.rule_id == rule and &1.points_micro_delta == points * @unit))
-  end
-
-  # Each award a rule wrote, by the saved record it was for, in whole points.
-  defp earned(rule) do
-    keys = Map.new(events(rule), &{&1.id, &1.source_event_key})
-
-    RegentPoints.read_entries!(actor: Store.system())
-    |> Enum.filter(&(&1.rule_id == rule))
-    |> Enum.map(&{Map.fetch!(keys, &1.event_id), div(&1.points_micro_delta, @unit)})
-  end
 end

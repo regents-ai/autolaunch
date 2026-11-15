@@ -110,7 +110,8 @@ config :regent_points,
     "autolaunch.first_launch" => Autolaunch.Points.Launch,
     "autolaunch.auction_created" => Autolaunch.Points.Launch,
     "autolaunch.first_graduation" => Autolaunch.Points.Graduation,
-    "autolaunch.auction_bid" => Autolaunch.Points.Bid
+    "autolaunch.auction_bid" => Autolaunch.Points.Bid,
+    "autolaunch.token_traded" => Autolaunch.Points.Trade
   }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]

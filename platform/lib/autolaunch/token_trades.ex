@@ -4,9 +4,12 @@ defmodule Autolaunch.TokenTrades do
   token's pool and, for a Revstake token, the revenue its splitter
   recognized. Each pass reads one token and at most 2,000 blocks of the
   PoolManager's `Swap` logs for that pool, and the splitter's
-  `RevenueRecognized` logs over the same blocks. The cursor and rows commit
-  together; repeat ranges replace the same trades and revenue. A changed
-  cursor block drops the token's trades and revenue and rebuilds them.
+  `RevenueRecognized` logs over the same blocks. Each trade's trader is the
+  wallet that sent its transaction, asked of the node once per transaction
+  before anything is written. The cursor and rows commit together; a repeat
+  range keeps the trades already saved, with their traders, and replaces the
+  revenue. A changed cursor block drops the token's trades and revenue and
+  rebuilds them.
 
   Each listed token has one job (`Autolaunch.ChainWatch` makes sure of it),
   which runs a pass and then waits: a second while the token is behind the
@@ -28,6 +31,7 @@ defmodule Autolaunch.TokenTrades do
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{ChainRefresh, ChainWatch, LabAbi, Repo, Token, TokenRevenue, TokenTrade}
+  alias RegentChain.Address
   @actor %System{}
   # The node did not answer, or answered for a head that has since moved.
   @unavailable [
@@ -35,6 +39,7 @@ defmodule Autolaunch.TokenTrades do
     :logs_unavailable,
     :header_unavailable,
     :headers_unavailable,
+    :transactions_unavailable,
     :history_unavailable,
     :head_moved
   ]
@@ -118,8 +123,10 @@ defmodule Autolaunch.TokenTrades do
          {:ok, revenue_logs} <- revenue_logs(pool, first, last, venue.opts),
          {:ok, headers} <- headers(logs ++ revenue_logs, last, venue.opts),
          {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
-         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)) do
-      trades = Enum.reject(trades, &is_nil/1)
+         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
+         trades = Enum.reject(trades, &is_nil/1),
+         {:ok, traders} <- traders(trades, venue.opts) do
+      trades = Enum.map(trades, &Map.put(&1, :trader, traders[&1.transaction_hash]))
 
       token
       |> commit(first, last, headers[last].hash, {trades, revenue})
@@ -376,24 +383,48 @@ defmodule Autolaunch.TokenTrades do
   end
 
   defp headers(logs, last, opts) do
-    with {:ok, numbers} <- map_ok(logs, &quantity(&1["blockNumber"])) do
-      (numbers ++ [last])
-      |> Enum.uniq()
-      |> Task.async_stream(
-        &numbered_header(&1, opts),
-        max_concurrency: 4,
-        timeout: 15_000,
-        on_timeout: :kill_task
-      )
-      |> Enum.reduce_while({:ok, %{}}, fn
-        {:ok, {:ok, {number, value}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, number, value)}}
-        _, _ -> {:halt, {:error, :headers_unavailable}}
-      end)
-    end
+    with {:ok, numbers} <- map_ok(logs, &quantity(&1["blockNumber"])),
+         do: read_each(numbers ++ [last], &numbered_header(&1, opts), :headers_unavailable)
   end
 
   defp numbered_header(number, opts) do
     with {:ok, value} <- header(number, opts), do: {:ok, {number, value}}
+  end
+
+  # Who made each trade, by its transaction: the wallet that sent it. A
+  # transaction the node does not answer fails the pass, so a saved trade has
+  # its trader; a sender in any other form than an address is left unknown.
+  defp traders(trades, opts),
+    do:
+      read_each(
+        Enum.map(trades, & &1.transaction_hash),
+        &sender(&1, opts),
+        :transactions_unavailable
+      )
+
+  defp sender(hash, opts) do
+    case Rpc.request("eth_getTransactionByHash", [hash], opts) do
+      {:ok, %{"from" => from}} ->
+        case Address.normalize(from) do
+          {:ok, trader} -> {:ok, {hash, trader}}
+          :error -> {:ok, {hash, nil}}
+        end
+
+      _ ->
+        {:error, :transaction_unavailable}
+    end
+  end
+
+  # One node read per distinct key, four at a time, into a map by key; any
+  # read that fails or does not answer fails them all as `error`.
+  defp read_each(keys, read, error) do
+    keys
+    |> Enum.uniq()
+    |> Task.async_stream(read, max_concurrency: 4, timeout: 15_000, on_timeout: :kill_task)
+    |> Enum.reduce_while({:ok, %{}}, fn
+      {:ok, {:ok, {key, value}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, key, value)}}
+      _, _ -> {:halt, {:error, error}}
+    end)
   end
 
   defp trade(token, pool, headers, log) do
@@ -424,16 +455,27 @@ defmodule Autolaunch.TokenTrades do
       token_amount: Decimal.new(Rpc.format_units(swap.token, @token_decimals))
     }
 
-  # This system projection locks its token before replacing confirmed trades.
-  # Only trades in blocks past the old cursor announce themselves, after the
-  # transaction commits, so re-reading the head block stays quiet.
+  # This system projection locks its token before writing confirmed trades.
+  # A trade read again is written over its saved row, which keeps its trader
+  # and tells Points nothing; only a trade in the range the chain no longer
+  # has is removed. Only trades in blocks past the old cursor announce
+  # themselves, after the transaction commits, so re-reading the head block
+  # stays quiet.
   defp commit(token, first, last, hash, {trades, revenue}) do
     Repo.transaction(fn ->
       current = locked(token)
+      read = MapSet.new(trades, &{&1.transaction_hash, &1.log_index})
 
-      Repo.delete_all(
-        from t in TokenTrade, where: t.token_id == ^token.id and t.block_number >= ^first
-      )
+      gone =
+        from(t in TokenTrade,
+          where: t.token_id == ^token.id and t.block_number >= ^first,
+          select: {t.id, t.transaction_hash, t.log_index}
+        )
+        |> Repo.all()
+        |> Enum.reject(fn {_id, transaction, index} -> {transaction, index} in read end)
+        |> Enum.map(&elem(&1, 0))
+
+      Repo.delete_all(from t in TokenTrade, where: t.id in ^gone)
 
       Repo.delete_all(
         from r in TokenRevenue, where: r.token_id == ^token.id and r.block_number >= ^first

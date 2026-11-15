@@ -4,6 +4,10 @@ defmodule Autolaunch.TokenTrade do
   by `Autolaunch.TokenTrades`. A buy took the token out of the pool and a sell
   put it in. The currency amount is the pool's other side, in its own
   currency: REGENT for a Revstake token, the paired stock for a Memestock one.
+
+  The trader is the wallet that sent the swap's transaction, written with the
+  row and never changed by a later write of it. Rows saved before the site
+  recorded traders have none.
   """
   use Ash.Resource,
     otp_app: :autolaunch,
@@ -39,6 +43,20 @@ defmodule Autolaunch.TokenTrade do
       prepare build(sort: [block_number: :asc, log_index: :asc])
     end
 
+    # One trade by the pool log it came from, for the site's own check of it
+    # (`Autolaunch.Points.Trade`).
+    read :by_pool_log do
+      get? true
+      argument :token_id, :uuid, allow_nil?: false
+      argument :transaction_hash, :string, allow_nil?: false
+      argument :log_index, :integer, allow_nil?: false
+
+      filter expr(
+               token_id == ^arg(:token_id) and transaction_hash == ^arg(:transaction_hash) and
+                 log_index == ^arg(:log_index)
+             )
+    end
+
     create :record do
       accept [
         :token_id,
@@ -50,12 +68,14 @@ defmodule Autolaunch.TokenTrade do
         :side,
         :currency_amount,
         :currency_symbol,
-        :token_amount
+        :token_amount,
+        :trader
       ]
 
       upsert? true
       upsert_identity :pool_log
 
+      # The trader is written only with the row: a later write keeps it.
       upsert_fields [
         :block_hash,
         :block_number,
@@ -65,6 +85,27 @@ defmodule Autolaunch.TokenTrade do
         :currency_symbol,
         :token_amount
       ]
+
+      emit Autolaunch.Signals, :trade_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the trade."
+
+      # Writing a trade already saved updates its row, which Ash marks with an
+      # `upsert_action` of `:update`.
+      change after_action(fn changeset, trade, _context ->
+               if Ash.Resource.get_metadata(trade, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(
+                          changeset,
+                          Autolaunch.Signals,
+                          :trade_recorded,
+                          Map.take(trade, [:token_id, :transaction_hash, :log_index])
+                        ),
+                      do: {:ok, trade}
+               else
+                 {:ok, trade}
+               end
+             end)
     end
   end
 
@@ -73,7 +114,7 @@ defmodule Autolaunch.TokenTrade do
       authorize_if always()
     end
 
-    policy action(:record) do
+    policy action([:record, :by_pool_log]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -99,6 +140,8 @@ defmodule Autolaunch.TokenTrade do
     attribute :currency_amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
     attribute :currency_symbol, :string, allow_nil?: false
     attribute :token_amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
+    # The lowercase wallet that sent the swap's transaction.
+    attribute :trader, :string, constraints: [match: ~r/\A0x[0-9a-f]{40}\z/]
   end
 
   relationships do
