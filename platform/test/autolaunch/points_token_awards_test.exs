@@ -1,22 +1,25 @@
 defmodule Autolaunch.PointsTokenAwardsTest do
-  # A trade the token's reader (Autolaunch.TokenTrades) saves offers Regent Points
-  # the day's trade award in the same transaction, and the site's own check
-  # (Autolaunch.Points.Trade) answers from the saved row. The reader reads a scripted
-  # Base chain: a graduated Revstake launch whose pool's swaps are all in the head
-  # block, each sent by the wallet the chain double names for its transaction.
+  # A trade or a stake the token's reader (Autolaunch.TokenTrades) saves offers Regent
+  # Points its award in the same transaction, and the site's own checks
+  # (Autolaunch.Points.Trade and .Stake) answer from the saved rows. The reader reads a
+  # scripted Base chain: a graduated Revstake launch whose pool's swaps and splitter's
+  # stakes are all in the head block, each swap sent by the wallet the chain double
+  # names for its transaction.
   use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
   import Autolaunch.PointsTesting
 
   alias Autolaunch.{Accounts, BaseRpcStub, Lab, LabAbi, TestSupport, TokenTrades}
   alias Autolaunch.Actors.System
-  alias Autolaunch.Points.Trade
+  alias Autolaunch.Points.{Stake, Trade}
 
   @traded "autolaunch.token_traded"
+  @staked "autolaunch.token_staked"
   @wallet "0x" <> String.duplicate("c", 40)
   @stranger "0x" <> String.duplicate("d", 40)
   @router "0x" <> String.duplicate("e", 40)
   @subject "0x5100000000000000000000000000000000000051"
+  @splitter "0x5400000000000000000000000000000000000054"
   @pool_id "0x" <> String.pad_leading("abc", 64, "0")
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @head 120
@@ -84,7 +87,7 @@ defmodule Autolaunch.PointsTokenAwardsTest do
   end
 
   setup do
-    starts_at = open([@traded])
+    starts_at = open([@traded, @staked])
 
     previous = Application.get_env(:autolaunch, :autolaunch_lab_http_client)
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, Chain)
@@ -256,21 +259,132 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     assert {:error, :trade_not_listed} = verify(trade)
   end
 
+  test "a stake from a linked wallet earns Autolaunch token staked once, though the wallet stakes again",
+       %{account: account, token: token} do
+    chain([
+      stake_log(1, @first_transaction, @wallet),
+      stake_log(2, @second_transaction, @wallet),
+      # Unstaking is not read.
+      stake_log(3, @second_transaction, @wallet, event: "Unstaked(address,uint256)")
+    ])
+
+    assert {:snooze, 300} = pass(token)
+    assert [%{staker: @wallet} = first, %{staker: @wallet} = second] = stakes(token)
+    assert first.splitter == @splitter
+    assert first.chain_id == 8453
+    assert Decimal.equal?(first.amount, Decimal.new(5 * Integer.pow(10, 18)))
+    drain()
+
+    # Whichever of the two Points checks first earns it; the other records nothing.
+    assert [{key, 40}] = earned(@staked)
+    assert key in [first.id, second.id]
+    account_id = account.id
+    assert [%{account_id: ^account_id}] = events(@staked)
+  end
+
+  test "reading a stake again, or rebuilding after the chain changed, keeps it as first saved and offers nothing",
+       %{token: token} do
+    chain([stake_log(1, @first_transaction, @wallet)])
+    assert {:snooze, 300} = pass(token)
+    assert [saved] = stakes(token)
+    drain()
+    assert [{_key, 40}] = earned(@staked)
+
+    # The head has not moved, so the next pass reads the stake again.
+    assert {:snooze, 300} = pass(token)
+    assert stakes(token) == [saved]
+    assert all_enqueued(queue: :points) == []
+
+    # The head block is replaced, with the same stake in it: the reader rebuilds
+    # the token's trades, and the stake keeps the block it was first saved in.
+    reorged = "0x" <> String.duplicate("3d", 32)
+
+    put(
+      hashes: %{@head => reorged},
+      logs: [stake_log(1, @first_transaction, @wallet, block_hash: reorged)]
+    )
+
+    assert {:snooze, 1} = pass(token)
+    assert {:snooze, 300} = pass(token)
+    assert stakes(token) == [saved]
+    assert all_enqueued(queue: :points) == []
+    assert [{_key, 40}] = earned(@staked)
+  end
+
+  test "a stake from a wallet no account holds is saved and earns nothing", %{token: token} do
+    chain([stake_log(1, @first_transaction, @stranger)])
+
+    assert {:snooze, 300} = pass(token)
+    assert [%{id: id, staker: @stranger}] = stakes(token)
+    drain()
+
+    assert events(@staked) == []
+    assert rejections(id) == [{@staked, "staker_wallet_not_linked"}]
+  end
+
+  test "while earning is closed, the reader still saves a stake and Points gets nothing",
+       %{token: token} do
+    close()
+    chain([stake_log(1, @first_transaction, @wallet)])
+
+    assert {:snooze, 300} = pass(token)
+    assert [%{staker: @wallet}] = stakes(token)
+    assert all_enqueued(queue: :points) == []
+    drain()
+    assert events() == []
+  end
+
+  test "the site's stake check answers the same each time it is asked",
+       %{account: account, auction: auction, token: token} do
+    chain([
+      stake_log(1, @first_transaction, @wallet),
+      stake_log(2, @second_transaction, @stranger)
+    ])
+
+    assert {:snooze, 300} = pass(token)
+    assert [stake, stranger] = stakes(token)
+    missing = Ash.UUID.generate()
+
+    for id <- [stake.id, stranger.id, missing],
+        do: assert(Stake.verify(key(id)) == Stake.verify(key(id)))
+
+    account_id = account.id
+    id = stake.id
+    assert {:ok, %{account_id: ^account_id, source_event_key: ^id}} = Stake.verify(key(id))
+    assert {:error, :staker_wallet_not_linked} = Stake.verify(key(stranger.id))
+    assert {:error, :stake_not_found} = Stake.verify(key(missing))
+
+    # A token whose launch an operator hid earns nothing for its stakes.
+    Autolaunch.hide_auction!(auction, actor: %System{})
+    assert {:error, :stake_not_listed} = Stake.verify(key(id))
+  end
+
   # One pass of the token's reader, as its job runs it.
   defp pass(token), do: perform_job(TokenTrades, %{token_id: token.id})
 
   defp trades(token), do: Autolaunch.token_trades!(token.id, actor: nil)
 
+  # A saved stake has no read but the site's own check, so the test reads the
+  # token's rows back.
+  defp stakes(token) do
+    Repo.all(
+      from s in Autolaunch.TokenStake, where: s.token_id == ^token.id, order_by: s.log_index
+    )
+  end
+
   defp verify(trade), do: Trade.verify(%{"source_event_key" => Trade.key(trade)})
 
+  defp key(id), do: %{"source_event_key" => id}
+
   # The chain the reader reads: the head at block 120, a minute ago, and the pool's
-  # `swaps`, each sent by the wallet `senders` names for its transaction.
-  defp chain(swaps, senders) do
+  # and splitter's `logs`, each swap sent by the wallet `senders` names for its
+  # transaction.
+  defp chain(logs, senders \\ %{}) do
     Application.put_env(:autolaunch, :points_token_chain, %{
       head: @head,
       time: DateTime.to_unix(DateTime.utc_now()) - 60 - @head,
       hashes: %{},
-      logs: swaps,
+      logs: logs,
       senders: senders
     })
   end
@@ -297,6 +411,24 @@ defmodule Autolaunch.PointsTokenAwardsTest do
             [-1_000_000_000_000_000_000, 2_000_000_000_000_000_000, 0, 0, 0, 0],
             &Base.encode16(<<&1::signed-256>>, case: :lower)
           )
+    }
+  end
+
+  # `wallet` staking five tokens in the launch's splitter, in the head block (or
+  # unstaking them, with `event:`).
+  defp stake_log(index, transaction, wallet, opts \\ []) do
+    %{
+      "removed" => false,
+      "address" => @splitter,
+      "blockNumber" => "0x" <> Integer.to_string(@head, 16),
+      "blockHash" => Keyword.get(opts, :block_hash, Chain.hash(%{hashes: %{}}, @head)),
+      "logIndex" => "0x" <> Integer.to_string(index, 16),
+      "transactionHash" => transaction,
+      "topics" => [
+        LabAbi.topic(Keyword.get(opts, :event, "Staked(address,uint256)")),
+        BaseRpcStub.address_topic(wallet)
+      ],
+      "data" => BaseRpcStub.uint(5 * Integer.pow(10, 18))
     }
   end
 end

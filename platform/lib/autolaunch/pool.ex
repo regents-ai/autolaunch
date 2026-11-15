@@ -224,13 +224,13 @@ defmodule Autolaunch.Pool do
 
   @doc """
   What a reader of the pool's trades needs: the PoolManager, the pool id, the
-  token, which side of the pool it is on, the currency it trades against and
-  the block the pool opened in. `{:error, :not_graduated}` until the pool
-  exists.
+  token, which side of the pool it is on, the currency it trades against, the
+  block the pool opened in and the launch's splitter, where the token is
+  staked. `{:error, :not_graduated}` until the pool exists.
   """
   @spec swap_source(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
-  # A Revstake launch's source also names its revenue splitter and the three
-  # assets the splitter recognizes, each with its symbol and decimals.
+  # A Revstake launch's source also names the three assets its splitter
+  # recognizes as revenue, each with its symbol and decimals.
   def swap_source(%{kind: :agent} = auction, config, block, opts) do
     with {:ok, distribution} <- agent_record(auction, config, block, opts) do
       regent = Lab.address!(config, :regent)
@@ -264,7 +264,8 @@ defmodule Autolaunch.Pool do
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
          currency_symbol: auction.quote_token_symbol,
          currency_decimals: auction.quote_token_decimals,
-         from_block: launch.migration_block
+         from_block: launch.migration_block,
+         splitter: launch.splitter
        }}
     end
   end

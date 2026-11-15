@@ -133,7 +133,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 
 ## Points awards
 
-Earning opens in production at 16 November 2026 17:00 UTC for the four launch, graduation and bid rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself. Autolaunch token trade has its source and check built but is not approved there, so it earns nothing in production yet.
+Earning opens in production at 16 November 2026 17:00 UTC for the four launch, graduation and bid rules below (platform/config/prod.exs); everywhere else it is closed (no start time, no rule approved), so each check opens the rules for itself. Autolaunch token trade and Autolaunch token staked have their sources and checks built but are not approved there, so they earn nothing in production yet.
 
 | Action | Check |
 | --- | --- |
@@ -152,6 +152,11 @@ Earning opens in production at 16 November 2026 17:00 UTC for the four launch, g
 | A trade from a wallet no account held is still saved and earns nothing, refused as not linked; a trade saved before the site recorded traders, or in a hidden launch's token, earns nothing | `autolaunch/points_token_awards_test.exs` › "a trade from a wallet no account holds is saved and earns nothing", › "the site's check answers the same each time it is asked" |
 | A pass whose trade transactions the node does not answer saves nothing and is read again a minute later | `autolaunch/points_token_awards_test.exs` › "a transaction the node does not name leaves the pass to be read again, with nothing saved" |
 | While earning is closed the token's reader still saves each trade with its trader and queues and writes nothing for Points | `autolaunch/points_token_awards_test.exs` › "while earning is closed, the reader still saves a trade with its trader and Points gets nothing" |
+| A stake of a launched token in its launch's splitter, read by the token's reader over the same blocks as its trades, is saved once and earns Autolaunch token staked once for the account whose verified wallets held the staking wallet at the stake's block time, however often it stakes again; unstaking is not read | `autolaunch/points_token_awards_test.exs` › "a stake from a linked wallet earns Autolaunch token staked once, though the wallet stakes again" |
+| A stake read again, or kept through a rebuild of the token's trades after the chain changed, keeps its row as first saved and offers nothing more | `autolaunch/points_token_awards_test.exs` › "reading a stake again, or rebuilding after the chain changed, keeps it as first saved and offers nothing" |
+| A stake from a wallet no account held is still saved and earns nothing, refused as not linked; a stake of a hidden launch's token earns nothing | `autolaunch/points_token_awards_test.exs` › "a stake from a wallet no account holds is saved and earns nothing", › "the site's stake check answers the same each time it is asked" |
+| While earning is closed the token's reader still saves each stake and queues and writes nothing for Points | `autolaunch/points_token_awards_test.exs` › "while earning is closed, the reader still saves a stake and Points gets nothing" |
+| Revstake and Memestock launches, on Base and on Robinhood Chain, name their splitter to the token's reader | `autolaunch/base_launchers_test.exs` › "a graduated launch trades on the pool its own version's launcher recorded" (Base only; the Robinhood source is not checked) |
 
 ## Agents
 

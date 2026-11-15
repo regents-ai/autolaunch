@@ -1,6 +1,6 @@
 defmodule Autolaunch.Signals do
   @moduledoc """
-  What launches, bids and trades tell the rest of the site, as Ash signals. Each is
+  What launches, bids, trades and stakes tell the rest of the site, as Ash signals. Each is
   emitted in the transaction of the write that saved it, so a listener with the
   default delivery commits or rolls back with it. Points offers each to Regent
   Points (`Autolaunch.Points.Award`).
@@ -20,6 +20,9 @@ defmodule Autolaunch.Signals do
       (`Autolaunch.TokenTrade` `:record`), named by its pool log. Reading the
       same block again keeps the saved trade and emits nothing; a rebuild
       after the chain changed saves each trade again and emits it again.
+    * `:stake_recorded`: a stake of a listed token in its launch's splitter was
+      saved for the first time (`Autolaunch.TokenStake` `:record`). Reading
+      the same log again changes nothing and emits nothing.
   """
 
   use Ash.Signals
@@ -41,6 +44,10 @@ defmodule Autolaunch.Signals do
       argument :token_id, :uuid, allow_nil?: false
       argument :transaction_hash, :string, allow_nil?: false
       argument :log_index, :integer, allow_nil?: false
+    end
+
+    signal :stake_recorded do
+      argument :stake_id, :uuid, allow_nil?: false
     end
   end
 end

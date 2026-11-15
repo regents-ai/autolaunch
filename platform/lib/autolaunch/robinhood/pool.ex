@@ -109,9 +109,9 @@ defmodule Autolaunch.Robinhood.Pool do
   @doc """
   What a reader of the pool's trades needs, for one graduated auction (as
   `read/1` takes it): the PoolManager, the pool id, the token, which side of the pool it
-  is on and the stock it trades against. The launch's migration block is on
-  the rollup clock, not the block numbers logs carry, so no opening block is
-  given.
+  is on, the stock it trades against and the launch's splitter, where the
+  token is staked. The launch's migration block is on the rollup clock, not
+  the block numbers logs carry, so no opening block is given.
   """
   @spec swap_source(map(), map(), Rpc.block(), keyword()) ::
           {:ok, map()} | {:error, atom()}
@@ -126,7 +126,8 @@ defmodule Autolaunch.Robinhood.Pool do
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
          currency_symbol: stock.symbol,
          currency_decimals: stock.decimals,
-         from_block: nil
+         from_block: nil,
+         splitter: launch.splitter
        }}
     end
   end

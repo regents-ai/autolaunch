@@ -129,7 +129,7 @@ defmodule Autolaunch.BaseLaunchersTest do
         token_symbol: "AGNT"
       }
 
-      assert {:ok, %{pool_id: pool, token: @token}} =
+      assert {:ok, %{pool_id: pool, token: @token, splitter: @named}} =
                Pool.swap_source(agent, revstake, block, LabRpc.opts(revstake))
 
       assert pool == "0x" <> BaseRpcStub.address_word(strategy)
@@ -142,7 +142,7 @@ defmodule Autolaunch.BaseLaunchersTest do
         quote_token_decimals: 18
       }
 
-      assert {:ok, %{pool_id: pool, token: @token}} =
+      assert {:ok, %{pool_id: pool, token: @token, splitter: @named}} =
                Pool.swap_source(memestock, stocks, block, StocksLab.rpc_opts(stocks))
 
       assert pool == "0x" <> BaseRpcStub.address_word(launchpad)

@@ -1,15 +1,16 @@
 defmodule Autolaunch.TokenTrades do
   @moduledoc """
   A bounded, browser-independent projection of the trades in each launched
-  token's pool and, for a Revstake token, the revenue its splitter
-  recognized. Each pass reads one token and at most 2,000 blocks of the
-  PoolManager's `Swap` logs for that pool, and the splitter's
-  `RevenueRecognized` logs over the same blocks. Each trade's trader is the
-  wallet that sent its transaction, asked of the node once per transaction
-  before anything is written. The cursor and rows commit together; a repeat
-  range keeps the trades already saved, with their traders, and replaces the
-  revenue. A changed cursor block drops the token's trades and revenue and
-  rebuilds them.
+  token's pool, its stakes in the launch's splitter and, for a Revstake
+  token, the revenue its splitter recognized. Each pass reads one token and
+  at most 2,000 blocks of the PoolManager's `Swap` logs for that pool, and the
+  splitter's `Staked` and `RevenueRecognized` logs over the same blocks, in
+  one read. Each trade's trader is the wallet that sent its transaction,
+  asked of the node once per transaction before anything is written. The
+  cursor and rows commit together; a repeat range keeps the trades already
+  saved, with their traders, and replaces the revenue. A changed cursor block
+  drops the token's trades and revenue and rebuilds them. A stake is saved
+  once and kept through both (`Autolaunch.TokenStake`).
 
   Each listed token has one job (`Autolaunch.ChainWatch` makes sure of it),
   which runs a pass and then waits: a second while the token is behind the
@@ -30,7 +31,18 @@ defmodule Autolaunch.TokenTrades do
   require Logger
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{ChainRefresh, ChainWatch, LabAbi, Repo, Token, TokenRevenue, TokenTrade}
+
+  alias Autolaunch.{
+    ChainRefresh,
+    ChainWatch,
+    LabAbi,
+    Repo,
+    Token,
+    TokenRevenue,
+    TokenStake,
+    TokenTrade
+  }
+
   alias RegentChain.Address
   @actor %System{}
   # The node did not answer, or answered for a head that has since moved.
@@ -45,6 +57,7 @@ defmodule Autolaunch.TokenTrades do
   ]
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
+  @staked "Staked(address,uint256)"
   @range 2_000
   @token_decimals 18
   @topic "token_trades"
@@ -120,16 +133,18 @@ defmodule Autolaunch.TokenTrades do
          {:ok, first} <- first_block(token, pool, head, venue.opts),
          :ok <- cursor_valid(token, head, venue.opts),
          {:ok, last, logs} <- logs(pool, first, min(first + @range - 1, head.number), venue.opts),
-         {:ok, revenue_logs} <- revenue_logs(pool, first, last, venue.opts),
-         {:ok, headers} <- headers(logs ++ revenue_logs, last, venue.opts),
+         {:ok, splitter_logs} <- splitter_logs(pool, first, last, venue.opts),
+         {:ok, headers} <- headers(logs ++ splitter_logs, last, venue.opts),
          {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
+         {stake_logs, revenue_logs} = Enum.split_with(splitter_logs, &staked?/1),
          {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
+         {:ok, stakes} <- map_ok(stake_logs, &stake(token, pool, headers, &1)),
          trades = Enum.reject(trades, &is_nil/1),
          {:ok, traders} <- traders(trades, venue.opts) do
       trades = Enum.map(trades, &Map.put(&1, :trader, traders[&1.transaction_hash]))
 
       token
-      |> commit(first, last, headers[last].hash, {trades, revenue})
+      |> commit(first, last, headers[last].hash, {trades, revenue, stakes})
       |> indexed(token, trades, last, head.number)
     else
       {:error, :cursor_changed} -> invalidate(token)
@@ -298,21 +313,56 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
-  # A Revstake splitter's revenue over the same blocks as the pool's trades; a
-  # Memestock launch's source names no splitter, so it has none here.
-  defp revenue_logs(%{splitter: splitter}, first, last, opts) do
+  # The splitter's logs over the same blocks as the pool's trades, in one read:
+  # every launch's stakes, and a Revstake launch's revenue, which its source
+  # names the assets of. A Memestock launch's revenue is not read here.
+  defp splitter_logs(pool, first, last, opts) do
+    events = if Map.has_key?(pool, :revenue_assets), do: [@staked, @revenue], else: [@staked]
+
     read_logs(
       %{
-        address: splitter,
+        address: pool.splitter,
         fromBlock: hex(first),
         toBlock: hex(last),
-        topics: [LabAbi.topic(@revenue)]
+        topics: [Enum.map(events, &LabAbi.topic/1)]
       },
       opts
     )
   end
 
-  defp revenue_logs(_pool, _first, _last, _opts), do: {:ok, []}
+  defp staked?(%{"topics" => [event | _]}) when is_binary(event),
+    do: String.downcase(event) == LabAbi.topic(@staked)
+
+  defp staked?(_log), do: false
+
+  # One `Staked` log's stake: its one topic after the event names the wallet
+  # that called `stake`, its data the amount in raw units.
+  defp stake(token, pool, headers, log) do
+    with false <- log["removed"],
+         [_staked, "0x" <> account] <- log["topics"],
+         {:ok, <<0::96, staker::binary-size(20)>>} <- Base.decode16(account, case: :mixed),
+         "0x" <> data <- log["data"],
+         {:ok, <<amount::256>>} <- Base.decode16(data, case: :mixed),
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         true <- String.downcase(log["blockHash"]) == headers[number].hash do
+      {:ok,
+       %{
+         token_id: token.id,
+         chain_id: token.auction.chain_id,
+         splitter: pool.splitter,
+         staker: "0x" <> Base.encode16(staker, case: :lower),
+         amount: Decimal.new(amount),
+         transaction_hash: String.downcase(log["transactionHash"]),
+         log_index: index,
+         block_number: number,
+         block_hash: headers[number].hash,
+         occurred_at: DateTime.from_unix!(headers[number].timestamp)
+       }}
+    else
+      _ -> {:error, :invalid_stake}
+    end
+  end
 
   @doc """
   One `RevenueRecognized` log's asset, gross amount and stakers' share, in
@@ -458,10 +508,10 @@ defmodule Autolaunch.TokenTrades do
   # This system projection locks its token before writing confirmed trades.
   # A trade read again is written over its saved row, which keeps its trader
   # and tells Points nothing; only a trade in the range the chain no longer
-  # has is removed. Only trades in blocks past the old cursor announce
-  # themselves, after the transaction commits, so re-reading the head block
-  # stays quiet.
-  defp commit(token, first, last, hash, {trades, revenue}) do
+  # has is removed. A stake read again keeps its row as first saved. Only
+  # trades in blocks past the old cursor announce themselves, after the
+  # transaction commits, so re-reading the head block stays quiet.
+  defp commit(token, first, last, hash, {trades, revenue, stakes}) do
     Repo.transaction(fn ->
       current = locked(token)
       read = MapSet.new(trades, &{&1.transaction_hash, &1.log_index})
@@ -482,6 +532,7 @@ defmodule Autolaunch.TokenTrades do
       )
 
       Ash.bulk_create!(revenue, TokenRevenue, :record, actor: @actor, return_errors?: true)
+      Ash.bulk_create!(stakes, TokenStake, :record, actor: @actor, return_errors?: true)
 
       %{notifications: notifications} =
         Ash.bulk_create!(trades, TokenTrade, :record,

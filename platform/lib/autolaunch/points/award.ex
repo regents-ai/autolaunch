@@ -16,6 +16,9 @@ defmodule Autolaunch.Points.Award do
     * A trade saved in a listed token's pool (`autolaunch.token_traded`, once a
       day), from `:trade_recorded`, keyed by the pool log it came from
       (`Autolaunch.Points.Trade`).
+    * A stake saved in a launch's splitter (`autolaunch.token_staked`, once
+      per account), from `:stake_recorded`, keyed by the stake row
+      (`Autolaunch.Points.Stake`).
   """
 
   use Ash.Resource,
@@ -57,6 +60,14 @@ defmodule Autolaunch.Points.Award do
         record("autolaunch.token_traded", "trade", Autolaunch.Points.Trade.key(trade))
       end
     end
+
+    action :stake_recorded do
+      argument :signal, Autolaunch.Signals.StakeRecorded, allow_nil?: false
+
+      run fn %{arguments: %{signal: %{stake_id: id}}}, _context ->
+        record("autolaunch.token_staked", "stake", id)
+      end
+    end
   end
 
   policies do
@@ -77,6 +88,10 @@ defmodule Autolaunch.Points.Award do
     policy action(:trade_recorded) do
       authorize_if signal_in(Autolaunch.Signals, :trade_recorded)
     end
+
+    policy action(:stake_recorded) do
+      authorize_if signal_in(Autolaunch.Signals, :stake_recorded)
+    end
   end
 
   signals_in do
@@ -85,6 +100,7 @@ defmodule Autolaunch.Points.Award do
       on :token_graduated, :token_graduated
       on :bid_recorded, :bid_recorded
       on :trade_recorded, :trade_recorded
+      on :stake_recorded, :stake_recorded
     end
   end
 
