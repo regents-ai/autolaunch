@@ -6,9 +6,8 @@ defmodule Autolaunch.Accounts.EnsIdentity.LookUp do
   kept only when it resolves back to the same wallet, and a picture only when
   the ENS avatar service answers with one (`AgentEns.PrimaryName`). A failed
   read fails the action as a server fault, so the job retries with backoff and
-  the reason of its last try reaches saved errors (`Autolaunch.ErrorIgnorer`
-  leaves out invalid input, and a try that will be tried again); a server
-  with no Ethereum endpoint cancels it.
+  the reason reaches saved errors (`Autolaunch.ErrorIgnorer` leaves out invalid
+  input); a server with no Ethereum endpoint cancels it.
   """
 
   use Ash.Resource.Change
