@@ -1,9 +1,9 @@
 defmodule Autolaunch.Signals do
   @moduledoc """
-  What launches tell the rest of the site, as Ash signals. Each is emitted in
-  the transaction of the write that saved it, so a listener with the default
-  delivery commits or rolls back with it. Points offers both to Regent Points
-  (`Autolaunch.Points.Award`).
+  What launches and bids tell the rest of the site, as Ash signals. Each is
+  emitted in the transaction of the write that saved it, so a listener with the
+  default delivery commits or rolls back with it. Points offers each to Regent
+  Points (`Autolaunch.Points.Award`).
 
     * `:launch_recorded`: a launch's auction row was saved for the first time
       (`Autolaunch.Auction` `:record_launch`), by whichever of its writers came
@@ -11,6 +11,11 @@ defmodule Autolaunch.Signals do
     * `:token_graduated`: a graduated launch's token row was saved for the
       first time (`Autolaunch.Token` `:project_lab`). Projecting the same
       graduation again emits nothing.
+    * `:bid_recorded`: a Base bid's position row was saved for the first time
+      (`Autolaunch.Bid` `:record_from_chain`), by whichever came first, the
+      bidder's page reading its receipt or the auction's reader. A later write
+      of the same bid emits nothing, and `:project_lab` only writes a position
+      already saved.
   """
 
   use Ash.Signals
@@ -22,6 +27,10 @@ defmodule Autolaunch.Signals do
 
     signal :token_graduated do
       argument :token_id, :uuid, allow_nil?: false
+    end
+
+    signal :bid_recorded do
+      argument :position_id, :uuid, allow_nil?: false
     end
   end
 end

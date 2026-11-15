@@ -142,6 +142,11 @@ Earning is closed here (no start time, no rule approved), so none of these earns
 | A launch's token saved once it graduated earns its creator First Autolaunch graduation once; seeing the same graduation again offers nothing | `autolaunch/points_awards_test.exs` › "a graduation earns the launch's creator the first graduation once" |
 | A launch from a wallet no account held is still saved and earns nothing, refused as not linked; a hidden launch earns nothing | `autolaunch/points_awards_test.exs` › "a launch from a wallet no account holds is saved and earns nothing", › "the site's checks answer the same each time they are asked" |
 | While no rule is approved a launch or graduation queues and writes nothing for Points | `autolaunch/points_awards_test.exs` › "while no rule is approved, launches and graduations offer nothing" |
+| A Base bid the site saves as its bidder's position, from the bidder's page or the auction's reader, whichever comes first, earns Autolaunch auction bid once each UTC day for the account whose verified wallets held the bidding wallet then; a second bid that day counts at nothing | `autolaunch/points_awards_test.exs` › "a bid from a linked wallet earns the day's bid award once, a second that day counting at nothing" |
+| A bid's position saved again, seen again by the auction's reader, or kept through a rebuild of the auction's activity keeps its row and award and offers nothing more | `autolaunch/points_awards_test.exs` › "a bid saved by the bidder's page earns once, and the reader's rebuild keeps it and offers nothing" |
+| A bid from a wallet no account held is still saved and earns nothing, refused as not linked; a bid on a hidden or unlisted launch earns nothing; a launch's creator bidding on it earns like anyone | `autolaunch/points_awards_test.exs` › "a bid from a wallet no account holds is saved and earns nothing", › "the site's checks answer the same each time they are asked" |
+| While earning is closed the auction's reader still saves each bid and queues and writes nothing for Points | `autolaunch/points_awards_test.exs` › "while earning is closed, the reader still saves a bid and Points gets nothing" |
+| A Robinhood bid earns nothing: the site saves no position for it (`Autolaunch.Robinhood.Positions` reads them from the chain) | **gap** |
 
 ## Agents
 

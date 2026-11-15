@@ -418,6 +418,7 @@ defmodule Autolaunch do
       define :list_wallet_bid_positions, action: :mine_by_wallets, args: [:wallet_addresses]
       define :list_wallet_bids_to_settle, action: :to_settle_by_wallets, args: [:wallet_addresses]
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
+      define :get_bid_position, action: :by_id, args: [:id], not_found_error?: false
     end
 
     resource Autolaunch.TreasurySecurityReport do

@@ -95,6 +95,14 @@ defmodule Autolaunch.Bid do
       prepare build(load: [:auction, :token])
     end
 
+    # A saved position by its row id, for the site's own checks of it
+    # (`Autolaunch.Points.Bid`).
+    read :by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
     create :project_lab do
       accept [
         :bid_id,
@@ -162,6 +170,24 @@ defmodule Autolaunch.Bid do
         :auction_address,
         :onchain_bid_id
       ]
+
+      emit Autolaunch.Signals, :bid_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the bid."
+
+      # Recording a bid already saved updates its row, which Ash marks with an
+      # `upsert_action` of `:update`.
+      change after_action(fn changeset, bid, _context ->
+               if Ash.Resource.get_metadata(bid, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(changeset, Autolaunch.Signals, :bid_recorded, %{
+                          position_id: bid.id
+                        }),
+                      do: {:ok, bid}
+               else
+                 {:ok, bid}
+               end
+             end)
     end
   end
 
@@ -182,7 +208,7 @@ defmodule Autolaunch.Bid do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:project_lab, :record_from_chain]) do
+    policy action([:project_lab, :record_from_chain, :by_id]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end

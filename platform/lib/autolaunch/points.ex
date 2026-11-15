@@ -2,7 +2,8 @@ defmodule Autolaunch.Points do
   @moduledoc """
   This site's part in Regent Points: what it offers Points, as it happens
   (`Autolaunch.Points.Award`), and the checks Points runs on what it offered
-  (`Autolaunch.Points.Launch`, `Autolaunch.Points.Graduation`).
+  (`Autolaunch.Points.Launch`, `Autolaunch.Points.Graduation`,
+  `Autolaunch.Points.Bid`).
   """
 
   use Ash.Domain

@@ -108,7 +108,8 @@ config :regent_points,
   adapters: %{
     "autolaunch.first_launch" => Autolaunch.Points.Launch,
     "autolaunch.auction_created" => Autolaunch.Points.Launch,
-    "autolaunch.first_graduation" => Autolaunch.Points.Graduation
+    "autolaunch.first_graduation" => Autolaunch.Points.Graduation,
+    "autolaunch.auction_bid" => Autolaunch.Points.Bid
   }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]

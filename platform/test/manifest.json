@@ -1,5 +1,5 @@
 {
-  "total": 227,
+  "total": 231,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2881,78 +2881,130 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 41,
+      "line": 72,
       "test_name": "a launch earns its creator the first launch once, though a second one follows",
       "keep_because": "A launch the site saves offers its Points award in the same transaction, and the account whose verified wallets held the launching wallet earns First Autolaunch launch once; a second launch, or saving the same launch again, earns no second one.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     },
     {
       "id": 269,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 65,
+      "line": 96,
       "test_name": "the day's launch award counts once each UTC day",
       "keep_because": "Autolaunch auction created earns once each UTC day by when the site saved the launch, as the Points library counts it; a second launch that day counts at nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     },
     {
       "id": 270,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 92,
+      "line": 123,
       "test_name": "a graduation earns the launch's creator the first graduation once",
       "keep_because": "The token row saved when a launch graduates earns the launch's creator First Autolaunch graduation once; seeing the same graduation again offers nothing new.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     },
     {
       "id": 271,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 111,
+      "line": 142,
       "test_name": "a launch from a wallet no account holds is saved and earns nothing",
       "keep_because": "A launch from a wallet no account held is still saved and listed, and earns nothing, recorded as refused because the wallet is not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     },
     {
       "id": 272,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 153,
+      "line": 184,
       "test_name": "while no rule is approved, launches and graduations offer nothing",
       "keep_because": "While earning is closed a launch and a graduation save as before and queue or write nothing for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     },
     {
       "id": 273,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 165,
+      "line": 196,
       "test_name": "the site's checks answer the same each time they are asked",
-      "keep_because": "The site's check of a launch or graduation reads only its saved rows, so asking twice gives the same answer, refusals included.",
+      "keep_because": "The site's check of a launch, graduation or bid reads only its saved rows, so asking twice gives the same answer, refusals included: a bid from an unlinked wallet, or on a hidden or unlisted launch, is refused, and a launch's creator bidding on it earns like anyone.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
+    },
+    {
+      "id": 274,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 242,
+      "test_name": "a bid from a linked wallet earns the day's bid award once, a second that day counting at nothing",
+      "keep_because": "A Base bid the auction's reader saves as its bidder's position offers its Points award in the same transaction, and the account whose verified wallets held the bidding wallet earns Autolaunch auction bid once that UTC day; a second bid that day is written at nothing, as the Points library counts it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
+    },
+    {
+      "id": 275,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 263,
+      "test_name": "a bid from a wallet no account holds is saved and earns nothing",
+      "keep_because": "A bid from a wallet no account held is still saved as its position and earns nothing, recorded as refused because the bidding wallet is not linked.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
+    },
+    {
+      "id": 276,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 279,
+      "test_name": "a bid saved by the bidder's page earns once, and the reader's rebuild keeps it and offers nothing",
+      "keep_because": "A bid's position is offered once, by whichever write saves it first; the page saving it again, the reader seeing it, and a rebuild of the auction's activity after a chain reorganisation keep its row and award and offer nothing more.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
+    },
+    {
+      "id": 277,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 310,
+      "test_name": "while earning is closed, the reader still saves a bid and Points gets nothing",
+      "keep_because": "While earning is closed (no start time, no rule approved) the auction's reader saves a bid's activity and position as before and queues or writes nothing for Points.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
     }
   ],
   "legacy_folders_to_remove": [

@@ -10,6 +10,9 @@ defmodule Autolaunch.Points.Award do
     * A launch's token saved once it graduated (`autolaunch.first_graduation`,
       once per account), from `:token_graduated`, keyed by the token row
       (`Autolaunch.Points.Graduation`).
+    * A Base bid saved as its bidder's position (`autolaunch.auction_bid`, once
+      a day), from `:bid_recorded`, keyed by the position row
+      (`Autolaunch.Points.Bid`).
   """
 
   use Ash.Resource,
@@ -35,6 +38,14 @@ defmodule Autolaunch.Points.Award do
         record("autolaunch.first_graduation", "token", id)
       end
     end
+
+    action :bid_recorded do
+      argument :signal, Autolaunch.Signals.BidRecorded, allow_nil?: false
+
+      run fn %{arguments: %{signal: %{position_id: id}}}, _context ->
+        record("autolaunch.auction_bid", "bid", id)
+      end
+    end
   end
 
   policies do
@@ -47,12 +58,17 @@ defmodule Autolaunch.Points.Award do
     policy action(:token_graduated) do
       authorize_if signal_in(Autolaunch.Signals, :token_graduated)
     end
+
+    policy action(:bid_recorded) do
+      authorize_if signal_in(Autolaunch.Signals, :bid_recorded)
+    end
   end
 
   signals_in do
     from Autolaunch.Signals do
       on :launch_recorded, :launch_recorded
       on :token_graduated, :token_graduated
+      on :bid_recorded, :bid_recorded
     end
   end
 
