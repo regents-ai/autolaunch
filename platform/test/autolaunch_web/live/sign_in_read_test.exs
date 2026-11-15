@@ -139,12 +139,12 @@ defmodule AutolaunchWeb.SignInReadTest do
                select: count()
            ) == 0
 
-    # Nor does it save either kind of draft.
+    # Nor does it save either kind of draft. A field saves when the person
+    # leaves it.
     revstake
-    |> element("#launch-token-details")
-    |> render_change(%{"launch_draft" => %{"name" => "Kept back"}})
+    |> element("#launch-token-details-name")
+    |> render_blur(%{"value" => "Kept back"})
 
-    # A Memestock field saves when the person leaves it.
     stocks
     |> element("#stocks-token-details-name")
     |> render_blur(%{"value" => "Kept back"})

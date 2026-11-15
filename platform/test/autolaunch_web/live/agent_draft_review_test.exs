@@ -56,8 +56,8 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     assert review =~ "A smart contract account"
 
     view
-    |> form("#launch-token-details", launch_draft: %{name: "Person Chosen"})
-    |> render_change()
+    |> element("#launch-token-details-name")
+    |> render_blur(%{"value" => "Person Chosen"})
 
     review = view |> element("#agent-set-fields") |> render()
     refute review =~ "Agent Chosen"

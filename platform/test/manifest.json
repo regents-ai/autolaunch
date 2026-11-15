@@ -1,5 +1,5 @@
 {
-  "total": 231,
+  "total": 233,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1184,7 +1184,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "c2bc910db4a68f0f36ba13ca19698e133a28b814cc816108bcd21cc7f69336d0"
     },
     {
       "id": 132,
@@ -1197,7 +1197,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "c2bc910db4a68f0f36ba13ca19698e133a28b814cc816108bcd21cc7f69336d0"
     },
     {
       "id": 133,
@@ -1288,7 +1288,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "c2bc910db4a68f0f36ba13ca19698e133a28b814cc816108bcd21cc7f69336d0"
     },
     {
       "id": 142,
@@ -1470,7 +1470,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 158,
@@ -1483,7 +1483,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 159,
@@ -1496,7 +1496,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 160,
@@ -1509,7 +1509,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 161,
@@ -1522,20 +1522,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 162,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/sign_in_read_test.exs",
-      "line": 162,
+      "line": 163,
       "test_name": "a sign-in that has ended is still signed out",
       "keep_because": "A sign-in past its 30 days still shows Sign in and /auth/session says signed out, never Try again. It passes with or without the read fix and fails against a fix that takes an ended sign-in for a failed read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5ce9be767d6d9bc996e942db9bb9db8bd2b23dacd5bfb44120cf26a6b49ac966"
+      "source_sha256": "84b0d4786f89bcb68feb398677a56b5f1f4fc5c104974b42a4c366634e7885d2"
     },
     {
       "id": 163,
@@ -1730,7 +1730,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "cb4b49cc7b5161ffbae8a69540470418b30e86d52eb2f9f791463cbb672c0fde"
+      "source_sha256": "c2bc910db4a68f0f36ba13ca19698e133a28b814cc816108bcd21cc7f69336d0"
     },
     {
       "id": 178,
@@ -3005,6 +3005,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "d8a4abb7e70cbe43db418212cbddaa26d7fcdfcde31f96d91461201142a75595"
+    },
+    {
+      "id": 278,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/create_review_test.exs",
+      "line": 166,
+      "test_name": "Revstake's needed line and Review launch follow the field typed last, in the same change",
+      "keep_because": "On Create Revstake the Still needed line and Review launch follow the description and the treasury address as they are typed, before either is saved, and each field saves when the person leaves it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "910a95e838aaef416985b1a3f79cab4f1a5e072f6c317a4818819e1ef0e4ff1f"
+    },
+    {
+      "id": 279,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/create_review_test.exs",
+      "line": 224,
+      "test_name": "a Revstake field whose save was refused keeps its text and mark while another field saves",
+      "keep_because": "A field whose save was refused keeps what the person typed and its mark when another field is then saved, so nothing typed is silently replaced by the saved value.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "910a95e838aaef416985b1a3f79cab4f1a5e072f6c317a4818819e1ef0e4ff1f"
     }
   ],
   "legacy_folders_to_remove": [

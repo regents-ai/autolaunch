@@ -1,5 +1,8 @@
 # Changelog
 
+## 15 November 2026: Create
+- On Create Revstake, the Still needed line and Review launch follow what you type straight away, the treasury address included. Each field still saves when you leave it, and one that could not be saved keeps what you typed while you fill in the others.
+
 ## 14 November 2026: Points
 - The Points page lists every action across Regents, under the site where you do it: Account, Autolaunch, Keyfleet, Patchbay and Cloak. An action you have done on another site is ticked here too, and a daily action shows how many times you have done it today. Only the actions you can earn on Autolaunch count as left to do here.
 - Autolaunch's own actions include a first launch, a first graduation and a first covered call.

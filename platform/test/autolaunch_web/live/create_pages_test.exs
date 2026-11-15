@@ -43,19 +43,24 @@ defmodule AutolaunchWeb.CreatePagesTest do
     assert has_element?(view, ".create-page__need", "Still needed")
     refute has_element?(view, ".autolaunch-custody-eoa")
 
-    view
-    |> element("#launch-treasury-details")
-    |> render_change(%{"launch_draft" => %{"treasury_path" => "eoa"}})
+    pick_treasury_type(view, "eoa")
 
     assert has_element?(view, ".autolaunch-custody-eoa label", "Warning")
     assert has_element?(view, "#revstake-summary", "Single key")
 
-    view
-    |> element("#launch-treasury-details")
-    |> render_change(%{"launch_draft" => %{"treasury_path" => "safe"}})
+    pick_treasury_type(view, "safe")
 
     refute has_element?(view, ".autolaunch-custody-eoa")
     assert has_element?(view, "#revstake-summary", "Safe")
+  end
+
+  # A treasury type saves as it is picked.
+  defp pick_treasury_type(view, type) do
+    view
+    |> element(
+      ~s(#launch-treasury-details input[name="launch_draft[treasury_path]"][value="#{type}"])
+    )
+    |> render_change(%{"launch_draft" => %{"treasury_path" => type}})
   end
 
   test "the Memestock page keeps the same card and still-needed line", %{conn: conn} do

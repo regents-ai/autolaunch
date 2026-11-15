@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch.{Lab, LaunchActions}
+  alias Autolaunch.{Lab, LaunchActions, LaunchDraft}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps}
   alias AutolaunchWeb.Live.Session
 
@@ -107,7 +107,9 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           aria-label="Treasury verification"
         >
           <h4>Verify immutable treasury</h4>
-          <p>
+          <%!-- The page offers the review as the treasury is typed; the
+               address shows once it is saved, as the person leaves its box. --%>
+          <p :if={LaunchDraft.treasury_address?(@draft.treasury)}>
             <Regent.Primitives.address
               id={"#{@id}-treasury-address"}
               address={@draft.treasury}

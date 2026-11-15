@@ -3,7 +3,8 @@ defmodule AutolaunchWeb.CreateReviewTest do
   The launch review on the create pages takes the form's place: Review launch
   opens it with the wallet button at its foot, the same button beside it then
   reads Continue Editing and brings the form back as it was. What a draft
-  still needs follows the form as it is typed, not the last save.
+  still needs follows the form as it is typed, not the last save, and each
+  field saves when the person leaves it.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -160,6 +161,101 @@ defmodule AutolaunchWeb.CreateReviewTest do
     {:ok, saved} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert saved.description == "Pair"
     refute has_element?(view, ".create-page__need")
+  end
+
+  test "Revstake's needed line and Review launch follow the field typed last, in the same change",
+       %{conn: conn} do
+    {view, setup} =
+      revstake(conn, %{"description" => nil, "treasury" => nil, "treasury_path" => "contract"})
+
+    treasury = LaunchFixture.treasury()
+    needed = view |> element(".create-page__need") |> render()
+    assert needed =~ "description"
+    assert needed =~ "treasury"
+
+    # The description is typed and not yet saved: the page follows it at once.
+    view
+    |> form("#launch-token-details", launch_draft: %{description: "Open work"})
+    |> render_change()
+
+    needed = view |> element(".create-page__need") |> render()
+    refute needed =~ "description"
+    assert needed =~ "treasury"
+
+    # The treasury typed last: nothing is needed and Review launch opens, before
+    # either field is saved.
+    view
+    |> form("#launch-treasury-details", launch_draft: %{treasury: treasury})
+    |> render_change()
+
+    {:ok, saved} = Autolaunch.get_my_account_launch_draft(actor: setup[:actor])
+    assert saved.description in [nil, ""]
+    assert saved.treasury in [nil, ""]
+
+    refute has_element?(view, ".create-page__need")
+    waive_connections(view)
+
+    assert view
+           |> element("#autolaunch-launch-wallet-#{setup[:draft].id}-side")
+           |> render() =~ ~s(phx-click="review_launch")
+
+    # Cleared again, the treasury is needed again, in that same change.
+    view
+    |> form("#launch-treasury-details", launch_draft: %{treasury: ""})
+    |> render_change()
+
+    assert view |> element(".create-page__need") |> render() =~ "treasury"
+
+    # Leaving each field saves what it holds.
+    view
+    |> element("#launch-token-details-description")
+    |> render_blur(%{value: "Open work"})
+
+    view
+    |> element("#launch-treasury-details-treasury")
+    |> render_blur(%{value: treasury})
+
+    {:ok, saved} = Autolaunch.get_my_account_launch_draft(actor: setup[:actor])
+    assert saved.description == "Open work"
+    assert saved.treasury == treasury
+    refute has_element?(view, ".create-page__need")
+  end
+
+  test "a Revstake field whose save was refused keeps its text and mark while another field saves",
+       %{conn: conn} do
+    {view, setup} = revstake(conn, %{})
+
+    view
+    |> element("#launch-token-details-symbol")
+    |> render_blur(%{value: "AB$"})
+
+    assert has_element?(view, "#launch-token-details-symbol-error")
+
+    view
+    |> element("#launch-token-details-description")
+    |> render_blur(%{value: "Still open"})
+
+    {:ok, saved} = Autolaunch.get_my_account_launch_draft(actor: setup[:actor])
+    assert saved.description == "Still open"
+    assert saved.symbol == "OPEN"
+    assert has_element?(view, ~s(#launch-token-details-symbol[value="AB$"]))
+    assert has_element?(view, "#launch-token-details-symbol-error")
+  end
+
+  # The Revstake page, signed in, for a saved draft with `draft` fields replaced.
+  defp revstake(conn, draft) do
+    LaunchFixture.install()
+    setup = LaunchFixture.actor(draft: draft)
+    session = signed_in_session(setup[:account].id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/agent-business")
+
+    render_async(view)
+    {view, setup}
   end
 
   defp waive_connections(view) do

@@ -325,7 +325,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
 
   def render(assigns) do
-    draft = assigns.draft && typed(assigns.draft, assigns.draft_values)
+    draft =
+      assigns.draft && DraftMarks.typed(assigns.draft, assigns.draft_values, @token_detail_params)
+
     stock = stock_for(assigns.stocks, assigns.draft_values["stock_address"])
 
     assigns =
@@ -1067,14 +1069,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
-
-  # The saved draft with its details as the form holds them now, the ticker in
-  # capitals as a save writes it, so whether it is ready and what it still
-  # needs follow the typing rather than the last save.
-  defp typed(draft, values) do
-    typed = Map.new(@token_detail_params, &{String.to_existing_atom(&1), values[&1]})
-    Map.merge(draft, %{typed | symbol: String.upcase(typed.symbol)})
-  end
 
   # A field's text as the account's draft, or signed out the unsaved one, holds it.
   defp saved_value(socket, field),

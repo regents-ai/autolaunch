@@ -3,7 +3,8 @@ defmodule AutolaunchWeb.DraftMarks do
   What both create pages mark beside a field whose text is saved as typed but
   that a launch cannot use yet: a website or link that is not a link of its
   kind, or a ticker outside the ticker rule. A field the save itself refused keeps that
-  message instead. And what a draft still needs before its launch review.
+  message instead. And what a draft still needs before its launch review, which
+  follows the form as it is typed (`typed/3`).
   """
 
   alias Autolaunch.{LaunchLinks, Ticker}
@@ -28,6 +29,17 @@ defmodule AutolaunchWeb.DraftMarks do
         else: Map.put(marks, "website", LaunchLinks.web_link_hint())
     end)
     |> Map.merge(errors)
+  end
+
+  @doc """
+  The saved draft with the `params` fields as the form holds them now, the
+  ticker in capitals as a save writes it, so whether it is ready and what it
+  still needs follow the typing rather than the last save.
+  """
+  @spec typed(struct(), map(), [String.t()]) :: struct()
+  def typed(draft, values, params) do
+    typed = Map.new(params, &{String.to_existing_atom(&1), values[&1]})
+    Map.merge(draft, %{typed | symbol: String.upcase(typed.symbol)})
   end
 
   @missing_labels %{

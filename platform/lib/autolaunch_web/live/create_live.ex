@@ -140,6 +140,16 @@ defmodule AutolaunchWeb.CreateLive do
     "autosave_launch_treasury" => ~w(treasury treasury_path eoa_acknowledgement)
   }
 
+  # Each field a person types into, with the save of its section that saves it
+  # when they leave it. The treasury type is picked, and saved as it is picked.
+  @typed_fields for {event, params} <- @sections,
+                    param <- params,
+                    param != "treasury_path",
+                    into: %{},
+                    do: {param, event}
+
+  @typed_params Map.keys(@typed_fields)
+
   @stored_params Enum.map(@token_detail_fields, & &1.param) ++
                    ["image", "treasury", "treasury_path", "eoa_acknowledgement"]
 
@@ -217,6 +227,25 @@ defmodule AutolaunchWeb.CreateLive do
     {:noreply, autosaved(socket, event, values)}
   end
 
+  # What is typed reaches the page as it is typed, so the card, the field
+  # marks, the Still needed line and Review launch follow it at once, and a
+  # Safe typed whole is read on Base as a saved one is. Each field is saved
+  # when the person leaves it (`autosave_launch_field`).
+  def handle_event("type_launch_token_details", params, socket),
+    do: {:noreply, typed_values(socket, params)}
+
+  def handle_event("type_launch_treasury", params, socket),
+    do: {:noreply, socket |> typed_values(params) |> check_treasury()}
+
+  # A field the person left, saved as its section's save saves it. One left
+  # as it is saved, with no refusal to clear, is not saved again.
+  def handle_event("autosave_launch_field", %{"field" => field, "value" => value}, socket)
+      when is_map_key(@typed_fields, field) and is_binary(value) do
+    if value == saved_value(socket, field) and not is_map_key(socket.assigns.draft_errors, field),
+      do: {:noreply, socket},
+      else: {:noreply, autosaved(socket, Map.fetch!(@typed_fields, field), %{field => value})}
+  end
+
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
   # would; signed out, it refills the unsaved form after a reload. A draft
@@ -278,16 +307,17 @@ defmodule AutolaunchWeb.CreateLive do
 
   def render(assigns) do
     draft = List.first(assigns.launch_drafts)
-    treasury_done? = draft && treasury_ready?(draft, assigns.treasury_check)
+    typed = draft && DraftMarks.typed(draft, assigns.draft_values, @typed_params)
+    treasury_done? = typed && treasury_ready?(typed, assigns.treasury_check)
 
     assigns =
       assign(assigns,
         launch_image_upload: assigns[:uploads][:launch_image],
         active_draft: draft,
-        launch_ready?: draft && LaunchDraft.token_details_complete?(draft) && treasury_done?,
+        launch_ready?: typed && LaunchDraft.token_details_complete?(typed) && treasury_done?,
         confirm_treasury?: draft && LaunchDraft.treasury_confirmation_needed?(draft),
         missing:
-          LaunchDraft.missing_token_details(draft || %{}) ++
+          LaunchDraft.missing_token_details(typed || %{}) ++
             if(treasury_done?, do: [], else: [:treasury]),
         custody: custody(assigns.draft_values["treasury_path"]),
         terms: @terms,
@@ -328,7 +358,7 @@ defmodule AutolaunchWeb.CreateLive do
             <form
               id="launch-token-details"
               class="create-page__fields"
-              phx-change="autosave_launch_token_details"
+              phx-change="type_launch_token_details"
               phx-submit="autosave_launch_token_details"
             >
               <div class="create-page__identity">
@@ -414,7 +444,7 @@ defmodule AutolaunchWeb.CreateLive do
               <form
                 id="launch-treasury-details"
                 class="create-page__fields"
-                phx-change="autosave_launch_treasury"
+                phx-change="type_launch_treasury"
                 phx-submit="autosave_launch_treasury"
               >
                 <.custody_menu form_id="launch-treasury-details" path={@custody} />
@@ -622,17 +652,37 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp waiver_after(socket, :closed), do: socket
 
-  # One section of the form saved as typing it would save it.
+  defp typed_values(socket, params) do
+    values = Map.take(params["launch_draft"] || %{}, @typed_params)
+    assign(socket, draft_values: Map.merge(socket.assigns.draft_values, values))
+  end
+
+  # A field's text as the account's draft, or signed out the unsaved one, holds it.
+  defp saved_value(socket, field) do
+    draft = List.first(socket.assigns.launch_drafts) || socket.assigns.sketch
+    Map.get(draft, String.to_existing_atom(field)) || ""
+  end
+
+  # One section of the form, or one of its fields, saved as typing it would
+  # save it. What the person typed into another field that could not be saved
+  # stays in its box with its mark.
   defp autosaved(socket, event, values) do
+    refused = Map.drop(socket.assigns.draft_errors, Map.keys(values))
+    unsaved = Map.take(socket.assigns.draft_values, Map.keys(refused))
+
     socket =
       case save_section(socket, event, values) do
-        {:ok, socket} ->
-          assign(socket, draft_errors: %{}, draft_notice: saved_notice(socket))
+        {:ok, saved} ->
+          assign(saved,
+            draft_values: Map.merge(saved.assigns.draft_values, unsaved),
+            draft_errors: refused,
+            draft_notice: saved_notice(saved)
+          )
 
         {:error, errors} ->
           assign(socket,
             draft_values: Map.merge(socket.assigns.draft_values, values),
-            draft_errors: errors,
+            draft_errors: Map.merge(refused, errors),
             draft_notice: unsaved_notice(socket, errors)
           )
       end
@@ -1081,6 +1131,7 @@ defmodule AutolaunchWeb.CreateLive do
         <span class="create-menu__icon"><Regent.Icons.icon name={@path.icon} /></span>
         <span class="create-menu__value">{@path.name}<small>{@path.sub}</small></span>
       </:current>
+      <%!-- Picking a type saves it at once; the form's text saves as it is left. --%>
       <label :for={option <- @options} class="create-menu__option">
         <input
           type="radio"
@@ -1088,6 +1139,7 @@ defmodule AutolaunchWeb.CreateLive do
           value={option.value}
           checked={option.value == @path.value}
           class="visually-hidden"
+          phx-change="autosave_launch_treasury"
         />
         <span class="create-menu__icon"><Regent.Icons.icon name={option.icon} /></span>
         <span class="create-menu__name">{option.name}</span>
@@ -1137,6 +1189,9 @@ defmodule AutolaunchWeb.CreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
+        phx-debounce="150"
+        phx-blur="autosave_launch_field"
+        phx-value-field="eoa_acknowledgement"
       >{@acknowledgement}</textarea>
       <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
         <Regent.Icons.icon name="check" /> Warning typed exactly. Risk acknowledged.
@@ -1271,7 +1326,9 @@ defmodule AutolaunchWeb.CreateLive do
         rows="3"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="blur"
+        phx-debounce="150"
+        phx-blur="autosave_launch_field"
+        phx-value-field={@field.param}
       >{@value}</textarea>
       <input
         :if={@field.kind == :text}
@@ -1283,7 +1340,9 @@ defmodule AutolaunchWeb.CreateLive do
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
-        phx-debounce="blur"
+        phx-debounce="150"
+        phx-blur="autosave_launch_field"
+        phx-value-field={@field.param}
       />
       {render_slot(@inner_block)}
       <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
