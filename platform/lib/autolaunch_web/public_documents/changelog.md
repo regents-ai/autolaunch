@@ -1,5 +1,8 @@
 # Changelog
 
+## 15 November 2026: Agent guides
+- The agent guides and agents.md now name Regents CLI 1.10.29, the newest release, with its source commit and the fingerprint of its published package. No Autolaunch command was added or removed; `account points` lists the actions by site, as the Points page does.
+
 ## 15 November 2026: Create
 - On Create Revstake, the Still needed line and Review launch follow what you type straight away, the treasury address included. Each field still saves when you leave it, and one that could not be saved keeps what you typed while you fill in the others.
 
