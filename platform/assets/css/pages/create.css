@@ -9,7 +9,7 @@
 .create-page__form :is(input[type="text"], textarea) {
   --text-box-cut: 10px;
   clip-path: polygon(0 0, calc(100% - var(--text-box-cut)) 0, 100% var(--text-box-cut), 100% 100%, 0 100%);
-  background: linear-gradient(45deg, transparent calc(50% - 1px), var(--rg-p-control-border, var(--hairline-strong)) calc(50% - 1px) 50%, transparent 50%) right top / var(--text-box-cut) var(--text-box-cut) no-repeat border-box, var(--rg-p-surface, var(--color-surface));
+  background: linear-gradient(45deg in oklch, transparent calc(50% - 1px), var(--rg-p-control-border, var(--hairline-strong)) calc(50% - 1px) 50%, transparent 50%) right top / var(--text-box-cut) var(--text-box-cut) no-repeat border-box, var(--rg-p-surface, var(--color-surface));
 }
 .create-page__form :is(input[type="text"], textarea):focus-visible { outline: 2px solid var(--rg-p-text, var(--color-fg)); outline-offset: -2px; }
 /* Forced colours: the box drops its cut, so its system-colour border and focus ring show whole. */

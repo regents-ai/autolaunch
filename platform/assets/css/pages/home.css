@@ -94,7 +94,7 @@
 #home-explore .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; color: var(--color-fg-muted); }
 /* Every gallery card is framed; a card whose image has a known colour wears it as a border that fades into the card. */
 #home-explore .home-coin { container-type: inline-size; padding: 6px 6px 12px; }
-#home-explore .home-coin--tinted { border-color: transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
+#home-explore .home-coin--tinted { border-color: transparent; background: linear-gradient(in oklch, var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom in oklch, var(--image-color) 35%, var(--color-surface)) border-box; }
 /* A card reads: its ticker over its currency with its chain, the name, the price and one more figure, links, then an auction's figures row, the buttons and an auction's time bar.
    Every part keeps a set height, so all cards in the grid are the same height whatever their text and the buttons line up. A narrow card gives the ticker and price more lines. */
 #home-explore .home-coin__pair { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; height: 1.6em; margin: 12px 0 2px; font-size: .9375rem; line-height: 1.6; font-weight: 650; letter-spacing: -.015em; }
@@ -224,8 +224,8 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 .market-ticker__entry--bid { background: color-mix(in srgb, var(--product-autolaunch) 12%, transparent); }
 .market-ticker__entry--bid strong { color: var(--product-autolaunch); }
 /* Buys run bright orange into white, sells blue into black, in either theme. */
-.market-ticker__entry--buy { border: 1px solid #FF8A00; background: linear-gradient(90deg, #FF8A00, #FFFFFF); color: #1A1208; }
-.market-ticker__entry--sell { border: 1px solid #1F5BFF; background: linear-gradient(90deg, #1F5BFF, #000000); color: #FFFFFF; }
+.market-ticker__entry--buy { border: 1px solid #FF8A00; background: linear-gradient(90deg in oklch, #FF8A00, #FFFFFF); color: #1A1208; }
+.market-ticker__entry--sell { border: 1px solid #1F5BFF; background: linear-gradient(90deg in oklch, #1F5BFF, #000000); color: #FFFFFF; }
 .market-ticker__entry img { border-radius: 50%; object-fit: cover; }
 .market-ticker:hover .market-ticker__track, .market-ticker:focus-within .market-ticker__track, .market-ticker--paused .market-ticker__track { animation-play-state: paused; }
 @keyframes market-ticker-slide { to { transform: translateX(-50%); } }

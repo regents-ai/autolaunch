@@ -11,7 +11,7 @@
 @keyframes memestock-edge { 0%, 35% { background: var(--memestock-flash); } }
 @media (prefers-reduced-motion: no-preference) {
   .create-page__form:is(.memestock__form--to-base, .memestock__form--to-robinhood)::after {
-    background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--memestock-flash) 24%, transparent) 50%, transparent 65%) no-repeat 0 0 / 250% 100%, var(--rg-panel-fill);
+    background: linear-gradient(100deg in oklch, transparent 35%, color-mix(in srgb, var(--memestock-flash) 24%, transparent) 50%, transparent 65%) no-repeat 0 0 / 250% 100%, var(--rg-panel-fill);
     animation: memestock-wash 700ms var(--ease-out);
   }
 }

@@ -57,7 +57,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .38) 50%, transparent 65%);
+  background: linear-gradient(105deg in oklch, transparent 35%, rgb(255 255 255 / .38) 50%, transparent 65%);
   transform: translateX(-110%);
   pointer-events: none;
 }

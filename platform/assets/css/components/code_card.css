@@ -34,7 +34,7 @@
   padding: var(--space-4) var(--space-4) var(--space-3);
   border-bottom: 1px solid color-mix(in srgb, var(--code-card-accent) 30%, transparent);
   background: linear-gradient(
-    180deg,
+    180deg in oklch,
     color-mix(in srgb, var(--code-card-accent) 14%, transparent),
     transparent
   );
