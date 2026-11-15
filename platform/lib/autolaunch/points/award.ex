@@ -19,6 +19,10 @@ defmodule Autolaunch.Points.Award do
     * A stake saved in a launch's splitter (`autolaunch.token_staked`, once
       per account), from `:stake_recorded`, keyed by the stake row
       (`Autolaunch.Points.Stake`).
+    * A covered call that changed hands (`autolaunch.first_covered_call`, once
+      per account, for its seller and for its buyer), from
+      `:covered_call_recorded`, keyed by the sale row, once as the seller's
+      and once as the buyer's (`Autolaunch.Points.CoveredCall`).
   """
 
   use Ash.Resource,
@@ -68,6 +72,17 @@ defmodule Autolaunch.Points.Award do
         record("autolaunch.token_staked", "stake", id)
       end
     end
+
+    # Each side of the sale under its own source, so the seller and the buyer
+    # can each earn it, and an account on both sides earns it once.
+    action :covered_call_recorded do
+      argument :signal, Autolaunch.Signals.CoveredCallRecorded, allow_nil?: false
+
+      run fn %{arguments: %{signal: %{sale_id: id}}}, _context ->
+        with :ok <- record("autolaunch.first_covered_call", "covered_call_seller", id),
+             do: record("autolaunch.first_covered_call", "covered_call_buyer", id)
+      end
+    end
   end
 
   policies do
@@ -92,6 +107,10 @@ defmodule Autolaunch.Points.Award do
     policy action(:stake_recorded) do
       authorize_if signal_in(Autolaunch.Signals, :stake_recorded)
     end
+
+    policy action(:covered_call_recorded) do
+      authorize_if signal_in(Autolaunch.Signals, :covered_call_recorded)
+    end
   end
 
   signals_in do
@@ -101,6 +120,7 @@ defmodule Autolaunch.Points.Award do
       on :bid_recorded, :bid_recorded
       on :trade_recorded, :trade_recorded
       on :stake_recorded, :stake_recorded
+      on :covered_call_recorded, :covered_call_recorded
     end
   end
 

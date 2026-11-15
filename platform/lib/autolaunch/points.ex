@@ -3,7 +3,8 @@ defmodule Autolaunch.Points do
   This site's part in Regent Points: what it offers Points, as it happens
   (`Autolaunch.Points.Award`), and the checks Points runs on what it offered
   (`Autolaunch.Points.Launch`, `Autolaunch.Points.Graduation`,
-  `Autolaunch.Points.Bid`, `Autolaunch.Points.Trade`, `Autolaunch.Points.Stake`).
+  `Autolaunch.Points.Bid`, `Autolaunch.Points.Trade`, `Autolaunch.Points.Stake`,
+  `Autolaunch.Points.CoveredCall`).
   """
 
   use Ash.Domain

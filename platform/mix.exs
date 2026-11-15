@@ -228,13 +228,13 @@ defmodule Autolaunch.MixProject do
         # share video request's room action, covered calls' and Exposure's
         # steps), the router naming the errors admin page, and the router naming
         # the hosted MCP server's input check (AshAi takes it only as a
-        # function). Nothing else is permitted. The ceiling is thirty-five
-        # domain-to-resource edges (Accounts six, Autolaunch twenty-five, Agents,
-        # CoveredCalls, Exposure and Points one each), forty-three resource-to-check
-        # edges, the one endpoint edge, those three actions and those two router
-        # edges, and it is re-based per unit when a domain, resource or check
-        # module lands.
-        "xref graph --label compile-connected --fail-above 84",
+        # function). Nothing else is permitted. The ceiling is thirty-seven
+        # domain-to-resource edges (Accounts six, Autolaunch twenty-five,
+        # CoveredCalls three, Agents, Exposure and Points one each), forty-five
+        # resource-to-check edges, the one endpoint edge, those three actions and
+        # those two router edges, and it is re-based per unit when a domain,
+        # resource or check module lands.
+        "xref graph --label compile-connected --fail-above 88",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

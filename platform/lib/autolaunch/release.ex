@@ -69,6 +69,48 @@ defmodule Autolaunch.Release do
         do: "#{schema} #{version}"
   end
 
+  @doc """
+  Lets the covered-calls reader read `contract` again after it stopped because
+  the chain disagreed with the saved sales, once the record has been put right
+  by hand. `bin/clear-covered-call-sales-stop <contract>` runs it; the running
+  site reads the contract again from the block where it stopped at its next
+  turn, within five minutes.
+  """
+  def clear_covered_call_sales_stop(contract) do
+    load_app()
+    Application.put_env(@app, Autolaunch.Repo, migration_config!())
+
+    {:ok, :ok, _started} =
+      Ecto.Migrator.with_repo(Autolaunch.Repo, fn _repo ->
+        clear_covered_call_sales_stop!(contract)
+      end)
+
+    :ok
+  end
+
+  @doc "Clears the stop through an already running repository, as `clear_covered_call_sales_stop/1` does."
+  def clear_covered_call_sales_stop!(contract) do
+    actor = %Autolaunch.Actors.System{}
+
+    case Autolaunch.CoveredCalls.stopped_covered_call_cursors!(String.downcase(contract),
+           actor: actor
+         ) do
+      [] ->
+        IO.puts("#{contract} is not stopped; nothing changed.")
+
+      stopped ->
+        for cursor <- stopped do
+          cleared = Autolaunch.CoveredCalls.clear_covered_call_cursor!(cursor, actor: actor)
+
+          IO.puts(
+            "#{cleared.contract} on chain #{cleared.chain_id} will be read again from block #{cleared.next_block}."
+          )
+        end
+
+        :ok
+    end
+  end
+
   @doc "Creates the product schema when the database does not have it yet."
   def ensure_schema!(repo) do
     repo.query!(~s(CREATE SCHEMA IF NOT EXISTS "#{repo.default_prefix()}"), [])

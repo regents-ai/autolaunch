@@ -1,9 +1,9 @@
 defmodule Autolaunch.Signals do
   @moduledoc """
-  What launches, bids, trades and stakes tell the rest of the site, as Ash signals. Each is
-  emitted in the transaction of the write that saved it, so a listener with the
-  default delivery commits or rolls back with it. Points offers each to Regent
-  Points (`Autolaunch.Points.Award`).
+  What launches, bids, trades, stakes and covered calls tell the rest of the
+  site, as Ash signals. Each is emitted in the transaction of the write that
+  saved it, so a listener with the default delivery commits or rolls back with
+  it. Points offers each to Regent Points (`Autolaunch.Points.Award`).
 
     * `:launch_recorded`: a launch's auction row was saved for the first time
       (`Autolaunch.Auction` `:record_launch`), by whichever of its writers came
@@ -23,6 +23,9 @@ defmodule Autolaunch.Signals do
     * `:stake_recorded`: a stake of a listed token in its launch's splitter was
       saved for the first time (`Autolaunch.TokenStake` `:record`). Reading
       the same log again changes nothing and emits nothing.
+    * `:covered_call_recorded`: a covered call that changed hands was saved for
+      the first time (`Autolaunch.CoveredCalls.Sale` `:record`). Reading the
+      same log again changes nothing and emits nothing.
   """
 
   use Ash.Signals
@@ -48,6 +51,10 @@ defmodule Autolaunch.Signals do
 
     signal :stake_recorded do
       argument :stake_id, :uuid, allow_nil?: false
+    end
+
+    signal :covered_call_recorded do
+      argument :sale_id, :uuid, allow_nil?: false
     end
   end
 end

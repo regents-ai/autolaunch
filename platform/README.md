@@ -111,7 +111,7 @@ assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
 test/                   The kept Elixir cases; assets/test/ the kept TypeScript cases (see test/README.md)
 scripts/                The release build-context assembler
-rel/                    Release overlays: the migrate and pending-migrations commands
+rel/                    Release overlays: the migrate, pending-migrations and clear-covered-call-sales-stop commands
 ```
 
 ## Checks

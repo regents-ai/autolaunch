@@ -112,7 +112,8 @@ config :regent_points,
     "autolaunch.first_graduation" => Autolaunch.Points.Graduation,
     "autolaunch.auction_bid" => Autolaunch.Points.Bid,
     "autolaunch.token_traded" => Autolaunch.Points.Trade,
-    "autolaunch.token_staked" => Autolaunch.Points.Stake
+    "autolaunch.token_staked" => Autolaunch.Points.Stake,
+    "autolaunch.first_covered_call" => Autolaunch.Points.CoveredCall
   }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]

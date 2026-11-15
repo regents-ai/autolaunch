@@ -3,10 +3,11 @@ defmodule Autolaunch.ChainWatch do
   Every minute (`config :autolaunch, Oban, cron:`), makes sure each chain
   reading has its job: every auction's market (`Autolaunch.AuctionMarket`), new
   Robinhood launches (`Autolaunch.Robinhood.Discovery`), every listed auction's
-  bids (`Autolaunch.AuctionActivity`) and every listed token's trades
-  (`Autolaunch.TokenTrades`). A reading job is unique while it is
-  incomplete, so inserting it again leaves a waiting or running one alone; a
-  new auction or token is read within a minute of being listed.
+  bids (`Autolaunch.AuctionActivity`), every listed token's trades
+  (`Autolaunch.TokenTrades`) and, while covered calls are on, each covered-call
+  market's sales (`Autolaunch.CoveredCalls.Sales`). A reading job is unique
+  while it is incomplete, so inserting it again leaves a waiting or running one
+  alone; a new auction or token is read within a minute of being listed.
 
   Each reader brings its jobs forward when a person's on-chain press lands
   (`Autolaunch.ChainRefresh`) through `soon/1`.
@@ -14,11 +15,13 @@ defmodule Autolaunch.ChainWatch do
   use Oban.Worker, queue: :default, max_attempts: 1
 
   alias Autolaunch.{AuctionActivity, AuctionMarket, ChainRefresh, TokenTrades}
+  alias Autolaunch.CoveredCalls.Sales
   alias Autolaunch.Robinhood.Discovery
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    (AuctionMarket.jobs() ++ Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs())
+    (AuctionMarket.jobs() ++
+       Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs() ++ Sales.jobs())
     |> Enum.each(&Oban.insert!/1)
   end
 
