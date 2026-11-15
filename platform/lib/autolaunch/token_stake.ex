@@ -7,7 +7,11 @@ defmodule Autolaunch.TokenStake do
 
   A row is written once and never changed or removed: reading the same log
   again, or rebuilding the token's trades after the chain changed, keeps the
-  row as first saved. Unstaking is not recorded.
+  row as first saved, and a stake the chain later took back stays saved.
+  Unstaking is not recorded, and a `Staked` log of nothing is not saved.
+
+  A stake offers Regent Points its award only when it is first saved, so one
+  saved while its rule is not approved is never offered later.
   """
   use Ash.Resource,
     otp_app: :autolaunch,
@@ -82,7 +86,7 @@ defmodule Autolaunch.TokenStake do
     attribute :splitter, :string, allow_nil?: false, constraints: [match: @address]
     attribute :staker, :string, allow_nil?: false, constraints: [match: @address]
     # Raw token units, exactly as the log carried them.
-    attribute :amount, :decimal, allow_nil?: false, constraints: [min: 0]
+    attribute :amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
     attribute :transaction_hash, :string, allow_nil?: false, constraints: [match: @hash]
     attribute :log_index, :integer, allow_nil?: false, constraints: [min: 0]
     attribute :block_number, :integer, allow_nil?: false, constraints: [min: 0]

@@ -1,5 +1,5 @@
 {
-  "total": 245,
+  "total": 249,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -3037,156 +3037,208 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 118,
+      "line": 141,
       "test_name": "a trade from a linked wallet earns the day's trade award once, a second that day counting at nothing",
       "keep_because": "A trade the token's reader saves, with the wallet that sent its transaction as its trader, offers Autolaunch token trade in the same transaction, and the account whose verified wallets held that wallet at the trade's block time earns it once each UTC day; a second trade that day counts at nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 281,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 139,
+      "line": 162,
       "test_name": "reading the same block again keeps each trade and its trader and offers nothing",
       "keep_because": "A pass that reads its last block again keeps each saved trade's row and trader, never taking a different sender, and offers Points nothing more.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 282,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 159,
+      "line": 182,
       "test_name": "a rebuild after the chain changed saves each trade again, and Points records it once",
       "keep_because": "A rebuild after the chain changed under the reader's cursor saves each trade again and offers it again under the same pool-log key and facts, and Points keeps one event and one award for it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 283,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 186,
+      "line": 209,
       "test_name": "a trade from a wallet no account holds is saved and earns nothing",
       "keep_because": "A trade from a wallet no account held at its block time is still saved with its trader and earns nothing, refused as not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 284,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 197,
+      "line": 220,
       "test_name": "while earning is closed, the reader still saves a trade with its trader and Points gets nothing",
       "keep_because": "While earning is closed the token's reader still saves each trade with its trader, and nothing is queued or written for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 285,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 210,
-      "test_name": "a transaction the node does not name leaves the pass to be read again, with nothing saved",
-      "keep_because": "A pass whose trade transactions the node does not answer saves no trade and keeps its cursor, so no trade is ever saved without asking who sent it, and the pass is read again a minute later.",
+      "line": 262,
+      "test_name": "a trader lookup the node refuses, does not know or never answers leaves the pass quietly to be read again, with nothing saved",
+      "keep_because": "A trader lookup the node refuses, answers with no transaction, or never answers ends the pass as a quiet one-minute wait with one warning, within the five-second lookup bound, saving no trade and keeping the cursor, so no trade is ever saved without its trader and no job error is raised.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 286,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 220,
+      "line": 281,
       "test_name": "the site's check answers the same each time it is asked",
       "keep_because": "The trade check answers the same each time: a linked trader earns, a trade saved before traders were recorded, one not saved, or one in a hidden launch's token earns nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 287,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 262,
+      "line": 323,
       "test_name": "a stake from a linked wallet earns Autolaunch token staked once, though the wallet stakes again",
       "keep_because": "A Staked log of a launch's splitter, read by the token's reader over the same blocks as its trades, is saved once with its chain, splitter, staker and raw amount, and earns Autolaunch token staked once for the account whose verified wallets held the staking wallet; staking again earns nothing more, and unstaking is never read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 288,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 285,
+      "line": 346,
       "test_name": "reading a stake again, or rebuilding after the chain changed, keeps it as first saved and offers nothing",
       "keep_because": "A stake read again, or read again in a rebuild after the chain changed under the reader's cursor, keeps the row first saved and offers Points nothing more.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 289,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 314,
+      "line": 375,
       "test_name": "a stake from a wallet no account holds is saved and earns nothing",
       "keep_because": "A stake from a wallet no account held at its block time is still saved and earns nothing, refused as not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 290,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 325,
+      "line": 386,
       "test_name": "while earning is closed, the reader still saves a stake and Points gets nothing",
       "keep_because": "While earning is closed the token's reader still saves each stake, and nothing is queued or written for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     },
     {
       "id": 291,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 337,
+      "line": 469,
       "test_name": "the site's stake check answers the same each time it is asked",
       "keep_because": "The stake check answers the same each time: a linked staker earns, an unlinked one, a stake not saved, or one of a hidden launch's token earns nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c493dc08f52bde67ff70eace808c0b78b6f21b604af7389fbaa9b552e993e903"
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
+    },
+    {
+      "id": 292,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_token_awards_test.exs",
+      "line": 233,
+      "test_name": "a pass asks the node only about transactions with a trade not saved yet",
+      "keep_because": "The reader asks the node who sent a transaction only for one holding a trade not saved yet: a caught-up pass re-reading its head block asks nothing, and a pass with a new swap beside a saved one asks once, keeps the saved trader and offers exactly one award.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
+    },
+    {
+      "id": 293,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_token_awards_test.exs",
+      "line": 398,
+      "test_name": "a splitter read the node refuses as too wide narrows the pass, and every trade and stake is still saved",
+      "keep_because": "A splitter log read the node refuses as too many blocks narrows the pass to its first half instead of stopping it, and the following passes read on until every trade and stake is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
+    },
+    {
+      "id": 294,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_token_awards_test.exs",
+      "line": 423,
+      "test_name": "a stake log from another block than the one read under its number leaves the pass quietly to be read again",
+      "keep_because": "A Staked log whose block hash differs from the header read for its block takes the quiet head-moved path: a one-minute wait with one warning, nothing saved and the cursor kept.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
+    },
+    {
+      "id": 295,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_token_awards_test.exs",
+      "line": 445,
+      "test_name": "a Staked log of nothing is skipped and the pass goes on",
+      "keep_because": "A zero-amount Staked log is skipped while the pass saves the others, and the stake record refuses an amount of zero.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d001ce22066826d946dd5fe613adf488bc19209ec2262357471696f83334a276"
     }
   ],
   "legacy_folders_to_remove": [

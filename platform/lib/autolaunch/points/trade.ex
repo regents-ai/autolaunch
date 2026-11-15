@@ -13,6 +13,12 @@ defmodule Autolaunch.Points.Trade do
   (`RegentPoints.WalletSnapshot.owner/2`). A trade in a token an operator hid
   or the lists leave out earns nothing, and neither does one saved before the
   site recorded traders, nor one whose wallet no single account held then.
+
+  A trade is offered only when it is first saved, so one saved while this
+  rule is not approved is never offered later, unless a rebuild of the
+  token's trades after the chain changed saves it again; a rebuild also asks
+  the node again for the sender of every trade in the token's history, one
+  lookup per transaction, four at a time.
   """
 
   alias Autolaunch.Actors.System

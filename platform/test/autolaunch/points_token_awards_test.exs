@@ -8,6 +8,7 @@ defmodule Autolaunch.PointsTokenAwardsTest do
   use Autolaunch.DataCase, async: false
   use Oban.Testing, repo: Autolaunch.Repo
   import Autolaunch.PointsTesting
+  import ExUnit.CaptureLog
 
   alias Autolaunch.{Accounts, BaseRpcStub, Lab, LabAbi, TestSupport, TokenTrades}
   alias Autolaunch.Actors.System
@@ -25,15 +26,25 @@ defmodule Autolaunch.PointsTokenAwardsTest do
   @head 120
   @first_transaction "0x" <> String.duplicate("1a", 32)
   @second_transaction "0x" <> String.duplicate("2b", 32)
+  @third_transaction "0x" <> String.duplicate("3c", 32)
 
   defmodule Chain do
     @moduledoc false
     alias Autolaunch.BaseRpcStub
 
+    # Each request is told to the test as `{:rpc, method, params}`.
     def post(_url, options) do
       %{method: method, params: params} = options[:json]
       state = Application.fetch_env!(:autolaunch, :points_token_chain)
-      {:ok, %{status: 200, body: %{"result" => answer(method, params, state)}}}
+      send(state.test, {:rpc, method, params})
+
+      case answer(method, params, state) do
+        :refused ->
+          {:ok, %{status: 200, body: %{"error" => %{"code" => -32_005, "message" => "refused"}}}}
+
+        result ->
+          {:ok, %{status: 200, body: %{"result" => result}}}
+      end
     end
 
     defp answer("eth_chainId", _params, _state), do: "0x2105"
@@ -54,20 +65,32 @@ defmodule Autolaunch.PointsTokenAwardsTest do
       "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)
     end
 
+    # A contract `widest` names is refused any read of more blocks than it gives.
     defp answer("eth_getLogs", [filter], state) do
       %{address: address, fromBlock: from, toBlock: to, topics: [events | _]} = filter
+      widest = state.widest[String.downcase(address)]
 
-      Enum.filter(state.logs, fn log ->
-        String.downcase(log["address"]) == String.downcase(address) and
-          hd(log["topics"]) in List.wrap(events) and
-          quantity(from) <= quantity(log["blockNumber"]) and
-          quantity(log["blockNumber"]) <= quantity(to)
-      end)
+      if widest && quantity(to) - quantity(from) + 1 > widest do
+        :refused
+      else
+        Enum.filter(state.logs, fn log ->
+          String.downcase(log["address"]) == String.downcase(address) and
+            hd(log["topics"]) in List.wrap(events) and
+            quantity(from) <= quantity(log["blockNumber"]) and
+            quantity(log["blockNumber"]) <= quantity(to)
+        end)
+      end
     end
 
+    # A sender is a wallet, or the node refusing (`:refused`), never answering
+    # (`:silent`) or not knowing the transaction (none).
     defp answer("eth_getTransactionByHash", [hash], state) do
-      with from when is_binary(from) <- state.senders[hash],
-           do: %{"hash" => hash, "from" => from}
+      case state.senders[hash] do
+        :refused -> :refused
+        :silent -> Process.sleep(:infinity)
+        from when is_binary(from) -> %{"hash" => hash, "from" => from}
+        nil -> nil
+      end
     end
 
     def block(state, number),
@@ -167,7 +190,7 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     # The head block is replaced, with the same swap in it: the reader drops the
     # token's trades and reads them again from the launch's migration.
     reorged = "0x" <> String.duplicate("3d", 32)
-    put(hashes: %{@head => reorged}, logs: [swap(1, @first_transaction, reorged)])
+    put(hashes: %{@head => reorged}, logs: [swap(1, @first_transaction, block_hash: reorged)])
     assert {:snooze, 1} = pass(token)
     assert trades(token) == []
     assert {:snooze, 300} = pass(token)
@@ -207,13 +230,51 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     assert RegentPoints.read_rejections!(actor: RegentPoints.Store.system()) == []
   end
 
-  test "a transaction the node does not name leaves the pass to be read again, with nothing saved",
+  test "a pass asks the node only about transactions with a trade not saved yet",
        %{token: token} do
-    chain([swap(1, @first_transaction)], %{})
+    chain([swap(1, @first_transaction)], %{@first_transaction => @wallet})
+    assert {:snooze, 300} = pass(token)
+    assert [%{trader: @wallet} = saved] = trades(token)
+    assert lookups() == [@first_transaction]
+    assert [_offered] = all_enqueued(queue: :points)
 
-    assert {:snooze, 60} = pass(token)
-    assert trades(token) == []
-    assert %{trades_next_block: nil} = Ash.reload!(token, authorize?: false)
+    # Caught up, the next pass reads the head block again and asks about nothing.
+    assert {:snooze, 300} = pass(token)
+    assert lookups() == []
+
+    # A new swap read beside the saved one is the only transaction asked about, and
+    # the saved trade keeps its trader whatever the node would now say.
+    put(
+      logs: [swap(1, @first_transaction), swap(2, @second_transaction)],
+      senders: %{@first_transaction => @stranger, @second_transaction => @wallet}
+    )
+
+    assert {:snooze, 300} = pass(token)
+    assert lookups() == [@second_transaction]
+    assert [^saved, %{trader: @wallet} = added] = trades(token)
+    assert [_first, _second] = all_enqueued(queue: :points)
+
+    drain()
+    keys = Enum.map(events(@traded), & &1.source_event_key)
+    assert Enum.sort(keys) == Enum.sort([Trade.key(saved), Trade.key(added)])
+  end
+
+  test "a trader lookup the node refuses, does not know or never answers leaves the pass quietly to be read again, with nothing saved",
+       %{token: token} do
+    for sender <- [:refused, nil, :silent] do
+      chain([swap(1, @first_transaction)], %{@first_transaction => sender})
+
+      {{micros, result}, log} = with_log(fn -> :timer.tc(fn -> pass(token) end) end)
+
+      assert result == {:snooze, 60}
+      assert warnings(log) == 1
+      assert log =~ "transactions_unavailable"
+      # A lookup that never answers is given five seconds.
+      assert micros < 10_000_000
+      assert trades(token) == []
+      assert %{trades_next_block: nil} = Ash.reload!(token, authorize?: false)
+    end
+
     assert all_enqueued(queue: :points) == []
   end
 
@@ -334,6 +395,77 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     assert events() == []
   end
 
+  test "a splitter read the node refuses as too wide narrows the pass, and every trade and stake is still saved",
+       %{token: token} do
+    chain(
+      [
+        swap(1, @first_transaction, block: 104),
+        stake_log(2, @second_transaction, @wallet, block: 104),
+        stake_log(1, @third_transaction, @wallet)
+      ],
+      %{@first_transaction => @wallet}
+    )
+
+    put(widest: %{@splitter => 10})
+
+    # The launch migrated at block 100: the splitter refuses its 21 blocks to the
+    # head, then 11, and the pass saves blocks 100 to 105.
+    assert {:snooze, 1} = pass(token)
+    assert %{trades_next_block: 106} = Ash.reload!(token, authorize?: false)
+    assert [%{block_number: 104, trader: @wallet}] = trades(token)
+    assert [%{block_number: 104}] = stakes(token)
+
+    assert {:snooze, 1} = pass(token)
+    assert {:snooze, 300} = pass(token)
+    assert [%{block_number: 104}, %{block_number: @head}] = stakes(token)
+  end
+
+  test "a stake log from another block than the one read under its number leaves the pass quietly to be read again",
+       %{token: token} do
+    moved = "0x" <> String.duplicate("4e", 32)
+
+    chain(
+      [
+        swap(1, @first_transaction),
+        stake_log(2, @second_transaction, @wallet, block_hash: moved)
+      ],
+      %{@first_transaction => @wallet}
+    )
+
+    {result, log} = with_log(fn -> pass(token) end)
+
+    assert result == {:snooze, 60}
+    assert warnings(log) == 1
+    assert log =~ "head_moved"
+    assert trades(token) == []
+    assert stakes(token) == []
+    assert %{trades_next_block: nil} = Ash.reload!(token, authorize?: false)
+  end
+
+  test "a Staked log of nothing is skipped and the pass goes on", %{token: token} do
+    chain([
+      stake_log(1, @first_transaction, @wallet, amount: 0),
+      stake_log(2, @second_transaction, @wallet)
+    ])
+
+    assert {:snooze, 300} = pass(token)
+    assert [%{log_index: 2} = saved] = stakes(token)
+
+    # A stake of nothing is not one the site saves.
+    zero =
+      saved
+      |> Map.take([:token_id, :chain_id, :splitter, :staker, :block_number, :block_hash])
+      |> Map.merge(%{
+        transaction_hash: @first_transaction,
+        log_index: 1,
+        occurred_at: saved.occurred_at,
+        amount: Decimal.new(0)
+      })
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             Ash.create(Autolaunch.TokenStake, zero, action: :record, actor: %System{})
+  end
+
   test "the site's stake check answers the same each time it is asked",
        %{account: account, auction: auction, token: token} do
     chain([
@@ -368,7 +500,9 @@ defmodule Autolaunch.PointsTokenAwardsTest do
   # token's rows back.
   defp stakes(token) do
     Repo.all(
-      from s in Autolaunch.TokenStake, where: s.token_id == ^token.id, order_by: s.log_index
+      from s in Autolaunch.TokenStake,
+        where: s.token_id == ^token.id,
+        order_by: [s.block_number, s.log_index]
     )
   end
 
@@ -378,14 +512,16 @@ defmodule Autolaunch.PointsTokenAwardsTest do
 
   # The chain the reader reads: the head at block 120, a minute ago, and the pool's
   # and splitter's `logs`, each swap sent by the wallet `senders` names for its
-  # transaction.
+  # transaction. Every request it answers is told to this test.
   defp chain(logs, senders \\ %{}) do
     Application.put_env(:autolaunch, :points_token_chain, %{
       head: @head,
       time: DateTime.to_unix(DateTime.utc_now()) - 60 - @head,
       hashes: %{},
       logs: logs,
-      senders: senders
+      senders: senders,
+      widest: %{},
+      test: self()
     })
   end
 
@@ -394,14 +530,27 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     Application.put_env(:autolaunch, :points_token_chain, Map.merge(state, Map.new(changes)))
   end
 
-  # A swap in the head block, through the router: one token side paid in and the
-  # other taken out.
-  defp swap(index, transaction, block_hash \\ Chain.hash(%{hashes: %{}}, @head)) do
+  # The transactions the reader asked the node about since this was last asked.
+  defp lookups do
+    receive do
+      {:rpc, "eth_getTransactionByHash", [hash]} -> [hash | lookups()]
+    after
+      0 -> []
+    end
+  end
+
+  defp warnings(log), do: length(Regex.scan(~r/\[warning\]/, log))
+
+  # A swap in the head block (or `block:`), through the router: one token side
+  # paid in and the other taken out.
+  defp swap(index, transaction, opts \\ []) do
+    block = Keyword.get(opts, :block, @head)
+
     %{
       "removed" => false,
       "address" => Lab.address!(Lab.current!(), :pool_manager),
-      "blockNumber" => "0x" <> Integer.to_string(@head, 16),
-      "blockHash" => block_hash,
+      "blockNumber" => "0x" <> Integer.to_string(block, 16),
+      "blockHash" => Keyword.get(opts, :block_hash, Chain.hash(%{hashes: %{}}, block)),
       "logIndex" => "0x" <> Integer.to_string(index, 16),
       "transactionHash" => transaction,
       "topics" => [LabAbi.topic(@swap), @pool_id, BaseRpcStub.address_topic(@router)],
@@ -414,21 +563,23 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     }
   end
 
-  # `wallet` staking five tokens in the launch's splitter, in the head block (or
-  # unstaking them, with `event:`).
+  # `wallet` staking five tokens (or `amount:`) in the launch's splitter, in the
+  # head block (or `block:`), or unstaking them, with `event:`.
   defp stake_log(index, transaction, wallet, opts \\ []) do
+    block = Keyword.get(opts, :block, @head)
+
     %{
       "removed" => false,
       "address" => @splitter,
-      "blockNumber" => "0x" <> Integer.to_string(@head, 16),
-      "blockHash" => Keyword.get(opts, :block_hash, Chain.hash(%{hashes: %{}}, @head)),
+      "blockNumber" => "0x" <> Integer.to_string(block, 16),
+      "blockHash" => Keyword.get(opts, :block_hash, Chain.hash(%{hashes: %{}}, block)),
       "logIndex" => "0x" <> Integer.to_string(index, 16),
       "transactionHash" => transaction,
       "topics" => [
         LabAbi.topic(Keyword.get(opts, :event, "Staked(address,uint256)")),
         BaseRpcStub.address_topic(wallet)
       ],
-      "data" => BaseRpcStub.uint(5 * Integer.pow(10, 18))
+      "data" => BaseRpcStub.uint(Keyword.get(opts, :amount, 5 * Integer.pow(10, 18)))
     }
   end
 end

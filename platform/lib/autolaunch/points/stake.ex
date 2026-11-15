@@ -13,6 +13,10 @@ defmodule Autolaunch.Points.Stake do
   Unstaking is not recorded and takes nothing back. A stake of a token an
   operator hid or the lists leave out earns nothing, and neither does one
   whose wallet no single account held then.
+
+  A stake is offered only when it is first saved, so one saved while this
+  rule is not approved is never offered later. A stake the chain later took
+  back stays saved, and keeps anything it earned.
   """
 
   alias Autolaunch.Actors.System

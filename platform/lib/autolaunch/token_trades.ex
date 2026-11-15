@@ -5,20 +5,36 @@ defmodule Autolaunch.TokenTrades do
   token, the revenue its splitter recognized. Each pass reads one token and
   at most 2,000 blocks of the PoolManager's `Swap` logs for that pool, and the
   splitter's `Staked` and `RevenueRecognized` logs over the same blocks, in
-  one read. Each trade's trader is the wallet that sent its transaction,
-  asked of the node once per transaction before anything is written. The
+  one read. A span either read is refused for, or one holding more than 200
+  swaps, is read again as its first half, down to one block, and the next
+  pass reads on from there.
+
+  Each trade's trader is the wallet that sent its transaction, asked of the
+  node before anything is written, once for each transaction with a trade not
+  saved yet: a trade already saved keeps its trader and is not asked about
+  again, so a caught-up pass reading its head block again asks nothing. Each
+  lookup has five seconds and a pass's lookups have thirty together. The
   cursor and rows commit together; a repeat range keeps the trades already
   saved, with their traders, and replaces the revenue. A changed cursor block
-  drops the token's trades and revenue and rebuilds them. A stake is saved
-  once and kept through both (`Autolaunch.TokenStake`).
+  drops the token's trades and revenue and rebuilds them, which asks the node
+  again for the sender of every trade in the token's history, one lookup per
+  transaction, four at a time. A stake is saved once and kept through both
+  (`Autolaunch.TokenStake`), even one the chain later took back; a `Staked`
+  log of nothing is skipped.
+
+  A trade or a stake offers Regent Points its award only when it is first
+  saved (`Autolaunch.Points.Award`), so one saved while its rule is not
+  approved is never offered later. The one exception is a rebuild: each trade
+  it saves again is offered again then, and earns if its rule is approved by
+  that time.
 
   Each listed token has one job (`Autolaunch.ChainWatch` makes sure of it),
   which runs a pass and then waits: a second while the token is behind the
   head, five minutes once it has caught up. A press that lands on its chain
   brings it forward to ten seconds away (`refresh/1`). A pass the node could
-  not answer, or whose head moved under it, is one warning line and is read
-  again a minute later; any other failure is a fault, tried again a minute
-  later.
+  not answer, whose head moved under it, or whose trader lookups the node did
+  not answer in time, is one warning line and is read again a minute later;
+  any other failure is a fault, tried again a minute later.
   """
   use Oban.Worker,
     queue: :chain,
@@ -59,6 +75,12 @@ defmodule Autolaunch.TokenTrades do
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
   @staked "Staked(address,uint256)"
   @range 2_000
+  # A pass reads at most 200 swaps unless one block holds more (`logs/4`), so
+  # at most 50 rounds of four lookups: thirty seconds allows 600 ms a round,
+  # several times a healthy node's answer, and the lookups hold a `:chain` slot
+  # no longer. One lookup gets five seconds, under the node client's own eight.
+  @lookup_timeout 5_000
+  @lookups_timeout 30_000
   @token_decimals 18
   @topic "token_trades"
 
@@ -132,16 +154,17 @@ defmodule Autolaunch.TokenTrades do
          {:ok, pool} <- swap_source(venue, token.auction, head),
          {:ok, first} <- first_block(token, pool, head, venue.opts),
          :ok <- cursor_valid(token, head, venue.opts),
-         {:ok, last, logs} <- logs(pool, first, min(first + @range - 1, head.number), venue.opts),
-         {:ok, splitter_logs} <- splitter_logs(pool, first, last, venue.opts),
+         {:ok, last, logs, splitter_logs} <-
+           logs(pool, first, min(first + @range - 1, head.number), venue.opts),
          {:ok, headers} <- headers(logs ++ splitter_logs, last, venue.opts),
          {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
          {stake_logs, revenue_logs} = Enum.split_with(splitter_logs, &staked?/1),
          {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
          {:ok, stakes} <- map_ok(stake_logs, &stake(token, pool, headers, &1)),
          trades = Enum.reject(trades, &is_nil/1),
-         {:ok, traders} <- traders(trades, venue.opts) do
+         {:ok, traders} <- traders(token, trades, venue.opts) do
       trades = Enum.map(trades, &Map.put(&1, :trader, traders[&1.transaction_hash]))
+      stakes = Enum.reject(stakes, &is_nil/1)
 
       token
       |> commit(first, last, headers[last].hash, {trades, revenue, stakes})
@@ -291,6 +314,10 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
+  # The pool's swaps and the splitter's logs over the same blocks. A span
+  # either read is refused for, or one holding more than 200 swaps, is read
+  # again as its first half, so a node refusing a large answer narrows the
+  # pass instead of stopping it.
   defp logs(pool, first, last, opts) do
     filter = %{
       address: pool.pool_manager,
@@ -299,22 +326,17 @@ defmodule Autolaunch.TokenTrades do
       topics: [LabAbi.topic(@swap), pool.pool_id]
     }
 
-    case read_logs(filter, opts) do
-      {:ok, rows} ->
-        if Enum.count_until(rows, 201) > 200 and first < last,
-          do: logs(pool, first, div(first + last, 2), opts),
-          else: {:ok, last, rows}
-
-      _ when first < last ->
-        logs(pool, first, div(first + last, 2), opts)
-
-      error ->
-        error
+    with {:ok, swaps} <- read_logs(filter, opts),
+         true <- first == last or Enum.count_until(swaps, 201) <= 200,
+         {:ok, splitter_logs} <- splitter_logs(pool, first, last, opts) do
+      {:ok, last, swaps, splitter_logs}
+    else
+      _narrower when first < last -> logs(pool, first, div(first + last, 2), opts)
+      error -> error
     end
   end
 
-  # The splitter's logs over the same blocks as the pool's trades, in one read:
-  # every launch's stakes, and a Revstake launch's revenue, which its source
+  # Every launch's stakes, and a Revstake launch's revenue, which its source
   # names the assets of. A Memestock launch's revenue is not read here.
   defp splitter_logs(pool, first, last, opts) do
     events = if Map.has_key?(pool, :revenue_assets), do: [@staked, @revenue], else: [@staked]
@@ -336,7 +358,10 @@ defmodule Autolaunch.TokenTrades do
   defp staked?(_log), do: false
 
   # One `Staked` log's stake: its one topic after the event names the wallet
-  # that called `stake`, its data the amount in raw units.
+  # that called `stake`, its data the amount in raw units. A log from another
+  # block than the one read under its number is from a chain that moved
+  # between the two reads, and the pass is read again; a stake of nothing is
+  # skipped.
   defp stake(token, pool, headers, log) do
     with false <- log["removed"],
          [_staked, "0x" <> account] <- log["topics"],
@@ -345,20 +370,29 @@ defmodule Autolaunch.TokenTrades do
          {:ok, <<amount::256>>} <- Base.decode16(data, case: :mixed),
          {:ok, number} <- quantity(log["blockNumber"]),
          {:ok, index} <- quantity(log["logIndex"]),
-         true <- String.downcase(log["blockHash"]) == headers[number].hash do
-      {:ok,
-       %{
-         token_id: token.id,
-         chain_id: token.auction.chain_id,
-         splitter: pool.splitter,
-         staker: "0x" <> Base.encode16(staker, case: :lower),
-         amount: Decimal.new(amount),
-         transaction_hash: String.downcase(log["transactionHash"]),
-         log_index: index,
-         block_number: number,
-         block_hash: headers[number].hash,
-         occurred_at: DateTime.from_unix!(headers[number].timestamp)
-       }}
+         block_hash when is_binary(block_hash) <- log["blockHash"] do
+      cond do
+        String.downcase(block_hash) != headers[number].hash ->
+          {:error, :head_moved}
+
+        amount == 0 ->
+          {:ok, nil}
+
+        true ->
+          {:ok,
+           %{
+             token_id: token.id,
+             chain_id: token.auction.chain_id,
+             splitter: pool.splitter,
+             staker: "0x" <> Base.encode16(staker, case: :lower),
+             amount: Decimal.new(amount),
+             transaction_hash: String.downcase(log["transactionHash"]),
+             log_index: index,
+             block_number: number,
+             block_hash: headers[number].hash,
+             occurred_at: DateTime.from_unix!(headers[number].timestamp)
+           }}
+      end
     else
       _ -> {:error, :invalid_stake}
     end
@@ -434,23 +468,60 @@ defmodule Autolaunch.TokenTrades do
 
   defp headers(logs, last, opts) do
     with {:ok, numbers} <- map_ok(logs, &quantity(&1["blockNumber"])),
-         do: read_each(numbers ++ [last], &numbered_header(&1, opts), :headers_unavailable)
+         do:
+           read_each(numbers ++ [last], &numbered_header(&1, opts), 15_000, :headers_unavailable)
   end
 
   defp numbered_header(number, opts) do
     with {:ok, value} <- header(number, opts), do: {:ok, {number, value}}
   end
 
-  # Who made each trade, by its transaction: the wallet that sent it. A
-  # transaction the node does not answer fails the pass, so a saved trade has
-  # its trader; a sender in any other form than an address is left unknown.
-  defp traders(trades, opts),
-    do:
-      read_each(
-        Enum.map(trades, & &1.transaction_hash),
-        &sender(&1, opts),
-        :transactions_unavailable
-      )
+  # Who made each trade not saved yet, by its transaction: the wallet that
+  # sent it. A saved trade keeps the trader it was saved with
+  # (`Autolaunch.TokenTrade`), so its transaction is asked about only when
+  # another trade in it is new. A transaction the node does not answer, does
+  # not know yet, or does not answer in time fails the pass, so a saved trade
+  # has its trader; a sender in any other form than an address is left
+  # unknown. All the lookups stop together once `@lookups_timeout` passes.
+  defp traders(_token, [], _opts), do: {:ok, %{}}
+
+  defp traders(token, trades, opts) do
+    saved = saved(token, trades)
+
+    case for(
+           trade <- trades,
+           {trade.transaction_hash, trade.log_index} not in saved,
+           uniq: true,
+           do: trade.transaction_hash
+         ) do
+      [] -> {:ok, %{}}
+      hashes -> lookups(hashes, opts)
+    end
+  end
+
+  # The pool logs among `trades` this token has saved, as `{transaction, index}`.
+  defp saved(token, trades) do
+    hashes = trades |> Enum.map(& &1.transaction_hash) |> Enum.uniq()
+
+    from(t in TokenTrade,
+      where: t.token_id == ^token.id and t.transaction_hash in ^hashes,
+      select: {t.transaction_hash, t.log_index}
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  defp lookups(hashes, opts) do
+    task =
+      Task.async(fn ->
+        read_each(hashes, &sender(&1, opts), @lookup_timeout, :transactions_unavailable)
+      end)
+
+    case Task.yield(task, @lookups_timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, read} -> read
+      _late -> {:error, :transactions_unavailable}
+    end
+  end
 
   defp sender(hash, opts) do
     case Rpc.request("eth_getTransactionByHash", [hash], opts) do
@@ -465,12 +536,13 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
-  # One node read per distinct key, four at a time, into a map by key; any
-  # read that fails or does not answer fails them all as `error`.
-  defp read_each(keys, read, error) do
+  # One node read per distinct key, four at a time, each given `timeout`
+  # milliseconds, into a map by key; any read that fails or runs out of time
+  # fails them all as `error`.
+  defp read_each(keys, read, timeout, error) do
     keys
     |> Enum.uniq()
-    |> Task.async_stream(read, max_concurrency: 4, timeout: 15_000, on_timeout: :kill_task)
+    |> Task.async_stream(read, max_concurrency: 4, timeout: timeout, on_timeout: :kill_task)
     |> Enum.reduce_while({:ok, %{}}, fn
       {:ok, {:ok, {key, value}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, key, value)}}
       _, _ -> {:halt, {:error, error}}

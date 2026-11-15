@@ -6,8 +6,9 @@ defmodule Autolaunch.TokenTrade do
   currency: REGENT for a Revstake token, the paired stock for a Memestock one.
 
   The trader is the wallet that sent the swap's transaction, written with the
-  row and never changed by a later write of it. Rows saved before the site
-  recorded traders have none.
+  row and never changed by a later write of it, so the reader asks the node
+  only for trades not saved yet. Rows saved before the site recorded traders
+  have none.
   """
   use Ash.Resource,
     otp_app: :autolaunch,
