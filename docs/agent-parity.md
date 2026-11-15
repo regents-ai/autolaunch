@@ -27,7 +27,7 @@ surface are in `operations/FEATURES.md`.
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | `regents autolaunch account points`: the regents-cli the site names (1.10.29, `5ae2e873`) asks `/api/v1/account/points` and carries this site's contract 4.0.0, `to_do` by site |
+| Read my Points | `RegentPoints.summary` and the shared board | `/account/points` | `account_points` (`GET /api/v1/account/points`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | `regents autolaunch account points`: the regents-cli the site names (1.10.30, `4a781568`) asks `/api/v1/account/points` and carries this site's contract 4.0.0, `to_do` by site |
 
 ## Covered calls
 
