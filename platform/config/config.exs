@@ -17,7 +17,8 @@ config :ash_oban, pro?: false
 # (Autolaunch.ChainWatch makes sure each has its job every minute); the
 # default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
-# to read. The finishing queue
+# to read; Regent Points' checks and awards, database work only, one at a time
+# (nothing is queued there while no rule is approved). The finishing queue
 # stays paused unless the site has the finisher switched on (runtime.exs); its
 # jobs are unique, so a paused queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
@@ -39,6 +40,7 @@ config :autolaunch, Oban,
     stock_volume: 1,
     stock_admissions: 1,
     share_videos: 1,
+    points: 1,
     default: 1
   ],
   cron: [
@@ -92,6 +94,8 @@ config :regent_agents,
 # Set at runtime (config/runtime.exs).
 config :autolaunch, :admins, []
 
+# Earning stays closed: no start time and no rule approved. Each adapter is the
+# site's check of one rule's source, from its own saved records.
 config :regent_points,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
@@ -101,7 +105,11 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{}
+  adapters: %{
+    "autolaunch.first_launch" => Autolaunch.Points.Launch,
+    "autolaunch.auction_created" => Autolaunch.Points.Launch,
+    "autolaunch.first_graduation" => Autolaunch.Points.Graduation
+  }
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 
@@ -171,7 +179,8 @@ config :autolaunch,
     Autolaunch,
     Autolaunch.CoveredCalls,
     Autolaunch.Exposure,
-    Autolaunch.Agents
+    Autolaunch.Agents,
+    Autolaunch.Points
   ],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]

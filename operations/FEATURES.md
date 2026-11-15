@@ -131,6 +131,18 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 | --- | --- |
 | The stock list's market read: a chain node that does not answer is one warning, the stock's turn moves on and nothing it found before is changed; an answer in another shape fails the read | `autolaunch/stocks/stock_candidate_read_market_test.exs` (both cases) |
 
+## Points awards
+
+Earning is closed here (no start time, no rule approved), so none of these earns yet; each check opens the rules for itself.
+
+| Action | Check |
+| --- | --- |
+| A launch the site saves earns First Autolaunch launch once for the account whose verified wallets held the launching wallet then, however many launches follow; saving the same launch again offers nothing | `autolaunch/points_awards_test.exs` › "a launch earns its creator the first launch once, though a second one follows" |
+| Autolaunch auction created earns once each UTC day, a second launch that day counting at nothing | `autolaunch/points_awards_test.exs` › "the day's launch award counts once each UTC day" |
+| A launch's token saved once it graduated earns its creator First Autolaunch graduation once; seeing the same graduation again offers nothing | `autolaunch/points_awards_test.exs` › "a graduation earns the launch's creator the first graduation once" |
+| A launch from a wallet no account held is still saved and earns nothing, refused as not linked; a hidden launch earns nothing | `autolaunch/points_awards_test.exs` › "a launch from a wallet no account holds is saved and earns nothing", › "the site's checks answer the same each time they are asked" |
+| While no rule is approved a launch or graduation queues and writes nothing for Points | `autolaunch/points_awards_test.exs` › "while no rule is approved, launches and graduations offer nothing" |
+
 ## Agents
 
 Each WebMCP tool calls the HTTP route beside it, and the matching CLI command (`cli/commands.json`)

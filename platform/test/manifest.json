@@ -1,5 +1,5 @@
 {
-  "total": 221,
+  "total": 227,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2875,6 +2875,84 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+    },
+    {
+      "id": 268,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 41,
+      "test_name": "a launch earns its creator the first launch once, though a second one follows",
+      "keep_because": "A launch the site saves offers its Points award in the same transaction, and the account whose verified wallets held the launching wallet earns First Autolaunch launch once; a second launch, or saving the same launch again, earns no second one.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+    },
+    {
+      "id": 269,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 65,
+      "test_name": "the day's launch award counts once each UTC day",
+      "keep_because": "Autolaunch auction created earns once each UTC day by when the site saved the launch, as the Points library counts it; a second launch that day counts at nothing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+    },
+    {
+      "id": 270,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 92,
+      "test_name": "a graduation earns the launch's creator the first graduation once",
+      "keep_because": "The token row saved when a launch graduates earns the launch's creator First Autolaunch graduation once; seeing the same graduation again offers nothing new.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+    },
+    {
+      "id": 271,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 111,
+      "test_name": "a launch from a wallet no account holds is saved and earns nothing",
+      "keep_because": "A launch from a wallet no account held is still saved and listed, and earns nothing, recorded as refused because the wallet is not linked.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+    },
+    {
+      "id": 272,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 153,
+      "test_name": "while no rule is approved, launches and graduations offer nothing",
+      "keep_because": "While earning is closed a launch and a graduation save as before and queue or write nothing for Points.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
+    },
+    {
+      "id": 273,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_awards_test.exs",
+      "line": 165,
+      "test_name": "the site's checks answer the same each time they are asked",
+      "keep_because": "The site's check of a launch or graduation reads only its saved rows, so asking twice gives the same answer, refusals included.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cae2da09c240b31b3cb4fce7a8a0ac80dff1a22a0482812101f9d329e6b89bda"
     }
   ],
   "legacy_folders_to_remove": [

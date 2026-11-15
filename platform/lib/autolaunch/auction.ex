@@ -310,6 +310,24 @@ defmodule Autolaunch.Auction do
       return_skipped_upsert? true
       change Autolaunch.Auction.Changes.ImageColor
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+
+      emit Autolaunch.Signals, :launch_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the launch."
+
+      # A launch already saved skips the upsert, and the row it returns carries
+      # no `upsert_action` of `:insert`.
+      change after_action(fn changeset, auction, _context ->
+               if Ash.Resource.get_metadata(auction, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(changeset, Autolaunch.Signals, :launch_recorded, %{
+                          auction_id: auction.id
+                        }),
+                      do: {:ok, auction}
+               else
+                 {:ok, auction}
+               end
+             end)
     end
 
     update :set_bid_terms do

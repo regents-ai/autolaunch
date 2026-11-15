@@ -1,0 +1,16 @@
+defmodule Autolaunch.Points do
+  @moduledoc """
+  This site's part in Regent Points: what it offers Points, as it happens
+  (`Autolaunch.Points.Award`), and the checks Points runs on what it offered
+  (`Autolaunch.Points.Launch`, `Autolaunch.Points.Graduation`).
+  """
+
+  use Ash.Domain
+
+  resources do
+    resource Autolaunch.Points.Award
+  end
+
+  @doc "The name every source this site offers Points carries."
+  def source_app, do: "autolaunch"
+end

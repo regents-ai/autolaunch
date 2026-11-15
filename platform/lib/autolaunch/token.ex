@@ -229,6 +229,24 @@ defmodule Autolaunch.Token do
         :graduated_at,
         :treasury_address
       ]
+
+      emit Autolaunch.Signals, :token_graduated,
+        dynamic?: true,
+        description: "Only when this write saved the graduated token."
+
+      # Projecting a graduation already saved updates its row, which Ash marks
+      # with an `upsert_action` of `:update`.
+      change after_action(fn changeset, token, _context ->
+               if Ash.Resource.get_metadata(token, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(changeset, Autolaunch.Signals, :token_graduated, %{
+                          token_id: token.id
+                        }),
+                      do: {:ok, token}
+               else
+                 {:ok, token}
+               end
+             end)
     end
 
     update :set_price_snapshot do
