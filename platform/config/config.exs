@@ -297,9 +297,9 @@ config :logger, :default_formatter,
   metadata: [:request_id, :visit, :actor, :surface, :event]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
-# to the site's admins at /admin/errors. Only server faults are saved
-# (Autolaunch.ErrorIgnorer), only where each one happened is kept
-# (Autolaunch.ErrorFilter), and Autolaunch.ErrorPruner clears each one a week
+# to the site's admins at /admin/errors. Only server faults are saved, and a
+# job's only once it has no try left (Autolaunch.ErrorIgnorer), only where
+# each one happened is kept (Autolaunch.ErrorFilter), and Autolaunch.ErrorPruner clears each one a week
 # after it was last seen.
 config :error_tracker,
   repo: Autolaunch.Repo,

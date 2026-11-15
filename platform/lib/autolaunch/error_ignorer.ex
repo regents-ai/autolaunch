@@ -3,11 +3,19 @@ defmodule Autolaunch.ErrorIgnorer do
   Leaves out an exception the site answers below 500, such as not found or a bad
   request. Anyone can raise those by visiting a wrong address, so saving them
   would let anyone fill the table. Server faults, exits and throws are all kept.
+
+  A job's failure is also left out while the job still has a try left: an
+  outside read that times out once and is answered on the next try is not a
+  fault of the site. The failure of its last try is kept, whatever it was.
   """
 
   @behaviour ErrorTracker.Ignorer
 
   @impl ErrorTracker.Ignorer
+  # Oban's own word for a failed try that will be tried again; the last one
+  # is `:exhausted`.
+  def ignore?(_error, %{state: :failure}), do: true
+
   def ignore?(%ErrorTracker.Error{kind: "Elixir." <> _module = kind}, _context),
     do: kind |> String.to_existing_atom() |> visitors?()
 
