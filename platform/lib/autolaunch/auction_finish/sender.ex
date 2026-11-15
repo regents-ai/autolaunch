@@ -16,6 +16,9 @@ defmodule Autolaunch.AuctionFinish.Sender do
   wallet has already used is dropped; and one the network never saw is
   broadcast again, exactly as signed.
 
+  The call ends with Regent's Base Builder Code, as every step a wallet
+  button sends does (`RegentChain.BuilderCode`); the contract ignores it.
+
   The call is simulated before signing, so a launch someone else has just
   finished costs nothing. The fee allows the base fee to double before the
   transaction stops being included.
@@ -27,6 +30,7 @@ defmodule Autolaunch.AuctionFinish.Sender do
   alias Autolaunch.AuctionFinish.Wallet
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Repo
+  alias RegentChain.BuilderCode
 
   @actor %System{}
 
@@ -44,6 +48,7 @@ defmodule Autolaunch.AuctionFinish.Sender do
 
   @doc "Reserves a nonce, signs and records the call, then broadcasts it."
   def send_call(pad, finish, %{to: to, data: data}) do
+    data = BuilderCode.append(data)
     wallet = Wallet.configured!()
     opts = pad.opts
 

@@ -152,6 +152,16 @@ defmodule Autolaunch.AuctionFinishTest do
     %{config: config}
   end
 
+  test "FINISH_CARRIES_BUILDER_CODE: the signed migrate call ends with Regent's Builder Code",
+       %{config: config} do
+    finish = running_launch(config, 1)
+    assert {:ok, _finish} = finish!(finish)
+    assert [recorded] = transactions()
+
+    "0x" <> suffix = RegentChain.BuilderCode.suffix()
+    assert String.contains?(recorded.raw_transaction, suffix)
+  end
+
   test "a lost broadcast answer is never followed by a second transaction", %{config: config} do
     finish = running_launch(config, 1)
     Chain.put(:on_send, :lose_answer)
