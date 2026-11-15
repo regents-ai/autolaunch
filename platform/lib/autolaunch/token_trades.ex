@@ -12,15 +12,23 @@ defmodule Autolaunch.TokenTrades do
   Each trade's trader is the wallet that sent its transaction, asked of the
   node before anything is written, once for each transaction with a trade not
   saved yet: a trade already saved keeps its trader and is not asked about
-  again, so a caught-up pass reading its head block again asks nothing. Each
-  lookup has five seconds and a pass's lookups have thirty together. The
-  cursor and rows commit together; a repeat range keeps the trades already
-  saved, with their traders, and replaces the revenue. A changed cursor block
-  drops the token's trades and revenue and rebuilds them, which asks the node
-  again for the sender of every trade in the token's history, one lookup per
-  transaction, four at a time. A stake is saved once and kept through both
-  (`Autolaunch.TokenStake`), even one the chain later took back; a `Staked`
-  log of nothing is skipped.
+  again, so a caught-up pass reading its head block again asks nothing. A
+  pass asks about at most 40 transactions at once: with more, or when its
+  lookups fail, it reads the first half of its blocks instead, down to one
+  block, and the next pass reads on, so a busy range is read in several
+  passes rather than not at all. A block that alone holds more than 40 is
+  asked about whole. The lookups run four at a time in a task of their own,
+  apart from the job, with three seconds for each round of four and sixty
+  for all of a pass's asks, except such a block, which gets all its rounds;
+  one lookup gets five seconds.
+
+  The cursor and rows commit together; a repeat range keeps the trades
+  already saved, with their traders, and replaces the revenue. A changed
+  cursor block drops the token's trades and revenue and rebuilds them, which
+  asks the node again for the sender of every trade in the token's history,
+  one lookup per transaction, four at a time, in the same narrowed passes. A
+  stake is saved once and kept through both (`Autolaunch.TokenStake`), even
+  one the chain later took back; a `Staked` log of nothing is skipped.
 
   A trade or a stake offers Regent Points its award only when it is first
   saved (`Autolaunch.Points.Award`), so one saved while its rule is not
@@ -32,9 +40,9 @@ defmodule Autolaunch.TokenTrades do
   which runs a pass and then waits: a second while the token is behind the
   head, five minutes once it has caught up. A press that lands on its chain
   brings it forward to ten seconds away (`refresh/1`). A pass the node could
-  not answer, whose head moved under it, or whose trader lookups the node did
-  not answer in time, is one warning line and is read again a minute later;
-  any other failure is a fault, tried again a minute later.
+  not answer, whose head moved under it, or whose trader lookups failed for
+  a single block, is one warning line and is read again a minute later; any
+  other failure is a fault, tried again a minute later.
   """
   use Oban.Worker,
     queue: :chain,
@@ -75,12 +83,16 @@ defmodule Autolaunch.TokenTrades do
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
   @staked "Staked(address,uint256)"
   @range 2_000
-  # A pass reads at most 200 swaps unless one block holds more (`logs/4`), so
-  # at most 50 rounds of four lookups: thirty seconds allows 600 ms a round,
-  # several times a healthy node's answer, and the lookups hold a `:chain` slot
-  # no longer. One lookup gets five seconds, under the node client's own eight.
+  # Trader lookups run four at a time, and an ask is given three seconds for
+  # each round of four. A pass asks about at most 40 transactions at once: ten
+  # rounds, thirty seconds, against a healthy node's fraction of a second a
+  # round. A pass's asks get sixty seconds together, except one block that
+  # alone holds more than 40 new transactions, which gets all its rounds. One
+  # lookup gets five seconds, under the node client's own eight.
+  @lookup_cap 40
+  @round_budget 3_000
+  @lookups_budget 60_000
   @lookup_timeout 5_000
-  @lookups_timeout 30_000
   @token_decimals 18
   @topic "token_trades"
 
@@ -162,9 +174,15 @@ defmodule Autolaunch.TokenTrades do
          {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
          {:ok, stakes} <- map_ok(stake_logs, &stake(token, pool, headers, &1)),
          trades = Enum.reject(trades, &is_nil/1),
-         {:ok, traders} <- traders(token, trades, venue.opts) do
-      trades = Enum.map(trades, &Map.put(&1, :trader, traders[&1.transaction_hash]))
-      stakes = Enum.reject(stakes, &is_nil/1)
+         {:ok, last, senders} <- traders(token, first, last, trades, venue.opts),
+         {:ok, headers} <- headed(headers, last, venue.opts) do
+      trades =
+        for trade <- trades,
+            trade.block_number <= last,
+            do: Map.put(trade, :trader, senders[trade.transaction_hash])
+
+      revenue = Enum.filter(revenue, &(&1.block_number <= last))
+      stakes = for %{} = stake <- stakes, stake.block_number <= last, do: stake
 
       token
       |> commit(first, last, headers[last].hash, {trades, revenue, stakes})
@@ -476,27 +494,67 @@ defmodule Autolaunch.TokenTrades do
     with {:ok, value} <- header(number, opts), do: {:ok, {number, value}}
   end
 
+  # The header of the block the pass ends at, read when the trader lookups
+  # narrowed the pass to a block no log was read in.
+  defp headed(headers, last, _opts) when is_map_key(headers, last), do: {:ok, headers}
+
+  defp headed(headers, last, opts) do
+    with {:ok, value} <- header(last, opts), do: {:ok, Map.put(headers, last, value)}
+  end
+
   # Who made each trade not saved yet, by its transaction: the wallet that
   # sent it. A saved trade keeps the trader it was saved with
   # (`Autolaunch.TokenTrade`), so its transaction is asked about only when
-  # another trade in it is new. A transaction the node does not answer, does
-  # not know yet, or does not answer in time fails the pass, so a saved trade
-  # has its trader; a sender in any other form than an address is left
-  # unknown. All the lookups stop together once `@lookups_timeout` passes.
-  defp traders(_token, [], _opts), do: {:ok, %{}}
+  # another trade in it is new. Answers `{:ok, last, senders}`, `last` the
+  # block the pass now ends at (`senders/5`).
+  defp traders(_token, _first, last, [], _opts), do: {:ok, last, %{}}
 
-  defp traders(token, trades, opts) do
+  defp traders(token, first, last, trades, opts) do
     saved = saved(token, trades)
 
-    case for(
-           trade <- trades,
-           {trade.transaction_hash, trade.log_index} not in saved,
-           uniq: true,
-           do: trade.transaction_hash
-         ) do
-      [] -> {:ok, %{}}
-      hashes -> lookups(hashes, opts)
+    fresh =
+      for trade <- trades,
+          {trade.transaction_hash, trade.log_index} not in saved,
+          do: {trade.block_number, trade.transaction_hash}
+
+    senders(fresh, first, last, :erlang.monotonic_time(:millisecond) + @lookups_budget, opts)
+  end
+
+  # The senders of the new transactions in blocks `first` to `last`. More
+  # transactions than the cap read the first half of the blocks instead,
+  # before anything is asked, and so do lookups that fail; the next pass reads
+  # on from there. A block that alone holds more than the cap is asked about
+  # whole. Lookups that fail for one block fail the pass, so a saved trade has
+  # its trader; a sender in any other form than an address is left unknown.
+  defp senders(fresh, first, last, deadline, opts) do
+    hashes = for {block, hash} <- fresh, block <= last, uniq: true, do: hash
+    narrower = div(first + last, 2)
+
+    cond do
+      hashes == [] ->
+        {:ok, last, %{}}
+
+      first < last and length(hashes) > @lookup_cap ->
+        senders(fresh, first, narrower, deadline, opts)
+
+      true ->
+        case lookups(hashes, budget(hashes, deadline), opts) do
+          {:ok, senders} -> {:ok, last, senders}
+          _failed when first < last -> senders(fresh, first, narrower, deadline, opts)
+          failed -> failed
+        end
     end
+  end
+
+  # Three seconds for each round of four lookups. A block alone holding more
+  # than the cap is the pass's only ask and is given all its rounds; any other
+  # ask, no more than the pass has left of its sixty seconds.
+  defp budget(hashes, deadline) do
+    rounds = div(length(hashes) + 3, 4) * @round_budget
+
+    if length(hashes) > @lookup_cap,
+      do: rounds,
+      else: min(rounds, deadline - :erlang.monotonic_time(:millisecond))
   end
 
   # The pool logs among `trades` this token has saved, as `{transaction, index}`.
@@ -511,15 +569,20 @@ defmodule Autolaunch.TokenTrades do
     |> MapSet.new()
   end
 
-  defp lookups(hashes, opts) do
+  # The lookups run in a task of their own under `Autolaunch.TaskSupervisor`,
+  # not linked to the job, so lookups that crash or outrun `budget` fail the
+  # ask and never the job.
+  defp lookups(_hashes, budget, _opts) when budget <= 0, do: {:error, :transactions_unavailable}
+
+  defp lookups(hashes, budget, opts) do
     task =
-      Task.async(fn ->
+      Task.Supervisor.async_nolink(Autolaunch.TaskSupervisor, fn ->
         read_each(hashes, &sender(&1, opts), @lookup_timeout, :transactions_unavailable)
       end)
 
-    case Task.yield(task, @lookups_timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, read} -> read
-      _late -> {:error, :transactions_unavailable}
+    case Task.yield(task, budget) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, senders}} -> {:ok, senders}
+      _failed -> {:error, :transactions_unavailable}
     end
   end
 

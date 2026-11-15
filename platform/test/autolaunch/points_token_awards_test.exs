@@ -83,11 +83,14 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     end
 
     # A sender is a wallet, or the node refusing (`:refused`), never answering
-    # (`:silent`) or not knowing the transaction (none).
+    # (`:silent`) or not knowing the transaction (none); with `:raise` or
+    # `:crash` the request itself fails.
     defp answer("eth_getTransactionByHash", [hash], state) do
       case state.senders[hash] do
         :refused -> :refused
         :silent -> Process.sleep(:infinity)
+        :raise -> raise "the client failed"
+        :crash -> exit(:crashed)
         from when is_binary(from) -> %{"hash" => hash, "from" => from}
         nil -> nil
       end
@@ -259,8 +262,10 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     assert Enum.sort(keys) == Enum.sort([Trade.key(saved), Trade.key(added)])
   end
 
-  test "a trader lookup the node refuses, does not know or never answers leaves the pass quietly to be read again, with nothing saved",
+  test "a trader lookup the node refuses, does not know or never answers in a one-block pass leaves it quietly to be read again, with nothing saved",
        %{token: token} do
+    read_to_head(token)
+
     for sender <- [:refused, nil, :silent] do
       chain([swap(1, @first_transaction)], %{@first_transaction => sender})
 
@@ -269,13 +274,86 @@ defmodule Autolaunch.PointsTokenAwardsTest do
       assert result == {:snooze, 60}
       assert warnings(log) == 1
       assert log =~ "transactions_unavailable"
-      # A lookup that never answers is given five seconds.
+      # One lookup's round is given three seconds.
       assert micros < 10_000_000
       assert trades(token) == []
-      assert %{trades_next_block: nil} = Ash.reload!(token, authorize?: false)
+      assert %{trades_next_block: @head} = Ash.reload!(token, authorize?: false)
     end
 
     assert all_enqueued(queue: :points) == []
+  end
+
+  test "a trader lookup that crashes ends the pass as the quiet wait, never a job error",
+       %{token: token} do
+    read_to_head(token)
+
+    for sender <- [:raise, :crash] do
+      chain([swap(1, @first_transaction)], %{@first_transaction => sender})
+
+      {result, _log} = with_log(fn -> pass(token) end)
+
+      assert result == {:snooze, 60}
+      assert trades(token) == []
+      assert %{trades_next_block: @head} = Ash.reload!(token, authorize?: false)
+    end
+  end
+
+  test "a range with more new transactions than one ask takes is read in narrowed passes, every trade saved with its trader",
+       %{token: token} do
+    # As after a rebuild: nothing saved, and five swaps in each of blocks 101 to
+    # 120, each its own transaction, a hundred transactions to ask about.
+    swaps =
+      for block <- 101..120, index <- 1..5 do
+        swap(index, transaction(block * 10 + index), block: block)
+      end
+
+    chain(swaps, Map.new(swaps, &{&1["transactionHash"], @wallet}))
+
+    # 100 to 120 holds 100, 100 to 110 holds 50: the first pass asks about the 25
+    # in 100 to 105. The second asks about the 40 in 106 to 113, the third the rest.
+    assert {:snooze, 1} = pass(token)
+    assert %{trades_next_block: 106} = Ash.reload!(token, authorize?: false)
+    assert length(lookups()) == 25
+
+    assert {:snooze, 1} = pass(token)
+    assert %{trades_next_block: 114} = Ash.reload!(token, authorize?: false)
+    assert length(lookups()) == 40
+
+    assert {:snooze, 300} = pass(token)
+    assert length(lookups()) == 35
+
+    saved = trades(token)
+    assert length(saved) == 100
+    assert Enum.all?(saved, &(&1.trader == @wallet))
+  end
+
+  test "lookups that fail for a wide range read its first half instead, and the cursor moves only that far",
+       %{token: token} do
+    # The node does not know the transaction in block 120 yet.
+    chain(
+      [swap(1, @first_transaction, block: 104), swap(2, @second_transaction)],
+      %{@first_transaction => @wallet}
+    )
+
+    assert {:snooze, 1} = pass(token)
+    assert @second_transaction in lookups()
+    assert %{trades_next_block: 111} = Ash.reload!(token, authorize?: false)
+    assert [%{block_number: 104, trader: @wallet}] = trades(token)
+    assert [_offered] = all_enqueued(queue: :points)
+  end
+
+  test "one block holding more new transactions than one ask takes is asked about whole and saved",
+       %{token: token} do
+    # 45 swaps in block 100, where the launch migrated and the first pass begins.
+    swaps = for index <- 1..45, do: swap(index, transaction(index), block: 100)
+    chain(swaps, Map.new(swaps, &{&1["transactionHash"], @wallet}))
+
+    assert {:snooze, 1} = pass(token)
+    assert length(lookups()) == 45
+    assert %{trades_next_block: 101} = Ash.reload!(token, authorize?: false)
+    saved = trades(token)
+    assert length(saved) == 45
+    assert Enum.all?(saved, &(&1.trader == @wallet))
   end
 
   test "the site's check answers the same each time it is asked",
@@ -540,6 +618,16 @@ defmodule Autolaunch.PointsTokenAwardsTest do
   end
 
   defp warnings(log), do: length(Regex.scan(~r/\[warning\]/, log))
+
+  defp transaction(number), do: "0x" <> Base.encode16(<<number::256>>, case: :lower)
+
+  # The token read up to the block before the head, so its next pass reads the head
+  # block alone.
+  defp read_to_head(token) do
+    Repo.update_all(from(t in Autolaunch.Token, where: t.id == ^token.id),
+      set: [trades_next_block: @head, trades_last_hash: Chain.hash(%{hashes: %{}}, @head - 1)]
+    )
+  end
 
   # A swap in the head block (or `block:`), through the router: one token side
   # paid in and the other taken out.
