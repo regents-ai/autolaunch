@@ -1,7 +1,7 @@
 # Changelog
 
 ## 15 November 2026: Points
-- Points earning opens on Autolaunch at 17:00 UTC on 16 November. From then, an account earns for its first launch, for creating an auction (once a day), for its first graduation and for bidding in a Base auction (once a day). Trades, stakes and covered calls follow.
+- Points earning opens on Autolaunch at 17:00 UTC on 16 November. From then, an account earns for its first launch, for creating an auction (once a day), for its first graduation, for bidding in a Base auction (once a day), for trading a launched token (once a day) and for its first stake. A trade counts for the wallet that sent it. Covered calls follow.
 
 ## 15 November 2026: Agent guides
 - The agent guides and agents.md now name Regents CLI 1.10.30, the newest release, with its source commit and the fingerprint of its published package. No Autolaunch command was added or removed; `account points` lists the actions by site, as the Points page does.
