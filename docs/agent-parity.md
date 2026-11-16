@@ -85,7 +85,7 @@ read at. CLI cells are gaps owned by the **regents-cli lane**, to be added to
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read the places to lend USDC, with their terms and risks | `earn_products` | `/earn`: Rate, Supplied, Available, Room, Risks | `autolaunch_earn_products` (`GET /api/v1/earn/products`) | `earn_products` | `earn_products`, once paired with the agent permission | Gap: regents-cli lane |
+| Read the places to lend USDC, with their terms and risks | `earn_products` | `/earn`: Rate, Supplied, Available, Capacity, Risks | `autolaunch_earn_products` (`GET /api/v1/earn/products`) | `earn_products` | `earn_products`, once paired with the agent permission | Gap: regents-cli lane |
 | Preview a deposit or withdrawal | `earn_quote` | `/earn`, Deposit or Withdraw: the amount, and the reason beside a disabled button | `autolaunch_earn_quote` (`POST /api/agent/v1/earn/quote`) | `earn_quote` | `earn_quote`, once paired with the agent permission | Gap: regents-cli lane |
 | Read my Earn balances | `earn_positions` | `/portfolio`, Earn; `/earn`, Balance | `autolaunch_earn_positions` (`GET /api/agent/v1/earn/positions`) | `earn_positions` | `earn_positions`, once paired with the agent permission | Gap: regents-cli lane |
 | Deposit USDC | `prepare_earn`, kind `deposit` | `/earn`: Deposit, then Approve USDC, Confirm deposit | `autolaunch_earn_prepare` (`POST /api/agent/v1/earn/steps`) | `prepare_earn` | `prepare_earn`, once paired with the agent permission | Gap: regents-cli lane |
