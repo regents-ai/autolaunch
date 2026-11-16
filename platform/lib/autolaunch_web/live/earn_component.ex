@@ -619,6 +619,7 @@ defmodule AutolaunchWeb.EarnComponent do
   defp done_title(:withdraw), do: "Withdrawn"
 
   defp entry_words(:empty), do: nil
+  defp entry_words({:valid, _units}), do: nil
   defp entry_words({:invalid, :not_a_number}), do: "Enter a number, with a dot for decimals (1.5)."
   defp entry_words({:invalid, :too_precise}), do: "USDC goes to six decimal places."
   defp entry_words({:invalid, :zero}), do: "Enter an amount above zero."

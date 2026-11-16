@@ -20,14 +20,15 @@
 .earn__status[data-status="open"] { color: var(--color-success); border-color: currentColor; }
 .earn__status:is([data-status="frozen"], [data-status="paused"], [data-status="inactive"]) { color: var(--color-error); border-color: currentColor; }
 
-.earn__terms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
-.earn__terms > div { display: grid; gap: .125rem; min-width: 0; }
-.earn__terms dt { color: var(--color-fg-muted); font-size: .8125rem; }
-.earn__terms dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.earn__terms .earn__rate { grid-column: 1 / -1; }
+/* The rate large, then one row a figure: its name on the left, the figure on the right. */
+.earn__terms { display: grid; margin: 0; }
+.earn__terms > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-width: 0; padding-block: .625rem; border-top: 1px solid var(--hairline); }
+.earn__terms dt { color: var(--color-fg-muted); font-size: .875rem; }
+.earn__terms dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.earn__terms > .earn__rate { display: grid; gap: .125rem; padding-block: 0 var(--space-3); border-top: 0; }
+.earn__rate dd { text-align: start; }
 .earn__rate strong { display: block; font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.1; letter-spacing: -.03em; }
 .earn__rate small { color: var(--color-fg-muted); font-size: .875rem; }
-@media (max-width: 29.99rem) { .earn__terms { grid-template-columns: minmax(0, 1fr); } }
 .earn__line, .earn__block, .earn__note { margin: 0; font-size: .875rem; line-height: 1.5; }
 .earn__block { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 .earn__note { color: var(--color-error); }
@@ -45,10 +46,11 @@
 .earn-panel { display: grid; gap: var(--space-3); min-width: 0; }
 .earn-panel__body, .earn-panel__form { display: grid; gap: var(--space-3); min-width: 0; align-content: start; }
 .earn-panel__body[inert] { opacity: .45; }
-.earn-panel__balance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+/* Balance and wallet side by side, each figure on one line; the second goes under the first when they don't fit. */
+.earn-panel__balance { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); margin: 0; }
 .earn-panel__balance > div { display: grid; gap: .125rem; min-width: 0; }
 .earn-panel__balance dt { color: var(--color-fg-muted); font-size: .8125rem; }
-.earn-panel__balance dd { margin: 0; font-size: 1.125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.earn-panel__balance dd { margin: 0; font-size: 1.125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .earn-panel__input { display: flex; align-items: center; gap: var(--space-2); }
 .earn-panel__input > input { flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
 .earn-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
