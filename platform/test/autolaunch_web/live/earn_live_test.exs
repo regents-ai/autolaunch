@@ -161,7 +161,7 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert view |> element("#{@panel}-why") |> render() |> words() == ""
   end
 
-  test "each blocked reason disables its button: a frozen market takes no deposit, and lets a withdrawal out",
+  test "a frozen market disables Deposit, and lets a withdrawal out up to the balance",
        %{conn: conn} do
     EarnChain.install(%{frozen: true, balance: 40 * @unit})
     {view, _panel, _wallet} = signed_in(conn)
