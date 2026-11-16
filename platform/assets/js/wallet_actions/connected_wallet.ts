@@ -3,12 +3,19 @@ export type EthereumProvider = {
 }
 
 /**
- * One wallet Privy currently holds: the provider this page sends through, and
- * Privy's own way of letting go of it.
+ * Privy's own way of moving one wallet to another network, which knows how each
+ * wallet app asks to add a network it lacks. It rejects as the wallet does,
+ * 4001 when the person says no.
  */
-export type ConnectedEthereumWallet = {provider: EthereumProvider; disconnect: () => void}
+export type SwitchChain = (chainId: number) => Promise<void>
 
-export type SelectedWallet = {address: string; provider: EthereumProvider}
+/**
+ * One wallet Privy currently holds: the provider this page sends through, and
+ * Privy's own ways of moving it to another network and of letting go of it.
+ */
+export type ConnectedEthereumWallet = {provider: EthereumProvider; switchChain: SwitchChain; disconnect: () => void}
+
+export type SelectedWallet = {address: string; provider: EthereumProvider; switchChain: SwitchChain}
 
 // A visitor who chose Disconnect stays disconnected across reloads, whatever
 // the wallet app still reports to Privy afterwards.
@@ -35,7 +42,9 @@ export function replaceConnectedEthereumWallets(
  * Solana or stale selection is no wallet, never a substitute one.
  */
 export function replaceActiveEthereumWallet(wallet: SelectedWallet | null): void {
-  activeWallet = wallet ? {address: wallet.address.toLowerCase(), provider: wallet.provider} : null
+  activeWallet = wallet
+    ? {address: wallet.address.toLowerCase(), provider: wallet.provider, switchChain: wallet.switchChain}
+    : null
 }
 
 export function activeEthereumWallet(): SelectedWallet | null {

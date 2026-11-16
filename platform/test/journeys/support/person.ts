@@ -43,7 +43,6 @@ export async function holdWallet(context: BrowserContext, baseURL: string, walle
       case "eth_chainId": return "0x7a69"
       case "eth_accounts":
       case "eth_requestAccounts": return wallet ? [wallet] : []
-      case "wallet_switchEthereumChain": return null
       case "wallet_getCapabilities": throw Object.assign(new Error("unsupported"), {code: 4200})
       case "eth_sendTransaction": {
         const [tx] = params
@@ -86,10 +85,12 @@ function standIn(real: string, wallet: string | null): string {
 import {replaceActiveEthereumWallet, replaceConnectedEthereumWallets} from "${chunk[1]}"
 const address = ${JSON.stringify(wallet)}
 const provider = {request: ({method, params}) => window.journeyWallet({method, params: params ?? []})}
+// Privy's switch, which has nowhere to go: the copy of Base is the only network.
+const switchChain = async () => undefined
 export async function startPrivyBridge() {
   if (address) {
-    replaceConnectedEthereumWallets([[address, {provider, disconnect() {}}]])
-    replaceActiveEthereumWallet({address, provider})
+    replaceConnectedEthereumWallets([[address, {provider, switchChain, disconnect() {}}]])
+    replaceActiveEthereumWallet({address, provider, switchChain})
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }
   return {isAvailable: () => true, request: async () => {}}

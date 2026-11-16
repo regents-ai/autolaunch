@@ -16,6 +16,13 @@ defmodule Autolaunch.Chain.Client do
   def chain(%{chain_id: chain_id, public_rpc_url: rpc_url}),
     do: %{chain_id: chain_id, name: network_name(chain_id), rpc_url: rpc_url}
 
+  @doc """
+  Every chain this site's reviews can name, as `chain/1` names it: the Base
+  deployment's, then the Robinhood deployment's when the site has one. The
+  page gives the list to Privy, Base as the network wallets start on.
+  """
+  def chains, do: for({:ok, config} <- [Lab.current(), RobinhoodLab.current()], do: chain(config))
+
   @doc "The network name every page shows for `chain_id`."
   def network_name(chain_id) do
     if RobinhoodLab.chain?(chain_id),
