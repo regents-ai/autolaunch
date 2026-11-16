@@ -158,16 +158,15 @@ defmodule Autolaunch.Earn.Chain do
 
   defp amounts(reads, block, opts) do
     with {:ok, answers} <- Multicall.read(reads, block, opts) do
-      Enum.reduce_while(answers, {:ok, []}, fn answer, {:ok, kept} ->
-        case words(answer, 1) do
-          {:ok, [amount]} -> {:cont, {:ok, [amount | kept]}}
-          error -> {:halt, error}
-        end
-      end)
-      |> case do
-        {:ok, kept} -> {:ok, Enum.reverse(kept)}
-        error -> error
-      end
+      answers |> Enum.map(&words(&1, 1)) |> one_word_each()
+    end
+  end
+
+  # Each answer's one word, or the first answer that is not one word.
+  defp one_word_each(read) do
+    case Enum.find(read, &match?({:error, _reason}, &1)) do
+      nil -> {:ok, Enum.map(read, fn {:ok, [amount]} -> amount end)}
+      error -> error
     end
   end
 
