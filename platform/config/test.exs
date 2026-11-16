@@ -218,3 +218,6 @@ config :phoenix,
 
 # Covered calls keep no shared reading between tests, so each reads its own chain.
 config :autolaunch, :covered_calls_book_kept_ms, 0
+
+# Nor does Earn, so a test's chain is the one its pages and answers read.
+config :autolaunch, :earn_terms_kept_ms, 0

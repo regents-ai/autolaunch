@@ -70,10 +70,13 @@ defmodule Autolaunch.Earn.Answer do
   def blocked(nil), do: nil
   def blocked(reason), do: %{code: reason, message: Map.fetch!(@blocked, reason)}
 
-  @doc "The market's yearly rate now as a percentage with two decimals, from its ray figure."
+  @doc """
+  The market's yearly rate now as a percentage with two decimals, from its ray
+  figure, cut and never rounded up, so it never shows more than the market pays.
+  """
   @spec yearly_percent(non_neg_integer()) :: String.t()
   def yearly_percent(rate) do
-    hundredths = div(rate * 10_000 + div(@ray, 2), @ray)
+    hundredths = div(rate * 10_000, @ray)
 
     "#{div(hundredths, 100)}.#{hundredths |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
@@ -88,7 +91,7 @@ defmodule Autolaunch.Earn.Answer do
       supplied: terms.supplied,
       available: terms.available,
       supply_cap: if(terms.cap == 0, do: nil, else: terms.cap),
-      room: room(terms.room),
+      capacity: capacity(terms.capacity),
       block: block(terms.block),
       risks: Catalog.risks(product)
     })
@@ -120,7 +123,11 @@ defmodule Autolaunch.Earn.Answer do
         usdc: holding.usdc,
         allowance: holding.allowance
       },
-      market: %{status: terms.status, available: terms.available, room: room(terms.room)},
+      market: %{
+        status: terms.status,
+        available: terms.available,
+        capacity: capacity(terms.capacity)
+      },
       block: block(terms.block)
     }
   end
@@ -131,9 +138,9 @@ defmodule Autolaunch.Earn.Answer do
       |> Map.take([:id, :chain_id, :protocol, :market, :asset, :pool, :asset_address])
       |> Map.put(:market_token, terms.a_token)
 
-  defp room(:uncapped), do: nil
-  defp room({:room, left}), do: left
-  defp room(:full), do: 0
+  defp capacity(:uncapped), do: nil
+  defp capacity({:left, left}), do: left
+  defp capacity(:full), do: 0
 
   defp position_name(:none), do: :none
   defp position_name({:held, _balance}), do: :held

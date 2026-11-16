@@ -8,9 +8,11 @@ defmodule AutolaunchWeb.EarnComponent do
   `{:earn_done, done}`).
 
   The page passes `product`, `decimals` (the asset's, from the market's first
-  reading), `kind` (`:deposit` or `:withdraw`, the page's tabs), the panel's
-  `session_lease` and `current_human_id`. A landed step tells the page with
-  `{:earn_changed, product_id}`, so it reads the market again.
+  reading), `kind` (`:deposit` or `:withdraw`, the page's tabs), `reads` (how
+  many times the page has read the market), the panel's `session_lease` and
+  `current_human_id`. A landed step leaves the market's shared reading behind
+  and every open page of the product hears it
+  (`Autolaunch.Earn.SharedTerms.changed/1`), so each reads the market again.
 
   The server builds every step (`Autolaunch.Earn.prepare_earn_steps/4`, the
   same action agents call) for the wallet that may act
@@ -18,18 +20,28 @@ defmodule AutolaunchWeb.EarnComponent do
   straight to the wallet. A deposit's approval is its own step; one the chain
   already holds shows as done. The button is disabled only when the chain, read
   at the latest block for the amount as it stands, makes the step certain to
-  fail, with the reason beside it. An amount that does not read is said under
-  the field and never disables anything.
+  fail, with the reason beside it. That preview is read again, at the latest
+  block, each time the amount settles (a moment after the last key), the
+  wallet changes, the page comes back into view, a press goes out, a step
+  lands on this page or another, and each time the page reads the market (its
+  Refresh included), so the button comes back once the chain allows the step.
+  A new preview stops the one still being read. An amount that does not read
+  is said under the field and never disables anything.
 
   Max fills in the wallet's USDC for a deposit. For a withdrawal it asks for
   everything, which withdraws the balance as it stands when the step lands; a
-  typed figure, even one equal to the balance, is that figure only.
+  typed figure, even one equal to the balance, is that figure only. Another
+  wallet starts from an empty amount, Max off.
+
+  The figures beside the field (Balance, Wallet) are shortened and never
+  rounded up (`amount/3`); the review and what the page says moved give the
+  exact amount.
   """
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Earn
-  alias Autolaunch.Earn.{Amount, Answer}
+  alias Autolaunch.Earn.{Amount, Answer, SharedTerms}
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, StakeComponent}
   alias Phoenix.LiveView.JS
@@ -52,6 +64,7 @@ defmodule AutolaunchWeb.EarnComponent do
        openings: 0,
        notice: nil,
        mismatch: nil,
+       wallet: nil,
        held: nil,
        held_for: nil,
        held_reads: 0
@@ -87,8 +100,8 @@ defmodule AutolaunchWeb.EarnComponent do
   def handle_event("refresh_funds", _params, socket),
     do: {:noreply, socket |> update(:held_reads, &(&1 + 1)) |> sync()}
 
-  def handle_event("change", %{"amount" => text}, socket),
-    do: {:noreply, socket |> typed(text) |> assign(notice: nil) |> sync()}
+  def handle_event("change", params, socket),
+    do: {:noreply, socket |> typed(params["amount"]) |> assign(notice: nil) |> sync()}
 
   def handle_event("max", _params, socket) do
     case {socket.assigns.kind, socket.assigns.held} do
@@ -131,8 +144,9 @@ defmodule AutolaunchWeb.EarnComponent do
     end
   end
 
-  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
-    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+  # A hash that names no step sent from here, whatever it is, finds nothing.
+  def handle_event("check_again", params, socket),
+    do: {:noreply, OnchainSteps.check_again(socket, params["hash"])}
 
   def handle_event("close_review", _params, socket),
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
@@ -151,6 +165,9 @@ defmodule AutolaunchWeb.EarnComponent do
       {:noreply, socket}
     end
   end
+
+  # A preview stopped because the amount no longer reads.
+  def handle_async(:quote, {:exit, {:shutdown, :cancel}}, socket), do: {:noreply, socket}
 
   def handle_async(:quote, {:exit, _reason}, socket),
     do: {:noreply, assign(socket, quote: nil, refusal: :chain_unavailable)}
@@ -175,18 +192,11 @@ defmodule AutolaunchWeb.EarnComponent do
 
   defp typed(socket, _text), do: socket
 
-  # The figures follow the wallet that may act and the amount as it stands. A
-  # review open for another wallet closes: its steps were built for that wallet
-  # only.
+  # The figures follow the wallet that may act and the amount as it stands,
+  # read again each time; a new preview stops the one still being read.
   defp sync(socket) do
     signer = signer(socket)
-
-    socket =
-      case socket.assigns.review do
-        %{signer: ^signer} -> socket
-        nil -> socket
-        _other_wallet -> closed(socket)
-      end
+    socket = follow(socket, signer)
 
     case {signer, request(socket.assigns)} do
       {signer, {:ok, request}} when is_binary(signer) ->
@@ -194,24 +204,36 @@ defmodule AutolaunchWeb.EarnComponent do
 
         socket
         |> assign(refusal: nil)
+        |> cancel_async(:quote)
         |> start_async(:quote, fn -> {request, signer, prepare(id, request, signer)} end)
 
       {_signer, _request} ->
-        assign(socket, quote: nil, refusal: nil)
+        socket |> cancel_async(:quote) |> assign(quote: nil, refusal: nil)
     end
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
     |> read_held()
   end
 
+  # Another wallet that may act starts from an empty amount, Max off, and the
+  # review open for the one before closes: its figures and steps were for that
+  # wallet only. The first wallet the panel hears of keeps what was typed.
+  defp follow(%{assigns: %{wallet: signer}} = socket, signer), do: socket
+  defp follow(%{assigns: %{wallet: nil}} = socket, signer), do: assign(socket, wallet: signer)
+
+  defp follow(socket, signer),
+    do: socket |> assign(wallet: signer, text: "", max: false, notice: nil) |> closed()
+
   # What the wallet the panel shows figures for holds, for the balance and Max:
-  # read again for each new wallet and each ask (`held_reads`). A new ask stops
-  # the read still running for an earlier one, so asks never stack.
+  # read again for each new wallet, each ask of the panel's own (`held_reads`)
+  # and each reading of the market the page takes (`reads`). Another wallet
+  # shows nothing until its own figures are read. A new ask stops the read
+  # still running for an earlier one, so asks never stack.
   defp read_held(%{assigns: assigns} = socket) do
     wallet =
       if is_list(assigns.linked),
         do: OnchainSteps.shown_wallet(assigns.linked, assigns.signed_in, assigns.active)
 
-    key = {wallet, assigns.held_reads}
+    key = {wallet, assigns.held_reads, assigns.reads}
     %{product: product, current_human_id: id} = assigns
 
     cond do
@@ -223,7 +245,10 @@ defmodule AutolaunchWeb.EarnComponent do
 
       true ->
         socket
-        |> assign(held_for: key)
+        |> assign(
+          held_for: key,
+          held: if(match?({^wallet, _, _}, assigns.held_for), do: assigns.held)
+        )
         |> cancel_async(:held)
         |> start_async(:held, fn -> {key, held(product.id, id, wallet)} end)
     end
@@ -280,12 +305,12 @@ defmodule AutolaunchWeb.EarnComponent do
   defp no_signer(%{linked: linked, active: active}),
     do: OnchainSteps.failure_note("wallet_unavailable", linked, active, "Base")
 
-  # A step landed: the page reads the market again and the panel the wallet.
+  # A step landed: every open page of the product reads the market again, this
+  # one included, and with it each panel its wallet and its preview (`reads`).
   # When every step of the open review has landed once, whichever press of it
   # landed, the review closes and the page says what moved.
   defp confirmed(socket, %{review: %{id: id}, name: name}) do
-    send(self(), {:earn_changed, socket.assigns.product.id})
-    socket = update(socket, :held_reads, &(&1 + 1))
+    SharedTerms.changed(socket.assigns.product.id)
 
     case socket.assigns.review do
       %{id: ^id} ->
@@ -298,7 +323,6 @@ defmodule AutolaunchWeb.EarnComponent do
       _other_review ->
         socket
     end
-    |> sync()
   end
 
   # A step of the open review that did not go through: the step is reviewed
@@ -422,6 +446,8 @@ defmodule AutolaunchWeb.EarnComponent do
                   type="text"
                   value={@text}
                   inputmode="decimal"
+                  maxlength="32"
+                  phx-debounce="300"
                   autocomplete="off"
                   spellcheck="false"
                   placeholder="0"
@@ -539,21 +565,32 @@ defmodule AutolaunchWeb.EarnComponent do
     """
   end
 
-  @doc "An amount of the asset as every Earn figure shows it."
+  @doc """
+  An amount of the asset as Earn's figures show it: shortened, and cut, never
+  rounded up (`RegentFormat.token_amount/2`), so a figure never shows more than
+  is there.
+  """
   def amount(units, decimals, asset),
     do: RegentFormat.token_amount(units, decimals) <> " " <> asset
 
+  # The market's rate in the words the page gives it beside its terms.
+  defp rate_words(rate),
+    do: "#{Answer.yearly_percent(rate)}% a year at today's rate, before compounding. It changes."
+
+  # The exact amount, every digit, where a person confirms money or is told it moved.
+  defp exact(units, decimals, asset), do: Amount.text(units, decimals) <> " " <> asset
+
   defp facts(%{kind: :deposit} = prepared, decimals) do
     [
-      ["Amount", amount(prepared.units, decimals, prepared.product.asset)],
+      ["Amount", exact(prepared.units, decimals, prepared.product.asset)],
       ["Market", prepared.product.market],
-      ["Rate now", Answer.yearly_percent(prepared.terms.rate) <> "% a year"]
+      ["Rate", rate_words(prepared.terms.rate)]
     ]
   end
 
   defp facts(%{kind: :withdraw, withdrawal: :everything} = prepared, decimals) do
     [
-      ["Amount", "All, #{amount(prepared.units, decimals, prepared.product.asset)} now"],
+      ["Amount", "All, #{exact(prepared.units, decimals, prepared.product.asset)} now"],
       ["Market", prepared.product.market],
       ["To", "This wallet"]
     ]
@@ -561,7 +598,7 @@ defmodule AutolaunchWeb.EarnComponent do
 
   defp facts(%{kind: :withdraw} = prepared, decimals) do
     [
-      ["Amount", amount(prepared.units, decimals, prepared.product.asset)],
+      ["Amount", exact(prepared.units, decimals, prepared.product.asset)],
       ["Market", prepared.product.market],
       ["To", "This wallet"]
     ]
@@ -569,13 +606,13 @@ defmodule AutolaunchWeb.EarnComponent do
 
   defp done_line(%{kind: :deposit} = prepared, decimals),
     do:
-      "#{amount(prepared.units, decimals, prepared.product.asset)} is earning in #{prepared.product.market}."
+      "#{exact(prepared.units, decimals, prepared.product.asset)} is earning in #{prepared.product.market}."
 
   defp done_line(%{kind: :withdraw, withdrawal: :everything}, _decimals),
     do: "Your whole balance is back in your wallet."
 
   defp done_line(%{kind: :withdraw} = prepared, decimals),
-    do: "#{amount(prepared.units, decimals, prepared.product.asset)} is back in your wallet."
+    do: "#{exact(prepared.units, decimals, prepared.product.asset)} is back in your wallet."
 
   defp steps(%{review: nil}), do: []
 
@@ -640,7 +677,22 @@ defmodule AutolaunchWeb.EarnComponent do
   defp blocked_words(:over_balance), do: "More than your balance"
   defp blocked_words(:not_available_now), do: "Not that much is available to withdraw right now"
 
+  # Each refusal a preview or review for a wallet of the panel's own can meet.
+  # Its amount always reads and its product is the catalog's, so the input
+  # refusals cannot.
   defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
-  defp refusal_words(:invalid_amount), do: "Enter an amount above zero."
-  defp refusal_words(_unavailable), do: "We couldn't reach Base just now. Try again in a moment."
+  defp refusal_words(:authentication_required), do: "Sign in again to use your wallet here."
+  defp refusal_words(:earn_unavailable), do: "Earn is not available right now. Try again later."
+
+  defp refusal_words(:chain_unavailable),
+    do: "We couldn't reach Base just now. Try again in a moment."
+
+  defp refusal_words(:invalid_chain_response),
+    do: "Base sent an answer we couldn't read. Try again in a moment."
+
+  defp refusal_words(:invalid_block_header),
+    do: "Base sent a block we couldn't read. Try again in a moment."
+
+  defp refusal_words(:wrong_chain),
+    do: "Our connection to Base answered for another network. Try again in a moment."
 end

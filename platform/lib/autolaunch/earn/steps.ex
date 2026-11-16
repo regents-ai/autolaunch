@@ -43,8 +43,7 @@ defmodule Autolaunch.Earn.Steps do
   """
   @spec prepare(map(), String.t()) :: {:ok, prepared()} | {:error, atom()}
   def prepare(%{product: id, kind: kind} = request, signer) do
-    with true <- kind in States.kinds() || {:error, :unknown_action},
-         {:ok, product} <- Catalog.product(id),
+    with {:ok, product} <- Catalog.product(id),
          {:ok, asked} <- asked(kind, request),
          {:ok, lab} <- Catalog.lab(product),
          {:ok, terms, holding} <- Chain.read(product, lab, signer) do
@@ -80,7 +79,7 @@ defmodule Autolaunch.Earn.Steps do
         status: terms.status,
         units: units,
         funds: holding.usdc,
-        room: terms.room
+        capacity: terms.capacity
       })
 
     %{
@@ -120,7 +119,7 @@ defmodule Autolaunch.Earn.Steps do
 
     %{
       withdrawal: withdrawal,
-      units: withdrawn(withdrawal, holding.balance),
+      units: States.withdrawn(withdrawal, holding.balance),
       approved: true,
       blocked: reason(blocked),
       steps: [
@@ -136,11 +135,6 @@ defmodule Autolaunch.Earn.Steps do
       ]
     }
   end
-
-  # What a withdrawal comes to at this block: everything is the balance now,
-  # and a little more by the time it lands.
-  defp withdrawn(:everything, balance), do: balance
-  defp withdrawn({:amount, units}, _balance), do: units
 
   defp reason(:ok), do: nil
   defp reason({:blocked, reason}), do: reason

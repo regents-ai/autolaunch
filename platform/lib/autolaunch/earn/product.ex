@@ -3,8 +3,10 @@ defmodule Autolaunch.Earn.Product do
   The Earn operations, so every surface answers with the same figures and the
   same refusals:
 
-    * `:terms` — a product's market at the latest block (public)
-    * `:position` — the same, with what a wallet of the acting account holds in it
+    * `:terms` — a product's market at a recent block, one reading every
+      visitor shares for ten seconds (`Autolaunch.Earn.SharedTerms`; public)
+    * `:position` — the market at the latest block, with what a wallet of the
+      acting account holds in it
     * `:prepare` — the wallet steps for a deposit or withdrawal, for a wallet of
       the acting account
 
@@ -15,9 +17,9 @@ defmodule Autolaunch.Earn.Product do
   offers Earn (`Autolaunch.Earn.Checks.Offered`), and the steps only once the
   site has left prelaunch read-only mode
   (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A quote is the steps'
-  preview without the calls: it reserves nothing, and both are read again at
-  the latest block on every ask. A refusal is an `Autolaunch.Earn.Refused`
-  naming its reason.
+  preview without the calls: it reserves nothing, and both, like a position,
+  are read again at the latest block on every ask. A refusal is an
+  `Autolaunch.Earn.Refused` naming its reason.
 
   Nothing is stored: the chain is the record. The acting account comes from the
   actor the caller authenticated; a wallet named in the request is only ever
@@ -31,10 +33,12 @@ defmodule Autolaunch.Earn.Product do
 
   alias Autolaunch.CoveredCalls.Signer
   alias Autolaunch.Earn
-  alias Autolaunch.Earn.{Answer, Catalog, Chain, Refused, States, Steps}
+  alias Autolaunch.Earn.{Answer, Catalog, Chain, Refused, SharedTerms, States, Steps}
 
-  # An amount far beyond any real one, inside the pool's uint256.
-  @amount [min: 1, max: 2 ** 128 - 1]
+  # An amount far beyond any real one: the largest whole number a JSON reader
+  # holds exactly, as the agent tools' schemas say (priv/earn_tools.json) and
+  # the page's field reads (`Autolaunch.Earn.Amount`).
+  @amount [min: 1, max: 9_007_199_254_740_991]
 
   # What each input of the hosted tools is, in the browser tools' words
   # (priv/earn_tools.json).
@@ -51,7 +55,7 @@ defmodule Autolaunch.Earn.Product do
       run fn %{arguments: %{product: id}}, _context ->
         with {:ok, product} <- Catalog.product(id),
              {:ok, lab} <- Catalog.lab(product),
-             {:ok, terms, nil} <- Chain.read(product, lab, nil) do
+             {:ok, terms} <- SharedTerms.read(product, lab) do
           {:ok, %{product: product, terms: terms}}
         end
         |> __MODULE__.refused()

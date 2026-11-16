@@ -67,6 +67,19 @@ defmodule Autolaunch.Earn.StepsTest do
              prepared
   end
 
+  test "each step calls the function its contract names, by its four-byte selector", context do
+    EarnChain.put(%{balance: 40 * @unit})
+
+    selector = fn %{data: data} -> data |> BuilderCode.call() |> String.slice(0, 10) end
+
+    {:ok, %{steps: [approval, supply]}} = prepare(context, :deposit, %{amount: @unit})
+    {:ok, %{steps: [withdraw]}} = prepare(context, :withdraw, %{amount: @unit})
+
+    assert selector.(approval) == "0x095ea7b3"
+    assert selector.(supply) == "0x617ba037"
+    assert selector.(withdraw) == "0x69328dec"
+  end
+
   test "a deposit is approved only while the allowance covers the amount as it stands now",
        context do
     EarnChain.put(%{allowance: 100 * @unit})
@@ -148,7 +161,10 @@ defmodule Autolaunch.Earn.StepsTest do
   test "a deposit is blocked past the supply cap, the treasury's share and interest counted",
        context do
     # A cap of 1,000 USDC; 900 supplied in scaled units, 50 owed to the
-    # treasury, at an index of 1.02: the pool counts (900 + 50) * 1.02 = 969.
+    # treasury, at an index of 1.02. The pool scales the deposit down and the
+    # total's balance down, each rounded down: 31 USDC and one unit scale to
+    # 30.392157, and (950 + 30.392157) * 1.02 rounds down to 1,000 USDC, the
+    # cap itself; one unit more scales to 30.392158, which reaches 1,000.000001.
     EarnChain.put(%{
       cap: 1_000,
       scaled: 900 * @unit,
@@ -157,8 +173,8 @@ defmodule Autolaunch.Earn.StepsTest do
       usdc: 1_000 * @unit
     })
 
-    assert blocked(context, :deposit, %{amount: 31 * @unit}) == nil
-    assert blocked(context, :deposit, %{amount: 31 * @unit + 1}) == :over_supply_cap
+    assert blocked(context, :deposit, %{amount: 31 * @unit + 1}) == nil
+    assert blocked(context, :deposit, %{amount: 31 * @unit + 2}) == :over_supply_cap
 
     # At the cap the market takes nothing.
     EarnChain.put(%{cap: 1_000, scaled: 1_000 * @unit, usdc: 1_000 * @unit})
@@ -222,5 +238,20 @@ defmodule Autolaunch.Earn.StepsTest do
     EarnChain.put(%{unreadable: true})
     assert {:error, error} = prepare(context, :deposit, %{amount: @unit})
     assert Earn.reason(error) == :chain_unavailable
+  end
+
+  test "Earn switched off, or no deployment to read it on, refuses the steps as unavailable",
+       context do
+    Application.put_env(:autolaunch, :earn, :off)
+    assert {:error, error} = prepare(context, :deposit, %{amount: @unit})
+    assert Earn.reason(error) == :earn_unavailable
+
+    Application.put_env(:autolaunch, :earn, :on)
+    run_id = Application.fetch_env!(:autolaunch, :autolaunch_base_deployment_id)
+    on_exit(fn -> Application.put_env(:autolaunch, :autolaunch_base_deployment_id, run_id) end)
+    Application.delete_env(:autolaunch, :autolaunch_base_deployment_id)
+
+    assert {:error, error} = prepare(context, :deposit, %{amount: @unit})
+    assert Earn.reason(error) == :earn_unavailable
   end
 end

@@ -13,8 +13,11 @@ defmodule Autolaunch.Earn.Amount do
   so a figure the page fills in (Max) reads back as exactly what it was.
   """
 
-  # The most a step carries: far beyond any real amount, inside the pool's uint256.
-  @most 2 ** 128 - 1
+  # The most a step carries, the same bound the operations and the agent tools
+  # take (`Autolaunch.Earn.Product`, `priv/earn_tools.json`): the largest whole
+  # number a JSON reader holds exactly, far beyond any real amount.
+  @most 9_007_199_254_740_991
+  @most_digits @most |> Integer.to_string() |> byte_size()
 
   @type entry :: :empty | {:invalid, reason()} | {:valid, pos_integer()}
   @type reason :: :not_a_number | :too_precise | :zero | :too_large
@@ -47,6 +50,8 @@ defmodule Autolaunch.Earn.Amount do
 
     case digits do
       "" -> {:invalid, :zero}
+      # More digits than the bound has is past it, and is never made a number.
+      digits when byte_size(digits) > @most_digits -> {:invalid, :too_large}
       digits -> bounded(String.to_integer(digits))
     end
   end

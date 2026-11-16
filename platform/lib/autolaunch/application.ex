@@ -62,6 +62,11 @@ defmodule Autolaunch.Application do
          hooks: [hook(module: Cachex.Limit.Scheduled, args: {10_000, [], []})]},
         id: Autolaunch.Chain.CcaLists.cache()
       ),
+      # Each Earn product's market as every visitor shares it, for a few
+      # seconds (Autolaunch.Earn.SharedTerms).
+      Supervisor.child_spec({Cachex, name: Autolaunch.Earn.SharedTerms.cache()},
+        id: Autolaunch.Earn.SharedTerms.cache()
+      ),
       # Each paired agent's reading for an open account menu.
       Supervisor.child_spec({Cachex, name: Autolaunch.Agents.ActivityReading.cache()},
         id: Autolaunch.Agents.ActivityReading.cache()

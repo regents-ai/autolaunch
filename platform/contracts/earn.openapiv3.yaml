@@ -6,10 +6,10 @@ paths:
     get:
       operationId: autolaunch_earn_products
       summary: List the Earn products
-      description: Every place this site offers to lend USDC on Base, each read from its market at the
-        latest block, with its rate now (a simple yearly rate that changes), what is supplied, what can
-        be withdrawn now, its supply cap and the room left under it, its status, the block the figures
-        were read at, and its risks. Amounts are in the asset's smallest units (USDC has 6 decimals).
+      description: Every place this site offers to lend USDC on Base, each read from its market at a
+        recent block and shared for up to ten seconds, with its rate now (a yearly rate before
+        compounding, which changes), what is supplied, what can be withdrawn now, its supply cap and its
+        capacity under it, its status, the block the figures were read at, and its risks. Amounts are in the asset's smallest units (USDC has 6 decimals).
         Needs no account; the page tool autolaunch_earn_products calls it.
       security: []
       responses:
@@ -26,7 +26,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EarnError'
         '503':
-          description: The chain could not be read (chain_unavailable)
+          description: Earn or the chain could not be read just now (earn_unavailable, chain_unavailable, invalid_chain_response, invalid_block_header, wrong_chain)
           content:
             application/json:
               schema:
@@ -63,7 +63,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EarnError'
         '503':
-          description: The chain could not be read (chain_unavailable)
+          description: Earn or the chain could not be read just now (earn_unavailable, chain_unavailable, invalid_chain_response, invalid_block_header, wrong_chain)
           content:
             application/json:
               schema:
@@ -98,7 +98,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EarnError'
         '503':
-          description: The chain could not be read (chain_unavailable)
+          description: Earn or the chain could not be read just now (earn_unavailable, chain_unavailable, invalid_chain_response, invalid_block_header, wrong_chain)
           content:
             application/json:
               schema:
@@ -154,7 +154,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EarnError'
         '503':
-          description: The chain could not be read (chain_unavailable)
+          description: Earn or the chain could not be read just now (earn_unavailable, chain_unavailable, invalid_chain_response, invalid_block_header, wrong_chain)
           content:
             application/json:
               schema:
@@ -213,7 +213,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EarnError'
         '503':
-          description: The chain could not be read, or the site is not open yet (chain_unavailable, prelaunch_read_only)
+          description: Earn or the chain could not be read just now, or the site is not open yet (earn_unavailable, chain_unavailable, invalid_chain_response, invalid_block_header, wrong_chain, prelaunch_read_only)
 components:
   schemas:
     EarnBlock:
@@ -274,7 +274,7 @@ components:
         - supplied
         - available
         - supply_cap
-        - room
+        - capacity
         - block
         - risks
         properties:
@@ -295,10 +295,10 @@ components:
             properties:
               ray:
                 type: string
-                description: The market's yearly rate in units of 10^27, a simple rate, not compounded.
+                description: The market's yearly rate in units of 10^27, before compounding.
               yearly_percent:
                 type: string
-                description: The same as a percentage with two decimals.
+                description: The same as a percentage, cut to two decimals.
           supplied:
             type: integer
           available:
@@ -307,10 +307,11 @@ components:
             type: integer
             nullable: true
             description: Whole tokens; null when the market has none.
-          room:
+          capacity:
             type: integer
             nullable: true
-            description: What more the market takes before its supply cap; null when it has none.
+            description: The most one deposit can be before the supply cap, 0 when the market is full;
+              null when it has none.
           block:
             $ref: '#/components/schemas/EarnBlock'
           risks:
@@ -467,7 +468,7 @@ components:
           required:
           - status
           - available
-          - room
+          - capacity
           properties:
             status:
               type: string
@@ -478,7 +479,7 @@ components:
               - inactive
             available:
               type: integer
-            room:
+            capacity:
               type: integer
               nullable: true
         block:
@@ -562,7 +563,11 @@ components:
               - wrong_signer
               - wallet_required
               - authentication_required
+              - earn_unavailable
               - chain_unavailable
+              - invalid_chain_response
+              - invalid_block_header
+              - wrong_chain
               - agent_not_paired
             message:
               type: string

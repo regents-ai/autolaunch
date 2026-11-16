@@ -41,14 +41,20 @@ defmodule Autolaunch.Earn.Catalog do
 
   def product(_id), do: {:error, :unknown_product}
 
-  @doc "The Base deployment `product` is read on, or why there is none."
-  @spec lab(product()) :: {:ok, map()} | {:error, atom()}
+  @doc """
+  The Base deployment `product` is read on, or `:earn_unavailable`: Earn is
+  switched off, the site has no Base deployment it can read, or that
+  deployment is on another chain.
+  """
+  @spec lab(product()) :: {:ok, map()} | {:error, :earn_unavailable}
   def lab(product) do
-    with true <- enabled?() || {:error, :earn_off},
-         {:ok, lab} <- Lab.current() do
-      if lab.chain_id == product.chain_id or Lab.test_chain?(lab.chain_id),
-        do: {:ok, lab},
-        else: {:error, :base_deployment_mismatch}
+    with true <- enabled?(),
+         {:ok, %{chain_id: chain_id} = lab} <- Lab.current(),
+         true <- chain_id == product.chain_id or Lab.test_chain?(chain_id) do
+      {:ok, lab}
+    else
+      false -> {:error, :earn_unavailable}
+      {:error, _no_deployment} -> {:error, :earn_unavailable}
     end
   end
 

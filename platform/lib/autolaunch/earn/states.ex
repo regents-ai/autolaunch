@@ -7,7 +7,7 @@ defmodule Autolaunch.Earn.States do
   for a step). `platform/docs/earn-design.md` has a table for each.
 
     * market status (`status/1`): `:open`, `:frozen`, `:paused` or `:inactive`
-    * deposit room (`room/1`): `:uncapped`, `{:room, units}` or `:full`
+    * deposit capacity (`capacity/1`): `:uncapped`, `{:left, units}` or `:full`
     * withdraw availability (`availability/2`): `:available` or
       `{:short, available_now}`
     * deposit readiness (`readiness/2`): `:needs_approval` or `:approved`
@@ -26,9 +26,11 @@ defmodule Autolaunch.Earn.States do
   # balance as it stands when the step lands, interest to that moment included.
   @everything 2 ** 256 - 1
 
+  @ray 10 ** 27
+
   @type kind :: :deposit | :withdraw
   @type status :: :open | :frozen | :paused | :inactive
-  @type room :: :uncapped | {:room, pos_integer()} | :full
+  @type capacity :: :uncapped | {:left, pos_integer()} | :full
   @type availability :: :available | {:short, non_neg_integer()}
   @type readiness :: :needs_approval | :approved
   @type withdrawal :: {:amount, pos_integer()} | :everything
@@ -69,22 +71,38 @@ defmodule Autolaunch.Earn.States do
   def allows?(:inactive, kind) when kind in @kinds, do: false
 
   @doc """
-  How much more the market takes before its supply cap. `cap` is in whole
-  tokens (0 for none); `counted` is what the pool counts against it: every
-  supplied balance and the interest set aside for its treasury, at the block's
-  index (`Autolaunch.Earn.Chain`). A deposit is refused once the counted total
-  with it would pass `cap` whole tokens.
-  """
-  @spec room(%{cap: non_neg_integer(), decimals: non_neg_integer(), counted: non_neg_integer()}) ::
-          room()
-  def room(%{cap: 0}), do: :uncapped
+  The most one deposit can be before the market's supply cap, worked out the
+  way the pool checks it (`ValidationLogic.validateSupply`, Aave V3.5 on):
+  every scaled balance, the treasury's scaled share and the deposit scaled
+  down at the income `index` (`TokenMath.getATokenMintScaledAmount`,
+  `rayDivFloor`), that sum's balance at `index` rounded down
+  (`getATokenBalance`, `rayMulFloor`), at most `cap` whole tokens. `cap` is 0
+  for none; `scaled` is the scaled balances and the treasury's share, as the
+  chain holds them (`Autolaunch.Earn.Chain`).
 
-  def room(%{cap: cap, decimals: decimals, counted: counted}) when cap > 0 do
-    case cap * 10 ** decimals - counted do
-      left when left > 0 -> {:room, left}
-      left when left <= 0 -> :full
+  A deposit up to `left` passes that check at `index`; one more unit does not.
+  """
+  @spec capacity(%{
+          cap: non_neg_integer(),
+          decimals: non_neg_integer(),
+          scaled: non_neg_integer(),
+          index: pos_integer()
+        }) :: capacity()
+  def capacity(%{cap: 0}), do: :uncapped
+
+  def capacity(%{cap: cap, decimals: decimals, scaled: scaled, index: index}) when cap > 0 do
+    # The most scaled supply whose balance at `index`, rounded down, is within the cap.
+    most = div((cap * 10 ** decimals + 1) * @ray - 1, index)
+
+    # The largest deposit whose scaled amount, rounded down, still fits under it.
+    case most - scaled do
+      short when short < 0 -> :full
+      fits -> left(div((fits + 1) * index - 1, @ray))
     end
   end
+
+  defp left(0), do: :full
+  defp left(units) when units > 0, do: {:left, units}
 
   @doc "Whether `units` can be withdrawn now, from the `liquidity` the market holds."
   @spec availability(pos_integer(), non_neg_integer()) :: availability()
@@ -122,8 +140,8 @@ defmodule Autolaunch.Earn.States do
   Whether a step is certain to fail, from the chain at the latest block, and
   why. The order is part of the contract: first the market's status, then what
   the wallet holds (its USDC for a deposit, its balance for a withdrawal), then
-  what the market can take or give right now (the supply cap's room, the USDC
-  available). The first that fails is the reason.
+  what the market can take or give right now (its capacity under the supply
+  cap, the USDC available). The first that fails is the reason.
 
   An approval still to land is not a reason: it is the deposit's readiness
   (`readiness/2`), a step of the review.
@@ -136,7 +154,7 @@ defmodule Autolaunch.Earn.States do
   def blocked(%{kind: kind, status: status} = facts) do
     with :ok <- market(status, kind),
          :ok <- held(kind, facts) do
-      market_room(kind, facts)
+      market_capacity(kind, facts)
     end
   end
 
@@ -165,23 +183,29 @@ defmodule Autolaunch.Earn.States do
        when units > balance,
        do: {:blocked, :over_balance}
 
-  defp market_room(:deposit, %{room: :uncapped}), do: :ok
-  defp market_room(:deposit, %{room: {:room, left}, units: units}) when units <= left, do: :ok
+  defp market_capacity(:deposit, %{capacity: :uncapped}), do: :ok
 
-  defp market_room(:deposit, %{room: {:room, left}, units: units}) when units > left,
+  defp market_capacity(:deposit, %{capacity: {:left, left}, units: units}) when units <= left,
+    do: :ok
+
+  defp market_capacity(:deposit, %{capacity: {:left, left}, units: units}) when units > left,
     do: {:blocked, :over_supply_cap}
 
-  defp market_room(:deposit, %{room: :full}), do: {:blocked, :over_supply_cap}
+  defp market_capacity(:deposit, %{capacity: :full}), do: {:blocked, :over_supply_cap}
 
-  defp market_room(:withdraw, %{position: {:held, balance}} = facts) do
+  defp market_capacity(:withdraw, %{position: {:held, balance}} = facts) do
     case availability(withdrawn(facts.withdrawal, balance), facts.liquidity) do
       :available -> :ok
       {:short, _available_now} -> {:blocked, :not_available_now}
     end
   end
 
-  # What a withdrawal takes out, as the chain reads it now: everything is the
-  # balance at this block.
-  defp withdrawn(:everything, balance), do: balance
-  defp withdrawn({:amount, units}, _balance), do: units
+  @doc """
+  What a withdrawal takes out, as the chain reads it at one block: everything
+  is the `balance` at that block, and a little more interest by the time it
+  lands.
+  """
+  @spec withdrawn(withdrawal(), non_neg_integer()) :: non_neg_integer()
+  def withdrawn(:everything, balance), do: balance
+  def withdrawn({:amount, units}, _balance), do: units
 end

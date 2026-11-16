@@ -195,8 +195,8 @@ config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 
 # Earn's catalog: each place USDC on Base can be lent out through Autolaunch,
 # as plain data. Everything else about it (its token, rate, flags, cap and what
-# can be withdrawn) is read from the chain at the latest block each time
-# (`Autolaunch.Earn`). Offered only on a site switched on with AUTOLAUNCH_EARN=true.
+# can be withdrawn) is read from the chain (`Autolaunch.Earn`). Offered only on
+# a site switched on with AUTOLAUNCH_EARN=true.
 config :autolaunch, :earn_products, [
   %{
     id: "aave-usdc",
@@ -208,6 +208,11 @@ config :autolaunch, :earn_products, [
     asset_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   }
 ]
+
+# How long each server keeps an Earn market's reading, shared by every visitor
+# (`Autolaunch.Earn.SharedTerms`); 0 keeps nothing. A wallet's figures and its
+# steps are read at the latest block every time.
+config :autolaunch, :earn_terms_kept_ms, 10_000
 
 # The node the shared libraries read each chain through, by chain id
 # (Autolaunch.Chain.NodeClient): the Points bonus reads Base. A wallet adds a

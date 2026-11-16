@@ -51,11 +51,13 @@ defmodule Autolaunch.Earn.ReadsTest do
     assert Chain.decode(reserve(0, 0, 1)).a_token == "0x0000000000000000000000000000000000000001"
   end
 
-  test "the rate shows as a yearly percentage to two places, rounded half up" do
+  test "the rate shows as a yearly percentage to two places, cut and never rounded up" do
     assert Answer.yearly_percent(0) == "0.00"
     assert Answer.yearly_percent(div(468 * @ray, 10_000)) == "4.68"
-    assert Answer.yearly_percent(div(5 * @ray, 100_000)) == "0.01"
-    assert Answer.yearly_percent(div(5 * @ray, 100_000) - 1) == "0.00"
+    assert Answer.yearly_percent(div(4_689 * @ray, 100_000)) == "4.68"
+    assert Answer.yearly_percent(div(5 * @ray, 100_000)) == "0.00"
+    assert Answer.yearly_percent(div(@ray, 10_000)) == "0.01"
+    assert Answer.yearly_percent(div(@ray, 10_000) - 1) == "0.00"
     assert Answer.yearly_percent(div(12_345 * @ray, 10_000)) == "123.45"
   end
 
@@ -74,14 +76,52 @@ defmodule Autolaunch.Earn.ReadsTest do
     assert Amount.entry("1,000", 6) == {:invalid, :not_a_number}
     assert Amount.entry("-1", 6) == {:invalid, :not_a_number}
     assert Amount.entry("1e3", 6) == {:invalid, :not_a_number}
-    assert Amount.entry(Integer.to_string(2 ** 128), 0) == {:invalid, :too_large}
-    assert Amount.entry(Integer.to_string(2 ** 128 - 1), 0) == {:valid, 2 ** 128 - 1}
+  end
+
+  test "an amount is at most the largest whole number a JSON reader holds exactly" do
+    most = 9_007_199_254_740_991
+
+    assert Amount.entry(Integer.to_string(most), 0) == {:valid, most}
+    assert Amount.entry(Integer.to_string(most + 1), 0) == {:invalid, :too_large}
+    assert Amount.entry("9007199254.740991", 6) == {:valid, most}
+    assert Amount.entry("9007199254.740992", 6) == {:invalid, :too_large}
+    # Seventeen digits are past it before they are read as a number.
+    assert Amount.entry("10000000000000000", 0) == {:invalid, :too_large}
+    # Leading zeros are not digits of the amount.
+    assert Amount.entry("000" <> Integer.to_string(most), 0) == {:valid, most}
+  end
+
+  test "pasted and unusual text reads as an amount only when it is plain digits and a dot" do
+    nbsp = " "
+
+    # Spacing around the figure, a non-breaking space or a new line included, is dropped.
+    assert Amount.entry(nbsp <> "1.5" <> nbsp, 6) == {:valid, 1_500_000}
+    assert Amount.entry("1.5\n", 6) == {:valid, 1_500_000}
+    assert Amount.entry("\n1.5", 6) == {:valid, 1_500_000}
+
+    # Inside the figure it is not an amount.
+    assert Amount.entry("1" <> nbsp <> "000", 6) == {:invalid, :not_a_number}
+    assert Amount.entry("1\n5", 6) == {:invalid, :not_a_number}
+    assert Amount.entry("1.5\n2", 6) == {:invalid, :not_a_number}
+
+    # Digits from other scripts, and exponents, are not read.
+    assert Amount.entry("١٥", 6) == {:invalid, :not_a_number}
+    assert Amount.entry("１５", 6) == {:invalid, :not_a_number}
+    assert Amount.entry("1E3", 6) == {:invalid, :not_a_number}
+    assert Amount.entry("1.5e2", 6) == {:invalid, :not_a_number}
+
+    # A very long string of digits is too large, and a very long fraction too precise.
+    assert Amount.entry(String.duplicate("9", 100_000), 6) == {:invalid, :too_large}
+    assert Amount.entry(String.duplicate("0", 100_000) <> "1", 0) == {:valid, 1}
+
+    assert Amount.entry("0." <> String.duplicate("0", 100_000) <> "1", 6) ==
+             {:invalid, :too_precise}
   end
 
   property "units written as text read back as exactly the same units" do
     check all(
             decimals <- integer(0..18),
-            units <- one_of([integer(1..1_000_000), integer(1..(2 ** 128 - 1))])
+            units <- one_of([integer(1..1_000_000), integer(1..9_007_199_254_740_991)])
           ) do
       text = Amount.text(units, decimals)
       assert text =~ ~r/\A\d+(\.\d*[1-9])?\z/
@@ -104,6 +144,10 @@ defmodule Autolaunch.Earn.ReadsTest do
 
         {:invalid, :zero} ->
           assert String.replace(typed, ~r/[0.]/, "") == ""
+
+        {:invalid, :too_large} ->
+          units = String.to_integer(whole <> String.pad_trailing(fraction, decimals, "0"))
+          assert units > 9_007_199_254_740_991
       end
     end
   end

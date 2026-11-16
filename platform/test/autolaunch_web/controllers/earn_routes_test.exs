@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.EarnRoutesTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.{EarnChain, TestSupport}
+  alias Autolaunch.{BaseRpcStub, EarnChain, TestSupport}
   alias RegentAgents.Person
   alias RegentChain.{BuilderCode, Call}
 
@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.EarnRoutesTest do
              "available" => 50_000_000_000_000,
              "supply_cap" => 500_000_000,
              # 500M cap less 300M supplied and 7 owed to the treasury.
-             "room" => 199_999_993_000_000
+             "capacity" => 199_999_993_000_000
            } = product
 
     assert product["block"]["number"] == 0x20 and product["block"]["timestamp"] == EarnChain.now()
@@ -133,6 +133,28 @@ defmodule AutolaunchWeb.EarnRoutesTest do
 
     assert build_conn() |> get("/api/v1/earn/products") |> json_response(503) |> code() ==
              "chain_unavailable"
+  end
+
+  test "a node that answers for another network or with what isn't a block, or no deployment to read Earn on, is refused with its own code" do
+    healthy = %{chain_id: "0x2105", blocks: BaseRpcStub.state().blocks}
+
+    for {answer, code} <- [
+          {%{chain_id: "0x1"}, "wrong_chain"},
+          {%{chain_id: "not a number"}, "invalid_chain_response"},
+          {%{blocks: %{"latest" => %{"number" => "0x20"}}}, "invalid_block_header"}
+        ] do
+      BaseRpcStub.put(answer)
+      refused = build_conn() |> get("/api/v1/earn/products") |> json_response(503)
+      assert code(refused) == code, inspect(answer)
+      BaseRpcStub.put(healthy)
+    end
+
+    run_id = Application.fetch_env!(:autolaunch, :autolaunch_base_deployment_id)
+    on_exit(fn -> Application.put_env(:autolaunch, :autolaunch_base_deployment_id, run_id) end)
+    Application.delete_env(:autolaunch, :autolaunch_base_deployment_id)
+
+    refused = build_conn() |> get("/api/v1/earn/products") |> json_response(503)
+    assert code(refused) == "earn_unavailable"
   end
 
   test "a paired agent previews before the site opens, and gets its steps only once it has" do
@@ -150,7 +172,7 @@ defmodule AutolaunchWeb.EarnRoutesTest do
              "everything" => false,
              "approved" => false,
              "blocked" => nil,
-             "market" => %{"status" => "open", "room" => nil},
+             "market" => %{"status" => "open", "capacity" => nil},
              "wallet" => %{"usdc" => 1_000_000_000, "position" => "none"}
            } = quote["data"]
 

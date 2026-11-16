@@ -25,6 +25,8 @@ defmodule AutolaunchWeb.EarnAnswer do
     wrong_signer: {:forbidden, "That wallet is not one of this account's own wallets."},
     wallet_required: {:conflict, "This account has no wallet to act with."},
     authentication_required: {:unauthorized, "Nobody is signed in on this site in this browser."},
+    # Earn switched off, or no Base deployment the site can read.
+    earn_unavailable: {:service_unavailable, "Earn is not available right now."},
     chain_unavailable: @chain_unavailable,
     # The node answered something that is not Base or not a block: to an agent,
     # the chain could not be read just now.
@@ -43,7 +45,7 @@ defmodule AutolaunchWeb.EarnAnswer do
 
   @doc "Answers with the operation's answer, or with the refusal it carries."
   def send(conn, {:ok, answer}), do: json(conn, %{data: answer})
-  def send(conn, {:error, error}), do: refuse(conn, reason(error))
+  def send(conn, {:error, error}), do: refuse(conn, Earn.reason(error))
 
   @doc "Answers with the refusal named `reason`."
   def refuse(conn, reason) do
@@ -69,10 +71,4 @@ defmodule AutolaunchWeb.EarnAnswer do
   end
 
   def input(_body), do: :error
-
-  # Inputs the action itself refuses (a kind it does not know, an amount below
-  # one) are the caller's to fix; a refusal the operation names keeps its own
-  # reason.
-  defp reason(%Ash.Error.Invalid{}), do: :invalid_request
-  defp reason(error), do: Earn.reason(error)
 end

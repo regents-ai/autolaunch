@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.EarnLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{BaseRpcStub, EarnChain, TestSupport}
+  alias Autolaunch.{Accounts, BaseRpcStub, EarnChain, TestSupport}
 
   @moduletag :capture_log
   alias AutolaunchWeb.EarnComponent
@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.EarnLiveTest do
   @review "#earn-aave-usdc-panel-review-panel"
   @hash "0x" <> String.duplicate("a", 64)
 
-  test "the terms show the rate now, what is supplied and available, the room and the block read at",
+  test "the terms show the rate now, what is supplied and available, the capacity and the block read at",
        %{conn: conn} do
     EarnChain.install(%{supplied: 900 * @unit, scaled: 900 * @unit, cap: 1_000, accrued: 0})
 
@@ -37,6 +37,7 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert has_element?(view, "#earn-aave-usdc-terms .earn__rate", "4.68%")
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(900 * @unit))
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(50_000_000 * @unit))
+    assert has_element?(view, "#earn-aave-usdc-terms div", "Capacity")
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(100 * @unit))
     assert has_element?(view, "#earn-aave-usdc .earn__status[data-status=open]")
     assert has_element?(view, "#earn-aave-usdc .earn__block", "Read at block 32")
@@ -218,20 +219,26 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert BuilderCode.call(edited.data) == BuilderCode.call(typed.data)
   end
 
-  test "a confirmed step reads the market and the wallet again, and the last one closes the review with what moved",
+  test "a confirmed step reads the market and the wallet again on every open page, and the last one closes the review with the exact amount moved",
        %{conn: conn} do
-    EarnChain.install(%{allowance: 250 * @unit})
+    EarnChain.install(%{allowance: 251 * @unit})
+    {:ok, other, _html} = live(build_conn(), "/earn")
+    settled(other)
+
     {view, panel, wallet} = signed_in(conn)
-    review(view, "250")
+    review(view, "250.123457")
 
     assert_push_event(view, "onchain-steps:review", %{
       review: %{id: review_id, chain: %{chain_id: chain_id}, steps: [_approval, supply]}
     })
 
+    # The review gives the amount to the unit, not the shortened figure.
+    assert has_element?(view, @review, "250.123457 USDC")
+
     # The deposit lands: the wallet's USDC is in the market.
     EarnChain.put(%{
-      balance: 250 * @unit,
-      usdc: 750 * @unit,
+      balance: 250_123_457,
+      usdc: 749_876_543,
       supplied: 300_000_250 * @unit,
       scaled: 300_000_250 * @unit
     })
@@ -258,12 +265,16 @@ defmodule AutolaunchWeb.EarnLiveTest do
 
     settled(view)
 
-    assert has_element?(view, "#earn-done")
+    assert has_element?(view, "#earn-done", "250.123457 USDC")
     assert has_element?(view, "#{@review}[hidden]")
     assert has_element?(view, "#{@panel}-amount[value='']")
-    assert has_element?(view, "#{@panel}-balance", usdc(250 * @unit))
-    assert has_element?(view, "#{@panel}-balance", usdc(750 * @unit))
+    assert has_element?(view, "#{@panel}-balance", usdc(250_123_457))
+    assert has_element?(view, "#{@panel}-balance", usdc(749_876_543))
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(300_000_250 * @unit))
+
+    # Another visitor's page reads the market again too.
+    settled(other)
+    assert has_element?(other, "#earn-aave-usdc-terms", usdc(300_000_250 * @unit))
   end
 
   test "a step that does not go through is reviewed again from the chain as it is now",
@@ -307,6 +318,100 @@ defmodule AutolaunchWeb.EarnLiveTest do
            )
 
     assert has_element?(view, "#{@panel}-review[disabled]")
+  end
+
+  test "a paused or closed market disables both steps with the reason, and Refresh reads the panel again",
+       %{conn: conn} do
+    EarnChain.install(%{paused: true, balance: 40 * @unit})
+    {view, _panel, _wallet} = signed_in(conn)
+
+    assert has_element?(view, "#earn-aave-usdc .earn__status[data-status=paused]")
+    type(view, "10")
+    assert has_element?(view, "#{@panel}-review[disabled]")
+    assert has_element?(view, "#{@panel}-why", "This market is paused")
+
+    view |> element("nav.earn__tabs a", "Withdraw") |> render_click()
+    type(view, "10")
+    assert has_element?(view, "#{@panel}-review[disabled]")
+    assert has_element?(view, "#{@panel}-why", "This market is paused")
+
+    # The market is closed meanwhile: Refresh reads the market and the panel's preview.
+    EarnChain.put(%{active: false, balance: 40 * @unit})
+    view |> element("#earn-read-again") |> render_click()
+    settled(view)
+
+    assert has_element?(view, "#earn-aave-usdc .earn__status[data-status=inactive]")
+    assert has_element?(view, "#{@panel}-review[disabled]")
+    assert has_element?(view, "#{@panel}-why", "This market is closed")
+
+    # It opens again: the next Refresh brings the button back.
+    EarnChain.put(%{balance: 40 * @unit})
+    view |> element("#earn-read-again") |> render_click()
+    settled(view)
+
+    refute has_element?(view, "#{@panel}-review[disabled]")
+  end
+
+  test "Refresh pressed while the market is being read starts no second reading", %{conn: conn} do
+    EarnChain.install()
+    {:ok, view, _html} = live(conn, "/earn")
+    settled(view)
+
+    EarnChain.put(%{hold: self()})
+    view |> element("#earn-read-again") |> render_click()
+    assert_receive {:earn_chain_held, reading}
+
+    view |> element("#earn-read-again") |> render_click()
+    refute_receive {:earn_chain_held, _another}, 100
+
+    send(reading, :go)
+    settled(view)
+    assert has_element?(view, "#earn-aave-usdc-terms", "4.68%")
+  end
+
+  test "another wallet starts from an empty amount with Max off", %{conn: conn} do
+    EarnChain.install(%{balance: 40 * @unit})
+    nonce = System.unique_integer([:positive])
+
+    [first, second] =
+      for n <- [1, 2],
+          do: "0x" <> String.pad_leading(Integer.to_string(nonce * 10 + n, 16), 40, "0")
+
+    account =
+      Accounts.register_verified!("did:privy:earn-wallets:#{nonce}", first, [first, second],
+        actor: %Autolaunch.Actors.System{}
+      )
+
+    {view, panel, _wallet} = signed_in(conn, "/earn?tab=withdraw", true, account)
+
+    view |> element("#{@panel}-max") |> render_click()
+    settled(view)
+    assert has_element?(view, "#{@panel}-max[aria-pressed=true]")
+
+    render_hook(panel, "onchain_active_wallet", %{"address" => second})
+    settled(view)
+    assert has_element?(view, "#{@panel}-amount[value='']")
+    assert has_element?(view, "#{@panel}-max[aria-pressed=false]")
+
+    type(view, "12")
+    render_hook(panel, "onchain_active_wallet", %{"address" => first})
+    settled(view)
+    assert has_element?(view, "#{@panel}-amount[value='']")
+  end
+
+  test "a change with no amount, or a check of a hash that is not text, leaves the panel as it is",
+       %{conn: conn} do
+    EarnChain.install()
+    {view, panel, _wallet} = signed_in(conn)
+    type(view, "10")
+
+    render_hook(panel, "change", %{})
+    render_hook(panel, "check_again", %{"hash" => 7})
+    render_hook(panel, "check_again", %{})
+    settled(view)
+
+    assert has_element?(view, "#{@panel}-amount[value='10']")
+    refute has_element?(view, "#{@panel}-review[disabled]")
   end
 
   test "signed in with no wallet open, Deposit says so and opens nothing", %{conn: conn} do
@@ -457,9 +562,9 @@ defmodule AutolaunchWeb.EarnLiveTest do
     render_async(view)
   end
 
-  # A new signed-in person at `path`, their one wallet open unless `open?` is false.
-  defp signed_in(conn, path \\ "/earn", open? \\ true) do
-    account = TestSupport.register_creator!()
+  # A signed-in person at `path`, a new one unless `account` is given, their
+  # first wallet open unless `open?` is false.
+  defp signed_in(conn, path \\ "/earn", open? \\ true, account \\ TestSupport.register_creator!()) do
     session = signed_in_session(account.id)
 
     {:ok, view, _html} =

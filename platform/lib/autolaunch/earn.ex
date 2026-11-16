@@ -11,10 +11,13 @@ defmodule Autolaunch.Earn do
 
   use Ash.Domain, otp_app: :autolaunch, extensions: [AshAi]
 
-  @doc "The refusal an operation answered with, as the atom its surfaces turn into words."
-  def reason(%{errors: [%Autolaunch.Earn.Refused{reason: reason} | _]}), do: reason
-  def reason(reason) when is_atom(reason), do: reason
-  def reason(_error), do: :chain_unavailable
+  @doc """
+  The refusal an operation answered with, as the atom its surfaces turn into
+  words: the reason it named (`Autolaunch.Earn.Refused`), or `:invalid_request`
+  for input the action itself does not take.
+  """
+  def reason(%Ash.Error.Unknown{errors: [%Autolaunch.Earn.Refused{reason: reason}]}), do: reason
+  def reason(%Ash.Error.Invalid{}), do: :invalid_request
 
   # The hosted MCP tools: the four operations every agent surface runs, each with
   # its browser tool's title, listed and run only as their policies allow (only
@@ -23,7 +26,7 @@ defmodule Autolaunch.Earn do
     tool :earn_products, Autolaunch.Earn.Product, :products_answer do
       title("List the places to earn on USDC")
 
-      description "List every place Autolaunch offers to lend USDC on Base, each read from its market at the latest block: its id, protocol, market and asset with the exact addresses of its pool, asset and market token; rate_now, the market's yearly rate right now (yearly_percent, and ray, the market's own figure in units of 10^27, a simple rate, not compounded), which changes as borrowing changes; supplied, what is lent in all; available, what can be withdrawn right now; supply_cap in whole tokens and room, what more it takes before that cap (both null when it has none); status (open, frozen: withdrawals only, paused: nothing moves, or inactive); the block the figures were read at; and the risks in plain words. Every amount is in the asset's smallest units (USDC has 6 decimals). Reads only."
+      description "List every place Autolaunch offers to lend USDC on Base, each read from its market at a recent block, shared for up to ten seconds: its id, protocol, market and asset with the exact addresses of its pool, asset and market token; rate_now, the market's yearly rate at today's rate, before compounding (yearly_percent, cut to two decimals, and ray, the market's own figure in units of 10^27), which changes as borrowing changes; supplied, what is lent in all; available, what can be withdrawn right now; supply_cap in whole tokens and capacity, the most one deposit can be before that cap (both null when it has none; capacity 0 when it is full); status (open, frozen: withdrawals only, paused: nothing moves, or inactive); the block the figures were read at; and the risks in plain words. Every amount is in the asset's smallest units (USDC has 6 decimals). Reads only."
 
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
@@ -31,7 +34,7 @@ defmodule Autolaunch.Earn do
     tool :earn_quote, Autolaunch.Earn.Product, :quote_answer do
       title("Preview an Earn deposit or withdrawal")
 
-      description "Preview a deposit or withdrawal on one Earn product for one of my person's own wallets, at the latest block, without its wallet calls: the amount it moves (for everything, the balance at this block; a little more interest lands with it), whether the wallet's USDC approval to the market already covers a deposit (approved; otherwise the steps begin with an exact approval), what would block it (blocked: market_inactive, market_paused, market_frozen, not_enough_usdc, over_supply_cap, over_balance or not_available_now, in code and words, the first that applies in that order of market, wallet, then the market's room or what is available), the wallet's balance in the market, its USDC and its allowance, and the block it was read at. A preview reserves nothing; the chain may change before a step is sent. Changes nothing."
+      description "Preview a deposit or withdrawal on one Earn product for one of my person's own wallets, at the latest block, without its wallet calls: the amount it moves (for everything, the balance at this block; a little more interest lands with it), whether the wallet's USDC approval to the market already covers a deposit (approved; otherwise the steps begin with an exact approval), what would block it (blocked: market_inactive, market_paused, market_frozen, not_enough_usdc, over_supply_cap, over_balance or not_available_now, in code and words, the first that applies in that order of market, wallet, then the market's capacity or what is available), the wallet's balance in the market, its USDC and its allowance, and the block it was read at. A preview reserves nothing; the chain may change before a step is sent. Changes nothing."
 
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end

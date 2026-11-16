@@ -1,13 +1,14 @@
 defmodule Autolaunch.Earn.Chain do
   @moduledoc """
   Earn's reads of Base, all at one block, the latest when asked: the pool's
-  reserve for the product's asset and its income index, then, with the market's
-  token those name, the market's totals and, for a wallet, what it holds. Each
-  of the two is one Multicall3 request at that block's own hash, so every
-  figure in an answer is from the same block; the second needs the market
-  token's address the first returns.
+  reserve for the product's asset, its income index and what it can pay out,
+  then, with the market's token those name, the market's totals and, for a
+  wallet, what it holds. Each of the two is one Multicall3 request at that
+  block's own hash, so every figure in an answer is from the same block; the
+  second needs the market token's address the first returns.
 
-  From the pool (Aave V3's `IPool`):
+  From the pool (Aave V3's `IPool`; Base's runs revision 12, newer than Aave
+  V3.7's 11, with virtual accounting and the supply-cap rounding of V3.5 on):
 
     * `getReserveData(asset)`, fifteen words: the configuration bitmap (word 0:
       decimals in bits 48–55, active in bit 56, frozen in 57, paused in 60, the
@@ -16,27 +17,30 @@ defmodule Autolaunch.Earn.Chain do
       the market token (word 8) and what is owed to the treasury in scaled
       units (word 12)
     * `getReserveNormalizedIncome(asset)`, the income index at this block (ray)
+    * `getVirtualUnderlyingBalance(asset)`, the asset the pool counts as its
+      own and so can pay out now: a withdrawal past it fails. Asset sent to the
+      market token directly is not counted, so the token's own `balanceOf`
+      could be more than can be withdrawn.
 
-  From the market token and the asset: `totalSupply()`, what is supplied in
-  all, interest included; `scaledTotalSupply()`, the same in scaled units, for
-  the supply cap; the asset's `balanceOf(marketToken)`, what can be withdrawn
-  now; and for a wallet its market-token `balanceOf` (its balance in the
-  market, interest included), its own asset `balanceOf` and its `allowance` to
-  the pool.
+  From the market token: `totalSupply()`, what is supplied in all, interest
+  included; `scaledTotalSupply()`, the same in scaled units, for the supply
+  cap; and for a wallet its `balanceOf` (its balance in the market, interest
+  included), with the asset's `balanceOf` for the wallet and its `allowance`
+  to the pool.
 
-  The pool counts against the supply cap every scaled balance and the
-  treasury's share at the index of the block a deposit lands in
-  (`ValidationLogic.validateSupply`); this reads that sum at the latest block's
-  index. The index only grows, so a deposit over the room at this block is over
-  it at any later one too.
+  The supply cap's capacity is the pool's own check at this block's index
+  (`States.capacity/1`), with the treasury's share as the pool last stored it:
+  at a block where the reserve is up to date, the pool takes exactly the
+  capacity and refuses one unit more. By the block a deposit lands in,
+  interest has raised the index and the treasury's share, so the capacity
+  there is smaller: a deposit near it can still be refused when it lands,
+  and one past it is refused at this block.
   """
 
   alias Autolaunch.Chain.{Multicall, Rpc}
   alias Autolaunch.Earn.States
   alias Autolaunch.Lab
   alias RegentChain.Call
-
-  @ray 10 ** 27
 
   @type terms :: %{
           block: Rpc.block(),
@@ -47,7 +51,7 @@ defmodule Autolaunch.Earn.Chain do
           supplied: non_neg_integer(),
           available: non_neg_integer(),
           cap: non_neg_integer(),
-          room: States.room()
+          capacity: States.capacity()
         }
 
   @type holding :: %{
@@ -72,10 +76,16 @@ defmodule Autolaunch.Earn.Chain do
           {:ok, terms(), holding() | nil} | {:error, atom()}
   def read(product, lab, wallet) do
     with {:ok, block, opts} <- latest(lab),
-         {:ok, reserve, index} <- reserve(product, block, opts),
-         {:ok, [supplied, scaled, available | held]} <-
-           amounts(totals(product, reserve) ++ holdings(product, reserve, wallet), block, opts) do
-      counted = ray_mul(scaled + reserve.accrued_to_treasury, index)
+         {:ok, reserve, index, available} <- reserve(product, block, opts),
+         {:ok, [supplied, scaled | held]} <-
+           amounts(totals(reserve) ++ holdings(product, reserve, wallet), block, opts) do
+      capacity =
+        States.capacity(%{
+          cap: reserve.cap,
+          decimals: reserve.decimals,
+          scaled: scaled + reserve.accrued_to_treasury,
+          index: index
+        })
 
       terms = %{
         block: block,
@@ -86,7 +96,7 @@ defmodule Autolaunch.Earn.Chain do
         supplied: supplied,
         available: available,
         cap: reserve.cap,
-        room: States.room(%{cap: reserve.cap, decimals: reserve.decimals, counted: counted})
+        capacity: capacity
       }
 
       {:ok, terms, holding(wallet, held)}
@@ -94,15 +104,16 @@ defmodule Autolaunch.Earn.Chain do
   end
 
   defp reserve(product, block, opts) do
-    reads = [
-      {product.pool, Call.encode("getReserveData(address)", [product.asset_address])},
-      {product.pool, Call.encode("getReserveNormalizedIncome(address)", [product.asset_address])}
-    ]
+    reads =
+      for signature <- ~w|getReserveData(address) getReserveNormalizedIncome(address)
+                          getVirtualUnderlyingBalance(address)|,
+          do: {product.pool, Call.encode(signature, [product.asset_address])}
 
-    with {:ok, [reserve, index]} <- Multicall.read(reads, block, opts),
+    with {:ok, [reserve, index, available]} <- Multicall.read(reads, block, opts),
          {:ok, words} <- words(reserve, 15),
-         {:ok, [index]} <- words(index, 1) do
-      {:ok, decode(words), index}
+         {:ok, [index]} <- words(index, 1),
+         {:ok, [available]} <- words(available, 1) do
+      {:ok, decode(words), index, available}
     end
   end
 
@@ -127,11 +138,10 @@ defmodule Autolaunch.Earn.Chain do
 
   defp bits(word, from, count), do: word |> Bitwise.bsr(from) |> Bitwise.band(2 ** count - 1)
 
-  defp totals(product, reserve) do
+  defp totals(reserve) do
     [
       {reserve.a_token, Call.encode("totalSupply()", [])},
-      {reserve.a_token, Call.encode("scaledTotalSupply()", [])},
-      {product.asset_address, Call.encode("balanceOf(address)", [reserve.a_token])}
+      {reserve.a_token, Call.encode("scaledTotalSupply()", [])}
     ]
   end
 
@@ -175,9 +185,6 @@ defmodule Autolaunch.Earn.Chain do
 
   defp words(:reverted, _count), do: {:error, :chain_unavailable}
   defp words(_answer, _count), do: {:error, :invalid_chain_response}
-
-  # Aave's `WadRayMath.rayMul`: rounded half up.
-  defp ray_mul(a, b), do: div(a * b + div(@ray, 2), @ray)
 
   defp address(word),
     do:

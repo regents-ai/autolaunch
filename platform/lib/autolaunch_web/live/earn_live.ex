@@ -2,16 +2,20 @@ defmodule AutolaunchWeb.EarnLive do
   @moduledoc """
   /earn: lend USDC on Base through Aave from your own wallet. Each product in
   the catalog (`Autolaunch.Earn.Catalog`) has its terms (the rate now, what is
-  supplied, what can be withdrawn now and, under a supply cap, the room left),
-  read from the chain at the latest block with that block named, beside its
+  supplied, what can be withdrawn now and, under a supply cap, its capacity),
+  from the reading every visitor shares, at most ten seconds old, with the
+  block it was read at named (`Autolaunch.Earn.SharedTerms`), beside its
   wallet panel (`AutolaunchWeb.EarnComponent`) for a deposit or withdrawal,
   and its risks in plain words.
 
-  The terms are read when the page opens, when Refresh is pressed and after
-  each confirmed step. While a reading is under way the figures from the one
-  before are not shown, so a figure from before a confirmed step is never
-  shown as current; a reading that fails says so. Deposit and Withdraw are the
-  page's tabs (`?tab=withdraw`).
+  The terms are read when the page opens, when Refresh is pressed and each
+  time a step on the product lands, on this page or another. A Refresh while
+  a reading is under way starts nothing; a landed step starts a new reading
+  at once, stopping the one under way. While a reading is under way the
+  figures from the one before are not shown, so a figure from before a
+  confirmed step is never shown as current; a reading that fails says so.
+  Each reading also has the panel read its wallet and its preview again
+  (`reads`). Deposit and Withdraw are the page's tabs (`?tab=withdraw`).
 
   With Earn switched off the address is the site's 404.
   """
@@ -20,7 +24,7 @@ defmodule AutolaunchWeb.EarnLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.Earn
-  alias Autolaunch.Earn.{Answer, Catalog}
+  alias Autolaunch.Earn.{Answer, Catalog, SharedTerms}
   alias AutolaunchWeb.{EarnComponent, NotFoundError}
   alias Phoenix.LiveView.AsyncResult
   alias Regent.Primitives, as: P
@@ -28,18 +32,21 @@ defmodule AutolaunchWeb.EarnLive do
   def mount(_params, _session, socket) do
     if Catalog.enabled?() do
       products = Catalog.products()
+      ids = Enum.map(products, & &1.id)
+      if connected?(socket), do: Enum.each(ids, &SharedTerms.subscribe/1)
 
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/earn"))
        |> assign(
          products: products,
-         terms: Map.new(products, &{&1.id, AsyncResult.loading()}),
+         terms: Map.new(ids, &{&1, AsyncResult.loading()}),
+         reads: Map.new(ids, &{&1, 0}),
          decimals: %{},
          kind: :deposit,
          done: nil
        )
-       |> read(Enum.map(products, & &1.id))}
+       |> read(ids)}
     else
       raise NotFoundError
     end
@@ -50,11 +57,15 @@ defmodule AutolaunchWeb.EarnLive do
       {:noreply,
        assign(socket, kind: if(params["tab"] == "withdraw", do: :withdraw, else: :deposit))}
 
-  def handle_event("refresh", _params, socket),
-    do: {:noreply, read(socket, Enum.map(socket.assigns.products, & &1.id))}
+  # A product whose reading is still under way is not read again.
+  def handle_event("refresh", _params, socket) do
+    idle = for %{id: id} <- socket.assigns.products, !socket.assigns.terms[id].loading, do: id
+    {:noreply, read(socket, idle)}
+  end
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
+  # A step on the product landed, here or on another page.
   def handle_info({:earn_changed, id}, socket), do: {:noreply, read(socket, [id])}
   def handle_info({:earn_done, done}, socket), do: {:noreply, assign(socket, done: done)}
 
@@ -72,11 +83,14 @@ defmodule AutolaunchWeb.EarnLive do
     do: {:noreply, failed(socket, id, reason)}
 
   # Each reading starts from nothing shown, so figures from before it, and
-  # from before a confirmed step, never pass for current ones.
+  # from before a confirmed step, never pass for current ones. It stops the
+  # one still under way, and the product's panel reads its wallet again.
   defp read(socket, ids) do
     Enum.reduce(ids, socket, fn id, socket ->
       socket
       |> update(:terms, &Map.put(&1, id, AsyncResult.loading()))
+      |> update(:reads, &Map.update!(&1, id, fn reads -> reads + 1 end))
+      |> cancel_async({:terms, id})
       |> start_async({:terms, id}, fn -> Earn.read_earn_terms(id) end)
     end)
   end
@@ -163,6 +177,7 @@ defmodule AutolaunchWeb.EarnLive do
             product={product}
             decimals={@decimals[product.id]}
             kind={@kind}
+            reads={@reads[product.id]}
             session_lease={@session_lease}
             current_human_id={@human_id}
           />
@@ -193,7 +208,7 @@ defmodule AutolaunchWeb.EarnLive do
         <dt>Rate</dt>
         <dd>
           <strong>{Answer.yearly_percent(@terms.rate)}%</strong>
-          <small>a year, the rate now. It changes.</small>
+          <small>a year at today's rate, before compounding. It changes.</small>
         </dd>
       </div>
       <div>
@@ -205,8 +220,8 @@ defmodule AutolaunchWeb.EarnLive do
         <dd>{EarnComponent.amount(@terms.available, @terms.decimals, @product.asset)}</dd>
       </div>
       <div>
-        <dt>Room</dt>
-        <dd>{room(@terms, @product)}</dd>
+        <dt>Capacity</dt>
+        <dd>{capacity(@terms, @product)}</dd>
       </div>
     </dl>
     <p class="earn__block">
@@ -218,13 +233,13 @@ defmodule AutolaunchWeb.EarnLive do
     """
   end
 
-  # What more the market takes before its supply cap.
-  defp room(%{room: :uncapped}, _product), do: "No cap"
+  # The most one deposit can be before the market's supply cap.
+  defp capacity(%{capacity: :uncapped}, _product), do: "No cap"
 
-  defp room(%{room: {:room, left}, decimals: decimals}, product),
+  defp capacity(%{capacity: {:left, left}, decimals: decimals}, product),
     do: EarnComponent.amount(left, decimals, product.asset)
 
-  defp room(%{room: :full}, _product), do: "Full"
+  defp capacity(%{capacity: :full}, _product), do: "Full"
 
   defp status_word(:open), do: "Open"
   defp status_word(:frozen), do: "Frozen"

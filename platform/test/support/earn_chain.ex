@@ -2,15 +2,19 @@ defmodule Autolaunch.EarnChain do
   @moduledoc """
   Earn switched on for one test, on a chain double of Aave V3 on Base that
   answers every read at the latest block by the contract asked: the pool's
-  `getReserveData` and `getReserveNormalizedIncome` for USDC, the market
-  token's totals and a wallet's balance in it, and USDC's balances and
-  allowance, each asked on its own or many at once through Multicall3's
-  `aggregate3`. Every other request goes to `Autolaunch.BaseRpcStub`.
+  `getReserveData`, `getReserveNormalizedIncome` and
+  `getVirtualUnderlyingBalance` for USDC, the market token's totals and a
+  wallet's balance in it, and USDC's balance and allowance for a wallet, each
+  asked on its own or many at once through Multicall3's `aggregate3`. Every
+  other request goes to `Autolaunch.BaseRpcStub`.
 
   `install/1` switches Earn on and puts the chain; `put/1` changes it
-  mid-test (`unreadable: true` fails every contract read). Both are undone
-  when the test exits. Amounts are USDC's smallest units (6 decimals); `cap`
-  is in whole tokens, 0 for none; `rate` and `index` are ray (10^27).
+  mid-test (`unreadable: true` fails every contract read; `hold: pid` makes
+  each reading of the reserve tell `pid` `{:earn_chain_held, reader}` and
+  wait for `send(reader, :go)`). Both are undone when the test exits. Amounts
+  are USDC's smallest units (6 decimals); `cap` is in whole tokens, 0 for
+  none; `rate` and `index` are ray (10^27); `available` is the pool's virtual
+  balance.
   """
 
   alias Autolaunch.BaseRpcStub
@@ -79,6 +83,7 @@ defmodule Autolaunch.EarnChain do
           supplied: 300_000_000 * @unit,
           scaled: 300_000_000 * @unit,
           available: 50_000_000 * @unit,
+          hold: nil,
           balance: 0,
           usdc: 1_000 * @unit,
           allowance: 0
@@ -120,34 +125,46 @@ defmodule Autolaunch.EarnChain do
   end
 
   @reads Map.new(
-           ~w|getReserveData(address) getReserveNormalizedIncome(address) totalSupply()
-              scaledTotalSupply() balanceOf(address) allowance(address,address)|,
+           ~w|getReserveData(address) getReserveNormalizedIncome(address)
+              getVirtualUnderlyingBalance(address) totalSupply() scaledTotalSupply()
+              balanceOf(address) allowance(address,address)|,
            &{Call.selector(&1), &1}
          )
 
   defp answer(to, data) do
     state = Application.fetch_env!(:autolaunch, :earn_chain)
-    words = words(Map.fetch!(@reads, String.slice(data, 0, 10)), String.downcase(to), state, data)
+    words = words(Map.fetch!(@reads, String.slice(data, 0, 10)), String.downcase(to), state)
     "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)
   end
 
-  defp words("getReserveData(address)", @pool, state, _data) do
+  defp words("getReserveData(address)", @pool, state) do
+    held(state.hold)
+
     [config(state), state.index, state.rate, @ray, 0, 0, @now, 4, word(@a_token)] ++
       [word("0x59dca05b6c26dbd64b5381374aaac5cd05644c28"), 0, 0, state.accrued, 0, 0]
   end
 
-  defp words("getReserveNormalizedIncome(address)", @pool, state, _data), do: [state.index]
-  defp words("totalSupply()", @a_token, state, _data), do: [state.supplied]
-  defp words("scaledTotalSupply()", @a_token, state, _data), do: [state.scaled]
-  defp words("balanceOf(address)", @a_token, state, _data), do: [state.balance]
+  defp words("getReserveNormalizedIncome(address)", @pool, state), do: [state.index]
 
-  defp words("balanceOf(address)", @usdc, state, data) do
-    if argument(data) == word(@a_token), do: [state.available], else: [state.usdc]
+  defp words("getVirtualUnderlyingBalance(address)", @pool, state),
+    do: [state.available]
+
+  defp words("totalSupply()", @a_token, state), do: [state.supplied]
+  defp words("scaledTotalSupply()", @a_token, state), do: [state.scaled]
+  defp words("balanceOf(address)", @a_token, state), do: [state.balance]
+
+  defp words("balanceOf(address)", @usdc, state), do: [state.usdc]
+  defp words("allowance(address,address)", @usdc, state), do: [state.allowance]
+
+  defp held(nil), do: :ok
+
+  defp held(test) do
+    send(test, {:earn_chain_held, self()})
+
+    receive do
+      :go -> :ok
+    end
   end
-
-  defp words("allowance(address,address)", @usdc, state, _data), do: [state.allowance]
-
-  defp argument(data), do: data |> String.slice(10, 64) |> String.to_integer(16)
 
   defp word(address), do: address |> String.trim_leading("0x") |> String.to_integer(16)
 end
