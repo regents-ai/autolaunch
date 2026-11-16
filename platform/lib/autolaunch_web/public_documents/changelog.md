@@ -1,5 +1,9 @@
 # Changelog
 
+## 16 November 2026: Wallets
+- When your wallet is on another network, pressing a button now asks your wallet to switch to the right one, Base or Robinhood Chain, and then carries on. Before, some wallets were never asked and the page only told you to switch.
+- If you decline the switch, the page says so. Nothing is sent either way.
+
 ## 16 November 2026: Earn
 - New at /earn: lend USDC on Base through Aave from your own wallet, and take it back when you choose. The page shows the rate now, how much is lent, how much can be withdrawn at that moment and the risks in plain words. Autolaunch never holds your funds and charges nothing.
 - Your balance also shows in your portfolio.
