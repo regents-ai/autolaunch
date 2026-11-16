@@ -11,8 +11,11 @@ charges nothing. Built on `al/earn-1116` (15 November 2026), switched off by def
   other value stops the boot, and on needs `AUTOLAUNCH_BASE_DEPLOYMENT`. Everything reads
   `Autolaunch.Earn.Catalog.enabled?/0`.
 - **Catalog.** Plain data in `config/config.exs` (`:earn_products`): id, chain id, protocol,
-  market, asset, and the addresses of the pool and the asset. One product today, `aave-usdc`
-  (Aave V3 Pool `0xa238…d1c5`, USDC `0x8335…2913`). Everything else — the market token, the
+  market, asset, the asset's decimals (6), and the addresses of the pool and the asset. One
+  product today, `aave-usdc` (Aave V3 Pool `0xa238…d1c5`, USDC `0x8335…2913`). Every amount is
+  counted in the catalog's decimals, so the page and its panel need no reading to start, and
+  every reading checks them against the reserve's own: a market naming others is refused as
+  `invalid_chain_response` (section 2). Everything else — the market token, the
   rate, the flags, the cap, the totals — is read from the chain: the market's terms from a
   reading every visitor shares for at most ten seconds (section 2.1), and a wallet's figures, a
   preview and a step's build at the latest block on every ask.
@@ -37,6 +40,7 @@ has virtual accounting (`getVirtualUnderlyingBalance`), custom errors (`SupplyCa
    `getVirtualUnderlyingBalance(USDC)`.
    - Word 0, the configuration bitmap: decimals (bits 48–55), active (56), frozen (57),
      paused (60), supply cap in whole tokens (116–151, 0 for none). Every other field is ignored.
+     Decimals other than the catalog's refuse the whole reading (`invalid_chain_response`).
    - Word 2, the current liquidity rate: a yearly rate in ray (10^27), before compounding, cut to
      two places and never rounded up (`Answer.yearly_percent/1`). The page says "a year at
      today's rate, before compounding. It changes."
@@ -73,17 +77,34 @@ No GenServer, no timer of Earn's own.
 
 - **Lifetime.** Ten seconds (`:earn_terms_kept_ms`, 10_000; 0 in the tests, which reads live).
   Cachex's own expiry drops it. A reading that fails is not kept.
-- **A landed step.** `SharedTerms.changed/1` bumps the product's landed count (`Cachex.incr`);
-  the reading's key carries that count, so every later ask takes a new reading, the one still
-  being taken included. It then broadcasts `{:earn_changed, id}` on `"earn:" <> id`, and every
-  open `/earn` page reads the market again at once.
+- **A landed step, once for each transaction.** `SharedTerms.changed(id, hash)` marks the
+  transaction landed and bumps the product's landed count in one step: `Cachex.get_and_update/3`
+  on the key `{:landed, id, hash}` runs under the cache's own lock, and only when the mark is
+  absent does it `Cachex.incr` the count and commit the mark, kept for an hour (far past a
+  reading's ten seconds). Cachex has no put-if-absent of its own; this is its atomic form, never a
+  get then a put. The reading's key carries the count, so every later ask takes a new reading,
+  the one still being taken included. Only the first report broadcasts `{:earn_changed, id,
+  hash}` on `"earn:" <> id`; a report of the same transaction again, from any page, bumps nothing
+  and tells nobody, so a replayed `step_sent` cannot make every page read the chain again.
+- **More than one machine.** Each keeps its own readings and marks. A page that hears
+  `{:earn_changed, id, hash}`, perhaps from another machine, first calls `SharedTerms.heard/2`,
+  the same mark-and-bump on its own machine, and then reads: the first page on a machine to hear
+  it counts it, the rest find it counted, so every open page takes a reading from after the step.
+  A machine with no page of the product open hears nothing; its kept reading is at most ten
+  seconds old, its block named.
+- **Faults are refusals.** A reading that cannot be taken or kept because of the cache itself (a
+  `Cachex.get` or `fetch` that answers `{:error, _}`, the cache stopped, say) is
+  `{:error, :chain_unavailable}`, as a chain that cannot be read. A mark or bump that fails logs one
+  warning ("autolaunch earn landed step not counted") and still broadcasts, so pages read again.
+  No rescue anywhere.
+- **The panel's own checks.** A `step_sent` for a transaction the panel already follows starts no
+  second check (the shared code would start one, and LiveView keeps both running), and Check
+  again reads only a step the page stopped reading, as its button is shown for. Both are guarded
+  in `EarnComponent`; `OnchainSteps` and regent_chain are unchanged.
 - **"Read at block …" stays truthful.** Every reading carries its block's number, hash and time,
   and every surface shows or returns that block, so a kept reading never passes for a newer one.
 - **Live every time.** A wallet's position, a quote and a step's build read the chain at the
   latest block on every ask; only the market's terms are shared.
-- **More than one machine.** Each keeps its own reading; a page on another machine reads anew
-  once the one it holds is ten seconds old, or when its own page lands a step. Covered calls'
-  Book behaves the same way.
 
 ## 3. The steps (`Autolaunch.Earn.Steps`)
 
@@ -266,29 +287,43 @@ The page disables the button with the reason beside it and reads the preview aga
 block, on each settled change of amount, a wallet change, the page coming back into view, after
 each press, and each time the page reads the terms (Refresh, or a step landed on this page or
 another), so the button comes back once the chain allows the step. A new preview stops the one
-still being read (`cancel_async`). This matches covered calls (section 9.5). Tests:
-`states_test.exs` (both orders, every reason), `steps_test.exs`, `earn_live_test.exs` (a deposit
-past the wallet's USDC is disabled with its reason and comes back once the chain allows it; a
-paused or closed market disables both steps with the reason, and Refresh brings the button back
-once it opens).
+still being read (`cancel_async`) and drops the one before, so while the chain is read again the
+button is enabled: it is never held by a reason from an earlier reading, and never disabled
+because a preview is under way. The preview is read only when the amount (its tab included), the
+wallet that may act, the page's `reads` or the panel's `held_reads` changed (`quoted_for`), so the
+page drawing the panel again with nothing new reads nothing. This matches covered calls (section
+9.5). Tests: `states_test.exs` (both orders, every reason), `steps_test.exs`,
+`earn_live_test.exs` (a deposit past the wallet's USDC is disabled with its reason and comes back
+once the chain allows it; a paused or closed market disables both steps with the reason, and
+Refresh brings the button back once it opens; a new reading drops the reason that held the button
+until the chain answers again; the page drawn again with nothing new for the panel reads nothing
+again).
 
 ### 6.9 Terms read — `EarnLive`, one `AsyncResult` per product
 
 | State | Derived from | Moves to | Shows |
 | --- | --- | --- | --- |
-| loading | the page opening, Refresh, or a step landed on any page (`{:earn_changed, id}`) | loaded or failed | a waiting block; no figures, no status |
-| loaded | `read_earn_terms` answered | loading on Refresh or a landed step | status, Rate, Supplied, Available, Capacity, "Read at block N"; the panel mounts on the first one |
-| failed | the read refused or crashed | loading on Refresh | "The market couldn't be read just now." and no figures; before any read succeeded, no panel |
+| loading | the page opening, Refresh, or the first report of a transaction that landed a step, from any page on any machine (`{:earn_changed, id, hash}`, counted here first by `SharedTerms.heard/2`) | loaded or failed | a waiting block; no figures, no status |
+| loaded | `read_earn_terms` answered | loading on Refresh or a landed step | status, Rate, Supplied, Available, Capacity, "Read at block N" |
+| failed | the read refused or crashed | loading on Refresh | "The market couldn't be read just now." and no figures |
 
-Refresh while a product is loading starts nothing for it; a landed step stops the reading under
-way and starts a new one. Each reading bumps the page's `reads` count, which the panel takes to
-read its wallet and preview again. Between a confirmed step and the fresh read the terms show
-nothing: each read starts from loading, so a figure from before the step never passes for a
-current one. The panel's own wallet figures are a separate machine (section 7.1). Tests:
-`earn_live_test.exs` (no figures before the read, the figures and block, a failed read and
-Refresh, Refresh pressed during a reading starts no second one, a confirmed step reads the market
-again on every open page), `shared_terms_test.exs` (one reading for readers at the same moment,
-kept, left behind by a landed step, never kept when it fails).
+The panel is there from the first render in every state: its decimals are the catalog's, so it
+waits on no reading. Refresh while a product is loading starts nothing for it; a landed step stops
+the reading under way and starts a new one. Each reading bumps the page's `reads` count, which the
+panel takes to read its wallet and preview again. Between a confirmed step and the fresh read the
+terms show nothing: each read starts from loading, so on a page open when the step lands, on any
+machine, a figure from before it never passes for a current one. A page opened just after on a
+machine that had none open may show a reading up to ten seconds old, its block named (section
+2.1). The panel's own wallet figures are a separate machine (section 7.1). Tests:
+`earn_live_test.exs` (no figures before the read, the figures and block, a failed read with the
+panel still there and Refresh, the panel working signed in while the market can't be read,
+Refresh pressed during a reading starts no second one, a confirmed step reads the market again on
+every open page, a step heard of from another machine is counted here before the page reads),
+`shared_terms_test.exs` (one reading for readers at the same moment; kept; left behind by a
+landed step; a transaction reported again, or forty times at once, moves readers on and tells the
+pages once; a machine that hears of a step counts it once before its pages read; a cache that
+can't be used refuses the reading and a landed step is logged and still told; never kept when it
+fails).
 
 ### 6.10 Review lifecycle — shared `AutolaunchWeb.OnchainSteps`, as covered calls
 
@@ -301,7 +336,7 @@ Earn uses the same server half (`OnchainSteps`, `RegentChain.Presses`) and brows
 | none | `review: nil` | open when a press finds the step not blocked | the panel's button |
 | open | `put_review/2` with a review built at the latest block for the active signer; each opening has its own id | in wallet on a press; none on Close, a tab change or another signer | each step's button, one at a time; the approval stays pressable |
 | in wallet | the browser only: the pressed button is marked until the wallet answers | sent, or failed with nothing sent | further presses: every press reaches the wallet |
-| sent / stalled | the newest press's outcome `:pending` (stalled after a long wait) | confirmed or reverted, read every two seconds | the next step's button at once |
+| sent / stalled | the newest press's outcome `:pending` (stalled after a long wait) | confirmed or reverted, read every two seconds | the next step's button at once; the same transaction reported again starts no second check, and Check again reads only a stalled step |
 | confirmed | outcome `:confirmed` | the review closes once every step landed once | re-reads the market and the wallet; the last step shows what moved and clears the amount |
 | failed, nothing sent | `step_failed` (declined, wrong network, wallet changed, no fees, …) | open | a note beside the button; the same step is pressable again |
 | failed, reverted | outcome `:reverted` | open with a review built again from the chain now, or none with the reason the chain now gives | "The step did not go through and nothing moved." |
@@ -333,7 +368,8 @@ The cases the brief names:
 Tests: `earn_live_test.exs` (opens with the exact steps and closes on request; a confirmed step
 re-reads and the last closes the review with what moved; a step that does not go through is
 reviewed again, then closes with the reason; a review closes on another wallet or another tab;
-a change with no amount or a check of a hash that is not text leaves the panel as it is); the
+a change with no amount or a check of a hash that is not text leaves the panel as it is; a step
+reported again, or checked again while it is still being read, starts no second check); the
 shared `test/autolaunch_web/onchain_steps_rebuild_test.exs` and covered calls' journeys.
 
 ### 6.11 Wallet — `OnchainSteps.signer/2` and `mismatch_note/2`; the network at the press
@@ -394,10 +430,11 @@ answers and refusals match word for word. Tests: `earn_routes_test.exs`, `earn_m
    wallet's earlier figures stay on screen until the fresh read lands, including right after a
    confirmed step; another wallet's are never shown. Nothing is built from them: every review is
    prepared fresh.
-2. **Quote freshness** (`quote`, `current/1`): a quote counts only for the amount and signer it
-   was read for, and an answer for an earlier amount or wallet is dropped; a new preview cancels
-   the one still being read. Until the fresh one lands the button shows no reason; a press reviews
-   from a fresh read anyway.
+2. **Quote freshness** (`quote`, `quoted_for`, `current/1`): a preview is read for one key, the
+   amount as it stands (its tab included), the wallet that may act and the page's and panel's
+   reading counts, and only when that key changed; an answer for an earlier key is dropped. A new
+   preview cancels the one still being read and drops the one before, so until the fresh one
+   lands the button shows no reason; a press reviews from a fresh read anyway.
 3. **The approval shown done**: an approval step is `:done` when the review was built with
    `approved`, or once one of its presses landed, whatever a later press does.
 4. **Max** (`max`): on Withdraw, Max asks for everything until the field is edited; on Deposit
@@ -410,14 +447,38 @@ answers and refusals match word for word. Tests: `earn_routes_test.exs`, `earn_m
 8. **The terms' Refresh** (`EarnLive`): a product whose reading is under way is not read again
    by Refresh; a landed step replaces the reading under way.
 9. **The shared reading** (`SharedTerms`): none, being taken (later asks wait for it), kept for
-   ten seconds, or left behind by a landed step.
+   ten seconds, or left behind by a landed step. Each landed transaction is unmarked, then marked
+   on a machine for an hour, the first report or hearing of it moving that machine's readers on.
 
 None of these gates a wallet button.
 
 `Earn.reason/1` and the page's `refusal_words/1` name every refusal they can meet, with no
 catch-all: an error that is not an Earn refusal or an input error raises. Every refusal the
 operations can give has an entry in `EarnAnswer`'s table, the deployment's included
-(`earn_unavailable`). Catch-all clauses kept, none of them a state derivation: `step_state/1`'s
+(`earn_unavailable`).
+
+What reaches `Earn.reason/1`, from the page's terms, the panel's preview and review, the inner
+calls of the agent answers and the HTTP routes:
+
+- Reachable: `Ash.Error.Unknown` holding one `Earn.Refused` (every operation names its refusal as
+  an atom), and `Ash.Error.Invalid` (HTTP input outside an argument's constraints).
+- Not reachable, left to raise: `Ash.Error.Forbidden` from `Earn.Checks.Offered` (the routes are
+  not there while Earn is off, `admit_earn/2`), from the connected-app rule (only the hosted MCP
+  server calls as a connected app, and it words its own errors), from `LaunchesOpen` (the steps
+  route is refused before the router in prelaunch read-only mode, `AutolaunchWeb.Prelaunch`; both
+  switches are set when the site starts) and from `actor_present` (the page's panel always calls
+  as a person, the private routes always as an agent); `Ash.Error.Unknown` holding anything but a
+  refusal (Ash raises again what an action raises, and no operation answers anything but an atom).
+
+What reaches the panel's `refusal_words/1`: `wrong_signer` (the account's wallets changed),
+`authentication_required`, `earn_unavailable`, `chain_unavailable` (also a preview that crashed),
+`invalid_chain_response` (also decimals other than the catalog's), `invalid_block_header` and
+`wrong_chain`, each with its words. Not reachable: `invalid_request` (its arguments are always
+within their constraints), `unknown_product` (always the catalog's id), `invalid_amount` (built
+from an amount that reads above zero, or everything on a withdrawal) and `wallet_required` (the
+signer is always one of the account's wallets, a whole address).
+
+Catch-all clauses kept, none of them a state derivation: `step_state/1`'s
 `:other`, `Steps.asked/2` and `Catalog.product/1` (input that is not an amount or a product), and
 Max with no figures read.
 
@@ -458,20 +519,30 @@ Max with no figures read.
    due timer, as a market has no deadline.
 6. **Odd events.** Covered calls' panel takes a `change` with any params (`Map.take(params,
    ["amount"])`), and Earn's does the same. Covered calls' `check_again` matches only a text
-   hash, so a non-text one crashes its panel; Earn's passes any value to `OnchainSteps.check_again`,
-   which finds no step for it. Covered calls' is left as it is (outside this work).
+   hash, so a non-text one crashes its panel; Earn's acts only on a text hash naming a step it
+   stopped reading, and leaves the panel as it is otherwise. Covered calls' is left as it is
+   (outside this work).
 7. **The tools' bounds at build time.** Comparing each hosted tool's `minimum` and `maximum` with
    its browser tool's (`AutolaunchWeb.Capabilities`) is a one-line change, but it fails the build
    for covered calls' quote and prepare tools: their hosted inputs take up to 2^128 − 1 and
    2^64 − 1 where their browser schemas say 9,007,199,254,740,991. The comparison is left as it
    was; Earn's tools agree on 9,007,199,254,740,991 on every surface.
+8. **A transaction reported again.** Covered calls' panel passes every `step_sent` and
+   `check_again` to the shared code, so the same transaction reported again starts another check
+   beside the one running, and once it reads as landed, its `confirmed` drops the Book reading and
+   broadcasts on `"covered_calls:" <> symbol` again, so every open page reads the chain again.
+   Earn counts each transaction once (section 2.1) and starts no second check. Covered calls' is
+   left as it is (outside this work).
+9. **Decimals.** Covered calls' panel takes its token unit from configuration and is mounted
+   without waiting for a reading; Earn now does the same with the catalog's decimals, checked
+   against the market's own on every reading.
 
 ## 10. Tests and evidence
 
 - `test/autolaunch/earn/`: `states_test.exs` (11, one property), `reads_test.exs` (8, two
-  properties), `steps_test.exs` (14), `shared_terms_test.exs` (3).
-- `test/autolaunch_web/`: `controllers/earn_routes_test.exs` (6), `controllers/earn_off_test.exs`
-  (3), `earn_mcp_test.exs` (6), `live/earn_live_test.exs` (22). Each is in `test/manifest.json`.
+  properties), `steps_test.exs` (14), `shared_terms_test.exs` (7).
+- `test/autolaunch_web/`: `controllers/earn_routes_test.exs` (7), `controllers/earn_off_test.exs`
+  (3), `earn_mcp_test.exs` (6), `live/earn_live_test.exs` (27). Each is in `test/manifest.json`.
 - The chain double is `test/support/earn_chain.ex`.
 - Fork proof, 15 November 2026, on anvil forking Base at block 58065118 with anvil's first test
   account: the pool at revision 12; Available read as the pool's virtual balance,
@@ -490,7 +561,7 @@ Max with no figures read.
 
 ## 11. Open items
 
-- Covered calls' `check_again` crash on a non-text hash and its tools' bounds (sections 9.6
-  and 9.7) are outside Earn and left as they are.
+- Covered calls' `check_again` crash on a non-text hash, its tools' bounds and its handling of a
+  transaction reported again (sections 9.6, 9.7 and 9.8) are outside Earn and left as they are.
 - A headless browser walk of `/earn` against a fork (FEATURES marks it a gap; proved by hand).
 - regents CLI commands, when the switch goes on.

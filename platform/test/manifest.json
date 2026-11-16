@@ -1,5 +1,5 @@
 {
-  "total": 343,
+  "total": 353,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -3514,7 +3514,7 @@
       "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
     },
     {
-      "id": 316,
+      "id": 390,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3527,7 +3527,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 317,
+      "id": 391,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3540,7 +3540,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 318,
+      "id": 392,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3553,7 +3553,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 319,
+      "id": 393,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3566,7 +3566,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 320,
+      "id": 394,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3579,7 +3579,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 321,
+      "id": 395,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3592,7 +3592,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 322,
+      "id": 396,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3605,7 +3605,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 323,
+      "id": 397,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3618,7 +3618,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 324,
+      "id": 398,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3631,7 +3631,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 325,
+      "id": 399,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3644,7 +3644,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 326,
+      "id": 400,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3657,7 +3657,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 327,
+      "id": 401,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3670,7 +3670,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 328,
+      "id": 402,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3683,7 +3683,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 329,
+      "id": 403,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
@@ -3696,7 +3696,7 @@
       "source_sha256": "be9142efa5bc9163722a4f055a32f7b64c88983d063f18b1e9935f1ca2a6a099"
     },
     {
-      "id": 330,
+      "id": 404,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3709,7 +3709,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 331,
+      "id": 405,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3722,7 +3722,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 332,
+      "id": 406,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3735,7 +3735,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 333,
+      "id": 407,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3748,7 +3748,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 334,
+      "id": 408,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3761,7 +3761,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 335,
+      "id": 409,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3774,7 +3774,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 336,
+      "id": 410,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3787,7 +3787,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 337,
+      "id": 411,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3800,7 +3800,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 338,
+      "id": 412,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3813,7 +3813,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 339,
+      "id": 413,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3826,7 +3826,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 340,
+      "id": 414,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/states_test.exs",
@@ -3839,7 +3839,7 @@
       "source_sha256": "3666a66f5125350527583ad041a96ed34f3e2d9ee63bdcb1a427aa5738ddb5a5"
     },
     {
-      "id": 341,
+      "id": 415,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3852,7 +3852,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 342,
+      "id": 416,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3865,7 +3865,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 343,
+      "id": 417,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3878,7 +3878,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 344,
+      "id": 418,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3891,7 +3891,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 345,
+      "id": 419,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3904,7 +3904,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 346,
+      "id": 420,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3917,7 +3917,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 347,
+      "id": 421,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3930,7 +3930,7 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 348,
+      "id": 422,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/reads_test.exs",
@@ -3943,46 +3943,98 @@
       "source_sha256": "7ffc61754bda8b131cecce654ebc2cf840288565cb00e06e95bf8a5fc1cd80ea"
     },
     {
-      "id": 349,
+      "id": 423,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/shared_terms_test.exs",
-      "line": 27,
+      "line": 32,
       "test_name": "readers at the same moment wait for one reading of the market",
       "keep_because": "Readers at the same moment wait for one reading of the market, so a crowd of visitors starts one chain read, not one each.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "503cbfeac7859df159cabb58193595c3f5bce22e134d1942359f8b0b7228bbb8"
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
     },
     {
-      "id": 350,
+      "id": 424,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/shared_terms_test.exs",
-      "line": 38,
+      "line": 43,
       "test_name": "a later reader gets the kept reading, and a landed step moves on to a new one",
       "keep_because": "A later reader within the kept time gets the same reading, and a landed step moves every later reader to a new one.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "503cbfeac7859df159cabb58193595c3f5bce22e134d1942359f8b0b7228bbb8"
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
     },
     {
-      "id": 351,
+      "id": 425,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/shared_terms_test.exs",
-      "line": 52,
+      "line": 57,
+      "test_name": "a transaction reported again moves no reader on and tells no page",
+      "keep_because": "A landed transaction is counted once: reported again it moves no reader to a new reading and tells no page, so a replayed report cannot make every page read the chain again; another transaction is a step of its own.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
+    },
+    {
+      "id": 426,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch/earn/shared_terms_test.exs",
+      "line": 76,
+      "test_name": "one transaction reported many times at once moves readers on once and tells the pages once",
+      "keep_because": "Forty reports of one transaction at the same moment move readers on and tell the pages exactly once, proving the mark and the move are one step under the cache's lock, never a read then a write.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
+    },
+    {
+      "id": 427,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch/earn/shared_terms_test.exs",
+      "line": 98,
+      "test_name": "a machine that hears of a step from another counts it once before its pages read",
+      "keep_because": "A machine that hears of a step landed on another counts it itself before its pages read, so they never get its reading from before the step; its other pages, and the same transaction reported there, count nothing again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
+    },
+    {
+      "id": 428,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch/earn/shared_terms_test.exs",
+      "line": 119,
+      "test_name": "a cache that can't be used refuses the reading, and a landed step is logged and still told",
+      "keep_because": "With the reading cache stopped, a reading is refused as the chain being unavailable rather than crashing, and a landed step logs one warning for each count it could not make and still tells every page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
+    },
+    {
+      "id": 429,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch/earn/shared_terms_test.exs",
+      "line": 143,
       "test_name": "a reading that fails is not kept",
       "keep_because": "A reading that fails is never kept, so the next reader reads the chain again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "503cbfeac7859df159cabb58193595c3f5bce22e134d1942359f8b0b7228bbb8"
+      "source_sha256": "1a426ef4c6e00600c4a984e0d7752858e3bc84faffe718e5a2e4e44ae2992745"
     },
     {
-      "id": 352,
+      "id": 430,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
@@ -3992,10 +4044,10 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 353,
+      "id": 431,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
@@ -4005,62 +4057,75 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 354,
+      "id": 432,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
       "line": 160,
+      "test_name": "a market whose asset has other decimals than the catalog gives it is refused, never counted in them",
+      "keep_because": "Every amount is counted in the catalog's decimals, so a market whose reserve names other decimals is refused as an answer the site can't read instead of shown in the wrong units.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
+    },
+    {
+      "id": 433,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
+      "line": 167,
       "test_name": "a paired agent previews before the site opens, and gets its steps only once it has",
       "keep_because": "A paired agent can preview before the site opens, and receives its exact steps only once it has.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 355,
+      "id": 434,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
-      "line": 208,
+      "line": 215,
       "test_name": "a paired agent's steps are for its person's own wallets, with blocked reasons and refusals in its words",
       "keep_because": "A paired agent's steps are only for its person's own wallets, with blocked reasons in the answer and every refusal in the routes' codes.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 356,
+      "id": 435,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
-      "line": 277,
+      "line": 284,
       "test_name": "an agent nobody paired gets no preview, steps or balances",
       "keep_because": "An agent no person paired gets no preview, steps or balances.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 357,
+      "id": 436,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_routes_test.exs",
-      "line": 292,
+      "line": 299,
       "test_name": "the signed-in route needs a sign-in and reads only the signed-in wallet",
       "keep_because": "The signed-in balances route refuses a visitor and reads only the signed-in wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81191c8c76ef686b1d34da5a62ab5968eed2995c82a02739c38421379c7bc1f3"
+      "source_sha256": "23d06013b9a91c582e3beab0c54956b95874bbaec8369ded13917299333a42b9"
     },
     {
-      "id": 358,
+      "id": 437,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_off_test.exs",
@@ -4073,7 +4138,7 @@
       "source_sha256": "63b07f976c7dd08435467319565fb81a2abba046f7d05786a81babcbf14d7aaf"
     },
     {
-      "id": 359,
+      "id": 438,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_off_test.exs",
@@ -4086,7 +4151,7 @@
       "source_sha256": "63b07f976c7dd08435467319565fb81a2abba046f7d05786a81babcbf14d7aaf"
     },
     {
-      "id": 360,
+      "id": 439,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/earn_off_test.exs",
@@ -4099,7 +4164,7 @@
       "source_sha256": "63b07f976c7dd08435467319565fb81a2abba046f7d05786a81babcbf14d7aaf"
     },
     {
-      "id": 361,
+      "id": 440,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4112,7 +4177,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 362,
+      "id": 441,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4125,7 +4190,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 363,
+      "id": 442,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4138,7 +4203,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 364,
+      "id": 443,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4151,7 +4216,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 365,
+      "id": 444,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4164,7 +4229,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 366,
+      "id": 445,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/earn_mcp_test.exs",
@@ -4177,7 +4242,7 @@
       "source_sha256": "75022d733989e1295cbe4b6397443338fc25c668982f4bd826f8a01552273ae9"
     },
     {
-      "id": 367,
+      "id": 446,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
@@ -4187,10 +4252,10 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 368,
+      "id": 447,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
@@ -4200,267 +4265,332 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 369,
+      "id": 448,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
       "line": 63,
-      "test_name": "a reading that fails says so and shows no figures, and Refresh reads again",
-      "keep_because": "A failed reading shows no figures and no panel, and Refresh reads again.",
+      "test_name": "a reading that fails says so and shows no figures, the panel stays, and Refresh reads again",
+      "keep_because": "A failed reading shows no figures, the wallet panel stays there since its decimals are the catalog's, and Refresh reads again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 370,
+      "id": 449,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 80,
+      "line": 81,
       "test_name": "signed in with a wallet open, the panel shows the balance and the wallet's USDC; Max fills them",
       "keep_because": "Signed in with a wallet open, the panel shows the balance and the wallet's USDC, and Max fills in the wallet's USDC.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 371,
+      "id": 450,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 93,
+      "line": 94,
       "test_name": "with nothing lent yet the panel says so",
       "keep_because": "With nothing lent yet the panel says so.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 372,
+      "id": 451,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 100,
+      "line": 101,
       "test_name": "Deposit reviews the exact USDC approval, then the supply to the wallet, each with the Builder Code",
       "keep_because": "Deposit opens a review of the exact approval and supply, each with the Builder Code, and closes on request.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 373,
+      "id": 452,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 133,
+      "line": 134,
       "test_name": "an approval the chain holds for the amount shows as done; one for less does not",
       "keep_because": "An approval the chain already holds for the amount shows as done; one for less is still to send.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 374,
+      "id": 453,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 147,
+      "line": 148,
       "test_name": "a deposit past the wallet's USDC is disabled with the reason, and comes back once the chain allows it",
       "keep_because": "A deposit past the wallet's USDC is disabled with its reason and comes back once the chain allows it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 375,
+      "id": 454,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 165,
+      "line": 166,
       "test_name": "a frozen market disables Deposit, and lets a withdrawal out up to the balance",
       "keep_because": "A frozen market disables Deposit and still lets a withdrawal out up to the balance.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 376,
+      "id": 455,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 182,
+      "line": 183,
       "test_name": "Max on Withdraw asks for everything; a typed figure equal to the balance is that figure only",
       "keep_because": "Max on Withdraw asks for everything, and only an edited figure is that figure.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 377,
+      "id": 456,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 222,
+      "line": 223,
       "test_name": "a confirmed step reads the market and the wallet again on every open page, and the last one closes the review with the exact amount moved",
       "keep_because": "A confirmed step reads the market again on every open page and the wallet again, closes the review, and the review and the note of what moved give the exact amount.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 378,
+      "id": 457,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 280,
+      "line": 281,
       "test_name": "a step that does not go through is reviewed again from the chain as it is now",
       "keep_because": "A step that does not go through is built again from the chain as it is now: a new review while the chain allows it, the reason beside a disabled button once it does not.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 379,
+      "id": 458,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 323,
+      "line": 324,
       "test_name": "a paused or closed market disables both steps with the reason, and Refresh reads the panel again",
       "keep_because": "A paused or closed market disables both steps with the reason, and Refresh reads the panel's preview again so the button comes back once the market opens.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 380,
+      "id": 459,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 355,
+      "line": 356,
+      "test_name": "signed in, the panel works while the market can't be read, and says why a preview couldn't be had",
+      "keep_because": "Signed in while the market can't be read, the panel still takes an amount, says why its preview couldn't be had, and disables nothing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 460,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 368,
+      "test_name": "a step heard of from another of the site's machines is counted here before the page reads",
+      "keep_because": "A page that hears of a step landed on another machine, while its own machine keeps a reading from before it, counts the step on its machine first and so shows the new figures.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 461,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 396,
+      "test_name": "a new reading drops the reason that held the button, so it can be pressed until the chain answers again",
+      "keep_because": "While the market, the preview and the wallet are being read again, the button held by an earlier reason is pressable, and it is disabled again only once the chain answers that the step would fail.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 462,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 419,
+      "test_name": "the page drawn again with nothing new for the panel reads nothing again",
+      "keep_because": "The page drawing the panel again with its amount, wallet, tab and readings unchanged starts no new read of the chain.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 463,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 439,
+      "test_name": "a step reported again, or checked again while it is still being read, starts no second check",
+      "keep_because": "A transaction the panel already follows, reported again in any letter case, or Check again on a step still being read, starts no second check of the chain beside the one running.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 464,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 478,
       "test_name": "Refresh pressed while the market is being read starts no second reading",
       "keep_because": "Refresh pressed while the market is being read starts no second reading.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 381,
+      "id": 465,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 372,
+      "line": 495,
       "test_name": "another wallet starts from an empty amount with Max off",
       "keep_because": "Another wallet starts from an empty amount with Max off, so an amount meant for one wallet is never sent from another.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 382,
+      "id": 466,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 402,
+      "line": 525,
       "test_name": "a change with no amount, or a check of a hash that is not text, leaves the panel as it is",
       "keep_because": "A change with no amount, or a check of a hash that is not text, leaves the panel as it is instead of crashing it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 383,
+      "id": 467,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 417,
+      "line": 540,
       "test_name": "signed in with no wallet open, Deposit says so and opens nothing",
       "keep_because": "Signed in with no wallet open, Deposit says so and opens nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 384,
+      "id": 468,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 428,
+      "line": 551,
       "test_name": "an amount that doesn't read is said under the field, disables nothing and opens nothing",
       "keep_because": "An amount that does not read is said under the field and never disables the button.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 385,
+      "id": 469,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 442,
+      "line": 565,
       "test_name": "a review closes when the wallet that may act changes or the tab does",
       "keep_because": "A review built for one wallet closes when another may act, and a tab change closes it and clears the amount.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 386,
+      "id": 470,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 464,
+      "line": 587,
       "test_name": "the portfolio shows the wallet's balance with Withdraw, and Refresh reads it again",
       "keep_because": "The portfolio shows the Earn balance with Withdraw, and its Refresh reads it again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 387,
+      "id": 471,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 479,
+      "line": 602,
       "test_name": "the portfolio offers Deposit with nothing lent, and says when a balance couldn't be read",
       "keep_because": "The portfolio offers Deposit with nothing lent, and says when a balance could not be read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     },
     {
-      "id": 388,
+      "id": 472,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 495,
+      "line": 618,
       "test_name": "signed out, the portfolio has no Earn section",
       "keep_because": "Signed out, the portfolio has no Earn section.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4beb3da5d723ce270b73c4b775e71e5d379f2438377f0add3d541ae86e4be82a"
+      "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
     }
   ],
   "legacy_folders_to_remove": [
