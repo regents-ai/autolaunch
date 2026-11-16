@@ -104,12 +104,11 @@ defmodule AutolaunchWeb.AgentPairingPropertiesTest do
   end
 
   # PAIRING_CODE_ENDS_AT_TEN_MINUTES
-  property "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code pairs exactly when it is under ten minutes old" do
-    # The request is sent within a second of the clock moving, so the second before
-    # the edge is left out rather than raced.
-    edge = one_of([integer(590..597), integer(600..610)])
-
-    check all(age <- one_of([integer(0..597), integer(600..1_200), edge]), max_runs: 60) do
+  property "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code well under ten minutes old pairs, and one well past them does not" do
+    # The pairing reads the clock itself when the request arrives, which on a busy
+    # machine can be seconds after the age is set, so no case comes within half a
+    # minute of the edge. The edge is the next test's.
+    check all(age <- one_of([integer(0..570), integer(630..1_200)]), max_runs: 60) do
       code = code_for(person_id())
       hash = PairingCode.hash(code)
 
@@ -129,6 +128,37 @@ defmodule AutolaunchWeb.AgentPairingPropertiesTest do
         do: assert(conn.status == 201),
         else: assert({conn.status, refusal(conn)} == {400, "pairing_failed"})
     end
+  end
+
+  test "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code is made for exactly ten minutes, and ten minutes on it pairs nobody" do
+    code = code_for(person_id())
+    hash = PairingCode.hash(code)
+
+    assert %{rows: [[true]]} =
+             Repo.query!(
+               """
+               SELECT expires_at - issued_at = interval '10 minutes'
+               FROM regent_agents.pairing_codes WHERE code_hash = $1
+               """,
+               [hash]
+             )
+
+    # The pairing reads the clock itself, so the edge is set by the clock: the
+    # code turns ten minutes old at the moment read here, before the request,
+    # and is past it by the time the pairing reads the clock.
+    edge = NaiveDateTime.utc_now()
+
+    Repo.query!(
+      """
+      UPDATE regent_agents.pairing_codes
+      SET issued_at = $2::timestamp - interval '10 minutes', expires_at = $2
+      WHERE code_hash = $1
+      """,
+      [hash, edge]
+    )
+
+    conn = pair(wallet(), code)
+    assert {conn.status, refusal(conn)} == {400, "pairing_failed"}
   end
 
   # ONLY_OFFERED_HARNESSES_PAIR
