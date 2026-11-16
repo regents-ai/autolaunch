@@ -8,14 +8,20 @@ defmodule AutolaunchWeb.EarnLive do
   wallet panel (`AutolaunchWeb.EarnComponent`) for a deposit or withdrawal,
   and its risks in plain words.
 
-  The terms are read when the page opens, when Refresh is pressed and each
-  time a step on the product lands, on this page or another. A Refresh while
-  a reading is under way starts nothing; a landed step starts a new reading
-  at once, stopping the one under way. While a reading is under way the
-  figures from the one before are not shown, so a figure from before a
-  confirmed step is never shown as current; a reading that fails says so.
-  Each reading also has the panel read its wallet and its preview again
-  (`reads`). Deposit and Withdraw are the page's tabs (`?tab=withdraw`).
+  The terms are read when the page opens, when Refresh is pressed and the
+  first time each transaction that landed a step on the product is heard of,
+  from this page or another on any of the site's machines. A Refresh while a
+  reading is under way starts nothing; a landed step starts a new reading at
+  once, stopping the one under way, and on a machine that heard of the step
+  from another one it is first counted there (`SharedTerms.heard/2`), so the
+  new reading is taken after it. While a reading is under way the figures
+  from the one before are not shown, so on a page open when a step lands a
+  figure from before it is never shown as current; a page opened just after
+  on a machine that had none open may show a reading up to ten seconds old,
+  its block named. A reading that fails says so. Each reading also has the
+  panel read its wallet and its preview again (`reads`); the panel is there
+  from the start, its decimals the catalog's, whether or not a reading has
+  arrived. Deposit and Withdraw are the page's tabs (`?tab=withdraw`).
 
   With Earn switched off the address is the site's 404.
   """
@@ -42,7 +48,6 @@ defmodule AutolaunchWeb.EarnLive do
          products: products,
          terms: Map.new(ids, &{&1, AsyncResult.loading()}),
          reads: Map.new(ids, &{&1, 0}),
-         decimals: %{},
          kind: :deposit,
          done: nil
        )
@@ -65,16 +70,17 @@ defmodule AutolaunchWeb.EarnLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  # A step on the product landed, here or on another page.
-  def handle_info({:earn_changed, id}, socket), do: {:noreply, read(socket, [id])}
+  # A transaction landed a step on the product, here or on another page,
+  # perhaps on another machine: it is counted on this one before the reading.
+  def handle_info({:earn_changed, id, hash}, socket) do
+    :ok = SharedTerms.heard(id, hash)
+    {:noreply, read(socket, [id])}
+  end
+
   def handle_info({:earn_done, done}, socket), do: {:noreply, assign(socket, done: done)}
 
-  def handle_async({:terms, id}, {:ok, {:ok, %{terms: terms}}}, socket) do
-    {:noreply,
-     socket
-     |> update(:terms, &Map.put(&1, id, AsyncResult.ok(terms)))
-     |> update(:decimals, &Map.put(&1, id, terms.decimals))}
-  end
+  def handle_async({:terms, id}, {:ok, {:ok, %{terms: terms}}}, socket),
+    do: {:noreply, update(socket, :terms, &Map.put(&1, id, AsyncResult.ok(terms)))}
 
   def handle_async({:terms, id}, {:ok, {:error, error}}, socket),
     do: {:noreply, failed(socket, id, Earn.reason(error))}
@@ -171,19 +177,15 @@ defmodule AutolaunchWeb.EarnLive do
             </.link>
           </nav>
           <.live_component
-            :if={@decimals[product.id]}
             module={EarnComponent}
             id={"earn-#{product.id}-panel"}
             product={product}
-            decimals={@decimals[product.id]}
+            decimals={product.decimals}
             kind={@kind}
             reads={@reads[product.id]}
             session_lease={@session_lease}
             current_human_id={@human_id}
           />
-          <div :if={!@decimals[product.id]} class="earn__waiting" aria-busy="true">
-            <span class="loading-block"></span>
-          </div>
         </div>
 
         <section class="earn__risks" aria-labelledby={"earn-#{product.id}-risks"}>
@@ -213,11 +215,11 @@ defmodule AutolaunchWeb.EarnLive do
       </div>
       <div>
         <dt>Supplied</dt>
-        <dd>{EarnComponent.amount(@terms.supplied, @terms.decimals, @product.asset)}</dd>
+        <dd>{EarnComponent.amount(@terms.supplied, @product.decimals, @product.asset)}</dd>
       </div>
       <div>
         <dt>Available</dt>
-        <dd>{EarnComponent.amount(@terms.available, @terms.decimals, @product.asset)}</dd>
+        <dd>{EarnComponent.amount(@terms.available, @product.decimals, @product.asset)}</dd>
       </div>
       <div>
         <dt>Capacity</dt>
@@ -236,8 +238,8 @@ defmodule AutolaunchWeb.EarnLive do
   # The most one deposit can be before the market's supply cap.
   defp capacity(%{capacity: :uncapped}, _product), do: "No cap"
 
-  defp capacity(%{capacity: {:left, left}, decimals: decimals}, product),
-    do: EarnComponent.amount(left, decimals, product.asset)
+  defp capacity(%{capacity: {:left, left}}, product),
+    do: EarnComponent.amount(left, product.decimals, product.asset)
 
   defp capacity(%{capacity: :full}, _product), do: "Full"
 

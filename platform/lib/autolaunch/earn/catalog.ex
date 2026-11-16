@@ -1,10 +1,12 @@
 defmodule Autolaunch.Earn.Catalog do
   @moduledoc """
   What Earn offers: each product as plain data from `config :autolaunch,
-  :earn_products` (its id, chain, protocol, market, asset, and the addresses of
-  its pool and asset), and whether the site offers Earn at all
-  (`AUTOLAUNCH_EARN=true`, `enabled?/0`). Everything else about a product is
-  read from the chain at the latest block each time (`Autolaunch.Earn.Chain`).
+  :earn_products` (its id, chain, protocol, market, asset and the asset's
+  decimals, and the addresses of its pool and asset), and whether the site
+  offers Earn at all (`AUTOLAUNCH_EARN=true`, `enabled?/0`). Everything else
+  about a product is read from the chain at the latest block each time
+  (`Autolaunch.Earn.Chain`), which refuses a market whose decimals are not
+  the catalog's.
 
   A product is read on the site's Base deployment (`Autolaunch.Lab.current/0`):
   Base itself, or a local fork of Base (`Autolaunch.Lab.test_chain?/1`), which
@@ -19,6 +21,7 @@ defmodule Autolaunch.Earn.Catalog do
           protocol: String.t(),
           market: String.t(),
           asset: String.t(),
+          decimals: pos_integer(),
           pool: String.t(),
           asset_address: String.t()
         }

@@ -157,6 +157,13 @@ defmodule AutolaunchWeb.EarnRoutesTest do
     assert code(refused) == "earn_unavailable"
   end
 
+  test "a market whose asset has other decimals than the catalog gives it is refused, never counted in them" do
+    EarnChain.put(%{decimals: 18})
+
+    refused = build_conn() |> get("/api/v1/earn/products") |> json_response(503)
+    assert code(refused) == "invalid_chain_response"
+  end
+
   test "a paired agent previews before the site opens, and gets its steps only once it has" do
     {wallet, signed} = paired_agent()
     request = %{"product" => "aave-usdc", "kind" => "deposit", "amount" => 250 * @unit}

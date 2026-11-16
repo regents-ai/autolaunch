@@ -7,12 +7,14 @@ defmodule AutolaunchWeb.EarnComponent do
   confirms the last step, and the page then says what moved (`toast/1`, from
   `{:earn_done, done}`).
 
-  The page passes `product`, `decimals` (the asset's, from the market's first
-  reading), `kind` (`:deposit` or `:withdraw`, the page's tabs), `reads` (how
-  many times the page has read the market), the panel's `session_lease` and
+  The page passes `product`, `decimals` (the asset's, from the catalog),
+  `kind` (`:deposit` or `:withdraw`, the page's tabs), `reads` (how many times
+  the page has read the market), the panel's `session_lease` and
   `current_human_id`. A landed step leaves the market's shared reading behind
-  and every open page of the product hears it
-  (`Autolaunch.Earn.SharedTerms.changed/1`), so each reads the market again.
+  and every open page of the product hears it, once for each transaction
+  (`Autolaunch.Earn.SharedTerms.changed/2`), so each reads the market again.
+  A transaction the panel already follows, reported again, starts no second
+  check, and Check again reads only a step the page stopped reading.
 
   The server builds every step (`Autolaunch.Earn.prepare_earn_steps/4`, the
   same action agents call) for the wallet that may act
@@ -22,11 +24,14 @@ defmodule AutolaunchWeb.EarnComponent do
   at the latest block for the amount as it stands, makes the step certain to
   fail, with the reason beside it. That preview is read again, at the latest
   block, each time the amount settles (a moment after the last key), the
-  wallet changes, the page comes back into view, a press goes out, a step
-  lands on this page or another, and each time the page reads the market (its
-  Refresh included), so the button comes back once the chain allows the step.
-  A new preview stops the one still being read. An amount that does not read
-  is said under the field and never disables anything.
+  wallet or the tab changes, the page comes back into view, a press goes out,
+  a step lands on this page or another, and each time the page reads the
+  market (its Refresh included), so the button comes back once the chain
+  allows the step; nothing else, a render of the page included, reads it
+  again. A new preview stops the one still being read and drops the one
+  before, so the button is never held by a reason from before while the chain
+  is read again, nor disabled because a preview is under way. An amount that
+  does not read is said under the field and never disables anything.
 
   Max fills in the wallet's USDC for a deposit. For a withdrawal it asks for
   everything, which withdraws the balance as it stands when the step lands; a
@@ -58,6 +63,7 @@ defmodule AutolaunchWeb.EarnComponent do
        text: "",
        max: false,
        quote: nil,
+       quoted_for: nil,
        refusal: nil,
        reviewed: nil,
        landed: MapSet.new(),
@@ -127,8 +133,13 @@ defmodule AutolaunchWeb.EarnComponent do
     {:noreply, reviewed(socket)}
   end
 
-  def handle_event("step_sent", params, socket),
-    do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
+  # A transaction the panel already follows is being read, or has been: told of
+  # it again, the panel starts no second check.
+  def handle_event("step_sent", params, socket) do
+    if followed?(socket.assigns.presses, params["transaction_hash"]),
+      do: {:noreply, socket},
+      else: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
+  end
 
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
@@ -144,29 +155,37 @@ defmodule AutolaunchWeb.EarnComponent do
     end
   end
 
-  # A hash that names no step sent from here, whatever it is, finds nothing.
-  def handle_event("check_again", params, socket),
-    do: {:noreply, OnchainSteps.check_again(socket, params["hash"])}
+  # Check again reads a step the page stopped reading, as the button offering
+  # it is shown for. A step still being read, one that landed, or a hash that
+  # names no step sent from here, whatever it is, is left as it is.
+  def handle_event("check_again", params, socket) do
+    if stalled?(socket.assigns.presses, params["hash"]),
+      do: {:noreply, OnchainSteps.check_again(socket, params["hash"])},
+      else: {:noreply, socket}
+  end
 
   def handle_event("close_review", _params, socket),
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
 
   @impl true
-  def handle_async(:quote, {:ok, {request, signer, result}}, socket) do
-    if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
-      case result do
-        {:ok, prepared} ->
-          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
+  def handle_async(
+        :quote,
+        {:ok, {{{:ok, request}, signer, _reads, _held_reads} = key, result}},
+        %{assigns: %{quoted_for: key}} = socket
+      ) do
+    case result do
+      {:ok, prepared} ->
+        {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
 
-        {:error, reason} ->
-          {:noreply, assign(socket, quote: nil, refusal: reason)}
-      end
-    else
-      {:noreply, socket}
+      {:error, reason} ->
+        {:noreply, assign(socket, quote: nil, refusal: reason)}
     end
   end
 
-  # A preview stopped because the amount no longer reads.
+  # A preview for figures the panel has since moved on from.
+  def handle_async(:quote, {:ok, _earlier}, socket), do: {:noreply, socket}
+
+  # A preview stopped for a newer one, or because the amount no longer reads.
   def handle_async(:quote, {:exit, {:shutdown, :cancel}}, socket), do: {:noreply, socket}
 
   def handle_async(:quote, {:exit, _reason}, socket),
@@ -192,26 +211,48 @@ defmodule AutolaunchWeb.EarnComponent do
 
   defp typed(socket, _text), do: socket
 
-  # The figures follow the wallet that may act and the amount as it stands,
-  # read again each time; a new preview stops the one still being read.
+  # Whether the panel follows transaction `hash` already (`Presses.sent/2`
+  # keeps it lowercase).
+  defp followed?(presses, hash) when is_binary(hash),
+    do: Enum.any?(Presses.shown(presses), &(&1.hash == String.downcase(hash)))
+
+  defp followed?(_presses, _hash), do: false
+
+  # Whether the step sent as `hash` is one the page stopped reading.
+  defp stalled?(presses, hash) when is_binary(hash),
+    do: Enum.any?(Presses.shown(presses), &(&1.hash == hash and Presses.stalled?(&1)))
+
+  defp stalled?(_presses, _hash), do: false
+
+  # The figures follow the wallet that may act and the amount as it stands.
   defp sync(socket) do
     signer = signer(socket)
     socket = follow(socket, signer)
+    %{reads: reads, held_reads: held_reads} = socket.assigns
 
-    case {signer, request(socket.assigns)} do
-      {signer, {:ok, request}} when is_binary(signer) ->
-        id = socket.assigns.current_human_id
-
-        socket
-        |> assign(refusal: nil)
-        |> cancel_async(:quote)
-        |> start_async(:quote, fn -> {request, signer, prepare(id, request, signer)} end)
-
-      {_signer, _request} ->
-        socket |> cancel_async(:quote) |> assign(quote: nil, refusal: nil)
-    end
+    socket
+    |> preview({request(socket.assigns), signer, reads, held_reads})
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
     |> read_held()
+  end
+
+  # The preview for the amount (its tab included), the wallet that may act and
+  # the readings as they stand (`quoted_for`), read only when one of them
+  # changed. A new one stops the one still being read and drops the one
+  # before, so until it arrives nothing holds the button.
+  defp preview(%{assigns: %{quoted_for: key}} = socket, key), do: socket
+
+  defp preview(socket, {request, signer, _reads, _held_reads} = key) do
+    socket = socket |> cancel_async(:quote) |> assign(quoted_for: key, quote: nil, refusal: nil)
+
+    case request do
+      {:ok, request} when is_binary(signer) ->
+        id = socket.assigns.current_human_id
+        start_async(socket, :quote, fn -> {key, prepare(id, request, signer)} end)
+
+      _no_preview ->
+        socket
+    end
   end
 
   # Another wallet that may act starts from an empty amount, Max off, and the
@@ -306,11 +347,12 @@ defmodule AutolaunchWeb.EarnComponent do
     do: OnchainSteps.failure_note("wallet_unavailable", linked, active, "Base")
 
   # A step landed: every open page of the product reads the market again, this
-  # one included, and with it each panel its wallet and its preview (`reads`).
-  # When every step of the open review has landed once, whichever press of it
-  # landed, the review closes and the page says what moved.
-  defp confirmed(socket, %{review: %{id: id}, name: name}) do
-    SharedTerms.changed(socket.assigns.product.id)
+  # one included, and with it each panel its wallet and its preview (`reads`),
+  # once for each transaction. When every step of the open review has landed
+  # once, whichever press of it landed, the review closes and the page says
+  # what moved.
+  defp confirmed(socket, %{review: %{id: id}, name: name, hash: hash}) do
+    SharedTerms.changed(socket.assigns.product.id, hash)
 
     case socket.assigns.review do
       %{id: ^id} ->
@@ -678,8 +720,10 @@ defmodule AutolaunchWeb.EarnComponent do
   defp blocked_words(:not_available_now), do: "Not that much is available to withdraw right now"
 
   # Each refusal a preview or review for a wallet of the panel's own can meet.
-  # Its amount always reads and its product is the catalog's, so the input
-  # refusals cannot.
+  # Its amount always reads within the bound, its product is the catalog's and
+  # its signer is one of the account's wallets as the panel read them, a whole
+  # address, so `invalid_request`, `unknown_product`, `invalid_amount` and
+  # `wallet_required` cannot.
   defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
   defp refusal_words(:authentication_required), do: "Sign in again to use your wallet here."
   defp refusal_words(:earn_unavailable), do: "Earn is not available right now. Try again later."

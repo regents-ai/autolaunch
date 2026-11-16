@@ -85,7 +85,7 @@ defmodule Autolaunch.Earn.Answer do
     product
     |> identity(terms)
     |> Map.merge(%{
-      decimals: terms.decimals,
+      decimals: product.decimals,
       status: terms.status,
       rate_now: %{ray: Integer.to_string(terms.rate), yearly_percent: yearly_percent(terms.rate)},
       supplied: terms.supplied,

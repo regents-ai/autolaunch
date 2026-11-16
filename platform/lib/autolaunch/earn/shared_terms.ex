@@ -9,17 +9,30 @@ defmodule Autolaunch.Earn.SharedTerms do
   block every time.
 
   Visitors who ask while a reading is being taken wait for that one reading
-  instead of each starting their own (`Cachex.fetch/4`), and a reading that
-  fails is never kept. A step that lands (`changed/1`) leaves every reading
-  taken before it behind, the one still being taken included, so the next ask
-  takes a new one; and every open page of the product hears it (`subscribe/1`).
-  The readings are kept on each machine, so on another machine a page reads
-  anew once the one it holds is ten seconds old.
+  instead of each starting their own (`Cachex.fetch/4`). A reading that fails
+  is never kept, and one that cannot be taken or kept because of the cache
+  itself is refused as `:chain_unavailable`.
+
+  A step that lands is counted once for each transaction (`changed/2`): the
+  first report of it leaves every reading taken before it behind, the one
+  still being taken included, and tells every open page of the product
+  `{:earn_changed, id, hash}`; a later report of the same transaction does
+  neither, so it cannot be replayed to make every page read the chain again.
+  The readings are kept on each machine, and a page on another machine that
+  hears of the step marks it there the same way before it reads (`heard/2`),
+  so it never gets a reading from before it. A machine with no page of the
+  product open hears nothing, and its kept reading is at most ten seconds old.
   """
+
+  require Logger
 
   alias Autolaunch.Earn.Chain
 
   @cache :autolaunch_earn_terms
+
+  # How long each machine remembers a landed transaction: far longer than a
+  # reading is kept, so a report of the same transaction again finds it.
+  @landed_kept_ms :timer.hours(1)
 
   @doc "The cache the readings are kept in (`Autolaunch.Application`)."
   def cache, do: @cache
@@ -47,29 +60,82 @@ defmodule Autolaunch.Earn.SharedTerms do
       end
     end
 
-    case Cachex.fetch(@cache, {product.id, landed(product.id)}, read) do
-      {kept, terms} when kept in [:ok, :commit] -> {:ok, terms}
-      {:ignore, error} -> error
+    with {:ok, landed} <- landed(product.id) do
+      case Cachex.fetch(@cache, {product.id, landed}, read) do
+        {kept, terms} when kept in [:ok, :commit] -> {:ok, terms}
+        {:ignore, error} -> error
+        {:error, _fault} -> {:error, :chain_unavailable}
+      end
+    end
+  end
+
+  defp landed(id) do
+    case Cachex.get(@cache, {:landed, id}) do
+      {:ok, landed} -> {:ok, landed || 0}
+      {:error, _fault} -> {:error, :chain_unavailable}
     end
   end
 
   @doc """
-  A step on product `id` landed: the readings taken before it are left behind,
-  and every open page of the product hears `{:earn_changed, id}`.
+  Transaction `hash` landed a step on product `id`. The first report of it
+  leaves the readings taken before it behind and tells every open page of the
+  product `{:earn_changed, id, hash}`; any later report of it does neither.
+  When the cache cannot count it, that is logged and the pages are still told.
   """
-  @spec changed(String.t()) :: :ok
-  def changed(id) do
-    {:ok, _landed} = Cachex.incr(@cache, {:landed, id})
-    Phoenix.PubSub.broadcast(Autolaunch.PubSub, topic(id), {:earn_changed, id})
+  @spec changed(String.t(), String.t()) :: :ok
+  def changed(id, hash) do
+    if mark(id, hash) == :known,
+      do: :ok,
+      else: Phoenix.PubSub.broadcast(Autolaunch.PubSub, topic(id), {:earn_changed, id, hash})
   end
 
-  @doc "Hears `{:earn_changed, id}` each time a step on product `id` lands."
+  @doc """
+  A page heard `{:earn_changed, id, hash}`, perhaps from another machine: the
+  step is counted on this one too, once, so the page's next reading is taken
+  after it. The first page on a machine to hear it counts it; the rest find it
+  counted.
+  """
+  @spec heard(String.t(), String.t()) :: :ok
+  def heard(id, hash) do
+    _counted = mark(id, hash)
+    :ok
+  end
+
+  @doc "Hears `{:earn_changed, id, hash}` each time a step on product `id` lands."
   @spec subscribe(String.t()) :: :ok | {:error, term()}
   def subscribe(id), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(id))
 
-  defp landed(id) do
-    {:ok, landed} = Cachex.get(@cache, {:landed, id})
-    landed || 0
+  # Marks `hash` landed on product `id` on this machine and moves later
+  # readers on to a new reading, in one step under the mark's lock, so a page
+  # that finds the mark already reads after the move: `:new` the first time,
+  # `:known` after, `:fault` when the cache could do neither.
+  defp mark(id, hash) do
+    marked =
+      Cachex.get_and_update(@cache, {:landed, id, hash}, fn
+        nil ->
+          case Cachex.incr(@cache, {:landed, id}) do
+            {:ok, _landed} -> {:commit, true, expire: @landed_kept_ms}
+            {:error, fault} -> {:ignore, {:error, fault}}
+          end
+
+        true ->
+          {:ignore, true}
+      end)
+
+    case marked do
+      {:commit, true} -> :new
+      {:ignore, true} -> :known
+      {:ignore, {:error, fault}} -> fault(id, fault)
+      {:error, fault} -> fault(id, fault)
+    end
+  end
+
+  defp fault(id, fault) do
+    Logger.warning(
+      "autolaunch earn landed step not counted #{inspect(%{product: id, fault: fault})}"
+    )
+
+    :fault
   end
 
   defp topic(id), do: "earn:" <> id

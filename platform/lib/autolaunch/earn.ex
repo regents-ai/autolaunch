@@ -15,6 +15,15 @@ defmodule Autolaunch.Earn do
   The refusal an operation answered with, as the atom its surfaces turn into
   words: the reason it named (`Autolaunch.Earn.Refused`), or `:invalid_request`
   for input the action itself does not take.
+
+  Those are the only two that reach it. Every operation names its refusal as
+  an atom and raises nothing it keeps. A policy never refuses where this is
+  asked: the page reads the terms, which anyone may, and its panel always
+  calls as a person; the HTTP routes are not there while Earn is off
+  (`AutolaunchWeb.Router.admit_earn/2`), every caller of the private ones is
+  an agent, and the steps route is refused before the router in prelaunch
+  read-only mode (`AutolaunchWeb.Prelaunch`), both set when the site starts;
+  the hosted MCP tools put their own errors into words.
   """
   def reason(%Ash.Error.Unknown{errors: [%Autolaunch.Earn.Refused{reason: reason}]}), do: reason
   def reason(%Ash.Error.Invalid{}), do: :invalid_request

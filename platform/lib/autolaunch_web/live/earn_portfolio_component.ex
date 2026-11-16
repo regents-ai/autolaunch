@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.EarnPortfolioComponent do
 
     ~H"""
     <div class="earn-portfolio__held">
-      <strong id={"#{@id}-balance"}>{EarnComponent.amount(@balance, @terms.decimals, @product.asset)}</strong>
+      <strong id={"#{@id}-balance"}>{EarnComponent.amount(@balance, @product.decimals, @product.asset)}</strong>
       <p class="earn-portfolio__muted">Read at block {Integer.to_string(@terms.block.number)}</p>
     </div>
     <.link navigate={~p"/earn?tab=withdraw"} class="rg-button rg-button--secondary">Withdraw</.link>

@@ -194,9 +194,10 @@ config :autolaunch,
 config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 
 # Earn's catalog: each place USDC on Base can be lent out through Autolaunch,
-# as plain data. Everything else about it (its token, rate, flags, cap and what
-# can be withdrawn) is read from the chain (`Autolaunch.Earn`). Offered only on
-# a site switched on with AUTOLAUNCH_EARN=true.
+# as plain data, the asset's decimals included (each reading checks them
+# against the market's own). Everything else about it (its token, rate, flags,
+# cap and what can be withdrawn) is read from the chain (`Autolaunch.Earn`).
+# Offered only on a site switched on with AUTOLAUNCH_EARN=true.
 config :autolaunch, :earn_products, [
   %{
     id: "aave-usdc",
@@ -204,6 +205,7 @@ config :autolaunch, :earn_products, [
     protocol: "Aave",
     market: "Aave V3 on Base",
     asset: "USDC",
+    decimals: 6,
     pool: "0xa238dd80c259a72e81d7e4664a9801593f98d1c5",
     asset_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   }

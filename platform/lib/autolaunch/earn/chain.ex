@@ -28,6 +28,10 @@ defmodule Autolaunch.Earn.Chain do
   included), with the asset's `balanceOf` for the wallet and its `allowance`
   to the pool.
 
+  Every amount is counted in the decimals the catalog gives the asset
+  (`Autolaunch.Earn.Catalog`); a reserve whose configuration names other
+  decimals is refused as `:invalid_chain_response`.
+
   The supply cap's capacity is the pool's own check at this block's index
   (`States.capacity/1`), with the treasury's share as the pool last stored it:
   at a block where the reserve is up to date, the pool takes exactly the
@@ -45,7 +49,6 @@ defmodule Autolaunch.Earn.Chain do
   @type terms :: %{
           block: Rpc.block(),
           a_token: String.t(),
-          decimals: non_neg_integer(),
           status: States.status(),
           rate: non_neg_integer(),
           supplied: non_neg_integer(),
@@ -82,7 +85,7 @@ defmodule Autolaunch.Earn.Chain do
       capacity =
         States.capacity(%{
           cap: reserve.cap,
-          decimals: reserve.decimals,
+          decimals: product.decimals,
           scaled: scaled + reserve.accrued_to_treasury,
           index: index
         })
@@ -90,7 +93,6 @@ defmodule Autolaunch.Earn.Chain do
       terms = %{
         block: block,
         a_token: reserve.a_token,
-        decimals: reserve.decimals,
         status: States.status(reserve),
         rate: reserve.rate,
         supplied: supplied,
@@ -111,11 +113,17 @@ defmodule Autolaunch.Earn.Chain do
 
     with {:ok, [reserve, index, available]} <- Multicall.read(reads, block, opts),
          {:ok, words} <- words(reserve, 15),
+         {:ok, reserve} <- asset(decode(words), product),
          {:ok, [index]} <- words(index, 1),
          {:ok, [available]} <- words(available, 1) do
-      {:ok, decode(words), index, available}
+      {:ok, reserve, index, available}
     end
   end
+
+  # Every amount is counted in the decimals the catalog gives the asset, so a
+  # market whose own are any others is no answer this site can read.
+  defp asset(%{decimals: decimals} = reserve, %{decimals: decimals}), do: {:ok, reserve}
+  defp asset(_reserve, _product), do: {:error, :invalid_chain_response}
 
   @doc """
   The reserve's fifteen words as Earn reads them: the configuration's flags,

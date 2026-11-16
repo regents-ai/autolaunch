@@ -60,14 +60,15 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert has_element?(view, "#earn-aave-usdc-terms", "No cap")
   end
 
-  test "a reading that fails says so and shows no figures, and Refresh reads again", %{conn: conn} do
+  test "a reading that fails says so and shows no figures, the panel stays, and Refresh reads again",
+       %{conn: conn} do
     EarnChain.install(%{unreadable: true})
     {:ok, view, _html} = live(conn, "/earn")
     settled(view)
 
     assert has_element?(view, "#earn-aave-usdc .earn__note[role=alert]")
     refute has_element?(view, "#earn-aave-usdc-terms")
-    refute has_element?(view, @panel)
+    assert has_element?(view, "#{@panel} button[data-account-target=sign-in]")
 
     EarnChain.put(%{})
     view |> element("#earn-read-again") |> render_click()
@@ -352,6 +353,128 @@ defmodule AutolaunchWeb.EarnLiveTest do
     refute has_element?(view, "#{@panel}-review[disabled]")
   end
 
+  test "signed in, the panel works while the market can't be read, and says why a preview couldn't be had",
+       %{conn: conn} do
+    EarnChain.install(%{unreadable: true})
+    {view, _panel, _wallet} = signed_in(conn)
+
+    assert has_element?(view, "#earn-aave-usdc .earn__note[role=alert]")
+    type(view, "10")
+
+    assert has_element?(view, "#{@panel} .earn-panel__problem[role=alert]")
+    refute has_element?(view, "#{@panel}-review[disabled]")
+  end
+
+  test "a step heard of from another of the site's machines is counted here before the page reads",
+       %{conn: conn} do
+    EarnChain.install()
+    Application.put_env(:autolaunch, :earn_terms_kept_ms, 60_000)
+    {:ok, _cleared} = Cachex.clear(Autolaunch.Earn.SharedTerms.cache())
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :earn_terms_kept_ms, 0)
+      Cachex.clear(Autolaunch.Earn.SharedTerms.cache())
+    end)
+
+    {:ok, view, _html} = live(conn, "/earn")
+    settled(view)
+
+    # The step lands on another machine: this one keeps its reading from
+    # before it, and hears of it only as the message every page gets.
+    EarnChain.put(%{supplied: 300_000_250 * @unit})
+
+    Phoenix.PubSub.broadcast(
+      Autolaunch.PubSub,
+      "earn:aave-usdc",
+      {:earn_changed, "aave-usdc", @hash}
+    )
+
+    settled(view)
+    assert has_element?(view, "#earn-aave-usdc-terms", usdc(300_000_250 * @unit))
+  end
+
+  test "a new reading drops the reason that held the button, so it can be pressed until the chain answers again",
+       %{conn: conn} do
+    EarnChain.install(%{usdc: 100 * @unit})
+    {view, _panel, _wallet} = signed_in(conn)
+
+    type(view, "250")
+    assert has_element?(view, "#{@panel}-review[disabled]")
+
+    # Refresh: the market, the preview and the wallet are each read again,
+    # and none has answered yet.
+    EarnChain.put(%{usdc: 100 * @unit, hold: self()})
+    view |> element("#earn-read-again") |> render_click()
+    readers = held(3)
+    EarnChain.put(%{usdc: 100 * @unit})
+
+    refute has_element?(view, "#{@panel}-review[disabled]")
+    assert view |> element("#{@panel}-why") |> render() |> words() == ""
+
+    Enum.each(readers, &send(&1, :go))
+    settled(view)
+    assert has_element?(view, "#{@panel}-review[disabled]")
+  end
+
+  test "the page drawn again with nothing new for the panel reads nothing again", %{conn: conn} do
+    EarnChain.install()
+    {view, _panel, _wallet} = signed_in(conn)
+    type(view, "10")
+
+    EarnChain.put(%{hold: self()})
+    view |> element("#earn-read-again") |> render_click()
+    readers = held(3)
+
+    # The market's reading arrives and the page draws the panel again, its
+    # amount, wallet, tab and readings as they were.
+    Enum.each(readers, &send(&1, :go))
+    refute_receive {:earn_chain_held, _again}, 300
+
+    EarnChain.put(%{})
+    settled(view)
+    assert has_element?(view, "#earn-aave-usdc-terms", "4.68%")
+    refute has_element?(view, "#{@panel}-review[disabled]")
+  end
+
+  test "a step reported again, or checked again while it is still being read, starts no second check",
+       %{conn: conn} do
+    EarnChain.install(%{allowance: 250 * @unit})
+    {view, panel, wallet} = signed_in(conn)
+    review(view, "250")
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: review_id, chain: %{chain_id: chain_id}, steps: [_approval, supply]}
+    })
+
+    # Sent, and not yet in a block.
+    BaseRpcStub.put(%{
+      transactions: %{
+        @hash => %{
+          "hash" => @hash,
+          "chainId" => "0x" <> Integer.to_string(chain_id, 16),
+          "from" => wallet,
+          "to" => supply.to,
+          "input" => supply.data,
+          "value" => "0x0"
+        }
+      }
+    })
+
+    sent = %{"review_id" => review_id, "step" => "supply", "transaction_hash" => @hash}
+    # The first check reads the transaction, then its receipt, which isn't there.
+    render_hook(panel, "step_sent", sent)
+    assert_receive {:rpc, "eth_getTransactionReceipt", [@hash]}
+    assert_received {:rpc, "eth_getTransactionByHash", [@hash]}
+
+    # The next read waits two seconds: anything sooner is a second check.
+    render_hook(panel, "step_sent", sent)
+    render_hook(panel, "step_sent", %{sent | "transaction_hash" => String.upcase(@hash)})
+    render_hook(panel, "check_again", %{"hash" => @hash})
+    refute_receive {:rpc, _method, [@hash]}, 500
+
+    assert has_element?(view, "#{@review}-supply[data-state=sent]")
+  end
+
   test "Refresh pressed while the market is being read starts no second reading", %{conn: conn} do
     EarnChain.install()
     {:ok, view, _html} = live(conn, "/earn")
@@ -538,6 +661,14 @@ defmodule AutolaunchWeb.EarnLiveTest do
       "step" => step.step,
       "transaction_hash" => hash
     })
+  end
+
+  # The `count` reads of the market the double holds, each waiting for `:go`.
+  defp held(count) do
+    for _read <- 1..count do
+      assert_receive {:earn_chain_held, reader}
+      reader
+    end
   end
 
   # The figure as every Earn amount shows it.
