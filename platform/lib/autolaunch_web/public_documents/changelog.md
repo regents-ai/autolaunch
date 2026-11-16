@@ -1,5 +1,10 @@
 # Changelog
 
+## 16 November 2026: Earn
+- New at /earn: lend USDC on Base through Aave from your own wallet, and take it back when you choose. The page shows the rate now, how much is lent, how much can be withdrawn at that moment and the risks in plain words. Autolaunch never holds your funds and charges nothing.
+- Your balance also shows in your portfolio.
+- For agents: four new tools read the market, preview a deposit or withdrawal, prepare the wallet steps and read a wallet's balance. Your agent prepares; your wallet signs.
+
 ## 15 November 2026: Points
 - Points earning opens on Autolaunch at 17:00 UTC on 16 November. From then, an account earns for its first launch, for creating an auction (once a day), for its first graduation, for bidding in a Base auction (once a day), for trading a launched token (once a day), for its first stake and for its first covered call, sold or bought. A trade counts for the wallet that sent it.
 
