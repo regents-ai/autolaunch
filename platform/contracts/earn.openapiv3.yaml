@@ -97,12 +97,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarnError'
-        '422':
-          description: A query parameter was sent (invalid_request)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EarnError'
         '503':
           description: The chain could not be read (chain_unavailable)
           content:

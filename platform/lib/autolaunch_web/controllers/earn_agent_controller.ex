@@ -19,11 +19,8 @@ defmodule AutolaunchWeb.EarnAgentController do
   def quote(conn, _params), do: run(conn, &Earn.earn_quote/4)
   def prepare(conn, _params), do: run(conn, &Earn.prepare_earn/4)
 
-  def positions(conn, params) do
-    if params == %{},
-      do: Answer.send(conn, Earn.earn_positions(actor: conn.assigns.actor)),
-      else: Answer.refuse(conn, :invalid_request)
-  end
+  def positions(conn, _params),
+    do: Answer.send(conn, Earn.earn_positions(actor: conn.assigns.actor))
 
   defp run(conn, operation) do
     case Answer.input(conn.body_params) do
