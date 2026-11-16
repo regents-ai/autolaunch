@@ -46,7 +46,9 @@ defmodule AutolaunchWeb.EarnLive do
   end
 
   def handle_params(params, _uri, socket),
-    do: {:noreply, assign(socket, kind: if(params["tab"] == "withdraw", do: :withdraw, else: :deposit))}
+    do:
+      {:noreply,
+       assign(socket, kind: if(params["tab"] == "withdraw", do: :withdraw, else: :deposit))}
 
   def handle_event("refresh", _params, socket),
     do: {:noreply, read(socket, Enum.map(socket.assigns.products, & &1.id))}
@@ -80,7 +82,12 @@ defmodule AutolaunchWeb.EarnLive do
   end
 
   defp failed(socket, id, reason),
-    do: update(socket, :terms, &Map.update!(&1, id, fn read -> AsyncResult.failed(read, reason) end))
+    do:
+      update(
+        socket,
+        :terms,
+        &Map.update!(&1, id, fn read -> AsyncResult.failed(read, reason) end)
+      )
 
   def render(assigns) do
     assigns = assign(assigns, human_id: current_human_id(assigns.access_context))
@@ -132,7 +139,12 @@ defmodule AutolaunchWeb.EarnLive do
             <span class="loading-block"></span>
           </div>
 
-          <.terms :if={@terms[product.id].ok?} id={"earn-#{product.id}-terms"} product={product} terms={@terms[product.id].result} />
+          <.terms
+            :if={@terms[product.id].ok?}
+            id={"earn-#{product.id}-terms"}
+            product={product}
+            terms={@terms[product.id].result}
+          />
 
           <p class="earn__line">Borrowers on {product.protocol} pay interest on the USDC you lend.</p>
         </div>
@@ -198,15 +210,20 @@ defmodule AutolaunchWeb.EarnLive do
       </div>
     </dl>
     <p class="earn__block">
-      Read at block {Integer.to_string(@terms.block.number)},
-      {Calendar.strftime(DateTime.from_unix!(@terms.block.timestamp), "%-d %b %Y, %H:%M:%S UTC")}.
+      Read at block {Integer.to_string(@terms.block.number)}, {Calendar.strftime(
+        DateTime.from_unix!(@terms.block.timestamp),
+        "%-d %b %Y, %H:%M:%S UTC"
+      )}.
     </p>
     """
   end
 
   # What more the market takes before its supply cap.
   defp room(%{room: :uncapped}, _product), do: "No cap"
-  defp room(%{room: {:room, left}, decimals: decimals}, product), do: EarnComponent.amount(left, decimals, product.asset)
+
+  defp room(%{room: {:room, left}, decimals: decimals}, product),
+    do: EarnComponent.amount(left, decimals, product.asset)
+
   defp room(%{room: :full}, _product), do: "Full"
 
   defp status_word(:open), do: "Open"

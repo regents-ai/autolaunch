@@ -52,19 +52,27 @@ defmodule Autolaunch.Earn.StepsTest do
 
     assert supply.data ==
              BuilderCode.append(
-               Call.encode("supply(address,uint256,address,uint16)", [@usdc, 250 * @unit, signer, 0])
+               Call.encode("supply(address,uint256,address,uint16)", [
+                 @usdc,
+                 250 * @unit,
+                 signer,
+                 0
+               ])
              )
 
     assert BuilderCode.call(supply.data) ==
              Call.encode("supply(address,uint256,address,uint16)", [@usdc, 250 * @unit, signer, 0])
 
-    assert %{approved: false, blocked: nil, units: 250_000_000, chain: %{chain_id: 8453}} = prepared
+    assert %{approved: false, blocked: nil, units: 250_000_000, chain: %{chain_id: 8453}} =
+             prepared
   end
 
   test "a deposit is approved only while the allowance covers the amount as it stands now",
        context do
     EarnChain.put(%{allowance: 100 * @unit})
-    assert {:ok, %{approved: true, blocked: nil}} = prepare(context, :deposit, %{amount: 100 * @unit})
+
+    assert {:ok, %{approved: true, blocked: nil}} =
+             prepare(context, :deposit, %{amount: 100 * @unit})
 
     # The amount edited after the approval landed: the approval no longer covers it.
     assert {:ok, %{approved: false}} = prepare(context, :deposit, %{amount: 150 * @unit})

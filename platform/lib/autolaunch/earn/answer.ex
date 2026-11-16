@@ -19,7 +19,8 @@ defmodule Autolaunch.Earn.Answer do
 
   @blocked %{
     market_inactive: "This market is not active, so it takes no deposits and lets nothing out.",
-    market_paused: "This market is paused, so nothing can be deposited or withdrawn until it resumes.",
+    market_paused:
+      "This market is paused, so nothing can be deposited or withdrawn until it resumes.",
     market_frozen:
       "This market is frozen: it takes no new deposits, and every balance can still be withdrawn.",
     not_enough_usdc: "This wallet holds less USDC than this deposit.",
@@ -60,7 +61,8 @@ defmodule Autolaunch.Earn.Answer do
 
   @doc "A deposit's or withdrawal's wallet steps, as every agent surface answers them."
   def prepare({:ok, prepared}),
-    do: {:ok, prepared |> previewed() |> Map.merge(%{chain: prepared.chain, steps: prepared.steps})}
+    do:
+      {:ok, prepared |> previewed() |> Map.merge(%{chain: prepared.chain, steps: prepared.steps})}
 
   def prepare({:error, error}), do: refused(error)
 
@@ -72,6 +74,7 @@ defmodule Autolaunch.Earn.Answer do
   @spec yearly_percent(non_neg_integer()) :: String.t()
   def yearly_percent(rate) do
     hundredths = div(rate * 10_000 + div(@ray, 2), @ray)
+
     "#{div(hundredths, 100)}.#{hundredths |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
   end
 

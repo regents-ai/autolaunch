@@ -150,6 +150,7 @@ defmodule Autolaunch.Earn.States do
   end
 
   defp held(:deposit, %{units: units, funds: funds}) when units <= funds, do: :ok
+
   defp held(:deposit, %{units: units, funds: funds}) when units > funds,
     do: {:blocked, :not_enough_usdc}
 

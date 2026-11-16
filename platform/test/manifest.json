@@ -3511,150 +3511,150 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 317,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 64,
+      "line": 70,
       "test_name": "a deposit is approved only while the allowance covers the amount as it stands now",
       "keep_because": "Whether a deposit is approved follows the allowance on the chain against the amount as it stands, so an amount edited after an approval, or an allowance moved elsewhere, needs approving again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 318,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 81,
+      "line": 89,
       "test_name": "a withdrawal is withdraw to the signer, for an amount or for everything",
       "keep_because": "A withdrawal sends the USDC to the signer, and everything is sent as the largest amount so no interest is left behind.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 319,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 108,
+      "line": 116,
       "test_name": "an amount equal to the balance withdraws that amount, not everything",
       "keep_because": "A typed amount equal to the balance withdraws that amount only, leaving interest that accrues after the read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 320,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 119,
+      "line": 127,
       "test_name": "a market that is not open blocks what it does not take",
       "keep_because": "A frozen, paused or closed market blocks exactly the steps it does not take.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 321,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 134,
+      "line": 142,
       "test_name": "a deposit is blocked by too little USDC in the wallet",
       "keep_because": "A deposit larger than the wallet's USDC is blocked as certain to fail.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 322,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 140,
+      "line": 148,
       "test_name": "a deposit is blocked past the supply cap, the treasury's share and interest counted",
       "keep_because": "The supply cap counts what is owed to the treasury and the interest index as Aave does, so room is never overstated.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 323,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 160,
+      "line": 168,
       "test_name": "a withdrawal is blocked past the balance and past what the market has now",
       "keep_because": "A withdrawal past the balance or past what the market holds now is blocked as certain to fail.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 324,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 173,
+      "line": 181,
       "test_name": "a blocked step still comes back with its steps",
       "keep_because": "A blocked step still carries its steps, so a press the chain has since allowed reaches the wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 325,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 180,
+      "line": 188,
       "test_name": "an amount that is not a whole number above zero is refused, never blocked",
       "keep_because": "A zero or malformed amount is an input refusal, kept apart from the chain's blocked reasons.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 326,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 196,
+      "line": 204,
       "test_name": "steps are only for the acting account's own wallets, on a product it offers",
       "keep_because": "Steps are built only for the acting account's own wallets and only for a product the catalog offers.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 327,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch/earn/steps_test.exs",
-      "line": 213,
+      "line": 221,
       "test_name": "a chain that can't be read refuses the steps",
       "keep_because": "A chain that cannot be read refuses the steps rather than building them from nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "42df4ecba5f498dfe76bf3e4ebe13a927245b688ae30973ce461c8960d3226e3"
+      "source_sha256": "6ba61fafba41d69f423e61799469fc3aeacdf45ce6e80ee9966cddc874d500aa"
     },
     {
       "id": 328,

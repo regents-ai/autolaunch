@@ -141,8 +141,11 @@ defmodule AutolaunchWeb.EarnComponent do
   def handle_async(:quote, {:ok, {request, signer, result}}, socket) do
     if {:ok, request} == request(socket.assigns) and signer == signer(socket) do
       case result do
-        {:ok, prepared} -> {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
-        {:error, reason} -> {:noreply, assign(socket, quote: nil, refusal: reason)}
+        {:ok, prepared} ->
+          {:noreply, assign(socket, quote: {request, signer, prepared}, refusal: nil)}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, quote: nil, refusal: reason)}
       end
     else
       {:noreply, socket}
@@ -537,7 +540,8 @@ defmodule AutolaunchWeb.EarnComponent do
   end
 
   @doc "An amount of the asset as every Earn figure shows it."
-  def amount(units, decimals, asset), do: RegentFormat.token_amount(units, decimals) <> " " <> asset
+  def amount(units, decimals, asset),
+    do: RegentFormat.token_amount(units, decimals) <> " " <> asset
 
   defp facts(%{kind: :deposit} = prepared, decimals) do
     [
@@ -620,7 +624,10 @@ defmodule AutolaunchWeb.EarnComponent do
 
   defp entry_words(:empty), do: nil
   defp entry_words({:valid, _units}), do: nil
-  defp entry_words({:invalid, :not_a_number}), do: "Enter a number, with a dot for decimals (1.5)."
+
+  defp entry_words({:invalid, :not_a_number}),
+    do: "Enter a number, with a dot for decimals (1.5)."
+
   defp entry_words({:invalid, :too_precise}), do: "USDC goes to six decimal places."
   defp entry_words({:invalid, :zero}), do: "Enter an amount above zero."
   defp entry_words({:invalid, :too_large}), do: "That amount is too large."

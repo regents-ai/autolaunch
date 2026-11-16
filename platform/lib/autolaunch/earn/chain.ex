@@ -181,5 +181,6 @@ defmodule Autolaunch.Earn.Chain do
   defp ray_mul(a, b), do: div(a * b + div(@ray, 2), @ray)
 
   defp address(word),
-    do: "0x" <> (word |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))
+    do:
+      "0x" <> (word |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))
 end

@@ -62,7 +62,11 @@ defmodule Autolaunch.Earn.Steps do
     do: if(request[:everything] == true, do: {:error, :invalid_amount}, else: {:ok, units})
 
   defp asked(:withdraw, %{everything: true} = request),
-    do: if(is_nil(request[:amount]), do: {:ok, States.withdrawal(:everything)}, else: {:error, :invalid_amount})
+    do:
+      if(is_nil(request[:amount]),
+        do: {:ok, States.withdrawal(:everything)},
+        else: {:error, :invalid_amount}
+      )
 
   defp asked(:withdraw, %{amount: units}) when is_integer(units) and units > 0,
     do: {:ok, States.withdrawal(units)}
