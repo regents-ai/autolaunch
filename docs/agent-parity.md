@@ -7,8 +7,8 @@ regents CLI. Each surface calls the same Ash action with the same inputs, answer
 refusals. A missing surface is a gap with the lane that closes it.
 
 Hosted MCP (`/mcp`) serves the tools `platform/priv/capabilities.json` marks hosted: the
-auction counts, the four covered-call operations while covered calls are on, and the Claude
-connector's identity tools. Every other hosted MCP cell is a gap
+auction counts, the four covered-call operations while covered calls are on, the four Earn
+operations while Earn is on, and the Claude connector's identity tools. Every other hosted MCP cell is a gap
 owned by the **Autolaunch MCP lane**, closed as its operation becomes one action whose answer is
 the browser tool's. The Claude connector is served from hosted MCP behind its switch
 (`AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`, off in production): a connected app calls as itself
@@ -73,6 +73,23 @@ the **regents-cli lane**, to be added to `cli/commands.json` when the switch goe
 | Redeem tokens for the stock | `prepare_exposure`, kind `redeem` | `/stock/isolated-afters?tab=redeem`: Redeem | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Record and apply the next price | `prepare_exposure`, kind `update` | `/stock/isolated-afters`, Series details: Record price, Apply price | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | End a series whose price was missed | `prepare_exposure`, kind `end` | `/stock/isolated-afters`, Series details: End after missing price (disabled with its reason until the price is overdue) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+
+## Earn
+
+Offered only while the site's switch is on (`AUTOLAUNCH_EARN=true`). Off, no route, tool,
+guide section or command offers them. Every action is one operation in `Autolaunch.Earn`,
+which the HTTP routes (and so the browser tools) and the hosted MCP tools run alike; the site
+prepares wallet steps and the wallet's own key signs them. Each answer names the block it was
+read at. CLI cells are gaps owned by the **regents-cli lane**, to be added to
+`cli/commands.json` when the switch goes on.
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Read the places to lend USDC, with their terms and risks | `earn_products` | `/earn`: Rate, Supplied, Available, Room, Risks | `autolaunch_earn_products` (`GET /api/v1/earn/products`) | `earn_products` | `earn_products`, once paired with the agent permission | Gap: regents-cli lane |
+| Preview a deposit or withdrawal | `earn_quote` | `/earn`, Deposit or Withdraw: the amount, and the reason beside a disabled button | `autolaunch_earn_quote` (`POST /api/agent/v1/earn/quote`) | `earn_quote` | `earn_quote`, once paired with the agent permission | Gap: regents-cli lane |
+| Read my Earn balances | `earn_positions` | `/portfolio`, Earn; `/earn`, Balance | `autolaunch_earn_positions` (`GET /api/agent/v1/earn/positions`) | `earn_positions` | `earn_positions`, once paired with the agent permission | Gap: regents-cli lane |
+| Deposit USDC | `prepare_earn`, kind `deposit` | `/earn`: Deposit, then Approve USDC, Confirm deposit | `autolaunch_earn_prepare` (`POST /api/agent/v1/earn/steps`) | `prepare_earn` | `prepare_earn`, once paired with the agent permission | Gap: regents-cli lane |
+| Withdraw USDC, an amount or everything | `prepare_earn`, kind `withdraw` | `/earn?tab=withdraw`: Withdraw (Max for everything), then Confirm withdrawal | `autolaunch_earn_prepare` | `prepare_earn` | `prepare_earn`, once paired with the agent permission | Gap: regents-cli lane |
 
 The browser cells name the pages the covered-call pages lane is building; a headless walk with
 an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

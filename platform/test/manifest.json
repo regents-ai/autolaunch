@@ -1,5 +1,5 @@
 {
-  "total": 327,
+  "total": 328,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -4044,7 +4044,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 358,
@@ -4057,7 +4057,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 359,
@@ -4070,7 +4070,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 360,
@@ -4083,7 +4083,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 361,
@@ -4096,7 +4096,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 362,
@@ -4109,7 +4109,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 363,
@@ -4122,7 +4122,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 364,
@@ -4135,7 +4135,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 365,
@@ -4148,7 +4148,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 366,
@@ -4161,7 +4161,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 367,
@@ -4174,7 +4174,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 368,
@@ -4182,77 +4182,90 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
       "line": 269,
-      "test_name": "signed in with no wallet open, Deposit says so and opens nothing",
-      "keep_because": "Signed in with no wallet open, Deposit says so and opens nothing.",
+      "test_name": "a step that does not go through is reviewed again from the chain as it is now",
+      "keep_because": "A step that does not go through is built again from the chain as it is now: a new review while the chain allows it, the reason beside a disabled button once it does not.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 369,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 280,
-      "test_name": "an amount that doesn't read is said under the field, disables nothing and opens nothing",
-      "keep_because": "An amount that does not read is said under the field and never disables the button.",
+      "line": 312,
+      "test_name": "signed in with no wallet open, Deposit says so and opens nothing",
+      "keep_because": "Signed in with no wallet open, Deposit says so and opens nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 370,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 294,
-      "test_name": "a review closes when the wallet that may act changes or the tab does",
-      "keep_because": "A review built for one wallet closes when another may act, and a tab change closes it and clears the amount.",
+      "line": 323,
+      "test_name": "an amount that doesn't read is said under the field, disables nothing and opens nothing",
+      "keep_because": "An amount that does not read is said under the field and never disables the button.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 371,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 316,
-      "test_name": "the portfolio shows the wallet's balance with Withdraw, and Refresh reads it again",
-      "keep_because": "The portfolio shows the Earn balance with Withdraw, and its Refresh reads it again.",
+      "line": 337,
+      "test_name": "a review closes when the wallet that may act changes or the tab does",
+      "keep_because": "A review built for one wallet closes when another may act, and a tab change closes it and clears the amount.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 372,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 331,
-      "test_name": "the portfolio offers Deposit with nothing lent, and says when a balance couldn't be read",
-      "keep_because": "The portfolio offers Deposit with nothing lent, and says when a balance could not be read.",
+      "line": 359,
+      "test_name": "the portfolio shows the wallet's balance with Withdraw, and Refresh reads it again",
+      "keep_because": "The portfolio shows the Earn balance with Withdraw, and its Refresh reads it again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     },
     {
       "id": 373,
       "group": "Earn",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/earn_live_test.exs",
-      "line": 347,
+      "line": 374,
+      "test_name": "the portfolio offers Deposit with nothing lent, and says when a balance couldn't be read",
+      "keep_because": "The portfolio offers Deposit with nothing lent, and says when a balance could not be read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
+    },
+    {
+      "id": 374,
+      "group": "Earn",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/earn_live_test.exs",
+      "line": 390,
       "test_name": "signed out, the portfolio has no Earn section",
       "keep_because": "Signed out, the portfolio has no Earn section.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5b240e9c1dab4b6f24eb914ccd06127b932282af5977a1a93c60541988b4007"
+      "source_sha256": "0a4f6582ab55d60837757352830f1506008eb1b36b180d8a60217b5f530999cd"
     }
   ],
   "legacy_folders_to_remove": [

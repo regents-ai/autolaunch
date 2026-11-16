@@ -266,6 +266,49 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(300_000_250 * @unit))
   end
 
+  test "a step that does not go through is reviewed again from the chain as it is now",
+       %{conn: conn} do
+    EarnChain.install(%{allowance: 250 * @unit})
+    {view, panel, wallet} = signed_in(conn)
+    review(view, "250")
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: first, chain: %{chain_id: chain_id}, steps: [_approval, supply]}
+    })
+
+    # The supply reverts with the chain unchanged: the same deposit is built
+    # again as a new review, and the press note says to press again.
+    reverted(panel, first, supply, wallet, chain_id, "a")
+    settled(view)
+
+    assert_push_event(view, "onchain-steps:review", %{review: nil})
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: second, steps: [_approval_again, supply_again]}
+    })
+
+    assert second != first
+    assert has_element?(view, "#{@review}:not([hidden])", "press again to send it")
+
+    # It reverts again after the wallet's USDC moved elsewhere: nothing is
+    # built, the review closes and the button says why.
+    EarnChain.put(%{allowance: 250 * @unit, usdc: 100 * @unit})
+    reverted(panel, second, supply_again, wallet, chain_id, "b")
+    settled(view)
+
+    assert_push_event(view, "onchain-steps:review", %{review: nil})
+    refute_push_event(view, "onchain-steps:review", %{review: %{}})
+    assert has_element?(view, "#{@review}[hidden]")
+
+    assert has_element?(
+             view,
+             "#{@panel}-notice",
+             "The step did not go through and nothing moved. Not enough USDC on Base."
+           )
+
+    assert has_element?(view, "#{@panel}-review[disabled]")
+  end
+
   test "signed in with no wallet open, Deposit says so and opens nothing", %{conn: conn} do
     EarnChain.install()
     {view, _panel, _wallet} = signed_in(conn, "/earn", false)
@@ -365,6 +408,31 @@ defmodule AutolaunchWeb.EarnLiveTest do
 
     render_async(view)
     view
+  end
+
+  # The wallet sent `step` of review `id`, and the chain mined it reverted.
+  defp reverted(panel, id, step, wallet, chain_id, digit) do
+    hash = "0x" <> String.duplicate(digit, 64)
+
+    BaseRpcStub.put(%{
+      transactions: %{
+        hash => %{
+          "hash" => hash,
+          "chainId" => "0x" <> Integer.to_string(chain_id, 16),
+          "from" => wallet,
+          "to" => step.to,
+          "input" => step.data,
+          "value" => "0x0"
+        }
+      },
+      receipts: %{hash => BaseRpcStub.receipt(hash, "0x20", [], "0x0")}
+    })
+
+    render_hook(panel, "step_sent", %{
+      "review_id" => id,
+      "step" => step.step,
+      "transaction_hash" => hash
+    })
   end
 
   # The figure as every Earn amount shows it.
