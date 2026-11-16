@@ -1,5 +1,9 @@
 # Changelog
 
+## 17 November 2026: Wallets
+- When your wallet is on another network, pressing a button now asks your wallet to switch to the right one, Base or Robinhood Chain, and then carries on. Before, some wallets were never asked and the page only told you to switch.
+- If you decline the switch, the page says so. Nothing is sent either way.
+
 ## 17 November 2026: Security
 - The site now runs fixed versions of the library that reads incoming requests and the web server under it, after published advisories about how upload size limits were counted and how some request endings were logged. Nothing on the site was known to be affected.
 
