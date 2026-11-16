@@ -299,6 +299,51 @@ describe("a press off the step's network asks Privy's switch for it", () => {
     expect(sends()).toEqual([])
   })
 
+  it("sends nothing when the account changes while the switch prompt is open", async () => {
+    for (const [step, send] of [
+      ["bid", (push: Push) => press(review, "bid", push)],
+      ["calls", (push: Push) => pressCalls(together(review), push)],
+    ] as const) {
+      // In the wallet app the person accepts the switch and picks another account.
+      let network = robinhood
+      let account = signer
+      const app = wallet({eth_chainId: () => `0x${network.toString(16)}`, eth_accounts: () => [account]})
+      replaceActiveEthereumWallet({
+        address: signer,
+        provider: app,
+        switchChain: async wanted => {
+          network = wanted
+          account = other
+        },
+      })
+      const push = vi.fn()
+      await expect(send(push)).resolves.toEqual({reason: "wallet_unavailable"})
+
+      // Privy sees the new account during the prompt and makes it the active wallet.
+      let moved = robinhood
+      const held = wallet({eth_chainId: () => `0x${moved.toString(16)}`})
+      const next = wallet()
+      replaceActiveEthereumWallet({
+        address: signer,
+        provider: held,
+        switchChain: async wanted => {
+          moved = wanted
+          replaceActiveEthereumWallet({address: other, provider: next, switchChain: unasked})
+        },
+      })
+      await expect(send(push)).resolves.toEqual({reason: "wallet_unavailable"})
+
+      expect(push.mock.calls).toEqual([
+        ["step_failed", {step, reason: "wallet_unavailable"}],
+        ["step_failed", {step, reason: "wallet_unavailable"}],
+      ])
+      for (const provider of [app, held, next]) {
+        expect(methods(provider)).not.toContain("eth_sendTransaction")
+        expect(methods(provider)).not.toContain("wallet_sendCalls")
+      }
+    }
+  })
+
   it("sends nothing, and tells a declined switch from a failed one", async () => {
     const cases: Array<[Failure, (wanted: number) => number | Error]> = [
       ["switch_declined", () => walletError(4001, "User rejected the request.")],

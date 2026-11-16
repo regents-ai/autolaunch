@@ -132,8 +132,8 @@ const client = (provider: EthereumProvider, signer: Address): WalletClient =>
 /**
  * The step's chain as viem describes one, from the name and public node the
  * server gives it: for a batch, which the wallet sends on the chain it already
- * switched to, and for Privy's list of networks, which takes a chain neither
- * Privy nor viem names (a lab chain) this way.
+ * switched to, and for Privy's list of networks, which takes every chain but
+ * Base and Robinhood Chain (a lab chain) this way (`privyChains`).
  */
 export const viemChain = (chain: StepChain) =>
   defineChain({
