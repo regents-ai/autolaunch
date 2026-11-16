@@ -224,6 +224,25 @@ if exposure_on do
     autolaunch_base_exposure_deployment: exposure_path
 end
 
+# Earn is offered only on a site switched on with AUTOLAUNCH_EARN=true; its
+# catalog is in config.exs and it reads Base through the Base description. Off,
+# its page answers not found and no tool or route offers it
+# (`Autolaunch.Earn.Catalog`).
+earn_on =
+  case System.get_env("AUTOLAUNCH_EARN") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_EARN must be true or unset"
+  end
+
+if earn_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_EARN=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, earn: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

@@ -200,7 +200,8 @@ defmodule Autolaunch.MixProject do
         &clear_built_scripts/1,
         "esbuild autolaunch",
         "esbuild covered_calls",
-        "esbuild exposure"
+        "esbuild exposure",
+        "esbuild earn"
       ],
       "assets.deploy": [
         "regent_ui.assets",
@@ -211,6 +212,7 @@ defmodule Autolaunch.MixProject do
         "esbuild autolaunch --minify",
         "esbuild covered_calls --minify",
         "esbuild exposure --minify",
+        "esbuild earn --minify",
         "phx.digest"
       ],
       precommit: [

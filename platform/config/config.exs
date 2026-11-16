@@ -184,6 +184,7 @@ config :autolaunch,
     Autolaunch,
     Autolaunch.CoveredCalls,
     Autolaunch.Exposure,
+    Autolaunch.Earn,
     Autolaunch.Agents,
     Autolaunch.Points
   ],
@@ -191,6 +192,22 @@ config :autolaunch,
   generators: [timestamp_type: :utc_datetime]
 
 config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+
+# Earn's catalog: each place USDC on Base can be lent out through Autolaunch,
+# as plain data. Everything else about it (its token, rate, flags, cap and what
+# can be withdrawn) is read from the chain at the latest block each time
+# (`Autolaunch.Earn`). Offered only on a site switched on with AUTOLAUNCH_EARN=true.
+config :autolaunch, :earn_products, [
+  %{
+    id: "aave-usdc",
+    chain_id: 8453,
+    protocol: "Aave",
+    market: "Aave V3 on Base",
+    asset: "USDC",
+    pool: "0xa238dd80c259a72e81d7e4664a9801593f98d1c5",
+    asset_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+  }
+]
 
 # The node the shared libraries read each chain through, by chain id
 # (Autolaunch.Chain.NodeClient): the Points bonus reads Base. A wallet adds a
@@ -287,6 +304,14 @@ config :esbuild,
   exposure: [
     args:
       ~w(css/pages/exposure.css --bundle --outdir=../priv/exposure --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
+  ],
+  # Earn's styles, built outside priv/static so nothing serves them while Earn
+  # is off (AutolaunchWeb.EarnController.stylesheet/2).
+  earn: [
+    args:
+      ~w(css/pages/earn.css --bundle --outdir=../priv/earn --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

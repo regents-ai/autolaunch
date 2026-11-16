@@ -2,9 +2,9 @@ defmodule AutolaunchWeb.ToolManifest do
   @moduledoc """
   The WebMCP tools this site offers right now. `priv/tool_manifest.json` is the
   site's own set, the one the pages' script is built with
-  (`assets/js/public_tools.ts`). While covered calls or Exposure are on, the
-  tools in `priv/covered_calls_tools.json` or `priv/exposure_tools.json` join
-  it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
+  (`assets/js/public_tools.ts`). While covered calls, Exposure or Earn are on,
+  the tools in `priv/covered_calls_tools.json`, `priv/exposure_tools.json` or
+  `priv/earn_tools.json` join it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
   `/capabilities.json`, the agent guides and the tools dialog list. Off, nothing
   about them reaches a page, the script or any document.
   """
@@ -21,11 +21,16 @@ defmodule AutolaunchWeb.ToolManifest do
   @external_resource @exposure_path
   @exposure @exposure_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
 
+  @earn_path Application.app_dir(:autolaunch, "priv/earn_tools.json")
+  @external_resource @earn_path
+  @earn @earn_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
   @doc "The features that are on, by name."
   def features do
     [
       {"covered_calls", Autolaunch.CoveredCalls.Deployment.enabled?()},
-      {"exposure", Autolaunch.Exposure.Deployment.enabled?()}
+      {"exposure", Autolaunch.Exposure.Deployment.enabled?()},
+      {"earn", Autolaunch.Earn.Catalog.enabled?()}
     ]
     |> Enum.filter(&elem(&1, 1))
     |> Enum.map(&elem(&1, 0))
@@ -50,6 +55,7 @@ defmodule AutolaunchWeb.ToolManifest do
     on = features()
 
     if("covered_calls" in on, do: @covered_calls, else: []) ++
-      if("exposure" in on, do: @exposure, else: [])
+      if("exposure" in on, do: @exposure, else: []) ++
+      if("earn" in on, do: @earn, else: [])
   end
 end

@@ -24,7 +24,8 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:autolaunch, ~w(--sourcemap=inline --watch)]},
     esbuild_covered_calls: {Esbuild, :install_and_run, [:covered_calls, ~w(--watch)]},
-    esbuild_exposure: {Esbuild, :install_and_run, [:exposure, ~w(--watch)]}
+    esbuild_exposure: {Esbuild, :install_and_run, [:exposure, ~w(--watch)]},
+    esbuild_earn: {Esbuild, :install_and_run, [:earn, ~w(--watch)]}
   ]
 
 # ## SSL Support

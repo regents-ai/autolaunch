@@ -260,6 +260,54 @@
       }
     },
     {
+      "operation": "autolaunch_earn_products",
+      "authority": "public",
+      "switch": "earn",
+      "hosted_tool": "earn_products",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_earn_quote",
+      "authority": "paired_agent",
+      "switch": "earn",
+      "hosted_tool": "earn_quote",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_earn_positions",
+      "authority": "paired_agent",
+      "switch": "earn",
+      "hosted_tool": "earn_positions",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_earn_prepare",
+      "authority": "paired_agent",
+      "switch": "earn",
+      "hosted_tool": "prepare_earn",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
       "operation": "register_identity",
       "authority": "connected_app",
       "switch": "connected_apps",
