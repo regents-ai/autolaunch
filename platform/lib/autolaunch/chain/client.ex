@@ -19,9 +19,17 @@ defmodule Autolaunch.Chain.Client do
   @doc """
   Every chain this site's reviews can name, as `chain/1` names it: the Base
   deployment's, then the Robinhood deployment's when the site has one. The
-  page gives the list to Privy, Base as the network wallets start on.
+  page gives the list to Privy, Base as the network wallets start on, so the
+  list starts with Base or is empty: a site without a Base deployment has no
+  wallet chain.
   """
-  def chains, do: for({:ok, config} <- [Lab.current(), RobinhoodLab.current()], do: chain(config))
+  def chains do
+    case {Lab.current(), RobinhoodLab.current()} do
+      {{:ok, base}, {:ok, robinhood}} -> [chain(base), chain(robinhood)]
+      {{:ok, base}, {:error, _reason}} -> [chain(base)]
+      {{:error, _reason}, _robinhood} -> []
+    end
+  end
 
   @doc "The network name every page shows for `chain_id`."
   def network_name(chain_id) do

@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.OnchainStepsRebuildTest do
   (`AutolaunchWeb.OnchainSteps.rebuild_reverted/4`): the review on the page is
   built again from the chain once nothing else sent from it is on its way, so
   the next press never sends the transaction that just failed against a chain
-  that has moved on.
+  that has moved on. And what every panel does with a press that sent nothing
+  (`AutolaunchWeb.OnchainSteps.failed/4`).
   """
   use ExUnit.Case, async: true
 
@@ -57,6 +58,44 @@ defmodule AutolaunchWeb.OnchainStepsRebuildTest do
 
     assert refused.assigns.press_note == nil
     assert refused.assigns.notice == "did not go through Nothing is waiting."
+  end
+
+  test "a declined network switch is a failed press like the others: counted and noted" do
+    test = self()
+    handler = {__MODULE__, make_ref()}
+
+    :telemetry.attach(
+      handler,
+      [:autolaunch, :wallet, :failure],
+      fn _event, %{count: count}, %{flow: flow, reason: reason}, _config ->
+        send(test, {:counted, flow, reason, count})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    socket =
+      review(["bid"]) |> socket() |> Phoenix.Component.assign(linked: nil, active: nil)
+
+    for reason <- ~w(switch_declined network_mismatch) do
+      pressed =
+        OnchainSteps.failed(socket, %{"step" => "bid", "reason" => reason}, :switch, "Base")
+
+      assert pressed.assigns.press_note == OnchainSteps.failure_note(reason, nil, nil, "Base")
+      assert_received {:counted, :switch, ^reason, 1}
+    end
+
+    # A reason no page sends is neither counted nor noted.
+    assert OnchainSteps.failed(
+             socket,
+             %{"step" => "bid", "reason" => "switched"},
+             :switch,
+             "Base"
+           ) ==
+             socket
+
+    refute_received {:counted, :switch, _reason, _count}
   end
 
   defp review(steps, inputs \\ "now"),
