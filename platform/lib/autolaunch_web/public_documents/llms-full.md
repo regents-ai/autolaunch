@@ -216,6 +216,7 @@ These happen on the website with the person's own wallet: auctions and launches 
 
 {{covered_calls}}
 {{exposure}}
+{{earn}}
 ## Related Regent products
 
 - [Regents](https://regents.sh/llms.txt): Agent identity, operations, staking and redemption. [Website](https://regents.sh) · [Source](https://github.com/regents-ai/regents).

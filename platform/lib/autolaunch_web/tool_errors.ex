@@ -6,20 +6,22 @@ defmodule AutolaunchWeb.ToolErrors do
   own code and words, the library's `too_many_requests` with `retry_after` when
   it was asked to wait, or, when no answer came, the words every Regent site
   gives it. A covered-call refusal takes the covered-call routes' code and words
-  (`AutolaunchWeb.CoveredCallsAnswer.body/1`). A failure nobody expected answers `internal_error`, as the API does,
+  (`AutolaunchWeb.CoveredCallsAnswer.body/1`), and an Earn refusal the Earn
+  routes' (`AutolaunchWeb.EarnAnswer.body/1`). A failure nobody expected answers `internal_error`, as the API does,
   and is logged by kind alone (`AutolaunchWeb.ReadFailure`).
 
   Input a tool's action cannot take is refused before AshAi runs it
   (`check_input/3`, the server's `tool_argument_transformer`), with the code the
-  same input gets over HTTP: the auction counts' and the covered calls'
-  `invalid_request`, each in its own route's words, a pairing's
+  same input gets over HTTP: the auction counts', the covered calls' and
+  Earn's `invalid_request`, each in its own route's words, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
   none, which is how a tool listed with no inputs is called; an `input` that is
   not an object, `null` and `false` included, is refused like any other, and so
   is a value of another JSON type than its input takes (the text `"1"` for a
-  whole number, `null` for a text), as the routes refuse it: nothing is cast.
+  whole number or `"true"` for true or false, `null` for a text), as the routes
+  refuse it: nothing is cast.
   """
 
   alias AutolaunchWeb.ApiError
@@ -39,7 +41,7 @@ defmodule AutolaunchWeb.ToolErrors do
          %{valid?: true} <- Ash.ActionInput.for_action(resource, action, input) do
       {:ok, arguments}
     else
-      _not_taken -> {:error, refused(action)}
+      _not_taken -> {:error, refused(resource, action)}
     end
   end
 
@@ -59,20 +61,24 @@ defmodule AutolaunchWeb.ToolErrors do
   defp json_type?(Ash.Type.Integer, value), do: is_integer(value)
   defp json_type?(Ash.Type.String, value), do: is_binary(value)
   defp json_type?(Ash.Type.Atom, value), do: is_binary(value)
+  defp json_type?(Ash.Type.Boolean, value), do: is_boolean(value)
   # Any other type is the action's own cast to refuse.
   defp json_type?(_type, _value), do: true
 
-  defp refused(covered_call)
+  defp refused(Autolaunch.Earn.Product, _earn),
+    do: Jason.encode!(AutolaunchWeb.EarnAnswer.body(:invalid_request))
+
+  defp refused(_resource, covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
        do: Jason.encode!(AutolaunchWeb.CoveredCallsAnswer.body(:invalid_request))
 
-  defp refused(:counts),
+  defp refused(_resource, :counts),
     do: Jason.encode!(ApiError.body("invalid_request", "The query parameters are invalid."))
 
-  defp refused(:pair_identity),
+  defp refused(_resource, :pair_identity),
     do: Jason.encode!(%{error: RegentMCPAgents.pairing_input_refusal()})
 
-  defp refused(_identity), do: Jason.encode!(RegentMCPAgents.Tools.refusal())
+  defp refused(_resource, _identity), do: Jason.encode!(RegentMCPAgents.Tools.refusal())
 end
 
 defimpl AshAi.ToToolError, for: Autolaunch.Agents.Connection.Refused do
@@ -99,6 +105,10 @@ end
 defimpl AshAi.ToToolError, for: Autolaunch.CoveredCalls.Refused do
   def to_tool_error(%{reason: reason}),
     do: Jason.encode!(AutolaunchWeb.CoveredCallsAnswer.body(reason))
+end
+
+defimpl AshAi.ToToolError, for: Autolaunch.Earn.Refused do
+  def to_tool_error(%{reason: reason}), do: Jason.encode!(AutolaunchWeb.EarnAnswer.body(reason))
 end
 
 defimpl AshAi.ToToolError, for: Ash.Error.Unknown.UnknownError do

@@ -88,6 +88,7 @@ WebMCP exposes public reads and signed, paired private operations through the [t
 
 {{covered_calls}}
 {{exposure}}
+{{earn}}
 ## Hosted MCP
 
 `{{origin}}/mcp` serves `autolaunch_auction_counts` to an MCP client, with the same answer and refusals as the browser tool and `GET /api/v1/auction-counts`.{{hosted_covered_calls}} Every request is signed with a paired agent's own key, with the same headers as a signed request; [regents-cli]({{origin}}/agents.md) signs for it. An agent no person paired is refused 403 `agent_not_paired`, as on every signed route. A request with neither a signature nor a connected app's token answers 401: `connection_required`, with the `WWW-Authenticate` sign-in challenge, while Claude can connect this site, otherwise `agent_auth_required`. A signature beside a Bearer token answers 401 with `ambiguous_credentials`. Reading without signing in is the browser tools and the API.

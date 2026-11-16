@@ -55,6 +55,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @exposure_guide_path
   @exposure_guide File.read!(@exposure_guide_path)
 
+  # Earn's routes and their components, and its section of the agent guides,
+  # added only while the site offers it.
+  @earn_contract_path Path.expand("../../contracts/earn.openapiv3.yaml", __DIR__)
+  @external_resource @earn_contract_path
+  @earn_contract YamlElixir.read_from_file!(@earn_contract_path)
+  @earn_guide_path Path.join(@directory, "earn.md")
+  @external_resource @earn_guide_path
+  @earn_guide File.read!(@earn_guide_path)
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -121,6 +130,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/stock/isolated-afters" =>
       {"Isolated Exposure to After-hours Stocks",
        "Split a Base stock token into two for a week: one carries its moves while the market is closed, the other while it is open."},
+    "/earn" =>
+      {"Earn",
+       "Lend USDC on Base through Aave from your own wallet, see your balance grow, and withdraw it when you choose."},
     :bid =>
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
@@ -568,7 +580,8 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   # The `{{claude_connector}}` line and its blank line become the Claude
   # connector's paragraph only while it is on; `{{hosted_covered_calls}}` names
-  # the covered-call hosted tools only while the site offers covered calls;
+  # the covered-call hosted tools only while the site offers covered calls, and
+  # Earn's while it offers Earn;
   # `{{hosted_mcp}}` says what the hosted MCP address serves, naming Claude's
   # connector while it is on.
   defp markdown(name) do
@@ -579,6 +592,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
+    |> String.replace("{{earn}}\n", earn())
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -651,13 +665,17 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
 
-  # The fixed pages the sitemaps list, with covered calls while the site offers them.
-  defp sitemap_pages,
-    do:
-      if("covered_calls" in ToolManifest.features(),
-        do: @sitemap_pages ++ ["/stock/covered-call"],
-        else: @sitemap_pages
-      ) ++ AgentGuides.paths()
+  defp earn, do: if("earn" in ToolManifest.features(), do: @earn_guide, else: "")
+
+  # The fixed pages the sitemaps list, with covered calls and Earn while the site
+  # offers them.
+  defp sitemap_pages do
+    on = ToolManifest.features()
+
+    @sitemap_pages ++
+      if("covered_calls" in on, do: ["/stock/covered-call"], else: []) ++
+      if("earn" in on, do: ["/earn"], else: []) ++ AgentGuides.paths()
+  end
 
   defp claude_connector(false), do: ""
 
@@ -674,14 +692,24 @@ defmodule AutolaunchWeb.PublicDocuments do
       " Reading without signing in is the browser tools and the API." <> connector(connector?)
   end
 
-  # The covered-call hosted tools, named only while the site offers covered calls.
+  # The covered-call and Earn hosted tools, each named only while the site offers it.
   defp hosted_covered_calls do
-    if "covered_calls" in ToolManifest.features(),
+    on = ToolManifest.features()
+
+    if("covered_calls" in on,
       do:
         " While covered calls are open, `covered_call_book`, `covered_call_quote`, " <>
           "`covered_call_positions` and `prepare_covered_call` do there what the covered-call " <>
           "routes do, with the same answers and refusals; the steps only once launches are open.",
       else: ""
+    ) <>
+      if("earn" in on,
+        do:
+          " While Earn is open, `earn_products`, `earn_quote`, `earn_positions` and " <>
+            "`prepare_earn` do there what the Earn routes do, with the same answers and " <>
+            "refusals; the steps only once launches are open.",
+        else: ""
+      )
   end
 
   defp connector(false), do: ""
@@ -700,7 +728,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp contract do
     on = ToolManifest.features()
 
-    [{"covered_calls", @covered_calls_contract}, {"exposure", @exposure_contract}]
+    [
+      {"covered_calls", @covered_calls_contract},
+      {"exposure", @exposure_contract},
+      {"earn", @earn_contract}
+    ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->
       contract

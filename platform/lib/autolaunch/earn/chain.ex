@@ -31,7 +31,7 @@ defmodule Autolaunch.Earn.Chain do
   it at any later one too.
   """
 
-  alias Autolaunch.Chain.{Abi, Multicall, Rpc}
+  alias Autolaunch.Chain.{Multicall, Rpc}
   alias Autolaunch.Earn.States
   alias Autolaunch.Lab
   alias RegentChain.Call
@@ -131,7 +131,7 @@ defmodule Autolaunch.Earn.Chain do
     [
       {reserve.a_token, Call.encode("totalSupply()", [])},
       {reserve.a_token, Call.encode("scaledTotalSupply()", [])},
-      {product.asset_address, Abi.encode_erc20("balanceOf", [reserve.a_token])}
+      {product.asset_address, Call.encode("balanceOf(address)", [reserve.a_token])}
     ]
   end
 
@@ -139,9 +139,9 @@ defmodule Autolaunch.Earn.Chain do
 
   defp holdings(product, reserve, wallet) do
     [
-      {reserve.a_token, Abi.encode_erc20("balanceOf", [wallet])},
-      {product.asset_address, Abi.encode_erc20("balanceOf", [wallet])},
-      {product.asset_address, Abi.encode_erc20("allowance", [wallet, product.pool])}
+      {reserve.a_token, Call.encode("balanceOf(address)", [wallet])},
+      {product.asset_address, Call.encode("balanceOf(address)", [wallet])},
+      {product.asset_address, Call.encode("allowance(address,address)", [wallet, product.pool])}
     ]
   end
 

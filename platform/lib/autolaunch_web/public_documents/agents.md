@@ -62,6 +62,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 {{covered_calls}}
 {{exposure}}
+{{earn}}
 
 ## Your own Memestock launch
 

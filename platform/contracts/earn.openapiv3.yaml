@@ -1,0 +1,576 @@
+# Earn, added to api-contract.openapiv3.yaml only while the site offers it
+# (AUTOLAUNCH_EARN=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
+# is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
+paths:
+  /api/v1/earn/products:
+    get:
+      operationId: autolaunch_earn_products
+      summary: List the Earn products
+      description: Every place this site offers to lend USDC on Base, each read from its market at the
+        latest block, with its rate now (a simple yearly rate that changes), what is supplied, what can
+        be withdrawn now, its supply cap and the room left under it, its status, the block the figures
+        were read at, and its risks. Amounts are in the asset's smallest units (USDC has 6 decimals).
+        Needs no account; the page tool autolaunch_earn_products calls it.
+      security: []
+      responses:
+        '200':
+          description: Every product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnProductsEnvelope'
+        '422':
+          description: A query parameter was sent (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/OtherError'
+  /api/v1/me/earn:
+    get:
+      operationId: getMyEarn
+      summary: Read your Earn balances
+      description: The signed-in person's balance in every Earn product, for the wallet they signed in
+        with, at the latest block. Reads the browser session; not agent authority.
+      security:
+      - SiteSession: []
+      responses:
+        '200':
+          description: The balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnPositionsEnvelope'
+        '401':
+          description: Nobody is signed in (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '409':
+          description: The person's account has no wallet to read (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+  /api/agent/v1/earn/positions:
+    get:
+      operationId: autolaunch_earn_positions
+      summary: Read your person's Earn balances
+      description: The paired person's balance in every Earn product, for the wallet they signed in with,
+        at the latest block. Changes nothing.
+      security:
+      - SiwaProof: []
+      responses:
+        '200':
+          description: The balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnPositionsEnvelope'
+        '401':
+          description: Fresh request proof required
+        '403':
+          description: The agent is paired with nobody (agent_not_paired)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '409':
+          description: The person's account has no wallet to read (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '422':
+          description: A query parameter was sent (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+  /api/agent/v1/earn/quote:
+    post:
+      operationId: autolaunch_earn_quote
+      summary: Preview an Earn deposit or withdrawal
+      description: What a deposit or withdrawal comes to for one of the person's own wallets (`signer`,
+        or the wallet they signed in with) at the latest block, without its wallet calls. It reserves
+        nothing. A step the chain's state makes certain to fail answers 200 with `blocked`. Changes nothing.
+      security:
+      - SiwaProof: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EarnRequest'
+      responses:
+        '200':
+          description: The preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnQuoteEnvelope'
+        '401':
+          description: Fresh request proof required
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '404':
+          description: No Earn product with that id (unknown_product)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '409':
+          description: The person's account has no wallet to act with (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '422':
+          description: An unknown field, kind or type, or an amount that is not a whole number above zero
+            (invalid_request, invalid_amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+  /api/agent/v1/earn/steps:
+    post:
+      operationId: autolaunch_earn_prepare
+      summary: Prepare an Earn step
+      description: The wallet steps for a deposit (an exact USDC approval, then supply) or a withdrawal,
+        built from the chain at the latest block, for one of the person's own wallets (`signer`, or the
+        wallet they signed in with). The site only prepares; the wallet's own key signs and sends each
+        step, and each step's data ends with the site's Builder Code. A step the chain's state makes
+        certain to fail answers 200 with `blocked`, and its steps. Changes nothing.
+      security:
+      - SiwaProof: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EarnRequest'
+      responses:
+        '200':
+          description: The steps, whether the allowance already covers a deposit, and any reason they are
+            certain to fail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnStepsEnvelope'
+        '401':
+          description: Fresh request proof required
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '404':
+          description: No Earn product with that id (unknown_product)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '409':
+          description: The person's account has no wallet to act with (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '422':
+          description: An unknown field, kind or type, or an amount that is not a whole number above zero
+            (invalid_request, invalid_amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarnError'
+        '503':
+          description: The chain could not be read, or the site is not open yet (chain_unavailable, prelaunch_read_only)
+components:
+  schemas:
+    EarnBlock:
+      type: object
+      description: The block every figure in the answer was read at.
+      required:
+      - number
+      - hash
+      - timestamp
+      - read_at
+      properties:
+        number:
+          type: integer
+        hash:
+          type: string
+        timestamp:
+          type: integer
+          description: Unix seconds
+        read_at:
+          type: string
+          format: date-time
+    EarnProductIdentity:
+      type: object
+      required:
+      - id
+      - chain_id
+      - protocol
+      - market
+      - asset
+      - pool
+      - asset_address
+      - market_token
+      properties:
+        id:
+          type: string
+        chain_id:
+          type: integer
+        protocol:
+          type: string
+        market:
+          type: string
+        asset:
+          type: string
+        pool:
+          type: string
+        asset_address:
+          type: string
+        market_token:
+          type: string
+    EarnProduct:
+      allOf:
+      - $ref: '#/components/schemas/EarnProductIdentity'
+      - type: object
+        required:
+        - decimals
+        - status
+        - rate_now
+        - supplied
+        - available
+        - supply_cap
+        - room
+        - block
+        - risks
+        properties:
+          decimals:
+            type: integer
+          status:
+            type: string
+            enum:
+            - open
+            - frozen
+            - paused
+            - inactive
+          rate_now:
+            type: object
+            required:
+            - ray
+            - yearly_percent
+            properties:
+              ray:
+                type: string
+                description: The market's yearly rate in units of 10^27, a simple rate, not compounded.
+              yearly_percent:
+                type: string
+                description: The same as a percentage with two decimals.
+          supplied:
+            type: integer
+          available:
+            type: integer
+          supply_cap:
+            type: integer
+            nullable: true
+            description: Whole tokens; null when the market has none.
+          room:
+            type: integer
+            nullable: true
+            description: What more the market takes before its supply cap; null when it has none.
+          block:
+            $ref: '#/components/schemas/EarnBlock'
+          risks:
+            type: array
+            items:
+              type: string
+    EarnProductsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - products
+          properties:
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/EarnProduct'
+    EarnPositionsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - wallet
+          - positions
+          properties:
+            wallet:
+              type: string
+            positions:
+              type: array
+              items:
+                type: object
+                required:
+                - product
+                - position
+                - balance
+                - usdc
+                - allowance
+                - block
+                properties:
+                  product:
+                    $ref: '#/components/schemas/EarnProductIdentity'
+                  position:
+                    type: string
+                    enum:
+                    - none
+                    - held
+                  balance:
+                    type: integer
+                  usdc:
+                    type: integer
+                  allowance:
+                    type: integer
+                  block:
+                    $ref: '#/components/schemas/EarnBlock'
+    EarnRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - product
+      - kind
+      properties:
+        product:
+          type: string
+        kind:
+          type: string
+          enum:
+          - deposit
+          - withdraw
+        amount:
+          type: integer
+          minimum: 1
+          description: The asset's smallest units. Leave it out only to withdraw everything.
+        everything:
+          type: boolean
+          description: Only for withdraw, and never with an amount.
+        signer:
+          type: string
+    EarnQuote:
+      type: object
+      required:
+      - kind
+      - product
+      - signer
+      - amount
+      - everything
+      - approved
+      - blocked
+      - wallet
+      - market
+      - block
+      properties:
+        kind:
+          type: string
+          enum:
+          - deposit
+          - withdraw
+        product:
+          $ref: '#/components/schemas/EarnProductIdentity'
+        signer:
+          type: string
+        amount:
+          type: integer
+          description: What the step moves at this block; for everything, the balance now.
+        everything:
+          type: boolean
+        approved:
+          type: boolean
+        blocked:
+          type: object
+          nullable: true
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              enum:
+              - market_inactive
+              - market_paused
+              - market_frozen
+              - not_enough_usdc
+              - over_supply_cap
+              - over_balance
+              - not_available_now
+            message:
+              type: string
+        wallet:
+          type: object
+          required:
+          - balance
+          - position
+          - usdc
+          - allowance
+          properties:
+            balance:
+              type: integer
+            position:
+              type: string
+              enum:
+              - none
+              - held
+            usdc:
+              type: integer
+            allowance:
+              type: integer
+        market:
+          type: object
+          required:
+          - status
+          - available
+          - room
+          properties:
+            status:
+              type: string
+              enum:
+              - open
+              - frozen
+              - paused
+              - inactive
+            available:
+              type: integer
+            room:
+              type: integer
+              nullable: true
+        block:
+          $ref: '#/components/schemas/EarnBlock'
+    EarnQuoteEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/EarnQuote'
+    EarnStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          allOf:
+          - $ref: '#/components/schemas/EarnQuote'
+          - type: object
+            required:
+            - chain
+            - steps
+            properties:
+              chain:
+                type: object
+                required:
+                - chain_id
+                - name
+                - rpc_url
+                properties:
+                  chain_id:
+                    type: integer
+                  name:
+                    type: string
+                  rpc_url:
+                    type: string
+              steps:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - kind
+                  - step
+                  - to
+                  - data
+                  - value
+                  properties:
+                    kind:
+                      type: string
+                    step:
+                      type: string
+                      enum:
+                      - usdc_approval
+                      - supply
+                      - withdraw
+                    to:
+                      type: string
+                    data:
+                      type: string
+                    value:
+                      type: string
+    EarnError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - unknown_product
+              - invalid_amount
+              - invalid_request
+              - wrong_signer
+              - wallet_required
+              - authentication_required
+              - chain_unavailable
+              - agent_not_paired
+            message:
+              type: string
+            hint:
+              type: string

@@ -114,6 +114,19 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
+  # Earn's routes exist only while the site offers Earn; off, each answers as
+  # an address with nothing at it.
+  pipeline :earn do
+    plug :admit_earn
+  end
+
+  def admit_earn(conn, _opts) do
+    Autolaunch.Earn.Catalog.enabled?() or
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+
+    conn
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -262,6 +275,13 @@ defmodule AutolaunchWeb.Router do
     post "/after-hour-stocks/:series/steps", ExposureAgentController, :prepare
   end
 
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :earn]
+    post "/earn/quote", EarnAgentController, :quote
+    get "/earn/positions", EarnAgentController, :positions
+    post "/earn/steps", EarnAgentController, :prepare
+  end
+
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.
   scope "/api/v1" do
     pipe_through [:api, :profile_owner]
@@ -302,6 +322,13 @@ defmodule AutolaunchWeb.Router do
     get "/exposure.css", ExposureController, :stylesheet
   end
 
+  # Earn's styles, at the address the other styles share; off, nothing is there.
+  scope "/assets/js", AutolaunchWeb do
+    pipe_through :earn
+
+    get "/earn.css", EarnController, :stylesheet
+  end
+
   # A series' terms, the exact bytes its `termsHash` fingerprints, and the
   # picture and video a shared series link shows.
   scope "/stock/isolated-afters", AutolaunchWeb do
@@ -325,6 +352,12 @@ defmodule AutolaunchWeb.Router do
 
     get "/after-hour-stocks", ExposureController, :index
     get "/after-hour-stocks/:series", ExposureController, :show
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through [:api, :public_read, :earn]
+
+    get "/earn/products", EarnController, :products
   end
 
   scope "/api/v1", AutolaunchWeb do
@@ -355,6 +388,12 @@ defmodule AutolaunchWeb.Router do
     pipe_through [:session_api, :exposure]
 
     get "/me/after-hour-stocks/:series", ExposureController, :mine
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through [:session_api, :earn]
+
+    get "/me/earn", EarnController, :mine
   end
 
   # A wallet's own share video, for the signed-in account that links it.
@@ -454,6 +493,17 @@ defmodule AutolaunchWeb.Router do
       ] do
       live "/stock/covered-call", CoveredCallsLive, :index
       live "/stock/isolated-afters", ExposureLive, :show
+    end
+
+    # Earn, in a session of its own as the stock products are, so reaching it
+    # from any other page loads it fresh at its own address.
+    live_session :earn,
+      session: {AutolaunchWeb.Live.Session, :render_context, []},
+      on_mount: [
+        {AutolaunchWeb.Live.Session, :load_human},
+        {AutolaunchWeb.Live.Agents, :agents}
+      ] do
+      live "/earn", EarnLive, :index
     end
   end
 

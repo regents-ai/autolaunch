@@ -59,6 +59,11 @@
       rel="stylesheet"
       href={~p"/assets/js/exposure.css"}
     />
+    <link
+      :if={Autolaunch.Earn.Catalog.enabled?()}
+      rel="stylesheet"
+      href={~p"/assets/js/earn.css"}
+    />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
   </head>

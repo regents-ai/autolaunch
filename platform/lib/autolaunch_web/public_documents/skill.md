@@ -105,6 +105,7 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
 {{covered_calls}}
 {{exposure}}
+{{earn}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment the token's staking received,

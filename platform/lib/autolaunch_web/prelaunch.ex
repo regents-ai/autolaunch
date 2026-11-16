@@ -16,7 +16,8 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.AccountLive => ~w(refresh_x_connections),
     AutolaunchWeb.CoveredCallsLive =>
       ~w(refresh sell sell_expiry sell_strike sell_suggested bid bid_expiry bid_strike bid_suggested buy sale mode dismiss_done),
-    AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done)
+    AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done),
+    AutolaunchWeb.EarnLive => ~w(refresh dismiss_done)
   }
 
   @impl true
@@ -63,13 +64,19 @@ defmodule AutolaunchWeb.Prelaunch do
 
   defp signed_account_request?(_, _), do: false
 
-  # These POSTs only calculate a quote: a bid's from stored public data, and,
-  # while covered calls are on, a covered call's suggested premium from the
-  # chain's reference price. Off, that address is refused like any other POST.
+  # These POSTs only calculate a quote: a bid's from stored public data,
+  # while covered calls are on a covered call's suggested premium from the
+  # chain's reference price, and while Earn is on a deposit's or withdrawal's
+  # preview. Off, each address is refused like any other POST.
   defp public_quote?("POST", ["api", "v1", "auctions", _id, "bid-quote"]), do: true
 
   defp public_quote?("POST", ["api", "v1", "covered-calls", _symbol, "quote"]),
     do: Autolaunch.CoveredCalls.Deployment.enabled?()
+
+  # While Earn is on, an agent's preview of a deposit or withdrawal only reads
+  # the chain; its steps wait for the site to open like every other.
+  defp public_quote?("POST", ["api", "agent", "v1", "earn", "quote"]),
+    do: Autolaunch.Earn.Catalog.enabled?()
 
   defp public_quote?(_, _), do: false
 
