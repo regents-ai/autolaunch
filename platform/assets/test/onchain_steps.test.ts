@@ -2,7 +2,10 @@ import {getAddress, type Hash, type Hex} from "viem"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {asksServer, OnchainSteps, press, pressCalls, type Review} from "../js/hooks/onchain_steps"
-import {replaceActiveEthereumWallet, type EthereumProvider} from "../js/wallet_actions/connected_wallet"
+import {replaceActiveEthereumWallet, type EthereumProvider, type SwitchChain} from "../js/wallet_actions/connected_wallet"
+import type {Failure} from "../js/wallet_actions/send_step"
+
+type Push = (event: string, payload: unknown) => void
 
 const signer = getAddress("0x1111111111111111111111111111111111111111")
 const other = getAddress("0x4444444444444444444444444444444444444444")
@@ -28,7 +31,6 @@ function wallet(answers: Answers = {}) {
     if (answer) return answer(params)
     if (method === "eth_chainId") return "0x2105"
     if (method === "eth_accounts") return [signer]
-    if (method === "wallet_switchEthereumChain") return null
     if (method === "eth_sendTransaction") return firstHash
     throw new Error(`Unexpected wallet method ${method}`)
   })
@@ -37,8 +39,13 @@ function wallet(answers: Answers = {}) {
 
 const methods = (provider: ReturnType<typeof wallet>) => provider.request.mock.calls.map(([call]) => call.method)
 
+// Privy's switch, for a wallet these cases keep on the review's network: never asked.
+const unasked: SwitchChain = async () => {
+  throw new Error("The wallet was asked to switch network.")
+}
+
 const activate = (provider: EthereumProvider, address: string = signer) =>
-  replaceActiveEthereumWallet({address, provider})
+  replaceActiveEthereumWallet({address, provider, switchChain: unasked})
 
 beforeEach(() => {
   vi.stubGlobal("window", {location: {origin: "https://autolaunch.sh"}, dispatchEvent: vi.fn()})
@@ -104,17 +111,7 @@ describe("a wallet button sends only the step the server built", () => {
   })
 
   it("sends nothing while the wallet is on another chain", async () => {
-    const refused = wallet({
-      eth_chainId: () => "0x1",
-      wallet_switchEthereumChain: () => {
-        throw Object.assign(new Error("rejected"), {code: 4001})
-      },
-    })
-    activate(refused)
-    await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "network_mismatch"})
-    expect(methods(refused)).not.toContain("eth_sendTransaction")
-
-    // The switch succeeds, but the wallet moves again before the send.
+    // The wallet is on Base at the first read and moves off it before the send.
     let reads = 0
     const drifting = wallet({eth_chainId: () => (++reads < 2 ? "0x2105" : "0x1")})
     activate(drifting)
@@ -225,6 +222,109 @@ describe("a batch press sends the review's calls together or not at all", () => 
       ["onchain_atomic", {review_id: "review-batch", atomic: false}],
       ["step_failed", {step: "calls", reason: "step_unknown"}],
     ])
+  })
+})
+
+// Invariant: a wallet on another network is moved by Privy's own switch, which
+// knows how each wallet app adds a network, before anything is sent, on every
+// press and for each of the site's two networks; a wallet already on the step's
+// network is never asked. Nothing reaches the wallet's send while it is off the
+// step's network, and the press says which: the person said no to the switch
+// (4001, however the wallet wraps it), or the wallet could not switch or is
+// still elsewhere.
+describe("a press off the step's network asks Privy's switch for it", () => {
+  const base = 8453
+  const robinhood = 4663
+  const onRobinhood: Review = {
+    ...review,
+    id: "review-robinhood",
+    chain: {chain_id: robinhood, name: "Robinhood Chain", rpc_url: "https://robinhood.example.test"},
+  }
+  const together = (sent: Review): Review => ({
+    ...sent,
+    id: `${sent.id}-together`,
+    steps: [...sent.steps, {kind: "transaction", step: "claim", to: other, data: "0xd1058e59" as Hex, value: "0x0" as Hex}],
+  })
+
+  // A wallet app holding the signer on network `on`, which moves only through
+  // Privy's switch (`switching` says what that switch does with each ask), as
+  // Privy's active wallet. It remembers each ask.
+  function walletOn(on: number, switching: (wanted: number) => number | Error = wanted => wanted) {
+    let current = on
+    const switches: number[] = []
+    const provider = wallet({
+      eth_chainId: () => `0x${current.toString(16)}`,
+      wallet_sendCalls: () => ({id: "batch-1"}),
+      wallet_getCallsStatus: () => ({version: "2.0.0", id: "batch-1", chainId: `0x${current.toString(16)}`, status: 200, atomic: true, receipts: []}),
+    })
+    replaceActiveEthereumWallet({
+      address: signer,
+      provider,
+      switchChain: async wanted => {
+        switches.push(wanted)
+        const answer = switching(wanted)
+        if (answer instanceof Error) throw answer
+        current = answer
+      },
+    })
+    const sends = () => methods(provider).filter(method => method === "eth_sendTransaction" || method === "wallet_sendCalls")
+    return {switches, sends}
+  }
+
+  const walletError = (code: number, message: string) => Object.assign(new Error(message), {code})
+
+  it("asks only when the wallet is off the step's network, for a Base or Robinhood step sent alone or together", async () => {
+    for (const [sent, elsewhere] of [[review, robinhood], [onRobinhood, base]] as const) {
+      for (const send of [() => press(sent, "bid", vi.fn()), () => pressCalls(together(sent), vi.fn())]) {
+        const there = walletOn(sent.chain.chain_id)
+        await send()
+        expect(there.switches).toEqual([])
+        expect(there.sends()).toHaveLength(1)
+
+        const away = walletOn(elsewhere)
+        await send()
+        expect(away.switches).toEqual([sent.chain.chain_id])
+        expect(away.sends()).toHaveLength(1)
+      }
+    }
+  })
+
+  it("asks again on every press while the wallet stays elsewhere", async () => {
+    const {switches, sends} = walletOn(robinhood, () => walletError(4001, "User rejected the request."))
+
+    for (let pressed = 0; pressed < 3; pressed++) {
+      await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "switch_declined"})
+    }
+    expect(switches).toEqual([base, base, base])
+    expect(sends()).toEqual([])
+  })
+
+  it("sends nothing, and tells a declined switch from a failed one", async () => {
+    const cases: Array<[Failure, (wanted: number) => number | Error]> = [
+      ["switch_declined", () => walletError(4001, "User rejected the request.")],
+      ["switch_declined", () => Object.assign(new Error("wrapped"), {cause: walletError(4001, "rejected")})],
+      ["network_mismatch", () => walletError(4902, "Unrecognized chain ID")],
+      // Privy refuses a network outside its supportedChains with no code.
+      ["network_mismatch", () => new Error("Unsupported chainId: 8453")],
+      ["network_mismatch", () => walletError(-32603, "Internal error")],
+      // The switch answered, but the wallet still reports another network.
+      ["network_mismatch", () => robinhood],
+    ]
+
+    for (const [reason, switching] of cases) {
+      for (const [step, send] of [
+        ["bid", (push: Push) => press(review, "bid", push)],
+        ["calls", (push: Push) => pressCalls(together(review), push)],
+      ] as const) {
+        const held = walletOn(robinhood, switching)
+        const push = vi.fn()
+
+        await expect(send(push)).resolves.toEqual({reason})
+        expect(push.mock.calls).toEqual([["step_failed", {step, reason}]])
+        expect(held.switches).toEqual([base])
+        expect(held.sends()).toEqual([])
+      }
+    }
   })
 })
 

@@ -64,7 +64,15 @@ presses in a row both reach the wallet while the first is still there", "sends n
 wallet other than the reviewed signer", "sends nothing while the wallet is on another chain",
 "sends nothing when Privy changes the active wallet part-way", "reports a declined request and
 a step the review does not have", and for batches "hands wallet_sendCalls exactly the reviewed
-calls, atomically, after the chain read". A press while the page's connection is down, or
+calls, atomically, after the chain read". A wallet off the step's network is asked to switch
+through Privy's own switch on every press, for a Base or a Robinhood step, alone or in a batch,
+and a declined switch is told apart from a failed one with nothing sent: "asks only when the
+wallet is off the step's network, for a Base or Robinhood step sent alone or together", "asks
+again on every press while the wallet stays elsewhere", "sends nothing, and tells a declined
+switch from a failed one". Privy is given every network the site's steps go to, Base first and
+with public doors only: `autolaunch/chain/client_chains_test.exs`. Privy's own prompt as a
+wallet connects, and its switch in a real wallet app (an extension, or a phone through
+WalletConnect): **gap**. A press while the page's connection is down, or
 before the server that took over answers, still reaches the wallet with the review the page holds,
 and the rejoin asks that server for a fresh one: "sends the review the page holds while the
 connection is down, and before the server that took over answers", "asks the server that took

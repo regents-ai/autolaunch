@@ -7,7 +7,9 @@ defmodule Autolaunch.LabRpcUrl do
   and never reaches a browser or a log line. Admitted: loopback
   `http://127.0.0.1:PORT` (a local lab) or an `https://` URL.
 
-  `public/2` is the endpoint wallets add for the chain (`public_rpc_url`):
+  `public/2` is the endpoint browsers are given for the chain (`public_rpc_url`),
+  in every review and in the page's list of networks, with which Privy adds a
+  chain that neither its own list nor viem's names (a lab chain) to a wallet:
   `https://` only. A description whose own door is loopback may omit it, and
   then wallets are given that loopback door, as the local labs are; any other
   own door requires it, so a keyed endpoint never leaves the server.

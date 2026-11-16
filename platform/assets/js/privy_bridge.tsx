@@ -1,5 +1,6 @@
 import {
   PrivyProvider,
+  SUPPORTED_CHAINS,
   type PrivyEvents,
   getIdentityToken,
   useActiveWallet,
@@ -12,6 +13,7 @@ import {
 } from "@privy-io/react-auth"
 import React from "react"
 import {createRoot} from "react-dom/client"
+import {robinhood} from "viem/chains"
 
 import {
   acrossCookieRotation,
@@ -39,6 +41,7 @@ import {
   walletWorkEpoch,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
+import {viemChain, type StepChain} from "./wallet_actions/send_step"
 
 type AccountRequestHandlerOptions = {
   signIn: () => Promise<void>
@@ -662,8 +665,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
       wallets.map(async wallet => ({
         address: wallet.address.toLowerCase(),
         provider: (await wallet.getEthereumProvider()) as EthereumProvider,
-        // Privy's own way of letting go of this wallet, carried beside the
-        // provider so Disconnect can release both without the bridge.
+        // Privy's own ways of moving this wallet to another network and of
+        // letting go of it, carried beside the provider so a press and
+        // Disconnect can use them without the bridge.
+        switchChain: (chainId: number) => wallet.switchChain(chainId),
         disconnect: () => wallet.disconnect(),
       })),
     )
@@ -675,11 +680,13 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
 
     const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
     const address = selected?.address.toLowerCase()
-    const provider = entries.find(entry => entry.address === address)?.provider ?? null
-    replaceConnectedEthereumWallets(
-      entries.map(entry => [entry.address, {provider: entry.provider, disconnect: entry.disconnect}]),
+    const chosen = entries.find(entry => entry.address === address)
+    replaceConnectedEthereumWallets(entries.map(({address, ...wallet}) => [address, wallet]))
+    replaceActiveEthereumWallet(
+      selected && chosen
+        ? {address: selected.address, provider: chosen.provider, switchChain: chosen.switchChain}
+        : null,
     )
-    replaceActiveEthereumWallet(selected && provider ? {address: selected.address, provider} : null)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }, [
     activeWallet,
@@ -803,6 +810,18 @@ export function startPrivyBridge(
     providerState?.appId ??
     document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
   if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
+  // Every network the site's wallet buttons send on, Base first (the server's
+  // `Autolaunch.Chain.Client.chains/0`). Each is taken from Privy's own list of
+  // networks, so the Privy wallet reads and sends through Privy's own nodes; or
+  // for Robinhood Chain, which that list lacks, from viem's, whose explorer a
+  // wallet app asked to add the network wants; or for a network neither names
+  // (a lab chain), from the name and public node the server gives its steps.
+  const named = [...SUPPORTED_CHAINS, robinhood]
+  const walletChains = (
+    JSON.parse(document.querySelector<HTMLMetaElement>("meta[name='wallet-chains']")?.content ?? "[]") as StepChain[]
+  ).map(chain => named.find(known => known.id === chain.chain_id) ?? viemChain(chain))
+  const [baseChain] = walletChains
+  if (!baseChain) return Promise.reject(new Error("Privy has no network for the wallet chain"))
   const host = document.createElement("div")
   host.hidden = true
   document.body.append(host)
@@ -875,9 +894,17 @@ export function startPrivyBridge(
       resolve(handle)
     }
 
+    // The Privy wallet starts on Base. A wallet app on a network outside the
+    // list is asked to switch to Base as it connects (Privy leaves MetaMask
+    // through WalletConnect alone) and connects anyway if the person declines;
+    // one already on a listed network stays there. A press asks again for its
+    // own step's network before it sends.
     root.render(
       <ProviderFailureBoundary onFailure={() => failed("Privy provider is unavailable")}>
-        <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
+        <PrivyProvider
+          appId={appId}
+          config={{loginMethods: ["wallet"], defaultChain: baseChain, supportedChains: walletChains}}
+        >
           <AccountBridge
             mode={mode}
             isAvailable={isAvailable}

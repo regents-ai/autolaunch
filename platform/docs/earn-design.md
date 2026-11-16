@@ -354,8 +354,10 @@ The cases the brief names:
 - **The wallet's account or network changes.** A new active wallet re-syncs the panel; a review
   built for another signer closes, since its steps were built for that wallet only, and the amount
   and Max are cleared. The first wallet the panel hears of keeps what was typed. The network is
-  known only at a press: the browser asks the wallet to switch to Base (adding it if needed), and
-  if it still is not on Base nothing is sent and the note says to switch. A wallet that changes
+  known only at a press: the browser asks Privy's own switch to move the wallet to Base, which
+  adds the network first in a wallet app that lacks it, on every press. A declined switch sends
+  nothing and the note says it was declined; any other failure, or a wallet still not on Base,
+  sends nothing and the note says to change the network in the wallet app. A wallet that changes
   during a press sends nothing and says so.
 - **A reload with a transaction pending.** Nothing is kept beyond the page, as on covered calls;
   there is no adoption of a pending transaction across a reload. The reloaded page reads the
@@ -382,7 +384,7 @@ shared `test/autolaunch_web/onchain_steps_rebuild_test.exs` and covered calls' j
 | account changed | the active wallet becomes another linked wallet | as on Base, for the new wallet | the open review closes; the amount and Max are cleared; figures and quote follow the new wallet |
 | a wallet the account does not link | the active wallet is not linked | as above | a note naming both; nothing may act; figures stay on the account's own wallet |
 | wallets unread | the connection dropped while reading the account | read again on the next update | nothing may act; a press says to try again |
-| on another network | known only at a press (`send_step.ts`) | Base once the wallet switches | the wallet is asked to switch; refused, nothing is sent and the note says so |
+| on another network | known only at a press (`send_step.ts`) | Base once the wallet switches | Privy's switch asks the wallet on every press; declined (`switch_declined`) or failed (`network_mismatch`), nothing is sent and the note says which |
 
 The network is not a server state on purpose: knowing it before a press would mean gating a button
 by page state. Tests: `earn_live_test.exs` (no wallet open; a review closes when the wallet that

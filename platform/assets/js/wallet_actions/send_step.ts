@@ -3,7 +3,7 @@ import {getCapabilities, sendCalls, waitForCallsStatus} from "viem/actions"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
-/** The chain a step goes to, as the server names it for the wallet's prompt. */
+/** The chain a step goes to, as the server names it: its id, its name and its public node. */
 export type StepChain = {chain_id: number; name: string; rpc_url: string}
 
 /** One transaction a button sends, built on the server. */
@@ -13,7 +13,7 @@ export type Step = TransactionStep
 
 /** Nothing reached the wallet's send; the reason picks the words the server shows. */
 export class NothingSent extends Error {
-  constructor(readonly reason: "step_unknown" | "wallet_unavailable" | "network_mismatch") {
+  constructor(readonly reason: "step_unknown" | "wallet_unavailable" | "switch_declined" | "network_mismatch") {
     super(reason)
   }
 }
@@ -129,8 +129,13 @@ export function refusedAtomic(error: unknown): boolean {
 const client = (provider: EthereumProvider, signer: Address): WalletClient =>
   createWalletClient({account: getAddress(signer), transport: custom(provider)})
 
-// The step's chain as viem names one; the wallet already switched to it.
-const viemChain = (chain: StepChain) =>
+/**
+ * The step's chain as viem describes one, from the name and public node the
+ * server gives it: for a batch, which the wallet sends on the chain it already
+ * switched to, and for Privy's list of networks, which takes a chain neither
+ * Privy nor viem names (a lab chain) this way.
+ */
+export const viemChain = (chain: StepChain) =>
   defineChain({
     id: chain.chain_id,
     name: chain.name,
@@ -150,6 +155,9 @@ export function failure(sending: boolean, error: unknown): Failure {
 }
 
 // The wallet is on the step's chain and account, and still the one Privy holds.
+// A wallet on another chain is asked to switch on every press, through Privy's
+// own switch: a person who says no hears that they did, and any other failure,
+// or a wallet still elsewhere afterwards, is told to change network in the app.
 async function ready(
   chain: StepChain,
   signer: Address,
@@ -159,7 +167,11 @@ async function ready(
   if (!selected) throw new NothingSent("wallet_unavailable")
   const {provider} = selected
 
-  if ((await chainId(provider)) !== chain.chain_id) await switchChain(provider, chain)
+  if ((await chainId(provider)) !== chain.chain_id) {
+    await selected.switchChain(chain.chain_id).catch((error: unknown) => {
+      throw new NothingSent(hasCode(error, 4001) ? "switch_declined" : "network_mismatch")
+    })
+  }
 
   const [account] = await accounts(provider)
   if (!account || getAddress(account) !== getAddress(signer)) throw new NothingSent("wallet_unavailable")
@@ -167,29 +179,6 @@ async function ready(
   // Privy may have swapped the wallet during those reads; this check makes no request.
   if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
   return provider
-}
-
-async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {
-  const chainId = `0x${chain.chain_id.toString(16)}`
-  try {
-    try {
-      await provider.request({method: "wallet_switchEthereumChain", params: [{chainId}]})
-    } catch (error) {
-      if (!hasCode(error, 4902)) throw error
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId,
-          chainName: chain.name,
-          nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
-          rpcUrls: [chain.rpc_url],
-        }],
-      })
-      await provider.request({method: "wallet_switchEthereumChain", params: [{chainId}]})
-    }
-  } catch {
-    throw new NothingSent("network_mismatch")
-  }
 }
 
 async function chainId(provider: EthereumProvider): Promise<number> {

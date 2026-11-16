@@ -22,6 +22,9 @@
       content={Jason.encode!(AutolaunchWeb.ToolManifest.page_tools())}
     />
     <meta name="privy-app-id" content={Autolaunch.Privy.app_id()} />
+    <%!-- The networks the site's wallet buttons send on, Base first, with the public door
+         each one's steps already give wallets (Autolaunch.Chain.Client.chains/0). --%>
+    <meta name="wallet-chains" content={Jason.encode!(Autolaunch.Chain.Client.chains())} />
     <meta
       name="privy-bridge-src"
       content={AutolaunchWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
