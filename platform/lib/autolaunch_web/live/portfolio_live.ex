@@ -81,6 +81,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_event("refresh", _params, socket) do
     read_covered_calls(socket, [])
+    read_earn(socket)
     {:noreply, request_reads(socket)}
   end
 
@@ -361,6 +362,13 @@ defmodule AutolaunchWeb.PortfolioLive do
         :if={@account_control.kind != :sign_in and Autolaunch.Exposure.Deployment.enabled?()}
         module={AutolaunchWeb.ExposurePortfolioComponent}
         id="portfolio-exposure"
+        current_human_id={@human_id}
+      />
+
+      <.live_component
+        :if={@account_control.kind != :sign_in and Autolaunch.Earn.Catalog.enabled?()}
+        module={AutolaunchWeb.EarnPortfolioComponent}
+        id="portfolio-earn"
         current_human_id={@human_id}
       />
 
@@ -1085,5 +1093,11 @@ defmodule AutolaunchWeb.PortfolioLive do
            AutolaunchWeb.CoveredCallsPortfolioComponent,
            Keyword.merge([id: "portfolio-covered-calls", read: true], only)
          )
+  end
+
+  # Only while the page shows its Earn section.
+  defp read_earn(socket) do
+    if socket.assigns.account_control.kind != :sign_in and Autolaunch.Earn.Catalog.enabled?(),
+      do: send_update(AutolaunchWeb.EarnPortfolioComponent, id: "portfolio-earn", read: true)
   end
 end

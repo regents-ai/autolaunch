@@ -8,9 +8,11 @@ defmodule AutolaunchWeb.Components.Rail do
   # Explore has two smaller links, to the auctions list and the tokens list. It
   # also covers their search and detail pages; Docs covers the persistent
   # information-page navigation. Stocks has one to covered calls and one to
-  # After-hours, each while the site offers it. Launch is the last, orange
-  # destination, and covers both Create pages.
+  # After-hours, each while the site offers it. Earn follows Stocks while the
+  # site offers it. Launch is the last, orange destination, and covers both
+  # Create pages.
   @launch %{label: "Launch", path: "/create", covers: ["/agent-business"]}
+  @earn %{label: "Earn", path: "/earn", covers: []}
 
   @items [
     %{
@@ -39,7 +41,7 @@ defmodule AutolaunchWeb.Components.Rail do
   def rail(assigns) do
     assigns =
       assign(assigns,
-        rows: Enum.reject(@items, &(&1 == @launch)),
+        rows: rows(),
         launch: @launch,
         launch_current?: current?(assigns.current_path, @launch)
       )
@@ -103,7 +105,7 @@ defmodule AutolaunchWeb.Components.Rail do
   def drawer(assigns) do
     assigns =
       assign(assigns,
-        rows: Enum.reject(@items, &(&1 == @launch)),
+        rows: rows(),
         launch_current?: current?(assigns.current_path, @launch)
       )
 
@@ -150,6 +152,11 @@ defmodule AutolaunchWeb.Components.Rail do
       </nav>
     </div>
     """
+  end
+
+  defp rows do
+    rows = Enum.reject(@items, &(&1 == @launch))
+    if Autolaunch.Earn.Catalog.enabled?(), do: List.insert_at(rows, 2, @earn), else: rows
   end
 
   # A row marks only the page you are on: Explore is the home page, and its

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.Components.HomeProducts do
   @moduledoc """
   The home page's products, at the top of the page: covered calls, Memestock
-  launches and Revstake launches. Each card is one link, dark in both themes: a
+  launches, Revstake launches and Earn. Each card is one link, dark in both themes: a
   tall moving panel of small coloured glyphs drawn on the GPU (`HomeCells` in
   `assets/js/hooks/home_cells.ts`), a pattern and a colour gradient for each
   product; then the product's name in its colour beside its place in the row
@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   (`priv/static/images/home/`, drawn by `npm run stills:home`) is the picture
   until the panel has drawn, and stays it without WebGPU.
 
-  A product switched off on this site (covered calls) has no card, so
+  A product switched off on this site (covered calls, Earn) has no card, so
   no card links to a page that answers not found. Before launches open, the two
   launch cards keep their place, not a link, and say so where the action would be.
 
@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   use Phoenix.Component
 
   attr :launches_open, :boolean, required: true
-  attr :only, :list, default: ~w(calls memestock revstake), doc: "product ids, in order"
+  attr :only, :list, default: ~w(calls memestock revstake earn), doc: "product ids, in order"
 
   def product_cards(assigns) do
     assigns = assign(assigns, :products, products(assigns.only))
@@ -133,7 +133,18 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         action: "Launch one",
         path: "/agent-business",
         launch: true
-      }
+      },
+      Autolaunch.Earn.Catalog.enabled?() &&
+        %{
+          id: "earn",
+          pattern: "rise",
+          title: "Earn",
+          headline: "Lend your USDC.",
+          line: "Borrowers on Aave pay interest on it. Withdraw when you choose.",
+          action: "Deposit USDC",
+          path: "/earn",
+          launch: false
+        }
     ]
     |> Enum.filter(&(&1 && &1.id in only))
     |> Enum.sort_by(&Enum.find_index(only, fn id -> id == &1.id end))

@@ -2,7 +2,8 @@
  * The home product cards' panels: for each one its colour gradient (deep, main,
  * bright), the moment its still frame shows, and its shader. Covered calls
  * draws a call's payoff, Memestock two colours leaning towards each other
- * along a seam, Revstake columns tipped in the card's colour.
+ * along a seam, Revstake columns tipped in the card's colour, Earn a balance
+ * rising slowly with bubbles of interest coming up through it.
  *
  * This file imports nothing, so the script that draws the still frames
  * (`stills.mjs`, beside it) reads the same colours and shaders the site does.
@@ -230,6 +231,31 @@ export const panels = {
   var colour = mix(mix(ramp(0.82), params.c.rgb, y / height), ramp(0.5), tip);
   colour = mix(colour, ramp(0.3), after);
   return emit(g, sdBox(g.local, vec2f(3.5, 3.5), 0.3), colour, max(filled, after * 0.45));
+}`,
+  },
+  // A balance rising slowly across the panel, its surface swaying, with bubbles of interest coming up through it. The pointer lifts the surface under it.
+  rise: {
+    deep: "#0a2a66",
+    main: "#3b82f6",
+    bright: "#dbeafe",
+    stillAt: 2.2,
+    shader: /* wgsl */ `${common}
+@fragment fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+  let g = grid(uv, vec2f(8.0, 8.0));
+  let p = pointer();
+  let t = time();
+  let x = g.at.x;
+  let y = g.at.y;
+  let sway = 0.025 * sin(x * 8.0 - t * 1.1) + 0.015 * sin(x * 15.0 + t * 0.6);
+  let lift = exp(-sq((x - p.x) * 5.0)) * p.z * 0.1;
+  let level = clamp(0.24 + 0.52 * (exp(1.6 * x) - 1.0) / (exp(1.6) - 1.0) + sway + lift, 0.08, 0.95);
+  let filled = step(y, level);
+  let top = 1.0 - smoothstep(0.0, 0.14, level - y);
+  let lane = step(0.7, hash(vec2f(g.id.x, 5.0)));
+  let bubble = fract(hash(vec2f(g.id.x, 9.0)) + t * 0.16) * level;
+  let up = lane * (1.0 - step(0.6 / g.count.y, abs(y - bubble))) * filled;
+  var colour = mix(ramp(0.12 + 0.42 * y / level + 0.38 * top), params.c.rgb, up);
+  return emit(g, sdBox(g.local, vec2f(3.0, 3.0), 3.0), colour, max(filled * (0.72 + 0.28 * top), up));
 }`,
   },
 } as const
