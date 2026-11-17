@@ -4,11 +4,13 @@ Isolated Exposure to After-hours Stocks on Base stock tokens is open on this sit
 
 Every amount is a whole number: stock and tokens in raw token units (the stock's `decimals`), prices and ledger values in WAD dollars per stock token (18 decimals), pool quotes in micro-USDC (6 decimals), times in Unix seconds.
 
-| Action | WebMCP tool | HTTP |
-| --- | --- | --- |
-| List every series | `autolaunch_after_hour_stocks_list` | `GET {{origin}}/api/v1/after-hour-stocks` |
-| Read one series | `autolaunch_after_hour_stocks_series` | `GET {{origin}}/api/v1/after-hour-stocks/{series}` |
-| Read your person's holding (signed, paired) | `autolaunch_my_after_hour_stocks` | `GET {{origin}}/api/agent/v1/after-hour-stocks/{series}/holdings` |
-| Prepare a step: mint, redeem, update or end (signed, paired) | `autolaunch_after_hour_stocks_prepare` | `POST {{origin}}/api/agent/v1/after-hour-stocks/{series}/steps` |
+| Action | WebMCP tool | Hosted MCP tool | HTTP |
+| --- | --- | --- | --- |
+| List every series | `autolaunch_after_hour_stocks_list` | `autolaunch_after_hour_stocks_list` | `GET {{origin}}/api/v1/after-hour-stocks` |
+| Read one series | `autolaunch_after_hour_stocks_series` | `autolaunch_after_hour_stocks_series` | `GET {{origin}}/api/v1/after-hour-stocks/{series}` |
+| Read your person's holding (signed, paired) | `autolaunch_my_after_hour_stocks` | `autolaunch_my_after_hour_stocks` | `GET {{origin}}/api/agent/v1/after-hour-stocks/{series}/holdings` |
+| Prepare a step: mint, redeem, update or end (signed, paired) | `autolaunch_after_hour_stocks_prepare` | None | `POST {{origin}}/api/agent/v1/after-hour-stocks/{series}/steps` |
+
+The hosted MCP tools at `{{origin}}/mcp` take the same inputs, each under `input`, and give the HTTP answer as their result; a refusal is their error, with the same code and words.
 
 The site only prepares steps. Each answer lists `steps` (`to`, `data` and `value` on the named `chain`) for one of your person's own wallets: `signer` when you send one, otherwise the wallet they signed in with. That wallet's own key signs and sends the steps in order, and money moves only then. `approved` says whether the allowance already covers the action. `blocked` gives a `code` and words when the chain's current state makes the action certain to fail; the steps still come back, so prepare again once the chain has changed. Any other wallet is refused with `wrong_signer`. A series' terms are at `terms_url`; their keccak256 is the series' `terms_hash`. The regents CLI has no Isolated Exposure to After-hours Stocks commands yet.

@@ -273,7 +273,8 @@ calls.
   approval of `amount`, then `sellToBid`; the amount offered is at least the bid's `minSale`, or
   exactly what is left of it); refund (no approval). The new refusals are
   `UnknownBid`, `NotBidder` and `BelowMinSale`; the rest are V1's.
-- Each new action needs its row and five surfaces in `docs/agent-parity.md`.
+- Each new action needs its row in `platform/priv/capabilities.json`, which the guides' Agent
+  access table is made from; a way in that does not offer it is a gap in `operations/FEATURES.md`.
 
 **The cutover.** The market record's `contract`
 (`contracts/covered-calls-v2/deploy/site-markets.json`, copied to the site's deployment file) changes

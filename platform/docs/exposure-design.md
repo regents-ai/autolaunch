@@ -144,14 +144,14 @@ unequal amounts before the end, more than held, a price not yet recordable or to
 recording window still open) shows the button disabled with the reason; nothing else blocks a
 press. There is no keeper job yet: anyone can record and apply a price from the page.
 
-Agent surfaces, one Ash action each, same inputs, results and refusals everywhere
-(`docs/agent-parity.md`):
+Agent surfaces, one Ash action each, same inputs, results and refusals everywhere (the guides'
+Agent access table, made from `priv/capabilities.json`):
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| List series | `autolaunch_after_hour_stocks_list` | `GET /api/v1/after-hour-stocks` | gap | gap |
-| One series | `autolaunch_after_hour_stocks_series` | `GET /api/v1/after-hour-stocks/{series}` | gap | gap |
-| My holding | `autolaunch_my_after_hour_stocks` | `GET /api/agent/v1/after-hour-stocks/{series}/holdings` (`GET /api/v1/me/after-hour-stocks/{series}` signed in) | gap | gap |
+| List series | `autolaunch_after_hour_stocks_list` | `GET /api/v1/after-hour-stocks` | `autolaunch_after_hour_stocks_list` | gap |
+| One series | `autolaunch_after_hour_stocks_series` | `GET /api/v1/after-hour-stocks/{series}` | `autolaunch_after_hour_stocks_series` | gap |
+| My holding | `autolaunch_my_after_hour_stocks` | `GET /api/agent/v1/after-hour-stocks/{series}/holdings` (`GET /api/v1/me/after-hour-stocks/{series}` signed in) | `autolaunch_my_after_hour_stocks` | gap |
 | Prepare a step (buy, sell, mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
 
 The owner's own key signs every step; the site prepares and never signs.

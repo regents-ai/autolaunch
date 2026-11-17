@@ -290,7 +290,7 @@ and applies prices on schedule, a portfolio section, and a link from the stock p
 ## 8. CLI
 
 Not built. The regents CLI gains `after-hour-stocks list`, `show`, `mine` and `steps` over the
-routes above once the switch is on; until then `docs/agent-parity.md` lists each as a gap.
+routes above once the switch is on; until then the guides' Agent access table shows each as No.
 
 ## 9. Questions for the reviewer
 

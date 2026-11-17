@@ -289,8 +289,8 @@ part of the site, the agent routes or the contract checks an address against a l
 only address checks are ownership: the site builds steps only for a wallet the signed-in account (or
 the paired agent's account) links, and the contract lets only a listing's seller stop selling it or
 collect its strike, so no one can withdraw another person's stock or USDC. The issuer's own blocklist
-and pauses on AMZNc still apply, as they do to every transfer of it. `docs/agent-parity.md` at the repository
-root has one row per action.
+and pauses on AMZNc still apply, as they do to every transfer of it. The guides' Agent access table
+(`/docs`), made from `priv/capabilities.json`, has one row per action.
 
 The agent's own key signs every step; the site prepares and never signs. CLI rows are gaps
 owned by the regents-cli lane until it adds them.
@@ -491,5 +491,5 @@ What remains unbounded, and what it costs an attacker:
 4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
-5. **Gaps.** The regents CLI for every covered-call action
-   (`docs/agent-parity.md`).
+5. **Gaps.** The regents CLI for every covered-call action (a No in the guides' Agent access
+   table; `operations/FEATURES.md`).

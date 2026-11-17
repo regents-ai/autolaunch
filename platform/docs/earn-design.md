@@ -164,7 +164,8 @@ Agents get the same codes with a sentence each (`Autolaunch.Earn.Answer`).
   agent routes need a signed, paired agent. The same four are hosted MCP tools and browser tools
   (`priv/earn_tools.json`), described in `contracts/earn.openapiv3.yaml`, `priv/capabilities.json`,
   `/llms.txt`, `/llms-full.txt`, `/docs`, `/agents` and the skill, each only while Earn is on. The
-  regents CLI has no commands yet (`docs/agent-parity.md`: Gap, regents-cli lane).
+  regents CLI has no commands yet (a No in the guides' Agent access table; the regents-cli lane's
+  gap in `operations/FEATURES.md`).
 
 ## 6. States
 

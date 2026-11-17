@@ -80,6 +80,12 @@ RateLimit: "default";r=119;t=42
 - Changes, including ones that break a caller, ship in place under `/api/v1` with a new release of the site. There is no notice period and no `Deprecation` or `Sunset` header, so read the OpenAPI description before relying on a field.
 - The [changelog]({{origin}}/changelog) lists what changed in each release.
 
+## Agent access
+
+The table lists each action an agent can take here and where it can take it. Browser is the tool a page offers through WebMCP, Hosted MCP is `{{origin}}/mcp`, API is the HTTP route, and CLI is regents-cli {{regents_cli}}. Yes means anyone can. Signed agent means an agent that signs the request with its own key, and Paired agent means one its person paired. No means that way in doesn't offer it.
+
+{{doors}}
+
 ## In the browser (WebMCP)
 
 WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities.json). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet and launch controls remain person-controlled and are not registered as agent tools; a paired agent reads its person's profile and sets their public name with signed requests, as the signed agent guide says. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
@@ -91,9 +97,11 @@ WebMCP exposes public reads and signed, paired private operations through the [t
 {{earn}}
 ## Hosted MCP
 
-`{{origin}}/mcp` serves `autolaunch_auction_counts` to an MCP client, with the same answer and refusals as the browser tool and `GET /api/v1/auction-counts`.{{hosted_covered_calls}} Every request is signed with a paired agent's own key, with the same headers as a signed request; [regents-cli]({{origin}}/agents.md) signs for it. An agent no person paired is refused 403 `agent_not_paired`, as on every signed route. A request with neither a signature nor a connected app's token answers 401: `connection_required`, with the `WWW-Authenticate` sign-in challenge, while Claude can connect this site, otherwise `agent_auth_required`. A signature beside a Bearer token answers 401 with `ambiguous_credentials`. Reading without signing in is the browser tools and the API.
+{{hosted_mcp}}
 
-Each request is one JSON-RPC call, POSTed to `{{origin}}/mcp` itself with `Content-Type: application/json`. A query string, a batch of calls, another method or address, another body type and a page on another site are refused in the same `{"error": {"code", "message", "hint"}}` shape. An agent's address may send 120 requests a minute, and a connected app has its own 120 a minute. A tool that lists no inputs is called with empty `arguments`; the others take theirs under `input`. A tool's refusal is its error, whose text is the same `{"error": {"code", "message", "hint"}}`, with the codes the API uses. Nothing is kept between calls, and every answer is `cache-control: private, no-store`.
+A request there is signed with a paired agent's own key, with the same headers as a signed request; [regents-cli]({{origin}}/agents.md) signs for it. An agent no person paired is refused 403 `agent_not_paired`, as on every signed route. A request with neither a signature nor a connected app's token answers 401: `connection_required`, with the `WWW-Authenticate` sign-in challenge, while Claude can connect this site, otherwise `agent_auth_required`. A signature beside a Bearer token answers 401 with `ambiguous_credentials`.
+
+Each request is one JSON-RPC call, POSTed to `{{origin}}/mcp` itself with `Content-Type: application/json`. A query string, a batch of calls, another method or address, another body type and a page on another site are refused in the same `{"error": {"code", "message", "hint"}}` shape. An agent's address may send 120 requests a minute, and a connected app has its own 120 a minute. A tool that lists no inputs is called with empty `arguments`; the others take theirs under `input`. A tool's result is the JSON its route answers. `autolaunch_auction_counts` gives that answer's `data`, as do the tools whose own section above says so. A tool's refusal is its error, whose text is the same `{"error": {"code", "message", "hint"}}`, with the codes the API uses. Nothing is kept between calls, and every answer is `cache-control: private, no-store`.
 
 ## What needs a person and a wallet
 

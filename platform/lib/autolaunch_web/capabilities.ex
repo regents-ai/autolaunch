@@ -19,6 +19,10 @@ defmodule AutolaunchWeb.Capabilities do
   (`hosted_tools/0`); AshAi lists each to a caller only as its action's policies
   allow. That each `cli` matches regents-cli's commands is checked by the tests,
   which read `cli/commands.json`.
+
+  The guides' Agent access table, their words on the hosted MCP server and the
+  server's own instructions are made from the rows offered now
+  (`AutolaunchWeb.PublicDocuments`), so they name what each surface serves.
   """
 
   paths = [
@@ -50,7 +54,7 @@ defmodule AutolaunchWeb.Capabilities do
   }
 
   # The tools the site's domains hand AshAi for hosted MCP, by name, with the
-  # input AshAi asks for.
+  # input AshAi asks for and the title it lists.
   hosted =
     for domain <- Application.compile_env!(:autolaunch, :ash_domains),
         tool <- AshAi.Info.tools(domain),
@@ -60,7 +64,7 @@ defmodule AutolaunchWeb.Capabilities do
       schema =
         AshAi.Tool.Schema.for_action(domain, tool.resource, action, nil, [], strict?: false)
 
-      {Atom.to_string(tool.name), schema["properties"]["input"]}
+      {Atom.to_string(tool.name), %{input: schema["properties"]["input"], title: tool.title}}
     end
 
   # An input's shape for comparing two schemas: each field's type and choices, and
@@ -101,7 +105,7 @@ defmodule AutolaunchWeb.Capabilities do
           "hosted_mcp that differs from its hosted_tool being an AshAi tool"
 
         Map.has_key?(hosted, row["hosted_tool"]) and
-            shape.(hosted[row["hosted_tool"]]) != shape.(tool["input_schema"]) ->
+            shape.(hosted[row["hosted_tool"]].input) != shape.(tool["input_schema"]) ->
           "hosted input that differs from the browser tool's input"
 
         true ->
@@ -132,13 +136,20 @@ defmodule AutolaunchWeb.Capabilities do
   unless Enum.sort(Enum.map(@hosted, &Atom.to_string/1)) == Enum.sort(Map.keys(hosted)),
     do: raise("priv/capabilities.json must name every AshAi tool once as a hosted_tool")
 
-  @operations rows
+  # Each row with the title its tool shows: its browser tool's, or, for a tool
+  # only the hosted server has, that tool's.
+  @operations Enum.zip_with(browser_rows, browser, &Map.put(&1, "title", &2["title"])) ++
+                Enum.map(hosted_only_rows, &Map.put(&1, "title", hosted[&1["operation"]].title))
 
   @doc "The hosted MCP server's tools, by the name AshAi gives each."
   @spec hosted_tools() :: [atom()]
   def hosted_tools, do: @hosted
 
-  @doc "Every operation's row, as `priv/capabilities.json` gives it."
+  @doc "Every operation's row, as `priv/capabilities.json` gives it, with its tool's `title`."
   @spec operations() :: [map()]
   def operations, do: @operations
+
+  @doc "The operations offered while the switches named in `on` are on: the site's own and each one whose switch is among them."
+  @spec offered([String.t()]) :: [map()]
+  def offered(on), do: Enum.filter(@operations, &(&1["switch"] in [nil | on]))
 end

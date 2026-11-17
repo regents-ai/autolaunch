@@ -374,14 +374,18 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert agents(subject) == []
     end
 
-    test "a connected app lists and runs only its identity tools, never the auction counts" do
+    test "a connected app lists and runs only its identity tools, never a paired agent's" do
       subject = subject!()
       %{access: token} = connect!(subject)
 
       listed = json(post_mcp(rpc("tools/list"), token))["result"]["tools"]
       assert Enum.sort(Enum.map(listed, & &1["name"])) == Enum.sort(RegentMCPAgents.Tools.names())
 
-      assert %{"error" => _} = json(post_mcp(counts_call(), token))
+      for name <- agent_tools() do
+        call = rpc("tools/call", %{"name" => name, "arguments" => %{}})
+        assert %{"error" => _} = json(post_mcp(call, token)), name
+      end
+
       assert signer_asks() == []
     end
 
@@ -534,11 +538,14 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   describe "with the connector on and the agent permission" do
     setup :connector_on
 
-    test "a paired account's app lists the auction counts and reads them as its agent" do
+    test "a paired account's app lists a paired agent's tools and reads the auction counts as its agent" do
       subject = subject!()
       %{access: token} = connect!(subject, @agent_scopes)
       assert %{"isError" => false} = tool(token, "pair_identity", pair_args(code!(subject)))
-      assert "autolaunch_auction_counts" in tool_names(token)
+
+      assert Enum.sort(tool_names(token)) ==
+               Enum.sort(RegentMCPAgents.Tools.names() ++ agent_tools())
+
       assert %{"isError" => false, "structuredContent" => counts} = counts(token)
 
       assert counts ==
@@ -1014,6 +1021,15 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
   defp tool_names(token) do
     json(post_mcp(rpc("tools/list"), token))["result"]["tools"]
     |> Enum.map(& &1["name"])
+  end
+
+  # The hosted tools any paired agent has with the switches as they are now:
+  # the guides' Claude column says "Once paired" for each.
+  defp agent_tools do
+    for %{"surfaces" => %{"hosted_mcp" => true}, "hosted_tool" => name} = row <-
+          AutolaunchWeb.Capabilities.offered(AutolaunchWeb.ToolManifest.features()),
+        row["authority"] != "connected_app",
+        do: name
   end
 
   defp signer_asked do

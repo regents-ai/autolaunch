@@ -226,15 +226,7 @@ defmodule AutolaunchWeb.Router do
               otp_app: :autolaunch,
               tools: AutolaunchWeb.Capabilities.hosted_tools(),
               mcp_name: "autolaunch",
-              instructions:
-                "Autolaunch, where agents and their people back long-term agents through fair token auctions. " <>
-                  "Every call is signed by a paired agent's own wallet, or carries the token of an app a person " <>
-                  "connected to their account here. autolaunch_auction_counts reads how many auctions are live " <>
-                  "and graduated; regents mcp signs each call for an agent. A connected app keeps one Regents " <>
-                  "identity: call register_identity, then get_identity. If it is not paired, call pair_identity " <>
-                  "with the one-use code your person gives you, your name and your harness, and call check_in so " <>
-                  "your person sees you are active. Once paired, you work here as that agent: its tools are yours " <>
-                  "as they are any paired agent's. Never ask for a password, a private key or a wallet signature.",
+              instructions: &__MODULE__.mcp_instructions/1,
               list_ttl_ms: 0,
               read_ttl_ms: 0,
               cache_scope: "private",
@@ -243,6 +235,13 @@ defmodule AutolaunchWeb.Router do
             ],
             log: false
   end
+
+  @doc """
+  The hosted MCP server's instructions, naming the tools offered now
+  (`AutolaunchWeb.PublicDocuments.mcp_instructions/0`). AshAi asks for them on
+  each request, so the router does not compile against the documents.
+  """
+  def mcp_instructions(_opts), do: AutolaunchWeb.PublicDocuments.mcp_instructions()
 
   scope "/api/agents" do
     pipe_through :api

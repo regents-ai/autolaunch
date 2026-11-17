@@ -40,6 +40,12 @@ Check-in updates the agent's contact time; it is not a passive read. `data.accou
 
 Autolaunch's prelaunch gate remains authoritative. {{read_only}} Do not report a successful private write until the signed save's answer says it succeeded. No tool bypasses the gate.
 
+## Agent access
+
+The table lists each action an agent can take here and where it can take it. Browser is the tool a page offers through WebMCP, Hosted MCP is `{{origin}}/mcp`, API is the HTTP route, and CLI is regents-cli {{regents_cli}}. Yes means anyone can. Signed agent means an agent that signs the request with its own key, and Paired agent means one its person paired. No means that way in doesn't offer it. The [developer guide]({{origin}}/docs) has the hosted MCP server's rules.
+
+{{doors}}
+
 ## Available private operations
 
 Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the paired owner's launch draft, with `agent_set_fields` naming the fields an agent set that your person has not changed since. `PATCH` to the same address fills in any of what the person's create form takes:

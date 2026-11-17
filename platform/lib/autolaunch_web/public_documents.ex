@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias Autolaunch.LaunchActions, as: RevstakeLaunchActions
   alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.LaunchActions
-  alias AutolaunchWeb.{AgentGuides, Paths, ToolManifest}
+  alias AutolaunchWeb.{AgentGuides, Capabilities, Paths, ToolManifest}
   alias AutolaunchWeb.Components.AutolaunchHelpers
 
   @directory Path.join(__DIR__, "public_documents")
@@ -71,6 +71,10 @@ defmodule AutolaunchWeb.PublicDocuments do
     "session" => "The person's sign-in",
     "wallet_signed" => "The person's sign-in and their wallet's confirmation"
   }
+
+  # Who may run an operation on a surface that offers it, by its authority, as
+  # the Agent access table says it.
+  @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
 
   @description "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."
 
@@ -579,16 +583,16 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp iso8601(at), do: DateTime.to_iso8601(at)
 
   # The `{{claude_connector}}` line and its blank line become the Claude
-  # connector's paragraph only while it is on; `{{hosted_covered_calls}}` names
-  # the covered-call hosted tools only while the site offers covered calls, and
-  # Earn's while it offers Earn;
-  # `{{hosted_mcp}}` says what the hosted MCP address serves, naming Claude's
-  # connector while it is on.
+  # connector's paragraph only while it is on; `{{hosted_mcp}}` says what the
+  # hosted MCP address serves now, naming Claude's connector while it is on;
+  # `{{doors}}` is the Agent access table of what is offered now.
   defp markdown(name) do
+    connector? = Autolaunch.OAuth.enabled?()
+
     @sources[name]
-    |> String.replace("{{claude_connector}}\n\n", claude_connector(Autolaunch.OAuth.enabled?()))
-    |> String.replace("{{hosted_mcp}}", hosted_mcp(Autolaunch.OAuth.enabled?()))
-    |> String.replace("{{hosted_covered_calls}}", hosted_covered_calls())
+    |> String.replace("{{claude_connector}}\n\n", claude_connector(connector?))
+    |> String.replace("{{hosted_mcp}}", hosted_mcp(connector?))
+    |> String.replace("{{doors}}", door_table(connector?))
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
@@ -684,32 +688,16 @@ defmodule AutolaunchWeb.PublicDocuments do
       "Claude doesn't use these steps: it pairs through Autolaunch's connector, with no " <>
         "command line or key of its own. [Claude]({{origin}}/agents/claude) has the setup.\n\n"
 
+  # What the hosted MCP address serves now: a paired agent's tools by name, and,
+  # while Claude can connect, its connector and the tools a connected app has
+  # as itself.
   defp hosted_mcp(connector?) do
     "Autolaunch's hosted MCP endpoint is {{origin}}/mcp. Every call there carries a paired " <>
-      "agent's signature, as for a signed request: `autolaunch_auction_counts` reads how many " <>
-      "auctions are live and graduated, with the same answer as the browser tool and the API." <>
-      hosted_covered_calls() <>
-      " Reading without signing in is the browser tools and the API." <> connector(connector?)
-  end
-
-  # The covered-call and Earn hosted tools, each named only while the site offers it.
-  defp hosted_covered_calls do
-    on = ToolManifest.features()
-
-    if("covered_calls" in on,
-      do:
-        " While covered calls are open, `covered_call_book`, `covered_call_quote`, " <>
-          "`covered_call_positions` and `prepare_covered_call` do there what the covered-call " <>
-          "routes do, with the same answers and refusals; the steps only once launches are open.",
-      else: ""
-    ) <>
-      if("earn" in on,
-        do:
-          " While Earn is open, `earn_products`, `earn_quote`, `earn_positions` and " <>
-            "`prepare_earn` do there what the Earn routes do, with the same answers and " <>
-            "refusals; the steps only once launches are open.",
-        else: ""
-      )
+      "agent's signature, as for a signed request. A paired agent's tools there are " <>
+      names(agent_tools()) <>
+      ", each with the same answers and refusals as its browser tool and route. A tool that " <>
+      "prepares wallet steps is listed only once launches are open. To read without signing " <>
+      "in, use the browser tools or the API." <> connector(connector?)
   end
 
   defp connector(false), do: ""
@@ -717,10 +705,112 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp connector(true),
     do:
       " It is also Claude's connector: the person adds it in Claude's settings, then signs " <>
-        "in here when Claude asks and allows it. Claude's tools there (`get_identity`, " <>
-        "`register_identity`, `pair_identity` and `check_in`) only keep an identity for the " <>
-        "connection, pair it with the person's account and check in. " <>
+        "in here when Claude asks and allows it. Claude's own tools there (" <>
+        names(app_tools()) <>
+        ") only keep an identity for the connection, pair it with the person's account and " <>
+        "check in; once paired, Claude has a paired agent's tools too. " <>
         "[Claude]({{origin}}/agents/claude) has the setup."
+
+  @doc """
+  What the hosted MCP server tells a client before its first call: the tools a
+  paired agent has there now and, while Claude can connect, how a connected
+  app keeps its identity and pairs.
+  """
+  def mcp_instructions do
+    connector? = Autolaunch.OAuth.enabled?()
+
+    "Autolaunch, where agents and their people back long-term agents through fair token " <>
+      "auctions. Every call is signed by a paired agent's own wallet" <>
+      if(connector?,
+        do: ", or carries the token of an app a person connected to their account here",
+        else: ""
+      ) <>
+      ". A paired agent's tools are " <>
+      Enum.join(agent_tools(), ", ") <>
+      ". A tool that prepares wallet steps is listed only once launches are open. " <>
+      "regents mcp signs each call for an agent. " <>
+      if(connector?,
+        do:
+          "A connected app keeps one Regents identity: call register_identity, then " <>
+            "get_identity. If it is not paired, call pair_identity with the one-use code your " <>
+            "person gives you, your name and your harness, and call check_in so your person " <>
+            "sees you are active. Once paired, you work here as that agent: its tools are " <>
+            "yours as they are any paired agent's. ",
+        else: ""
+      ) <> "Never ask for a password, a private key or a wallet signature."
+  end
+
+  # The operations offered now (`AutolaunchWeb.Capabilities`): the site's own,
+  # each feature's while it is on, and a connected app's while Claude can connect.
+  defp offered do
+    Capabilities.offered(
+      ToolManifest.features() ++
+        if(Autolaunch.OAuth.enabled?(), do: ["connected_apps"], else: [])
+    )
+  end
+
+  # The hosted MCP tools offered now: a paired agent's, and a connected app's
+  # own, by name.
+  defp agent_tools,
+    do:
+      for(
+        %{"surfaces" => %{"hosted_mcp" => true}, "hosted_tool" => name} = row <- offered(),
+        row["authority"] != "connected_app",
+        do: name
+      )
+
+  defp app_tools,
+    do:
+      for(
+        %{"authority" => "connected_app", "hosted_tool" => name} <- offered(),
+        do: name
+      )
+
+  # Tool names as a list in words: `a`, `b` and `c`.
+  defp names(tools) do
+    quoted = Enum.map(tools, &"`#{&1}`")
+    Enum.join(Enum.drop(quoted, -1), ", ") <> " and " <> List.last(quoted)
+  end
+
+  # Agent access: each action offered now and what each way in offers it, with
+  # Claude's column only while Claude can connect.
+  defp door_table(connector?) do
+    doors =
+      [{"Browser", "webmcp"}, {"Hosted MCP", "hosted_mcp"}, {"API", "http"}] ++
+        if(connector?, do: [{"Claude", :claude}], else: []) ++ [{"CLI", "cli"}]
+
+    rows =
+      Enum.map_join(offered(), "\n", fn row ->
+        "| #{row["title"]} | " <> Enum.map_join(doors, " | ", &door(row, elem(&1, 1))) <> " |"
+      end)
+
+    claude_doors(connector?) <>
+      """
+      | Action | #{Enum.map_join(doors, " | ", &elem(&1, 0))} |
+      | --- |#{String.duplicate(" --- |", length(doors))}
+      #{rows}\
+      """
+  end
+
+  defp claude_doors(false), do: ""
+
+  defp claude_doors(true),
+    do:
+      "Claude is the connector a person adds in Claude's settings. Connected app means an " <>
+        "app connected that way, which keeps its own identity and pairing. Once paired means " <>
+        "Claude can use the tool after its person pairs it.\n\n"
+
+  # A connected app runs its own tools on the hosted MCP server, and Claude, as
+  # one, runs a paired agent's there once its person pairs it; every other call
+  # there is a paired agent's.
+  defp door(%{"authority" => "connected_app"}, "hosted_mcp"), do: "Connected app"
+  defp door(%{"surfaces" => %{"hosted_mcp" => true}}, "hosted_mcp"), do: "Paired agent"
+  defp door(%{"authority" => "connected_app"}, :claude), do: "Yes"
+  defp door(%{"surfaces" => %{"hosted_mcp" => true}}, :claude), do: "Once paired"
+  defp door(_row, :claude), do: "No"
+
+  defp door(%{"authority" => authority, "surfaces" => surfaces}, surface),
+    do: if(surfaces[surface] == true, do: Map.fetch!(@who, authority), else: "No")
 
   # The contract as the site offers it now: with every feature switched off it is
   # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths
