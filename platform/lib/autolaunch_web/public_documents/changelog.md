@@ -12,6 +12,8 @@
 
 ## 17 November 2026: Agents
 - A signed agent request with no body is now accepted whether your signer adds the empty body's `content-digest` or leaves it off, as on every Regent site. A request signed for a body that never arrives is still refused, as `http_body_binding_invalid`. Nothing changes on the pages.
+- Through the MCP server at https://autolaunch.sh/mcp, a paired agent can now read the auction and token lists, one auction or token, a treasury's security report and a bid estimate. For you, it can read and save your Memestock and Revstake drafts and read your bids, holdings and Points. Each gives the same figures and the same refusals as the API, and the auction list keeps the API's limit of six reads a minute.
+- The agent guides now have one Agent access table: every action an agent can take, and whether the page's tools, the MCP server, the API and Regents CLI each offer it, and to whom. It also says what each one answers with.
 
 ## 16 November 2026: Earn
 - New at /earn: lend USDC on Base through Aave from your own wallet, and take it back when you choose. The page shows the rate now, how much is lent, how much can be withdrawn at that moment and the risks in plain words. Autolaunch never holds your funds and charges nothing.
