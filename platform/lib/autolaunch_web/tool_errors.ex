@@ -14,9 +14,10 @@ defmodule AutolaunchWeb.ToolErrors do
 
   Input a tool's action cannot take is refused before AshAi runs it
   (`check_input/3`, the server's `tool_argument_transformer`), with the code the
-  same input gets over HTTP: the market reads', the covered calls', Exposure's
-  and Earn's `invalid_request`, each in its own route's words, a draft save's
-  `invalid_draft`, a pairing's
+  same input gets over HTTP: a bid estimate's own route's answer to the same
+  body (`invalid_amount` for an amount that is not text, as there), the other
+  market reads', the covered calls', Exposure's and Earn's `invalid_request`,
+  each in its own route's words, a draft save's `invalid_draft`, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
@@ -44,7 +45,7 @@ defmodule AutolaunchWeb.ToolErrors do
          %{valid?: true} <- Ash.ActionInput.for_action(resource, action, input) do
       {:ok, arguments}
     else
-      _not_taken -> {:error, refused(resource, action)}
+      _not_taken -> {:error, refused(resource, action, arguments)}
     end
   end
 
@@ -67,6 +68,13 @@ defmodule AutolaunchWeb.ToolErrors do
   defp json_type?(Ash.Type.Boolean, value), do: is_boolean(value)
   # Any other type is the action's own cast to refuse.
   defp json_type?(_type, _value), do: true
+
+  # A bid estimate's input is answered as its route answers the same JSON body,
+  # by the route's own code (`MarketAnswer.bid_quote/1`).
+  defp refused(Autolaunch.Auction, :bid_quote_answer, %{"input" => %{} = input}),
+    do: text(MarketAnswer.bid_quote(input))
+
+  defp refused(resource, action, _arguments), do: refused(resource, action)
 
   defp refused(Autolaunch.Earn.Product, _earn),
     do: Jason.encode!(AutolaunchWeb.EarnAnswer.body(:invalid_request))
