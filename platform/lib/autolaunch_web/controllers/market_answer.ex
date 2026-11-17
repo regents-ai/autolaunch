@@ -3,11 +3,13 @@ defmodule AutolaunchWeb.MarketAnswer do
   The public market reads: the auction and token lists, one auction, one
   token, a treasury report and a bid estimate. Each answer is the whole JSON
   document its route sends (`AutolaunchWeb.AuctionController`,
-  `AutolaunchWeb.TokenController`, `AutolaunchWeb.TreasuryController`), whose
-  `data` its hosted MCP tool gives (`AutolaunchWeb.ApiError.data/1`), or the
-  refusal both give (`AutolaunchWeb.Refusal`). Each takes the route's
-  parameters as the route receives them: by name, as text (`params/1` turns a
-  hosted tool's input into them).
+  `AutolaunchWeb.TokenController`, `AutolaunchWeb.TreasuryController`), or the
+  refusal the route and its hosted MCP tool both give (`AutolaunchWeb.Refusal`).
+  A list's hosted tool gives that document whole: a page, with its cursor and
+  its Robinhood flag. Every other read's gives its `data`
+  (`AutolaunchWeb.ApiError.data/1`). Each takes the route's parameters as the
+  route receives them: by name, as text (`params/1` turns a hosted tool's input
+  into them).
   """
 
   alias Autolaunch.Accounts.RequestRateLimiter

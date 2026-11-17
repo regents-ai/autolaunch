@@ -1,5 +1,5 @@
 {
-  "total": 369,
+  "total": 371,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -4636,169 +4636,195 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 93,
+      "line": 99,
       "test_name": "the Agent access table has one row per action offered, each cell what its way in serves",
       "keep_because": "The guides' Agent access table has one row per action offered and each cell is what that way in really serves, for every switch and with Claude's connector on or off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 477,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 142,
+      "line": 148,
       "test_name": "switching a feature off takes its actions out of every guide's table",
       "keep_because": "Switching a feature off takes its actions out of every guide's Agent access table.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 478,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 199,
+      "line": 205,
       "test_name": "one read through each way in gets the same answer",
       "keep_because": "One read through the page's route, regents-cli's request and the hosted tool gets the same answer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 479,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 223,
+      "line": 225,
       "test_name": "the market reads answer as their routes do, refusals included",
       "keep_because": "Each hosted market read answers as its route does, refusals included, in the same code and words.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 480,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 331,
+      "line": 381,
       "test_name": "a paired agent's drafts read and save as their routes do, refusals included",
       "keep_because": "A paired agent's drafts read and save through the hosted tools as through their routes, refusals included.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 481,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 367,
+      "line": 417,
       "test_name": "in prelaunch read-only mode a draft save is refused as its route refuses it",
       "keep_because": "In prelaunch read-only mode a hosted draft save is refused with the route's code and words.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 482,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 381,
+      "line": 431,
       "test_name": "a paired agent's positions and Points answer as their routes do, refusals included",
       "keep_because": "A paired agent's bids and holdings and its Points answer through the hosted tools as through their routes, refusals included.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 483,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 503,
+      "line": 551,
       "test_name": "with Exposure on its three reads answer as their routes do; off, none is listed or run",
       "keep_because": "Exposure's hosted reads answer as their routes do while it is on, and are neither listed nor run while it is off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 484,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 540,
+      "line": 588,
       "test_name": "the guides and the server's instructions name every hosted tool a paired agent is served, and no other",
       "keep_because": "The guides and the hosted server's instructions name every hosted tool a paired agent is served and no other.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 485,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 155,
+      "line": 161,
       "test_name": "before Autolaunch opens, an action whose route waits opens soon on every way in that offers it, and no other does",
       "keep_because": "Before Autolaunch opens, the Agent access table says Opens soon on every way in that offers an action whose route waits, and on no other; a listed hosted tool for one is refused as its route is.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 486,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 277,
+      "line": 279,
       "test_name": "a bid estimate answers any amount and highest price as its route answers the same body",
       "keep_because": "Property: for any JSON amount and highest price, the hosted bid estimate answers exactly as its route answers the same body, by the route's own code.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 487,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 302,
+      "line": 304,
       "test_name": "the auction list tool has its route's budget: six reads a minute, for each agent as for each address",
       "keep_because": "The hosted auction list spends the API's own six-a-minute budget for each agent, through the same limiter, and the seventh call gets the same 429.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     },
     {
       "id": 488,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 422,
+      "line": 470,
       "test_name": "every hosted tool listed as read-only writes nothing when it is called",
       "keep_because": "Every one of the 28 hosted tools is called, and each one listed as read-only writes no row; only the draft saves and a connected app's registration, pairing and check-in are listed as writing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8ed5529c7b70ba671c5a9369a4b0c685b1e8a3053c9ff7dff64869bf980adc55"
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
+    },
+    {
+      "id": 489,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_doors_test.exs",
+      "line": 333,
+      "test_name": "a paged list reads every page by the cursor each page gives, each page the route's own",
+      "keep_because": "The hosted auction and token lists give a cursor when there is more, and that cursor gives the rest with nothing repeated, the same page the route gives for it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
+    },
+    {
+      "id": 490,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_doors_test.exs",
+      "line": 358,
+      "test_name": "a paged list says whether Robinhood could be read, as its route does",
+      "keep_because": "The hosted auction and token lists say whether Robinhood could be read just now, as their routes do, false while it reads and true once its last read failed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "69c49fc3ecdb8e620404aec5fb04e9ecc73041dc71a4acfeabfa70aa6e323bbf"
     }
   ],
   "legacy_folders_to_remove": [

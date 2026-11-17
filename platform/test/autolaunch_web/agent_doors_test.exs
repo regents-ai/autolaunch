@@ -9,11 +9,13 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     while Autolaunch is not open, an action whose route waits says so;
   - one read through each way in gets the same answer;
   - each hosted tool that reads the market, a person's drafts, positions,
-    Points or Exposure, or saves a draft, gives its route's `data` (Points, which
-    has none, its whole answer), and its route's refusals, in the same code and
-    words; a bid estimate whatever its amount and highest price; the auction
-    list has the route's own budget, and a draft save before opening the
-    route's answer;
+    Points or Exposure, or saves a draft, gives its route's `data` (a paged
+    list its route's whole page, and Points, which has no `data`, its whole
+    answer), and its route's refusals, in the same code and words; a bid
+    estimate whatever its amount and highest price; a paged list reads every
+    page by the cursor each page gives, and says when Robinhood could not be
+    read, as its route does; the auction list has the route's own budget, and a
+    draft save before opening the route's answer;
   - every hosted tool in `priv/capabilities.json` is called, a connected app's
     own as that app, and each one it lists as read-only writes no row;
   - the guides and the server's own instructions name every hosted tool a
@@ -31,6 +33,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   alias Autolaunch.CoveredCalls.Terms
 
   alias Autolaunch.{
+    ChainHead,
     CoveredCallsChain,
     EarnChain,
     ExposureChain,
@@ -47,6 +50,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   @features ~w(covered_calls exposure earn)
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
+  @lists %{"autolaunch_auctions" => "/api/v1/auctions", "autolaunch_tokens" => "/api/v1/tokens"}
+  # The answers a hosted tool gives whole: a paged list's page, and Points', which has no `data`.
+  @whole ["account_points" | Map.keys(@lists)]
   @safe "0x9999999999999999999999999999999999999999"
   @site_key String.duplicate("k", 32)
   @signed %{
@@ -212,11 +218,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
       assert by_page.status == 200
       assert by_cli == by_page
-
-      # The hosted tool gives the answer's `data`; Points, which has none, the
-      # whole answer (`docs.md`, Hosted MCP).
-      hosted = if operation == "account_points", do: {:ok, by_page.body}, else: answer(by_page)
-      assert tool(agent, operation) == hosted
+      assert tool(agent, operation) == hosted(operation, by_page)
     end
   end
 
@@ -256,7 +258,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         ] do
       route = http(:get, path, nil)
       assert route.status == status, path
-      assert tool(agent, name, input) == answer(route), "#{name} #{inspect(input)}"
+      assert tool(agent, name, input) == hosted(name, route), "#{name} #{inspect(input)}"
     end
 
     for {id, amount, max_price, status} <- [
@@ -325,7 +327,55 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
     # Another agent, or the same agent's other tools, still answer.
     assert {:ok, _counts} = tool(agent, "autolaunch_auction_counts")
-    assert {:ok, _list} = tool(paired_agent(), "autolaunch_auctions")
+    assert {:ok, _page} = tool(paired_agent(), "autolaunch_auctions")
+  end
+
+  test "a paged list reads every page by the cursor each page gives, each page the route's own" do
+    agent = paired_agent()
+
+    for _launch <- 1..3 do
+      auction = TestSupport.project_auction(chain_id: 8453, state: :graduated)
+      TestSupport.project_token(auction_id: auction.id, graduated_at: DateTime.utc_now())
+    end
+
+    for {name, path} <- @lists do
+      assert {:ok, first} = tool(agent, name, %{limit: 2})
+      assert %{"has_more" => true, "next_cursor" => cursor} = first["pagination"]
+      assert {:ok, rest} = tool(agent, name, %{limit: 2, after: cursor})
+      assert %{"has_more" => false, "next_cursor" => nil} = rest["pagination"]
+
+      pages = [first["data"], rest["data"]]
+      ids = Enum.flat_map(pages, &Enum.map(&1, fn entry -> entry["id"] end))
+      assert Enum.map(pages, &length/1) == [2, 1] and Enum.uniq(ids) == ids, name
+
+      # The route reads that page itself rather than the hosted call's kept list.
+      Cachex.clear(MarketAnswer.cache())
+      route = http(:get, path <> "?" <> URI.encode_query(limit: 2, after: cursor), nil)
+      assert hosted(name, route) == {:ok, rest}, name
+    end
+  end
+
+  test "a paged list says whether Robinhood could be read, as its route does" do
+    agent = paired_agent()
+    TestSupport.project_auction(chain_id: 8453, state: :graduated)
+    key = ChainHead.key("robinhood")
+    on_exit(fn -> SharedReading.delete(key) end)
+
+    # Robinhood's head read, then its next read failed, as `ChainHead` keeps them.
+    for {read, unreadable?} <- [
+          {&SharedReading.put(&1, 1_000), false},
+          {&SharedReading.degraded/1, true}
+        ] do
+      :ok = read.(key)
+
+      for {name, path} <- @lists do
+        Cachex.clear(MarketAnswer.cache())
+        route = http(:get, path, nil)
+        assert route.body["robinhood_unavailable"] == unreadable?, path
+        Cachex.clear(MarketAnswer.cache())
+        assert tool(agent, name) == hosted(name, route), name
+      end
+    end
   end
 
   test "a paired agent's drafts read and save as their routes do, refusals included" do
@@ -395,9 +445,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         ] do
       route = http(:get, path, nil, agent)
       assert route.status == 200, "#{path} answered #{route.status}"
-      # Points' answer has no `data`: its tool gives it whole.
-      hosted = if name == "account_points", do: {:ok, route.body}, else: answer(route)
-      assert tool(agent, name) == hosted
+      assert tool(agent, name) == hosted(name, route)
     end
 
     # A Base chain that cannot be read, and a Points board not read yet.
@@ -727,7 +775,11 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp tool_names(caller), do: Enum.map(listed(caller), & &1["name"])
 
-  # A route's answer as its hosted tool gives it: its `data`, or its refusal.
+  # A route's answer as `name`'s hosted tool gives it (`docs.md`, Hosted MCP).
+  defp hosted(name, %{status: 200, body: body}) when name in @whole, do: {:ok, body}
+  defp hosted(_name, route), do: answer(route)
+
+  # A route's answer as a hosted tool gives it: its `data`, or its refusal.
   defp answer(%{status: 200, body: %{"data" => data}}), do: {:ok, data}
 
   defp answer(%{status: status, body: %{"error" => _} = body}) when status != 200,

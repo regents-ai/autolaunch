@@ -24,7 +24,8 @@ defmodule AutolaunchWeb.ApiError do
   @doc """
   An answer as its hosted MCP tool gives it: the document's `data`, or the
   refusal it carries, which the tool gives as its error in this same shape
-  (`AutolaunchWeb.ToolErrors`).
+  (`AutolaunchWeb.ToolErrors`). A paged list's tool and Points' give their
+  document whole instead.
   """
   def data({:ok, %{data: data}}), do: {:ok, data}
   def data({:error, %Refusal{}} = refused), do: refused
