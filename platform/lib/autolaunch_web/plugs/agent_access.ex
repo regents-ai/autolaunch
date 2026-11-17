@@ -72,7 +72,7 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
   def verify(conn), do: authenticate(conn)
 
   @doc false
-  def account(conn), do: conn.assigns.actor.privy_user_id
+  def account(%{assigns: %{actor: %Agent{privy_user_id: id}}}) when is_binary(id), do: id
 
   defp spend(%{halted: true} = conn), do: conn
   defp spend(conn), do: RateLimit.call(conn, @budget)

@@ -30,7 +30,8 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     paired agent is served and no other.
 
   A connected app's own tools are otherwise in AutolaunchWeb.ClaudeConnectorTest.
-  The sign-in service is stubbed: it vouches for the wallet a request names.
+  The sign-in service is stubbed: it vouches for the wallet a request names,
+  unless the request carries a forged proof.
   """
   use AutolaunchWeb.ConnCase, async: false
   use ExUnitProperties
@@ -83,22 +84,36 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   setup do
     Req.Test.stub(RegentAgents.Broker, fn broker ->
       {:ok, body, broker} = Plug.Conn.read_body(broker)
-      wallet = Jason.decode!(body)["headers"]["x-agent-wallet-address"]
+      headers = Jason.decode!(body)["headers"]
 
-      Req.Test.json(broker, %{
-        "code" => "http_envelope_valid",
-        "data" => %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => wallet,
-            "chain_id" => 8453,
-            "audience" => "autolaunch"
-          },
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
+      case headers["x-siwa-signature"] do
+        "forged-proof" ->
+          broker
+          |> Plug.Conn.put_status(401)
+          |> Req.Test.json(%{
+            "error" => %{
+              "code" => "http_signature_invalid",
+              "message" => "Signature invalid",
+              "hint" => "Sign again"
+            }
+          })
+
+        _proof ->
+          Req.Test.json(broker, %{
+            "code" => "http_envelope_valid",
+            "data" => %{
+              "verified" => true,
+              "principal" => %{
+                "kind" => "wallet",
+                "wallet_address" => headers["x-agent-wallet-address"],
+                "chain_id" => 8453,
+                "audience" => "autolaunch"
+              },
+              "agentRegistration" => nil,
+              "agentBook" => nil
+            }
+          })
+      end
     end)
 
     # Past the prelaunch gate, so a draft save and every listed tool are served.
@@ -363,6 +378,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     # The person's connected app is refused from that same budget, in the same words.
     app = mcp(connected_app(account.privy_user_id), rpc("ping"))
     assert app.status == 429 and json(app) == json(refused)
+
+    # The signed routes still answer the same agent, from their own budget.
+    assert signed(elem(agents, 0), "/api/agent/v1/drafts/revstake").status == 200
   end
 
   test "one person's signed agents spend one budget of 120 requests a minute on the signed routes, apart from the hosted server's" do
@@ -393,6 +411,30 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     # Another person's agent still goes on, and so do these agents on the hosted server.
     assert signed(other, path).status == 200
     assert mcp(elem(agents, 0), rpc("ping")).status == 200
+  end
+
+  test "a request refused for its signature or its pairing spends nothing of a person's budget" do
+    agent = paired_agent()
+    unpaired = wallet()
+    path = "/api/agent/v1/drafts/revstake"
+
+    # Requests that might straddle two minutes start in the next one.
+    {:ok, %{reset: left}} = RequestRateLimiter.admit({"minute", make_ref()}, 1, 60)
+    if left < 5, do: Process.sleep(left * 1000)
+
+    # Forged requests naming the paired agent's wallet, and an unpaired agent's
+    # own, each from an address of its own.
+    refused =
+      [{:forged, agent}, unpaired]
+      |> Stream.cycle()
+      |> Enum.take(121)
+      |> Enum.map(&signed(&1, path))
+
+    assert Enum.frequencies(Enum.map(refused, & &1.status)) == %{401 => 61, 403 => 60}
+
+    answer = signed(agent, path)
+    assert answer.status == 200
+    assert get_resp_header(answer, "ratelimit") |> hd() =~ ~s("agent";r=119)
   end
 
   test "a paged list reads every page by the cursor each page gives, each page the route's own" do
@@ -1026,6 +1068,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp called_by(conn, {:app, token}),
     do: put_req_header(conn, "authorization", "Bearer " <> token)
+
+  defp called_by(conn, {:forged, agent}),
+    do: conn |> called_by(agent) |> put_req_header("x-siwa-signature", "forged-proof")
 
   defp called_by(conn, agent) do
     conn
