@@ -39,7 +39,7 @@
 set -eu
 
 SIWA_SERVER_REV=567b7c4b376b87c237a1bbe1a3108d60b04bb4fd
-REGENTS_CLI_REV=2e8b98c7a4dd24a8751c4dfe9979ae7902f7bd06
+REGENTS_CLI_REV=a972d344a1e8355e84d3a3632328871ebc0501bc
 
 # Physical paths, as the system reports a running server's folder.
 root=$(cd "$(dirname "$0")/.." && pwd -P)
