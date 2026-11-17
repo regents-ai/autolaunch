@@ -59,6 +59,9 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Ask the person to sign in at #{PublicDocuments.url("/")} in this browser, then call again."
 
+  defp hint("prelaunch_read_only"),
+    do: "Reading and pairing work now. Send the request again once Autolaunch opens."
+
   defp hint("chain_unavailable"), do: "Try again in a moment."
   defp hint("account_unavailable"), do: "Try again in a moment."
 

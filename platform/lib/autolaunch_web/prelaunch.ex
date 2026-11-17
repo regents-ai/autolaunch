@@ -43,9 +43,10 @@ defmodule AutolaunchWeb.Prelaunch do
   end
 
   @doc """
-  What a launch draft save says in read-only mode: on its signed route this
-  plug refuses it, and its hosted MCP tool, which this plug does not reach,
-  answers the same (`Autolaunch.AgentAccount`).
+  What a request this plug refuses in read-only mode is answered with, in JSON
+  with its hint (`AutolaunchWeb.ApiError.body/2`). A launch draft save's hosted
+  MCP tool, which this plug does not reach, answers the same
+  (`Autolaunch.AgentAccount`).
   """
   def refusal,
     do: AutolaunchWeb.Refusal.new(:service_unavailable, "prelaunch_read_only", @opens_soon)
@@ -102,13 +103,8 @@ defmodule AutolaunchWeb.Prelaunch do
 
     {type, body} =
       if json? do
-        {"application/json",
-         Jason.encode!(%{
-           error: %{
-             code: "prelaunch_read_only",
-             message: @opens_soon
-           }
-         })}
+        %AutolaunchWeb.Refusal{code: code, message: message} = refusal()
+        {"application/json", Jason.encode!(AutolaunchWeb.ApiError.body(code, message))}
       else
         {"text/html",
          AutolaunchWeb.ErrorHTML.render("#{status}.html", %{conn: conn})
