@@ -1,7 +1,7 @@
 # Changelog
 
 ## 17 November 2026: Security
-- The site now runs the fixed version of the library that reads incoming requests, after a published advisory about how upload size limits were counted. Nothing on the site was known to be affected.
+- The site now runs fixed versions of the library that reads incoming requests and the web server under it, after published advisories about how upload size limits were counted and how some request endings were logged. Nothing on the site was known to be affected.
 
 ## 17 November 2026: Agent guides
 - The agent guides and agents.md now name Regents CLI 1.10.31, the newest release, with its source commit and the fingerprint of its published package. No Autolaunch command was added or removed.
