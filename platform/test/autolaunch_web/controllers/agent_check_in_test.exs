@@ -19,23 +19,118 @@ defmodule AutolaunchWeb.AgentCheckInTest do
 
   # The sign-in service verifies each signed request as this agent's key.
   defp siwa_verifies do
-    Req.Test.stub(RegentAgents.Broker, fn conn ->
-      Req.Test.json(conn, %{
-        "code" => "http_envelope_valid",
-        "data" => %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => @wallet,
-            "chain_id" => 8453,
-            "audience" => "autolaunch"
-          },
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
+    Req.Test.stub(RegentAgents.Broker, &Req.Test.json(&1, verified(@wallet)))
+  end
+
+  # The sign-in service's answer for a request it verified as `wallet`'s.
+  defp verified(wallet) do
+    %{
+      "code" => "http_envelope_valid",
+      "data" => %{
+        "verified" => true,
+        "principal" => %{
+          "kind" => "wallet",
+          "wallet_address" => wallet,
+          "chain_id" => 8453,
+          "audience" => "autolaunch"
+        },
+        "agentRegistration" => nil,
+        "agentBook" => nil
+      }
+    }
+  end
+
+  @siwa [
+    secret: "agent-check-in-test-only",
+    audience: "autolaunch",
+    wallet_audiences: ["autolaunch"],
+    authorities: ["www.example.com"]
+  ]
+
+  # The sign-in service checks what this site sent it as it does on
+  # siwa.regents.sh (`Siwa.RequestAuth`), and answers a refusal as it does.
+  defp siwa_checks_signatures do
+    Req.Test.stub(RegentAgents.Broker, fn broker ->
+      {:ok, body, broker} = Plug.Conn.read_body(broker)
+      sent = Jason.decode!(body)
+      opts = Keyword.put(@siwa, :replay_store, fn _key, _expires -> :ok end)
+
+      case Siwa.RequestAuth.verify_authenticated_request(sent, opts) do
+        {:ok, _verified} ->
+          Req.Test.json(broker, verified(sent["headers"]["x-agent-wallet-address"]))
+
+        {:error, reason} ->
+          {status, code, message} = Siwa.Contract.refusal(reason)
+          error = %{"code" => code, "message" => message, "hint" => "Sign the request again."}
+          broker |> Plug.Conn.put_status(status) |> Req.Test.json(%{"error" => error})
+      end
     end)
   end
+
+  # An agent's own key, and the receipt the sign-in service gave it.
+  defp signing_agent do
+    {:ok, signer} = Siwa.LocalSigner.new()
+
+    {:ok, receipt} =
+      Siwa.Receipt.create(
+        %{
+          "typ" => "siwa_wallet_receipt",
+          "verified" => "wallet_signature",
+          "jti" => "check-in-#{System.unique_integer([:positive])}",
+          "sub" => signer.address,
+          "aud" => "autolaunch",
+          "chain_id" => 8453,
+          "nonce" => "check-in",
+          "key_id" => signer.address
+        },
+        @siwa
+      )
+
+    %{signer: signer, receipt: receipt.token}
+  end
+
+  # The agent's signed headers for `method path` with `body`, nil for none.
+  defp sign(agent, method, path, body) do
+    request = %{
+      method: method,
+      path: path,
+      authority: "www.example.com",
+      body: body,
+      headers: %{}
+    }
+
+    {:ok, signed} =
+      Siwa.RequestAuth.sign_authenticated_request(request, agent.receipt, agent.signer, @siwa)
+
+    signed.headers
+  end
+
+  # The library signs an empty body as none; an agent's own signer may instead
+  # sign the empty body's digest, as a request sent with `--body ''` does.
+  defp sign_empty_digest(agent, path) do
+    headers =
+      agent
+      |> sign("GET", path, "{}")
+      |> Map.put("content-digest", Siwa.RequestAuth.content_digest_for_body(""))
+
+    {:ok, message} =
+      Siwa.RequestAuth.signing_message(%{
+        method: "GET",
+        path: path,
+        authority: "www.example.com",
+        headers: headers
+      })
+
+    {:ok, "0x" <> signature} = Siwa.LocalSigner.sign_message(agent.signer, message)
+    signature = signature |> Base.decode16!(case: :mixed) |> Base.encode64()
+    Map.put(headers, "x-siwa-signature", "sig1=:#{signature}:")
+  end
+
+  defp with_headers(headers),
+    do:
+      Enum.reduce(headers, build_conn(), fn {name, value}, conn ->
+        put_req_header(conn, name, value)
+      end)
 
   # Each request stands for one the agent signed; the stub above verifies it.
   defp post_json(conn, path, body),
@@ -111,6 +206,36 @@ defmodule AutolaunchWeb.AgentCheckInTest do
 
     assert %{"error" => %{"code" => "account_unavailable"}} =
              conn |> get("/api/agent/v1/positions") |> json_response(503)
+  end
+
+  test "SIGNED_EMPTY_BODY_IS_NO_BODY: a signed GET with the empty body's digest or none answers alike; a digest for a body that never arrives is refused" do
+    siwa_checks_signatures()
+    agent = signing_agent()
+    account = TestSupport.register_creator!()
+
+    {:ok, code} =
+      RegentAgents.issue_pairing_code(actor: %Person{privy_user_id: account.privy_user_id})
+
+    body = Jason.encode!(%{"code" => code.code, "name" => "Sol", "harness" => "codex"})
+
+    assert %{"data" => %{"name" => "Sol"}} =
+             agent
+             |> sign("POST", "/api/agents/v1/pair", body)
+             |> with_headers()
+             |> post_json("/api/agents/v1/pair", body)
+             |> json_response(201)
+
+    for path <- ["/api/agents/v1/whoami", "/api/agent/v1/drafts/revstake"] do
+      no_digest = agent |> sign("GET", path, nil) |> with_headers() |> get(path)
+      empty_digest = agent |> sign_empty_digest(path) |> with_headers() |> get(path)
+      assert json_response(no_digest, 200) == json_response(empty_digest, 200), path
+
+      missing_body = agent |> sign("GET", path, ~s({"name":"Sol"})) |> with_headers() |> get(path)
+
+      assert %{"error" => %{"code" => "http_body_binding_invalid"}} =
+               json_response(missing_body, 401),
+             path
+    end
   end
 
   test "AGENT_SIWA_DOWN_IS_503: while the sign-in service can't be reached a paired call says so",
