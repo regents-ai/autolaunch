@@ -30,8 +30,9 @@ check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
 	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml
 # Fails unless the site is on the newest SIWA on both sides: the newest regents-cli
-# (the pin above, the documents and the journeys) and the newest change to the SIWA
-# library in the elixir-utils commit platform/mix.exs pins. Needs `gh auth login`.
+# (the pin above, the documents and the journeys) and, at the elixir-utils commit
+# platform/mix.exs pins, the same SIWA library folder as on elixir-utils main (the
+# folder is compared, not the history). Needs `gh auth login`.
 check-siwa-latest:
 	scripts/check-siwa-latest.sh $(REGENTS_CLI_REV)
 # Starts the local server on a free port, checks what the agent-readiness scorer
