@@ -2,7 +2,8 @@ defmodule AutolaunchWeb.ApiError do
   @moduledoc """
   The one error document the public API answers with, from a controller or
   from an address no controller serves: a stable `code`, the words, and a
-  `hint` saying what to do next.
+  `hint` saying what to do next. A route sends an answer whole (`answer/2`);
+  its hosted MCP tool gives the answer's `data` (`data/1`).
   """
 
   import Plug.Conn, only: [put_status: 2]
@@ -19,6 +20,14 @@ defmodule AutolaunchWeb.ApiError do
 
   def answer(conn, {:error, %Refusal{status: status, code: code, message: message}}),
     do: send(conn, status, code, message)
+
+  @doc """
+  An answer as its hosted MCP tool gives it: the document's `data`, or the
+  refusal it carries, which the tool gives as its error in this same shape
+  (`AutolaunchWeb.ToolErrors`).
+  """
+  def data({:ok, %{data: data}}), do: {:ok, data}
+  def data({:error, %Refusal{}} = refused), do: refused
 
   @doc "The error document for `code`, with its hint."
   def body(code, message), do: %{error: %{code: code, message: message, hint: hint(code)}}

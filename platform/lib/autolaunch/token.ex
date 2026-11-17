@@ -267,9 +267,9 @@ defmodule Autolaunch.Token do
     end
 
     # The token list and one token as the hosted MCP tools read them: each gives
-    # the document its public route answers, from the route's parameters as text
-    # (`AutolaunchWeb.MarketAnswer`).
-    action :tokens_answer, :map do
+    # the `data` of the document its public route answers, from the route's
+    # parameters as text (`AutolaunchWeb.MarketAnswer`).
+    action :tokens_answer, {:array, :map} do
       argument :after, :string, constraints: [allow_empty?: true, trim?: false]
       argument :q, :string, constraints: [allow_empty?: true, trim?: false]
       argument :chain, :atom, constraints: [one_of: [:all, :base, :robinhood]]
@@ -283,6 +283,7 @@ defmodule Autolaunch.Token do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.tokens()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 
@@ -293,6 +294,7 @@ defmodule Autolaunch.Token do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.token()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
   end

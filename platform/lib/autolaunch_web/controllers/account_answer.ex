@@ -3,10 +3,11 @@ defmodule AutolaunchWeb.AccountAnswer do
   A paired agent's private reads and its launch draft saves, for the person it
   acts for: the draft of each kind and its save, the person's bids and
   holdings, and their Points. Each answer is the whole JSON document its
-  signed route sends (`AutolaunchWeb.AgentAccountController`) and its hosted
-  MCP tool gives as its result, or the refusal both give
-  (`AutolaunchWeb.Refusal`). The bids and holdings are also what a person
-  signed in on this site reads (`AutolaunchWeb.MyPositionsController`).
+  signed route sends (`AutolaunchWeb.AgentAccountController`), whose `data` its
+  hosted MCP tool gives, Points' whole (`Autolaunch.AgentAccount`), or the
+  refusal both give (`AutolaunchWeb.Refusal`). The bids and holdings are also
+  what a person signed in on this site reads
+  (`AutolaunchWeb.MyPositionsController`).
   Nothing here holds a wallet, signs or launches: the person reviews a draft
   and signs its launch on the create page.
   """

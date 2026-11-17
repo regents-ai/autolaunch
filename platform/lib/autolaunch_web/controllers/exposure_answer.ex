@@ -77,7 +77,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
 
   @doc """
   The whole document a route answers `result` with, its figures shaped by
-  `shape`, or the refusal it carries; a hosted MCP tool gives the same
+  `shape`, or the refusal it carries; a hosted MCP tool gives its `data`
   (`Autolaunch.Exposure.Series`' answer actions).
   """
   def answer({:ok, result}, shape), do: {:ok, %{data: present(shape, result)}}

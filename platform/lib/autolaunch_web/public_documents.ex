@@ -788,7 +788,9 @@ defmodule AutolaunchWeb.PublicDocuments do
       """
       | Action | #{Enum.map_join(doors, " | ", &elem(&1, 0))} |
       | --- |#{String.duplicate(" --- |", length(doors))}
-      #{rows}\
+      #{rows}
+
+      The API and regents-cli answer with the route's JSON document, and the Browser tool gives that document with its status, as `{"ok", "status", "body"}`. The Hosted MCP tool gives the document's `data`, or Points' whole document, which has no `data`. A refusal is the same `{"error": {"code", "message", "hint"}}` on every way in.\
       """
   end
 

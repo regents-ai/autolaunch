@@ -10,10 +10,10 @@ defmodule Autolaunch.Exposure.Series do
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
   The hosted MCP tools run the three reads as `:list_answer`, `:series_answer`
-  and `:holdings_answer`: the same operation, answered with the document its
-  route sends (`AutolaunchWeb.ExposureAnswer.answer/2`), only while the site
-  offers Exposure and never for a connected app calling as itself. No hosted
-  tool prepares a step.
+  and `:holdings_answer`: the same operation, answered with the `data` of the
+  document its route sends (`AutolaunchWeb.ExposureAnswer.answer/2`), only
+  while the site offers Exposure and never for a connected app calling as
+  itself. No hosted tool prepares a step.
 
   Nothing is stored: the contracts are the record. The acting account comes
   from the actor the caller authenticated; a wallet named in the request is
@@ -71,11 +71,12 @@ defmodule Autolaunch.Exposure.Series do
       end
     end
 
-    action :list_answer, :map do
+    action :list_answer, {:array, :map} do
       run fn _input, %{actor: actor} ->
         [actor: actor]
         |> Autolaunch.Exposure.exposure_series_list()
         |> AutolaunchWeb.ExposureAnswer.answer(:list)
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 
@@ -88,6 +89,7 @@ defmodule Autolaunch.Exposure.Series do
         input.arguments.series
         |> Autolaunch.Exposure.exposure_series(actor: actor)
         |> AutolaunchWeb.ExposureAnswer.answer(:series)
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 
@@ -100,6 +102,7 @@ defmodule Autolaunch.Exposure.Series do
         input.arguments.series
         |> Autolaunch.Exposure.exposure_holdings(actor: actor)
         |> AutolaunchWeb.ExposureAnswer.answer(:holdings)
+        |> AutolaunchWeb.ApiError.data()
       end
     end
   end

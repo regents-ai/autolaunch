@@ -396,9 +396,9 @@ defmodule Autolaunch.Auction do
     end
 
     # The auction list, one auction and a bid's estimate as the hosted MCP tools
-    # read them: each gives the document its public route answers, from the
-    # route's parameters as text (`AutolaunchWeb.MarketAnswer`).
-    action :auctions_answer, :map do
+    # read them: each gives the `data` of the document its public route answers,
+    # from the route's parameters as text (`AutolaunchWeb.MarketAnswer`).
+    action :auctions_answer, {:array, :map} do
       argument :after, :string, constraints: [allow_empty?: true, trim?: false]
       argument :q, :string, constraints: [allow_empty?: true, trim?: false]
       argument :chain, :atom, constraints: [one_of: [:all, :base, :robinhood]]
@@ -417,6 +417,7 @@ defmodule Autolaunch.Auction do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.auctions()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 
@@ -427,6 +428,7 @@ defmodule Autolaunch.Auction do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.auction()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 
@@ -445,6 +447,7 @@ defmodule Autolaunch.Auction do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.bid_quote()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
 

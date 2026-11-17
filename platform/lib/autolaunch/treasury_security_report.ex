@@ -72,7 +72,8 @@ defmodule Autolaunch.TreasurySecurityReport do
     end
 
     # The current report for a treasury address as the hosted MCP tool reads
-    # it: the document its public route answers (`AutolaunchWeb.MarketAnswer`).
+    # it: the `data` of the document its public route answers
+    # (`AutolaunchWeb.MarketAnswer`).
     action :treasury_answer, :map do
       argument :address, :string, allow_nil?: false, constraints: [trim?: false]
 
@@ -80,6 +81,7 @@ defmodule Autolaunch.TreasurySecurityReport do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.treasury()
+        |> AutolaunchWeb.ApiError.data()
       end
     end
   end
