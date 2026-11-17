@@ -66,14 +66,16 @@ active wallet, alone or in a batch", "reports a declined request and a step the 
 have", and for batches "hands wallet_sendCalls exactly the reviewed calls, atomically, after the
 chain read". A wallet off the step's network is asked to switch through Privy's own switch on
 every press, for a Base or a Robinhood step, alone or in a batch, and once the switch resolves
-the same press sends, with no read of the chain after it to refuse the press; a declined switch
-is told apart from a failed one, sends nothing, and the next press asks again: "asks only when
+the same press sends, naming the step's chain, with no read of the chain after it to refuse the
+press; a declined switch is told apart from a failed one, sends nothing, and the next press asks again: "asks only when
 the wallet is off the step's network, for a Base or Robinhood step sent alone or together",
 "asks on every press off the step's network, and sends once the switch resolves", "sends
 nothing when the switch is declined or fails, and the next press asks again and sends"; a
 declined switch is counted and noted like any failed press:
 `autolaunch_web/onchain_steps_rebuild_test.exs` "a declined network switch is a failed press
-like the others: counted and noted". Privy is given every network the site's steps go to, Base
+like the others: counted and noted"; every reason a press may be reported with has words beside
+the buttons, whatever wallets the panel holds: "every reason a page may report has words, whatever
+wallets the panel holds". Privy is given every network the site's steps go to, Base
 first or none at all, and the page carries public doors only: `autolaunch_web/wallet_chains_test.exs`
 (every case); Privy's own Base, viem's Robinhood Chain and a lab chain on the lab's own door:
 `privy_chains.test.ts` (every case), which also gives Privy no network settings for a site
@@ -100,8 +102,8 @@ before the server that took over answers, still reaches the wallet with the revi
 and the rejoin asks that server for a fresh one: "sends the review the page holds while the
 connection is down, and before the server that took over answers", "asks the server that took
 over for a fresh review as the page rejoins, and sends the one it pushes". A step that did not go through has its panel's review built again from the chain:
-`autolaunch_web/onchain_steps_rebuild_test.exs` (every case). Every amount a review shows is the
-exact raw amount: `autolaunch/stocks/amounts_test.exs` › "a shown amount reads back as the exact
+`autolaunch_web/onchain_steps_rebuild_test.exs` (its first four cases). Every amount a review
+shows is the exact raw amount: `autolaunch/stocks/amounts_test.exs` › "a shown amount reads back as the exact
 raw amount", › "the largest uint256 amounts are shown digit for digit". What each action builds:
 
 | Action | Check |
@@ -140,6 +142,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 | --- | --- |
 | Buy a token with USDC and sell it back (exact approval to the Aerodrome router, then a swap through the token's pool taking at least its quote less 2%), once a pool has liquidity | `test/journeys/exposure.spec.ts` (pools opened on the copy of Base after the first close; Buy and Sell at 390 touch and 1280); `autolaunch/exposure/steps_test.exs` (buy and sell cases); `autolaunch_web/live/exposure_live_test.exs` › "with liquid pools the page leads with Buy, and picks which token to buy", "a signed-in wallet without USDC sees Buy disabled with the reason" |
 | Split (exact stock approval, then split), redeem pairs, redeem each token after the end, record and apply a price (from Series details) | `test/journeys/exposure.spec.ts` (every press on a copy of Base at 390 with touch and 1280); End series on the copy: **gap** |
+| A failed press is counted and said beside the buttons, and a reason no page sends leaves the panel as it was | `autolaunch_web/live/exposure_live_test.exs` › "a failed press is counted and noted, and a reason no page sends leaves the panel as it was" |
 | A Record panel still open when the series ends says it has ended | `autolaunch_web/live/exposure_live_test.exs` › "a series that ends while the Record panel is open says it has ended" |
 | After the end each token is shown as the stock it returns, on the page and in the portfolio | `autolaunch_web/live/exposure_live_test.exs` › "after the end each token is shown as the stock it returns" |
 | An amount typed with a comma is refused with how to write it | `autolaunch_web/live/exposure_live_test.exs` › "an amount typed with a comma is refused and says how to write it" |

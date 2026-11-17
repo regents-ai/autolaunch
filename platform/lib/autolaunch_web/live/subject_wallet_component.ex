@@ -18,7 +18,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   import AutolaunchWeb.Components.StepState
 
-  alias Autolaunch.{Limits, SubjectWalletActions}
+  alias Autolaunch.{Lab, Limits, SubjectWalletActions}
   alias AutolaunchWeb.Components.SwapForm
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
@@ -365,7 +365,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", params, socket),
-    do: {:noreply, OnchainSteps.failed(socket, params, :subject, nil)}
+    do:
+      {:noreply, OnchainSteps.failed(socket, params, :subject, Lab.network_name(Lab.chain_id()))}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

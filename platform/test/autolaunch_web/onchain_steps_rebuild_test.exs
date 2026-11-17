@@ -98,6 +98,20 @@ defmodule AutolaunchWeb.OnchainStepsRebuildTest do
     refute_received {:counted, :switch, _reason, _count}
   end
 
+  test "every reason a page may report has words, whatever wallets the panel holds" do
+    own = "0x" <> String.duplicate("33", 20)
+    unlinked = "0x" <> String.duplicate("44", 20)
+
+    for reason <-
+          ~w(step_unknown wallet_unavailable network_mismatch switch_declined wallet_declined insufficient_funds send_unconfirmed sign_unconfirmed) do
+      assert {:ok, "bid", ^reason} = Presses.failed(%{"step" => "bid", "reason" => reason})
+
+      for linked <- [nil, :unread, [own]], active <- [nil, own, unlinked] do
+        assert is_binary(OnchainSteps.failure_note(reason, linked, active, "Base"))
+      end
+    end
+  end
+
   defp review(steps, inputs \\ "now"),
     do:
       Review.new(

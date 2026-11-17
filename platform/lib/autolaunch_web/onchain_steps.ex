@@ -484,6 +484,9 @@ defmodule AutolaunchWeb.OnchainSteps do
   def failure_note("send_unconfirmed", _linked, _active, _chain_name),
     do: "Your wallet may have sent this. Check your wallet activity."
 
+  def failure_note("sign_unconfirmed", _linked, _active, _chain_name),
+    do: "Your wallet may have signed this. Check your wallet before pressing again."
+
   @doc """
   `failure_note/4` for a panel's assigns: the review on the page names the
   network, or `network` while there is none.

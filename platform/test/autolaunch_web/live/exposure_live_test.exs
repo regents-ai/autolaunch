@@ -210,6 +210,40 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, note, OnchainSteps.unsent_note())
   end
 
+  # Found in review: a reason the panel had no words for, or one no page sends,
+  # crashed the panel, and a failed press was never counted.
+  test "a failed press is counted and noted, and a reason no page sends leaves the panel as it was",
+       %{conn: conn} do
+    panel_id = "#exposure-mint-#{@series}"
+    test = self()
+    handler = {__MODULE__, make_ref()}
+
+    :telemetry.attach(
+      handler,
+      [:autolaunch, :wallet, :failure],
+      fn _event, _count, %{flow: flow, reason: reason}, _config ->
+        send(test, {:counted, flow, reason})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+    ExposureChain.install()
+    {view, panel} = signed_in_panel(conn, panel_id)
+
+    render_hook(panel, "step_failed", %{"step" => "mint", "reason" => "made_up"})
+    assert has_element?(view, "#{panel_id} [data-onchain-step=mint]")
+    refute_received {:counted, _flow, _reason}
+
+    for reason <- ~w(sign_unconfirmed wallet_declined) do
+      render_hook(panel, "step_failed", %{"step" => "mint", "reason" => reason})
+      note = OnchainSteps.failure_note(reason, nil, nil, "Base")
+      assert has_element?(view, "#{panel_id} [role=status]", note)
+    end
+
+    assert_received {:counted, :exposure, "wallet_declined"}
+  end
+
   test "the portfolio lists the tokens a wallet holds, their value and a way to Redeem", %{
     conn: conn
   } do

@@ -96,12 +96,8 @@ defmodule AutolaunchWeb.ExposureComponent do
       ),
       do: {:noreply, socket}
 
-  def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
-    %{linked: linked, active: active} = socket.assigns
-
-    {:noreply,
-     assign(socket, press_note: OnchainSteps.failure_note(reason, linked, active, "Base"))}
-  end
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :exposure, "Base")}
 
   def handle_event("check_again", %{"hash" => hash}, socket),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

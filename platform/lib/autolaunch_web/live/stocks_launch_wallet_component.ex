@@ -176,7 +176,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
   def handle_event("step_failed", params, socket),
-    do: {:noreply, OnchainSteps.failed(socket, params, :stocks_launch, nil)}
+    do:
+      {:noreply,
+       OnchainSteps.failed(socket, params, :stocks_launch, Lab.network_name(Lab.chain_id()))}
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}

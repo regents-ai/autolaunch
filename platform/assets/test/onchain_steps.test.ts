@@ -245,13 +245,20 @@ describe("a press off the step's network asks Privy's switch for it", () => {
 
   // A wallet app holding the signer on network `on`, which moves only through
   // Privy's switch (`switching` says what that switch does with each ask), as
-  // Privy's active wallet. It remembers each ask.
+  // Privy's active wallet. It remembers each ask, and in `seen` each ask and
+  // each send in the order it heard them, a send with the chain id it names.
   function walletOn(on: number, switching: (wanted: number) => number | Error = wanted => wanted) {
     let current = on
     const switches: number[] = []
+    const seen: Array<[string, number | string]> = []
+    const sent = (method: string, answer: unknown) => (params?: unknown[]) => {
+      seen.push([method, (params as [{chainId: string}])[0].chainId])
+      return answer
+    }
     const provider = wallet({
       eth_chainId: () => `0x${current.toString(16)}`,
-      wallet_sendCalls: () => ({id: "batch-1"}),
+      eth_sendTransaction: sent("eth_sendTransaction", firstHash),
+      wallet_sendCalls: sent("wallet_sendCalls", {id: "batch-1"}),
       wallet_getCallsStatus: () => ({version: "2.0.0", id: "batch-1", chainId: `0x${current.toString(16)}`, status: 200, atomic: true, receipts: []}),
     })
     replaceActiveEthereumWallet({
@@ -259,29 +266,35 @@ describe("a press off the step's network asks Privy's switch for it", () => {
       provider,
       switchChain: async wanted => {
         switches.push(wanted)
+        seen.push(["switch", wanted])
         const answer = switching(wanted)
         if (answer instanceof Error) throw answer
         current = answer
       },
     })
     const sends = () => methods(provider).filter(method => method === "eth_sendTransaction" || method === "wallet_sendCalls")
-    return {switches, sends}
+    return {switches, seen, sends}
   }
 
   const walletError = (code: number, message: string) => Object.assign(new Error(message), {code})
 
+  // The send comes after the switch and names the step's chain, so a wallet
+  // that sends only on the chain it is given sends on the step's.
   it("asks only when the wallet is off the step's network, for a Base or Robinhood step sent alone or together", async () => {
     for (const [sent, elsewhere] of [[review, robinhood], [onRobinhood, base]] as const) {
-      for (const send of [() => press(sent, "bid", vi.fn()), () => pressCalls(together(sent), vi.fn())]) {
+      const chainId = `0x${sent.chain.chain_id.toString(16)}`
+      const sends = [
+        ["eth_sendTransaction", () => press(sent, "bid", vi.fn())],
+        ["wallet_sendCalls", () => pressCalls(together(sent), vi.fn())],
+      ] as const
+      for (const [method, send] of sends) {
         const there = walletOn(sent.chain.chain_id)
         await send()
-        expect(there.switches).toEqual([])
-        expect(there.sends()).toHaveLength(1)
+        expect(there.seen).toEqual([[method, chainId]])
 
         const away = walletOn(elsewhere)
         await send()
-        expect(away.switches).toEqual([sent.chain.chain_id])
-        expect(away.sends()).toHaveLength(1)
+        expect(away.seen).toEqual([["switch", sent.chain.chain_id], [method, chainId]])
       }
     }
   })

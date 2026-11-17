@@ -1,5 +1,5 @@
 {
-  "total": 353,
+  "total": 356,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -157,7 +157,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 40,
@@ -170,7 +170,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 41,
@@ -183,33 +183,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 42,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 294,
+      "line": 307,
       "test_name": "asks on every press off the step's network, and sends once the switch resolves",
       "keep_because": "Founder's ruling, 17 Nov 2026: a wallet on another network is asked to switch through Privy's own switch on every press, and the same press sends once the switch resolves, alone or in a batch, with no read of the chain after it to refuse the press. It fails if a press is refused after the switch resolves.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 43,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 308,
+      "line": 321,
       "test_name": "sends nothing when the switch is declined or fails, and the next press asks again and sends",
       "keep_because": "A switch the person declines (4001, however the wallet wraps it) or that fails any other way sends nothing and is reported as switch_declined or network_mismatch, alone or in a batch; the next press asks the switch again and sends once it resolves.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 44,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 45,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 53,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 54,
@@ -1867,13 +1867,13 @@
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 340,
+      "line": 353,
       "test_name": "a press with no review yet asks the server for one when the card prepares on press",
       "keep_because": "The page half of the same defect: a press on a card with no review inputs and no review sent nothing. The cases check such a card asks the server first, and that every other card behaves as before. They fail without asksServer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 188,
@@ -2699,78 +2699,78 @@
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 422,
+      "line": 435,
       "test_name": "sends the review the page holds while the connection is down, and before the server that took over answers",
       "keep_because": "Audit finding A3 and its review (12 Nov 2026), rule 11: a press always reaches the wallet, and a duplicate or reverted transaction is an accepted outcome. While the connection is down, and after it is back until the new server's review arrives, a press sends the review the page holds. It fails if such a press sends nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 254,
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 438,
+      "line": 451,
       "test_name": "asks the server that took over for a fresh review as the page rejoins, and sends the one it pushes",
       "keep_because": "Audit finding A3 (12 Nov 2026): as the page rejoins, the server that took over hears the wallet Privy has active and pushes a fresh review, which a press then sends. It fails if the rejoin does not ask, or the fresh review is ignored.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
     },
     {
       "id": 255,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
-      "line": 18,
+      "line": 19,
       "test_name": "a step of the open review that reverted builds the review again",
       "keep_because": "Audit finding A5 (12 Nov 2026): a reverted step left its review on the page, so the next press sent the same failed transaction. The panel's review is built again from the chain. It fails if the old review stays.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+      "source_sha256": "4aa576bae8f4157bfc0ae504f9d3c9f45c772949b6effd7f6e8ca295a72f8621"
     },
     {
       "id": 256,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
-      "line": 28,
+      "line": 29,
       "test_name": "while another step of that review is on its way, the review waits for it",
       "keep_because": "A review is not built again while another step sent from it is still on its way, so that step's outcome is not lost, and the person is still told the reverted step did not go through. It fails if the review is replaced under a step in flight.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+      "source_sha256": "4aa576bae8f4157bfc0ae504f9d3c9f45c772949b6effd7f6e8ca295a72f8621"
     },
     {
       "id": 257,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
-      "line": 40,
+      "line": 41,
       "test_name": "a step from a review the page has left changes nothing",
       "keep_because": "A revert reported for a review the page has already replaced changes nothing on the panel. It fails if a stale revert throws away the current review.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+      "source_sha256": "4aa576bae8f4157bfc0ae504f9d3c9f45c772949b6effd7f6e8ca295a72f8621"
     },
     {
       "id": 258,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
-      "line": 48,
+      "line": 49,
       "test_name": "the words go beside a review built again, or before the reason nothing was built",
       "keep_because": "The panel says the step did not go through beside the new review, or before the chain's reason when the action is refused now. It fails if the person is not told, or the refusal reason is lost.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "898a108f96013e54f7fb49800096d056e1a54bddd895c14fa3d2b429a82797b8"
+      "source_sha256": "4aa576bae8f4157bfc0ae504f9d3c9f45c772949b6effd7f6e8ca295a72f8621"
     },
     {
       "id": 259,
@@ -4591,6 +4591,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "d31d056899c8457aef09e56ebf04d283d68810ebbfa76e1d2ebbe286f065da63"
+    },
+    {
+      "id": 473,
+      "group": "Browser wallet boundary",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 283,
+      "test_name": "asks only when the wallet is off the step's network, for a Base or Robinhood step sent alone or together",
+      "keep_because": "Founder's ruling, 17 Nov 2026: a wallet already on the step's network is never asked to switch; one on the other network is asked first, and the send that follows names the step's chain (chainId on eth_sendTransaction and on wallet_sendCalls), for a Base or a Robinhood step, alone or in a batch. It fails if the send goes before the switch or names another chain.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "0e8175a9e1050595b28a6e1d3cdbf1697eff1ca41dc90f68f754b300fb94dcde"
+    },
+    {
+      "id": 474,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/onchain_steps_rebuild_test.exs",
+      "line": 101,
+      "test_name": "every reason a page may report has words, whatever wallets the panel holds",
+      "keep_because": "Review finding (17 Nov 2026): a reason the press library accepts had no words, so reporting it crashed every panel. Every accepted reason has words for any wallets a panel holds. It fails if one has none.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4aa576bae8f4157bfc0ae504f9d3c9f45c772949b6effd7f6e8ca295a72f8621"
+    },
+    {
+      "id": 475,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/exposure_live_test.exs",
+      "line": 215,
+      "test_name": "a failed press is counted and noted, and a reason no page sends leaves the panel as it was",
+      "keep_because": "Review finding (17 Nov 2026): the Exposure panel crashed on a reason it had no words for and counted no failed press. It now counts and notes a failed press like every panel, and ignores a reason no page sends. It fails if the panel crashes or the press is not counted.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a3e3f2937becf023e6b66d4d4ca21d702dd33351b9b1d0c6c16ec15e2dee0744"
     }
   ],
   "legacy_folders_to_remove": [
