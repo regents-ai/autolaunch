@@ -43,6 +43,8 @@ defmodule AutolaunchWeb.ExposureAnswer do
 
   @chain_unavailable {:service_unavailable,
                       "Isolated Exposure to After-hours Stocks could not be read from the chain just now."}
+  @site_unavailable {:service_unavailable,
+                     "Isolated Exposure to After-hours Stocks is not available on this site right now."}
 
   @refusals %{
     unknown_series:
@@ -66,7 +68,12 @@ defmodule AutolaunchWeb.ExposureAnswer do
     # the chain could not be read just now.
     invalid_chain_response: @chain_unavailable,
     invalid_block_header: @chain_unavailable,
-    wrong_chain: @chain_unavailable
+    wrong_chain: @chain_unavailable,
+    # The site started with an Exposure description for another chain than its
+    # Base deployment's, or with a Base deployment id that is empty; the start
+    # refuses every other fault in either description.
+    base_deployment_mismatch: @site_unavailable,
+    missing_deployment_id: @site_unavailable
   }
 
   @doc "Answers with `result`'s figures shaped by `shape`, or with the refusal it carries."

@@ -791,7 +791,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       | --- |#{String.duplicate(" --- |", length(doors))}
       #{rows}
 
-      The API and regents-cli answer with the route's JSON document, and the Browser tool gives that document with its status, as `{"ok", "status", "body"}`. The Hosted MCP tool gives the document's `data`. A paged list gives its whole page instead: its entries, the cursor for the next page, and `robinhood_unavailable`, which says whether Robinhood could be read just now. Points gives its whole document, which has no `data`. A refusal is the same `{"error": {"code", "message", "hint"}}` on every way in.\
+      The API and regents-cli answer with the route's JSON document, and the Browser tool gives that document with its status, as `{"ok", "status", "body"}`. The Hosted MCP tool gives the document's `data`. A paged list gives its whole page instead: its entries, the cursor for the next page, and `robinhood_unavailable`, which says whether Robinhood could be read just now. One auction comes whole too, with that same flag. Points gives its whole document, which has no `data`. A refusal is the same `{"error": {"code", "message", "hint"}}` on every way in.\
       """
   end
 

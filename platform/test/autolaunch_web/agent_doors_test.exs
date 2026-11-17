@@ -10,12 +10,13 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   - one read through each way in gets the same answer;
   - each hosted tool that reads the market, a person's drafts, positions,
     Points or Exposure, or saves a draft, gives its route's `data` (a paged
-    list its route's whole page, and Points, which has no `data`, its whole
-    answer), and its route's refusals, in the same code and words; a bid
-    estimate whatever its amount and highest price; a paged list reads every
-    page by the cursor each page gives, and says when Robinhood could not be
-    read, as its route does; the auction list has the route's own budget, and a
-    draft save before opening the route's answer;
+    list and one auction their route's whole answer, and Points, which has no
+    `data`, its whole answer), and its route's refusals, in the same code and
+    words; a bid estimate whatever its amount and highest price; a paged list
+    reads every page by the cursor each page gives; the lists and one auction
+    say when Robinhood could not be read, as their routes do; the auction list
+    has the route's own budget, and a draft save before opening the route's
+    answer;
   - every hosted tool in `priv/capabilities.json` is called, a connected app's
     own as that app, and each one it lists as read-only writes no row;
   - the guides and the server's own instructions name every hosted tool a
@@ -51,8 +52,13 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
   @lists %{"autolaunch_auctions" => "/api/v1/auctions", "autolaunch_tokens" => "/api/v1/tokens"}
-  # The answers a hosted tool gives whole: a paged list's page, and Points', which has no `data`.
-  @whole ["account_points" | Map.keys(@lists)]
+  # The answers a hosted tool gives whole: a paged list's page and one auction's,
+  # each with Robinhood's flag, and Points', which has no `data`.
+  @whole ["account_points", "autolaunch_auction" | Map.keys(@lists)]
+  @robinhood 4_663
+  @exposure_contract "../../contracts/exposure.openapiv3.yaml"
+                     |> Path.expand(__DIR__)
+                     |> YamlElixir.read_from_file!()
   @safe "0x9999999999999999999999999999999999999999"
   @site_key String.duplicate("k", 32)
   @signed %{
@@ -355,9 +361,14 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     end
   end
 
-  test "a paged list says whether Robinhood could be read, as its route does" do
+  test "the lists and one auction say whether Robinhood could be read, as their routes do" do
     agent = paired_agent()
+    keep_env(:autolaunch, :autolaunch_robinhood_chain_id)
+    Application.put_env(:autolaunch, :autolaunch_robinhood_chain_id, @robinhood)
     TestSupport.project_auction(chain_id: 8453, state: :graduated)
+    %{id: id} = TestSupport.project_auction(chain_id: @robinhood, kind: :stocks, state: :active)
+    reads = Enum.map(@lists, fn {name, path} -> {name, nil, path} end)
+    reads = [{"autolaunch_auction", %{id: id}, "/api/v1/auctions/#{id}"} | reads]
     key = ChainHead.key("robinhood")
     on_exit(fn -> SharedReading.delete(key) end)
 
@@ -368,12 +379,12 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         ] do
       :ok = read.(key)
 
-      for {name, path} <- @lists do
+      for {name, input, path} <- reads do
         Cachex.clear(MarketAnswer.cache())
         route = http(:get, path, nil)
         assert route.body["robinhood_unavailable"] == unreadable?, path
         Cachex.clear(MarketAnswer.cache())
-        assert tool(agent, name) == hosted(name, route), name
+        assert tool(agent, name, input) == hosted(name, route), name
       end
     end
   end
@@ -585,6 +596,40 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     end
   end
 
+  test "Exposure on a deployment it cannot run on is refused in words, on the route and the tool alike" do
+    ExposureChain.install()
+    agent = paired_agent()
+    keep_env(:autolaunch, :autolaunch_base_deployment_id)
+    id = Application.fetch_env!(:autolaunch, :autolaunch_base_deployment_id)
+    path = "/api/v1/after-hour-stocks"
+
+    # Exposure's description, on another chain than the Base deployment's.
+    other_chain =
+      Path.join(System.tmp_dir!(), "exposure-#{System.unique_integer([:positive])}.json")
+
+    on_exit(fn -> File.rm(other_chain) end)
+
+    :autolaunch
+    |> Application.fetch_env!(:autolaunch_base_exposure_deployment)
+    |> File.read!()
+    |> Jason.decode!()
+    |> Map.put("chain_id", 31_337)
+    |> Jason.encode!()
+    |> then(&File.write!(other_chain, &1))
+
+    for {started, code} <- [
+          {[autolaunch_base_deployment_id: ""], "missing_deployment_id"},
+          {[autolaunch_base_deployment_id: id, autolaunch_base_exposure_deployment: other_chain],
+           "base_deployment_mismatch"}
+        ] do
+      Application.put_all_env(autolaunch: started)
+      route = http(:get, path, nil)
+      assert route.status == 503 and route.body["error"]["code"] == code
+      assert code in refusals(@exposure_contract, path), code
+      assert tool(agent, "autolaunch_after_hour_stocks_list") == {:error, route.body}
+    end
+  end
+
   test "the guides and the server's instructions name every hosted tool a paired agent is served, and no other" do
     agent = paired_agent()
     every = Enum.map(Capabilities.hosted_tools(), &Atom.to_string/1)
@@ -784,6 +829,14 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp answer(%{status: status, body: %{"error" => _} = body}) when status != 200,
     do: {:error, body}
+
+  # The refusal codes `contract` documents for `GET path` answering 503.
+  defp refusals(contract, path) do
+    response = ["paths", path, "get", "responses", "503", "content", "application/json"]
+    %{"$ref" => "#/components/schemas/" <> error} = get_in(contract, response ++ ["schema"])
+    code = ["components", "schemas", error, "properties", "error", "properties", "code"]
+    get_in(contract, code ++ ["enum"])
+  end
 
   # An answer without the clock time each read of a series is stamped with.
   defp unclocked(%{} = map),

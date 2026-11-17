@@ -22,6 +22,9 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
   @unit CoveredCallsChain.unit()
   @expiry hd(Terms.expiries(CoveredCallsChain.now()))
   @tools ~w(covered_call_book covered_call_quote covered_call_positions prepare_covered_call)
+  @contract "../../contracts/covered-calls.openapiv3.yaml"
+            |> Path.expand(__DIR__)
+            |> YamlElixir.read_from_file!()
 
   setup do
     Req.Test.stub(RegentAgents.Broker, fn broker ->
@@ -101,13 +104,19 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
 
     on_exit(fn -> File.rm(other_chain) end)
 
-    # A Base deployment id that is empty.
-    Application.put_env(:autolaunch, :autolaunch_base_deployment_id, "")
-    assert_book_refused(from, agent, "missing_deployment_id")
-
-    Application.put_env(:autolaunch, :autolaunch_base_deployment_id, id)
-    Application.put_env(:autolaunch, :autolaunch_base_covered_calls_deployment, other_chain)
-    assert_book_refused(from, agent, "base_deployment_mismatch")
+    for {started, code} <- [
+          {[autolaunch_base_deployment_id: ""], "missing_deployment_id"},
+          {[
+             autolaunch_base_deployment_id: id,
+             autolaunch_base_covered_calls_deployment: other_chain
+           ], "base_deployment_mismatch"}
+        ] do
+      Application.put_all_env(autolaunch: started)
+      route = http(from, :get, "/api/v1/covered-calls/AMZNc", nil)
+      assert route.status == 503 and route.body["error"]["code"] == code
+      assert code in refusals("/api/v1/covered-calls/{symbol}"), code
+      assert tool(from, agent, "covered_call_book", %{symbol: "AMZNc"}) == {:error, route.body}
+    end
   end
 
   property "a suggested premium answers through the hosted tool as through the route, whatever the strike and expiry",
@@ -282,11 +291,12 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
     end
   end
 
-  # The book refused with `code` by its route, and by its tool in the same code and words.
-  defp assert_book_refused(from, agent, code) do
-    route = http(from, :get, "/api/v1/covered-calls/AMZNc", nil)
-    assert route.status == 503 and route.body["error"]["code"] == code
-    assert tool(from, agent, "covered_call_book", %{symbol: "AMZNc"}) == {:error, route.body}
+  # The refusal codes the covered-call contract documents for `GET path` answering 503.
+  defp refusals(path) do
+    response = ["paths", path, "get", "responses", "503", "content", "application/json"]
+    %{"$ref" => "#/components/schemas/" <> error} = get_in(@contract, response ++ ["schema"])
+    code = ["components", "schemas", error, "properties", "error", "properties", "code"]
+    get_in(@contract, code ++ ["enum"])
   end
 
   defp tool_names(from, agent),

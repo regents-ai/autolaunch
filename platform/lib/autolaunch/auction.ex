@@ -397,8 +397,9 @@ defmodule Autolaunch.Auction do
 
     # The auction list, one auction and a bid's estimate as the hosted MCP tools
     # read them, from the route's parameters as text (`AutolaunchWeb.MarketAnswer`):
-    # the list gives the page its public route answers, with its cursor and its
-    # Robinhood flag; one auction and an estimate give their document's `data`.
+    # the list and one auction give the document their public route answers,
+    # whole, with its Robinhood flag (and the list its cursor); an estimate
+    # gives its document's `data`.
     action :auctions_answer, :map do
       argument :after, :string, constraints: [allow_empty?: true, trim?: false]
       argument :q, :string, constraints: [allow_empty?: true, trim?: false]
@@ -428,7 +429,6 @@ defmodule Autolaunch.Auction do
         input.arguments
         |> AutolaunchWeb.MarketAnswer.params()
         |> AutolaunchWeb.MarketAnswer.auction()
-        |> AutolaunchWeb.ApiError.data()
       end
     end
 

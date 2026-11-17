@@ -5,8 +5,9 @@ defmodule AutolaunchWeb.MarketAnswer do
   document its route sends (`AutolaunchWeb.AuctionController`,
   `AutolaunchWeb.TokenController`, `AutolaunchWeb.TreasuryController`), or the
   refusal the route and its hosted MCP tool both give (`AutolaunchWeb.Refusal`).
-  A list's hosted tool gives that document whole: a page, with its cursor and
-  its Robinhood flag. Every other read's gives its `data`
+  The hosted tool of a read whose document also says whether Robinhood could be
+  read, a list or one auction, gives that document whole: its `data`, that flag
+  and, for a list, the page's cursor. Every other read's gives its `data`
   (`AutolaunchWeb.ApiError.data/1`). Each takes the route's parameters as the
   route receives them: by name, as text (`params/1` turns a hosted tool's input
   into them).
