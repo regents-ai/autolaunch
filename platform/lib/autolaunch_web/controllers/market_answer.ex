@@ -10,17 +10,36 @@ defmodule AutolaunchWeb.MarketAnswer do
   them).
   """
 
+  alias Autolaunch.Accounts.RequestRateLimiter
   alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.Components.BidPlaced
   alias AutolaunchWeb.{MarketPage, Paths, ReadFailure, Refusal, UsdValue}
+  alias RegentAgentAccess.RateLimit
   alias RegentChain.Address
 
   @cache :autolaunch_public_auctions
 
   @doc "The cache that keeps each public auction list for a few seconds (`Autolaunch.Application`)."
   def cache, do: @cache
+
+  @doc """
+  The auction list's own budget, beside the general one: 6 reads a minute for
+  each caller `key` names. The route counts a client address
+  (`AutolaunchWeb.Endpoint`), the hosted tool an agent
+  (`AutolaunchWeb.Plugs.McpAgent`). The list is kept for a few seconds, so
+  reading it more often returns the same list.
+  """
+  def list_limit(key),
+    do:
+      RateLimit.init(
+        policy: "auction-list",
+        limit: 6,
+        window: 60,
+        admit: &RequestRateLimiter.admit/3,
+        key: key
+      )
 
   @doc "A hosted tool's input as its route's parameters: each value given, as text, by its name."
   def params(arguments),

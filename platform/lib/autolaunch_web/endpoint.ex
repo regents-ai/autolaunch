@@ -99,16 +99,6 @@ defmodule AutolaunchWeb.Endpoint do
                 key: &AutolaunchWeb.ClientAddress.key/1
               )
 
-  # The auction list is answered from a five-second keep, so reading it more
-  # often than every five seconds returns the same list.
-  @list_rate_limit RegentAgentAccess.RateLimit.init(
-                     policy: "auction-list",
-                     limit: 6,
-                     window: 60,
-                     admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
-                     key: &AutolaunchWeb.ClientAddress.key/1
-                   )
-
   # Chrome's WebMCP origin trial, issued to https://autolaunch.sh and valid
   # until 29 Mar 2027. The token is public; Chrome ignores it on any other host.
   @webmcp_origin_trial "AhDW0wB3iujcltck0ZP4D5GCnsNun6Tt7ZAT1ea2/irda+5c5TmsovLb373X+GV4/lYDfRE5rRbc/20Dps1J6AAAAABNeyJvcmlnaW4iOiJodHRwczovL2F1dG9sYXVuY2guc2g6NDQzIiwiZmVhdHVyZSI6IldlYk1DUCIsImV4cGlyeSI6MTgwNjM2NDgwMH0="
@@ -142,10 +132,18 @@ defmodule AutolaunchWeb.Endpoint do
     })
   end
 
+  # The auction list also has its own budget for each address, as its hosted
+  # tool has for each agent (`AutolaunchWeb.MarketAnswer.list_limit/1`).
   defp limit_rate(%Plug.Conn{method: "GET", path_info: ["api", "v1", "auctions"]} = conn, _opts) do
     case RegentAgentAccess.RateLimit.call(conn, @rate_limit) do
-      %Plug.Conn{halted: true} = limited -> limited
-      counted -> RegentAgentAccess.RateLimit.call(counted, @list_rate_limit)
+      %Plug.Conn{halted: true} = limited ->
+        limited
+
+      counted ->
+        RegentAgentAccess.RateLimit.call(
+          counted,
+          AutolaunchWeb.MarketAnswer.list_limit(&AutolaunchWeb.ClientAddress.key/1)
+        )
     end
   end
 

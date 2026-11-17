@@ -57,6 +57,10 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
     request; while it is off, as `agent_auth_required`. Public reads are on the
     API and the browser tools.
 
+  An agent that calls the auction list tool also spends its own auction-list
+  budget: 6 calls a minute, as the API gives each address
+  (`MarketAnswer.list_limit/1`).
+
   Each answer is private and never kept (`cache-control: private, no-store`, set
   as the answer leaves, so it stands over AshAi's own `no-cache` on a streamed
   answer). Refusals answer `{"error": {"code", "message", "hint"}}`, the site's one shape;
@@ -72,7 +76,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   alias Autolaunch.Accounts.RequestRateLimiter
   alias Autolaunch.Actors.{Agent, ConnectedApp}
   alias Autolaunch.Agents.HostedAddress
-  alias AutolaunchWeb.{ClientAddress, PublicDocuments, ReadFailure}
+  alias AutolaunchWeb.{ClientAddress, MarketAnswer, PublicDocuments, ReadFailure}
   alias AutolaunchWeb.Plugs.AgentAccess
   alias RegentAgentAccess.RateLimit
 
@@ -148,7 +152,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
         refuse(conn, :none, "batch_not_supported")
 
       true ->
-        caller(conn)
+        conn |> caller() |> limit_list()
     end
   end
 
@@ -216,6 +220,29 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
 
   defp spend(%{halted: true} = conn, _budget), do: conn
   defp spend(conn, budget), do: RateLimit.call(conn, budget)
+
+  # The auction list's own budget, as on the API, for each agent that reads it
+  # here (`MarketAnswer.list_limit/1`). Claude calls from shared addresses, so
+  # the agent is counted, not its address.
+  defp limit_list(
+         %{
+           halted: false,
+           body_params: %{
+             "method" => "tools/call",
+             "params" => %{"name" => "autolaunch_auctions"}
+           }
+         } = conn
+       ) do
+    case Ash.PlugHelpers.get_actor(conn) do
+      %Agent{wallet_address: wallet} ->
+        RateLimit.call(conn, MarketAnswer.list_limit(fn _conn -> {:agent, wallet} end))
+
+      _connected_app ->
+        conn
+    end
+  end
+
+  defp limit_list(conn), do: conn
 
   # Within its account's budget, the app calls as its paired identity when the
   # person allowed it to work here as that agent; as itself otherwise. Only the
