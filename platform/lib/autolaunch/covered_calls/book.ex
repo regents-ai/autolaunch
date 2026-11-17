@@ -63,7 +63,14 @@ defmodule Autolaunch.CoveredCalls.Book do
   @shown 50
   @table __MODULE__
 
-  def start_link(_options), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  @doc """
+  Starts the book. `:clock` answers the time in milliseconds a reading is kept
+  by; it is the system's steady clock unless a test holds the time still.
+  """
+  def start_link(options) do
+    clock = Keyword.get(options, :clock, fn -> System.monotonic_time(:millisecond) end)
+    GenServer.start_link(__MODULE__, clock, name: __MODULE__)
+  end
 
   @doc """
   The shared reading of `symbol`'s market, at most five minutes old. A reading
@@ -213,11 +220,11 @@ defmodule Autolaunch.CoveredCalls.Book do
   # `kept` is each market's reading, and each single record read for a link
   # (keyed `{symbol, kind, id}`), with when it was taken and until when it is
   # good; `taking` the task whose reading will be kept for each; and `waiting`
-  # who each running task answers.
+  # who each running task answers; `clock` the time they are kept by.
   @impl GenServer
-  def init(nil) do
+  def init(clock) do
     :ets.new(@table, [:named_table, :ordered_set, :public, read_concurrency: true])
-    {:ok, %{kept: %{}, taking: %{}, waiting: %{}}}
+    {:ok, %{kept: %{}, taking: %{}, waiting: %{}, clock: clock}}
   end
 
   @impl GenServer
@@ -251,7 +258,7 @@ defmodule Autolaunch.CoveredCalls.Book do
   def handle_call({:read, key}, from, state) do
     case state.kept do
       %{^key => {reading, _taken_at, good_until}} ->
-        if good_until > now(),
+        if good_until > state.clock.(),
           do: {:reply, {:ok, reading}, state},
           else: {:noreply, wait(state, key, from)}
 
@@ -295,7 +302,7 @@ defmodule Autolaunch.CoveredCalls.Book do
     {answer, kept} =
       case result do
         {:ok, reading} ->
-          taken_at = now()
+          taken_at = state.clock.()
 
           {{:ok, reading},
            if(key,
@@ -360,8 +367,6 @@ defmodule Autolaunch.CoveredCalls.Book do
       true -> :live
     end
   end
-
-  defp now, do: System.monotonic_time(:millisecond)
 
   defp kept_ms, do: Application.get_env(:autolaunch, :covered_calls_book_kept_ms, 300_000)
 end

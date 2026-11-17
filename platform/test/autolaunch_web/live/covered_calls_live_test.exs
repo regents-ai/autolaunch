@@ -1142,20 +1142,19 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   end
 
   # Readings kept as the site keeps them, in a book process holding none of
-  # an earlier test's.
+  # an earlier test's, whose time stands still: however slow the machine, no
+  # reading runs out of time while the test runs, so what a test counts is
+  # what the pages asked for.
   defp keep_readings do
     Application.put_env(:autolaunch, :covered_calls_book_kept_ms, 300_000)
-    restart_book()
+    :ok = Supervisor.terminate_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
+    start_supervised!({Autolaunch.CoveredCalls.Book, clock: fn -> 0 end})
 
+    # The test's book has stopped by now; the site's starts afresh.
     on_exit(fn ->
       Application.put_env(:autolaunch, :covered_calls_book_kept_ms, 0)
-      restart_book()
+      {:ok, _pid} = Supervisor.restart_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
     end)
-  end
-
-  defp restart_book do
-    :ok = Supervisor.terminate_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
-    {:ok, _pid} = Supervisor.restart_child(Autolaunch.Supervisor, Autolaunch.CoveredCalls.Book)
   end
 
   test "signed in, Max on Sell now fills what the bid still wants or the wallet holds, the less",
