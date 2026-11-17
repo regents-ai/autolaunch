@@ -6,21 +6,39 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   - the table has one row per action offered while its switch is on, and each
     cell is what that way in serves: the page's tools, the hosted MCP server's
     tools as a paired agent lists them, the routes and regents-cli's commands;
+    while Autolaunch is not open, an action whose route waits says so;
   - one read through each way in gets the same answer;
   - each hosted tool that reads the market, a person's drafts, positions,
-    Points or Exposure, or saves a draft, answers as its route does, refusals
-    included, in the same code and words;
+    Points or Exposure, or saves a draft, gives its route's `data` (Points, which
+    has none, its whole answer), and its route's refusals, in the same code and
+    words; a bid estimate whatever its amount and highest price; the auction
+    list has the route's own budget, and a draft save before opening the
+    route's answer;
+  - every hosted tool in `priv/capabilities.json` is called, a connected app's
+    own as that app, and each one it lists as read-only writes no row;
   - the guides and the server's own instructions name every hosted tool a
     paired agent is served and no other.
 
-  A connected app's own tools are in AutolaunchWeb.ClaudeConnectorTest. The
-  sign-in service is stubbed: it vouches for the wallet a request names.
+  A connected app's own tools are otherwise in AutolaunchWeb.ClaudeConnectorTest.
+  The sign-in service is stubbed: it vouches for the wallet a request names.
   """
   use AutolaunchWeb.ConnCase, async: false
+  use ExUnitProperties
 
   import Plug.Test, only: [conn: 3]
 
-  alias Autolaunch.{ExposureChain, SharedReading, TestAutolaunchTreasuryChainClient, TestSupport}
+  alias Autolaunch.Accounts.RequestRateLimiter
+  alias Autolaunch.CoveredCalls.Terms
+
+  alias Autolaunch.{
+    CoveredCallsChain,
+    EarnChain,
+    ExposureChain,
+    SharedReading,
+    TestAutolaunchTreasuryChainClient,
+    TestSupport
+  }
+
   alias Autolaunch.Points.Board
   alias AutolaunchWeb.{Capabilities, MarketAnswer, ToolManifest}
 
@@ -30,6 +48,16 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
   @safe "0x9999999999999999999999999999999999999999"
+  @site_key String.duplicate("k", 32)
+  @signed %{
+    "x-siwa-signature" => "sig1=:c2lnbmVk:",
+    "x-siwa-signature-input" =>
+      ~s|sig1=("@method" "@path");created=1;expires=2;nonce="n";keyid="k"|,
+    "x-siwa-receipt" => "receipt",
+    "x-key-id" => "k",
+    "x-timestamp" => "1",
+    "x-agent-chain-id" => "8453"
+  }
 
   setup do
     Req.Test.stub(RegentAgents.Broker, fn broker ->
@@ -124,6 +152,50 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     end
   end
 
+  test "before Autolaunch opens, an action whose route waits opens soon on every way in that offers it, and no other does" do
+    agent = paired_agent()
+    switch(@features, false)
+    {_heads, open} = doors(markdown("/docs"))
+
+    Application.put_env(:autolaunch, :prelaunch_read_only, true)
+    {_heads, shut} = doors(markdown("/docs"))
+    listed = tool_names(agent)
+    rows = Enum.zip([open, shut, Capabilities.offered(@features)])
+
+    # Each route is asked as an agent asks it, with every feature's deployment
+    # in place.
+    Enum.each(@features, &chain/1)
+
+    waiting =
+      for {_open, _shut, %{"operation" => name} = operation} <- rows,
+          refused_before_opening?(operation["route"], agent),
+          do: name
+
+    assert waiting != []
+
+    for {open_row, shut_row, %{"operation" => name} = operation} <- rows do
+      waits? = name in waiting
+
+      assert shut_row ==
+               Map.new(open_row, fn
+                 {door, who} when waits? and door != "Action" and who != "No" ->
+                   {door, "Opens soon"}
+
+                 cell ->
+                   cell
+               end),
+             name
+
+      # Its hosted tool waits too: it is not listed, or it is refused as its route is.
+      hosted = operation["hosted_tool"]
+
+      if waits? and hosted in listed do
+        assert {:error, %{"error" => %{"code" => "prelaunch_read_only"}}} =
+                 tool(agent, hosted, %{})
+      end
+    end
+  end
+
   test "one read through each way in gets the same answer" do
     agent = paired_agent()
     TestSupport.project_auction(chain_id: 8453, state: :active)
@@ -141,11 +213,10 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       assert by_page.status == 200
       assert by_cli == by_page
 
-      # The auction counts tool gives its answer's data (`docs.md`, Hosted MCP).
-      hosted =
-        if operation == "autolaunch_auction_counts", do: by_page.body["data"], else: by_page.body
-
-      assert tool(agent, operation) == {:ok, hosted}
+      # The hosted tool gives the answer's `data`; Points, which has none, the
+      # whole answer (`docs.md`, Hosted MCP).
+      hosted = if operation == "account_points", do: {:ok, by_page.body}, else: answer(by_page)
+      assert tool(agent, operation) == hosted
     end
   end
 
@@ -192,6 +263,8 @@ defmodule AutolaunchWeb.AgentDoorsTest do
           {active.id, "10", "4", 200},
           {active.id, "0", "4", 422},
           {active.id, "10", "x", 422},
+          {active.id, 10, "4", 422},
+          {active.id, "10", nil, 422},
           {unknown, "1", "1", 404}
         ] do
       body = %{amount: amount, max_price: max_price}
@@ -199,6 +272,60 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       assert route.status == status, inspect(body)
       assert tool(agent, "autolaunch_bid_quote", Map.put(body, :id, id)) == answer(route)
     end
+  end
+
+  property "a bid estimate answers any amount and highest price as its route answers the same body" do
+    agent = paired_agent()
+
+    %{id: id} =
+      TestSupport.project_auction(chain_id: 8453, state: :active, current_clearing_price: "3")
+
+    value =
+      one_of([
+        member_of(["10", "4", "0", "-1", "1.5", "1e3", " 10", ""]),
+        string(:printable, max_length: 6),
+        integer(),
+        float(),
+        boolean(),
+        constant(nil),
+        list_of(integer(), max_length: 2),
+        map_of(string(:alphanumeric, max_length: 3), integer(), max_length: 2)
+      ])
+
+    check all(amount <- value, max_price <- value, max_runs: 40) do
+      body = %{amount: amount, max_price: max_price}
+      route = http(:post, "/api/v1/auctions/#{id}/bid-quote", body)
+      assert tool(agent, "autolaunch_bid_quote", Map.put(body, :id, id)) == answer(route)
+    end
+  end
+
+  test "the auction list tool has its route's budget: six reads a minute, for each agent as for each address" do
+    agent = paired_agent()
+    address = {10, 11, :rand.uniform(250), :rand.uniform(250)}
+
+    # Budgets are counted in whole minutes; seven reads that might straddle two
+    # start in the next one.
+    {:ok, %{reset: left}} = RequestRateLimiter.admit({"minute", make_ref()}, 1, 60)
+    if left < 5, do: Process.sleep(left * 1000)
+
+    route =
+      for _read <- 1..7 do
+        conn(:get, "/api/v1/auctions", nil) |> Map.put(:remote_ip, address) |> @endpoint.call([])
+      end
+
+    hosted = for _call <- 1..7, do: mcp(agent, call("autolaunch_auctions", nil))
+
+    for answers <- [route, hosted] do
+      assert Enum.map(answers, & &1.status) == List.duplicate(200, 6) ++ [429]
+      assert get_resp_header(List.last(answers), "retry-after") != []
+    end
+
+    assert json(List.last(hosted)) == json(List.last(route))
+    assert %{"error" => %{"code" => "too_many_requests"}} = json(List.last(route))
+
+    # Another agent, or the same agent's other tools, still answer.
+    assert {:ok, _counts} = tool(agent, "autolaunch_auction_counts")
+    assert {:ok, _list} = tool(paired_agent(), "autolaunch_auctions")
   end
 
   test "a paired agent's drafts read and save as their routes do, refusals included" do
@@ -212,15 +339,17 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       read = "autolaunch_#{kind}_draft"
       save = "autolaunch_#{kind}_draft_save"
 
+      # A draft not started yet is `null`.
+      assert tool(agent, read) == {:ok, nil}
       assert tool(agent, read) == answer(http(:get, path, nil, agent))
 
       assert http(:patch, path, %{name: "Route", symbol: "RT"}, agent).status == 200
-      assert {:ok, %{"data" => %{"name" => "Route"}}} = tool(agent, read)
+      assert {:ok, %{"name" => "Route"}} = tool(agent, read)
       assert tool(agent, read) == answer(http(:get, path, nil, agent))
 
       assert {:ok, saved} = tool(agent, save, %{name: " Tool ", description: ""})
       assert {:ok, saved} == answer(http(:get, path, nil, agent))
-      assert saved["data"]["name"] == "Tool"
+      assert saved["name"] == "Tool"
 
       for input <- [
             refused,
@@ -242,12 +371,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     for kind <- ["revstake", "memestock"] do
       route = http(:patch, "/api/agent/v1/drafts/#{kind}", %{name: "Shut"}, agent)
       assert route.status == 503 and route.body["error"]["code"] == "prelaunch_read_only"
-
-      assert {:error, %{"error" => refusal}} =
-               tool(agent, "autolaunch_#{kind}_draft_save", %{name: "Shut"})
-
-      assert Map.take(refusal, ~w(code message)) ==
-               Map.take(route.body["error"], ~w(code message))
+      assert tool(agent, "autolaunch_#{kind}_draft_save", %{name: "Shut"}) == answer(route)
 
       read = "/api/agent/v1/drafts/#{kind}"
       assert tool(agent, "autolaunch_#{kind}_draft") == answer(http(:get, read, nil, agent))
@@ -271,7 +395,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         ] do
       route = http(:get, path, nil, agent)
       assert route.status == 200, "#{path} answered #{route.status}"
-      assert tool(agent, name) == {:ok, route.body}
+      # Points' answer has no `data`: its tool gives it whole.
+      hosted = if name == "account_points", do: {:ok, route.body}, else: answer(route)
+      assert tool(agent, name) == hosted
     end
 
     # A Base chain that cannot be read, and a Points board not read yet.
@@ -289,8 +415,89 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         ] do
       route = http(:get, path, nil, agent)
       assert route.status == 503, "#{path} answered #{route.status}"
-      assert tool(agent, name) == {:error, route.body}
+      assert tool(agent, name) == answer(route)
     end
+  end
+
+  test "every hosted tool listed as read-only writes nothing when it is called" do
+    switch(@features, false)
+    agent = paired_agent()
+    person = TestSupport.register_creator!().privy_user_id
+    graduated = TestSupport.project_auction(chain_id: 8453, state: :graduated)
+
+    active =
+      TestSupport.project_auction(chain_id: 8453, state: :active, current_clearing_price: "3")
+
+    token = TestSupport.project_token(auction_id: graduated.id, graduated_at: DateTime.utc_now())
+    TestAutolaunchTreasuryChainClient.seed_verified!(@safe)
+    assert :ok = Board.read()
+    on_exit(fn -> SharedReading.delete(Board.key()) end)
+
+    series = ExposureChain.series()
+    expiry = hd(Terms.expiries(CoveredCallsChain.now()))
+    deposit = %{product: "aave-usdc", kind: "deposit", amount: 10 * EarnChain.unit()}
+    code = RegentAgents.issue_pairing_code!(actor: %RegentAgents.Person{privy_user_id: person})
+
+    inputs = %{
+      "autolaunch_auctions" => nil,
+      "autolaunch_auction" => %{id: active.id},
+      "autolaunch_auction_counts" => nil,
+      "autolaunch_tokens" => nil,
+      "autolaunch_token" => %{id: token.id},
+      "autolaunch_treasury" => %{address: @safe},
+      "autolaunch_bid_quote" => %{id: active.id, amount: "10", max_price: "4"},
+      "autolaunch_revstake_draft" => nil,
+      "autolaunch_revstake_draft_save" => %{name: "Saved"},
+      "autolaunch_memestock_draft" => nil,
+      "autolaunch_memestock_draft_save" => %{name: "Saved"},
+      "autolaunch_my_positions" => nil,
+      "account_points" => nil,
+      "covered_call_book" => %{symbol: "AMZNc"},
+      "covered_call_quote" => %{symbol: "AMZNc", strike_per_token: 260_000_000, expiry: expiry},
+      "covered_call_positions" => %{symbol: "AMZNc"},
+      "prepare_covered_call" => %{symbol: "AMZNc", kind: "cancel", listing_id: 1},
+      "autolaunch_after_hour_stocks_list" => nil,
+      "autolaunch_after_hour_stocks_series" => %{series: series},
+      "autolaunch_my_after_hour_stocks" => %{series: series},
+      "earn_products" => nil,
+      "earn_quote" => deposit,
+      "earn_positions" => nil,
+      "prepare_earn" => deposit,
+      "register_identity" => nil,
+      "get_identity" => nil,
+      "pair_identity" => %{code: code.code, name: "Claude", harness: "claude"},
+      "check_in" => nil
+    }
+
+    hosted =
+      for %{"surfaces" => %{"hosted_mcp" => true}} = row <- Capabilities.operations(), do: row
+
+    assert Enum.sort(Map.keys(inputs)) == Enum.sort(Enum.map(hosted, & &1["hosted_tool"]))
+    assert length(hosted) == 28
+
+    # Each switch's tools are called in turn, by their caller (`caller/3`); every
+    # call answers.
+    called =
+      Enum.flat_map(Enum.chunk_by(hosted, & &1["switch"]), fn [%{"switch" => switch} | _] = rows ->
+        caller = caller(switch, agent, person)
+        read_only = Map.new(listed(caller), &{&1["name"], &1["annotations"]["readOnlyHint"]})
+
+        for %{"hosted_tool" => name} <- rows do
+          assert is_boolean(read_only[name]), "#{name} is not listed with its hint"
+          before = writes()
+          assert {:ok, _answer} = tool(caller, name, inputs[name]), name
+          written = writes() - before
+          if read_only[name], do: assert(written == 0, "#{name} wrote #{written} rows")
+          {name, read_only[name]}
+        end
+      end)
+
+    assert length(called) == 28
+
+    # The ones that write: a draft save, and a connected app's identity, pairing
+    # and check-in.
+    assert for({name, false} <- called, do: name) ==
+             ~w(autolaunch_revstake_draft_save autolaunch_memestock_draft_save register_identity pair_identity check_in)
   end
 
   test "with Exposure on its three reads answer as their routes do; off, none is listed or run" do
@@ -382,6 +589,38 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     )
   end
 
+  # Who calls a switch's hosted tools, ready to answer them: for the site's own,
+  # a paired agent with no chain to read, so a person's bids and holdings are the
+  # site's own records; for a feature's, that agent with the feature's chain
+  # double; for a connected app's own, that app.
+  defp caller(nil, agent, _person) do
+    for key <- [:autolaunch_base_deployment, :autolaunch_robinhood_deployment] do
+      keep_env(:autolaunch, key)
+      Application.delete_env(:autolaunch, key)
+    end
+
+    agent
+  end
+
+  defp caller("connected_apps", _agent, person), do: connected_app(person)
+
+  defp caller(feature, agent, _person) do
+    Application.put_env(
+      :autolaunch,
+      :autolaunch_base_deployment,
+      Path.expand("../fixtures/base-deployment.json", __DIR__)
+    )
+
+    chain(feature)
+    agent
+  end
+
+  defp chain("covered_calls"), do: CoveredCallsChain.install(%{usdc_balance: 100_000_000})
+  defp chain("exposure"), do: ExposureChain.install()
+
+  defp chain("earn"),
+    do: EarnChain.install(%{balance: 40 * EarnChain.unit(), allowance: 10 * EarnChain.unit()})
+
   defp keep_env(app, key) do
     old = Application.fetch_env(app, key)
 
@@ -428,10 +667,29 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp named?(text, name), do: Regex.match?(~r/\b#{name}\b/, text)
 
-  # A browser tool's or a command's request, such as `GET /api/v1/auction-counts`.
+  # A browser tool's or a command's request, such as `GET /api/v1/auction-counts`,
+  # with "x" for each value its path names, such as `{id}`.
   defp request(route, signer) do
     [method, path] = String.split(route, " ")
+    path = String.replace(path, ~r/\{[^}]+\}/, "x")
     http(method |> String.downcase() |> String.to_existing_atom(), path, nil, signer)
+  end
+
+  # Whether an action's route is refused until Autolaunch opens; a tool only the
+  # hosted server has has none.
+  defp refused_before_opening?(nil, _agent), do: false
+
+  defp refused_before_opening?(route, agent),
+    do: request(route, agent).body["error"]["code"] == "prelaunch_read_only"
+
+  # Rows this test's transaction has inserted, updated or deleted so far.
+  defp writes do
+    %{rows: [[count]]} =
+      Autolaunch.Repo.query!(
+        "select coalesce(sum(n_tup_ins + n_tup_upd + n_tup_del), 0)::bigint from pg_stat_xact_user_tables"
+      )
+
+    count
   end
 
   # A paired agent's signing wallet.
@@ -451,19 +709,29 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     agent
   end
 
-  # The tool's result, or its error's text decoded: the route's error document.
-  defp tool(agent, name, input \\ nil) do
-    case json(mcp(agent, call(name, input)))["result"] do
-      %{"isError" => false, "structuredContent" => answer} -> {:ok, answer}
-      %{"isError" => true, "content" => [%{"text" => text}]} -> {:error, Jason.decode!(text)}
+  # The tool's result, or its error: each its text decoded. An object also comes
+  # as structured content; a list or `null` does not (`docs.md`, Hosted MCP).
+  defp tool(caller, name, input \\ nil) do
+    case json(mcp(caller, call(name, input)))["result"] do
+      %{"isError" => false, "content" => [%{"text" => text}]} = result ->
+        answer = Jason.decode!(text)
+        assert result["structuredContent"] == if(is_map(answer), do: answer), name
+        {:ok, answer}
+
+      %{"isError" => true, "content" => [%{"text" => text}]} ->
+        {:error, Jason.decode!(text)}
     end
   end
 
-  defp tool_names(agent),
-    do: json(mcp(agent, rpc("tools/list")))["result"]["tools"] |> Enum.map(& &1["name"])
+  defp listed(caller), do: json(mcp(caller, rpc("tools/list")))["result"]["tools"]
 
-  defp answer(%{status: 200, body: body}), do: {:ok, body}
-  defp answer(%{body: body}), do: {:error, body}
+  defp tool_names(caller), do: Enum.map(listed(caller), & &1["name"])
+
+  # A route's answer as its hosted tool gives it: its `data`, or its refusal.
+  defp answer(%{status: 200, body: %{"data" => data}}), do: {:ok, data}
+
+  defp answer(%{status: status, body: %{"error" => _} = body}) when status != 200,
+    do: {:error, body}
 
   # An answer without the clock time each read of a series is stamped with.
   defp unclocked(%{} = map),
@@ -473,13 +741,84 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   defp unclocked({result, answer}), do: {result, unclocked(answer)}
   defp unclocked(value), do: value
 
-  defp mcp(agent, body) do
+  # A call to the hosted server by a paired agent's wallet, or by a connected
+  # app's access token.
+  defp mcp(caller, body) do
     conn(:post, "/mcp", Jason.encode!(body))
     |> Map.put(:remote_ip, from())
     |> put_req_header("content-type", "application/json")
+    |> called_by(caller)
+    |> @endpoint.call([])
+  end
+
+  defp called_by(conn, {:app, token}),
+    do: put_req_header(conn, "authorization", "Bearer " <> token)
+
+  defp called_by(conn, agent) do
+    conn
     |> put_req_header("x-siwa-signature", "fixture-proof")
     |> put_req_header("x-agent-wallet-address", agent)
-    |> @endpoint.call([])
+  end
+
+  # Claude's connector on, as config/runtime.exs switches it on, with a hosted
+  # signer that registers each identity and signs as that identity's own wallet;
+  # and an app connected by the person `subject` names, as consent leaves it.
+  defp connected_app(subject) do
+    origin = "http://127.0.0.1:4002"
+    oauth = Application.fetch_env!(:autolaunch, Autolaunch.OAuth)
+    agents = Application.fetch_env!(:regent_mcp_agents, :config)
+    signer = [base_url: "https://siwa.test", key: @site_key]
+
+    for {app, key, value} <- [
+          {:autolaunch, Autolaunch.OAuth,
+           Keyword.merge(oauth, enabled?: true, issuer: origin, resource: origin <> "/mcp")},
+          {:regent_mcp_agents, :config,
+           Keyword.merge(agents, enabled?: true, hosted_signer: signer)},
+          {:regent_agents, :hosted_pairing, [:claude]},
+          {:regent_mcp_agents, :req_options, plug: {Req.Test, RegentMCPAgents.HostedSigner}}
+        ] do
+      keep_env(app, key)
+      Application.put_env(app, key, value)
+    end
+
+    keep_env(:regent_oauth, :site)
+    keep_env(:boruta, Boruta.Oauth)
+    :ok = RegentOAuth.configure(Autolaunch.OAuth)
+    :ok = RegentMCPAgents.configure!()
+
+    Req.Test.stub(RegentMCPAgents.HostedSigner, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      asked = Jason.decode!(body)
+      wallet = "0x" <> binary_part(asked["identity_key"], 0, 40)
+
+      case asked do
+        %{"operation" => "register"} ->
+          Req.Test.json(conn, %{"address" => wallet})
+
+        %{"operation" => "sign", "request" => request} ->
+          headers = Map.put(@signed, "x-agent-wallet-address", wallet)
+          Req.Test.json(conn, Map.put(request, "headers", headers))
+      end
+    end)
+
+    register =
+      conn(:post, "/oauth/register", %{
+        "client_name" => "Claude",
+        "redirect_uris" => ["https://claude.ai/api/mcp/auth_callback"]
+      })
+      |> Map.put(:remote_ip, from())
+      |> put_req_header("accept", "application/json")
+      |> @endpoint.call([])
+
+    client = Boruta.ClientsAdapter.get_client(json(register)["client_id"])
+
+    {:ok, token} =
+      RegentOAuth.AccessTokens.create(
+        %{client: client, sub: subject, scope: RegentMCPAgents.identity_scope()},
+        []
+      )
+
+    {:app, token.value}
   end
 
   # One HTTP request, anonymous or signed by `agent`, from an address of its own
