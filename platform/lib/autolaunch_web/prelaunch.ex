@@ -33,14 +33,21 @@ defmodule AutolaunchWeb.Prelaunch do
     cond do
       not Prelaunch.read_only?() -> conn
       match?([page | _] when page in ["create", "agent-business"], path) -> refuse(conn, 404)
-      account_path?(path) -> conn
-      visit_report?(conn.method, path) -> conn
-      signed_account_request?(conn.method, path) -> conn
-      conn.method in ["GET", "HEAD"] -> conn
-      public_quote?(conn.method, path) -> conn
+      open?(conn.method, path) -> conn
       true -> refuse(conn, 503)
     end
   end
+
+  @doc """
+  Whether a request with `method` to `path`, its decoded segments, is served in
+  read-only mode; the create pages are closed besides. The guides' Agent access
+  table asks it of each action's route (`AutolaunchWeb.PublicDocuments`).
+  """
+  def open?(method, path),
+    do:
+      account_path?(path) or visit_report?(method, path) or
+        signed_account_request?(method, path) or method in ["GET", "HEAD"] or
+        public_quote?(method, path)
 
   @doc """
   What a request this plug refuses in read-only mode is answered with, in JSON

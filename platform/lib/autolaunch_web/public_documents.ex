@@ -781,10 +781,11 @@ defmodule AutolaunchWeb.PublicDocuments do
 
     rows =
       Enum.map_join(offered(), "\n", fn row ->
-        "| #{row["title"]} | " <> Enum.map_join(doors, " | ", &door(row, elem(&1, 1))) <> " |"
+        "| #{row["title"]} | " <> Enum.map_join(doors, " | ", &cell(row, elem(&1, 1))) <> " |"
       end)
 
     claude_doors(connector?) <>
+      opens_soon(Autolaunch.Prelaunch.read_only?()) <>
       """
       | Action | #{Enum.map_join(doors, " | ", &elem(&1, 0))} |
       | --- |#{String.duplicate(" --- |", length(doors))}
@@ -801,6 +802,31 @@ defmodule AutolaunchWeb.PublicDocuments do
       "Claude is the connector a person adds in Claude's settings. Connected app means an " <>
         "app connected that way, which keeps its own identity and pairing. Once paired means " <>
         "Claude can use the tool after its person pairs it.\n\n"
+
+  defp opens_soon(false), do: ""
+
+  defp opens_soon(true),
+    do: "Opens soon means that way in offers the action once Autolaunch opens.\n\n"
+
+  # While read-only mode is on, an action whose route waits for Autolaunch to
+  # open (`AutolaunchWeb.Prelaunch.open?/2`) opens soon on every way in that
+  # offers it: its tools and commands call that route, and its hosted tool waits
+  # too.
+  defp cell(row, door) do
+    case door(row, door) do
+      "No" -> "No"
+      who -> if waits?(row), do: "Opens soon", else: who
+    end
+  end
+
+  defp waits?(%{"route" => route}) do
+    [method, path] = String.split(route, " ")
+
+    Autolaunch.Prelaunch.read_only?() and
+      not AutolaunchWeb.Prelaunch.open?(method, String.split(path, "/", trim: true))
+  end
+
+  defp waits?(_hosted_only), do: false
 
   # A connected app runs its own tools on the hosted MCP server, and Claude, as
   # one, runs a paired agent's there once its person pairs it; every other call

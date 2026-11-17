@@ -136,16 +136,19 @@ defmodule AutolaunchWeb.Capabilities do
   unless Enum.sort(Enum.map(@hosted, &Atom.to_string/1)) == Enum.sort(Map.keys(hosted)),
     do: raise("priv/capabilities.json must name every AshAi tool once as a hosted_tool")
 
-  # Each row with the title its tool shows: its browser tool's, or, for a tool
-  # only the hosted server has, that tool's.
-  @operations Enum.zip_with(browser_rows, browser, &Map.put(&1, "title", &2["title"])) ++
+  # Each row with the title its tool shows: its browser tool's, with that tool's
+  # route, or, for a tool only the hosted server has, that tool's.
+  @operations Enum.zip_with(browser_rows, browser, &Map.merge(&1, Map.take(&2, ~w(title route)))) ++
                 Enum.map(hosted_only_rows, &Map.put(&1, "title", hosted[&1["operation"]].title))
 
   @doc "The hosted MCP server's tools, by the name AshAi gives each."
   @spec hosted_tools() :: [atom()]
   def hosted_tools, do: @hosted
 
-  @doc "Every operation's row, as `priv/capabilities.json` gives it, with its tool's `title`."
+  @doc """
+  Every operation's row, as `priv/capabilities.json` gives it, with its tool's
+  `title` and, for a browser tool, its `route`, such as `GET /api/v1/auctions`.
+  """
   @spec operations() :: [map()]
   def operations, do: @operations
 
