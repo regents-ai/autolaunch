@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.PublicApiFailuresTest do
   import ExUnit.CaptureLog
 
   alias Autolaunch.{Repo, TestSupport}
-  alias AutolaunchWeb.AuctionController
+  alias AutolaunchWeb.MarketAnswer
 
   @moduletag :capture_log
 
@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.PublicApiFailuresTest do
       TestSupport.project_token(auction_id: auction.id, graduated_at: DateTime.utc_now())
 
     # A list read moments ago may be kept; this case reads it afresh.
-    Cachex.clear(AuctionController.cache())
+    Cachex.clear(MarketAnswer.cache())
 
     for table <- ~w(auctions tokens treasury_security_reports) do
       Repo.query!("ALTER TABLE autolaunch_app.#{table} RENAME TO #{table}_unreadable")

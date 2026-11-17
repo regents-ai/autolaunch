@@ -8,11 +8,17 @@ defmodule AutolaunchWeb.ApiError do
   import Plug.Conn, only: [put_status: 2]
   import Phoenix.Controller, only: [json: 2]
 
-  alias AutolaunchWeb.PublicDocuments
+  alias AutolaunchWeb.{PublicDocuments, Refusal}
 
   @doc "Answers `conn` with `status` and the error document for `code`."
   def send(conn, status, code, message),
     do: conn |> put_status(status) |> json(body(code, message))
+
+  @doc "Answers `conn` with an answer's document, or with the refusal it carries."
+  def answer(conn, {:ok, body}), do: json(conn, body)
+
+  def answer(conn, {:error, %Refusal{status: status, code: code, message: message}}),
+    do: send(conn, status, code, message)
 
   @doc "The error document for `code`, with its hint."
   def body(code, message), do: %{error: %{code: code, message: message, hint: hint(code)}}

@@ -7,24 +7,112 @@ defmodule Autolaunch do
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
 
-  # The hosted MCP tools: each runs the same action as its HTTP route and is the
+  # The hosted MCP tools: each gives the answer its HTTP route gives and is the
   # browser tool of the same name, with that tool's title and words from
-  # priv/tool_manifest.json (`AutolaunchWeb.Capabilities` checks their inputs).
+  # priv/tool_manifest.json, less how a browser host signs
+  # (`AutolaunchWeb.Capabilities` checks their inputs). Each reads, or saves the
+  # person's launch draft; none prepares a wallet step.
   @manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
   @external_resource @manifest_path
-  @browser_tools @manifest_path
-                 |> File.read!()
-                 |> Jason.decode!()
-                 |> Map.fetch!("tools")
-                 |> Map.new(&{&1["name"], &1})
+  @browser_signing [
+    " Signed: your browser host signs it with your own agent key, as regents browser does.",
+    " Browser sign-in is not agent authority."
+  ]
+  @browser_tools (for tool <-
+                        @manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools"),
+                      into: %{} do
+                    words = String.replace(tool["description"], @browser_signing, "")
+                    {tool["name"], %{tool | "description" => words}}
+                  end)
 
   tools do
-    %{"title" => title, "description" => description} =
-      @browser_tools["autolaunch_auction_counts"]
+    tool :autolaunch_auctions, Autolaunch.Auction, :auctions_answer do
+      title(@browser_tools["autolaunch_auctions"]["title"])
+      description @browser_tools["autolaunch_auctions"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_auction, Autolaunch.Auction, :auction_answer do
+      title(@browser_tools["autolaunch_auction"]["title"])
+      description @browser_tools["autolaunch_auction"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
 
     tool :autolaunch_auction_counts, Autolaunch.Auction, :counts do
-      title(title)
-      description description
+      title(@browser_tools["autolaunch_auction_counts"]["title"])
+      description @browser_tools["autolaunch_auction_counts"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_tokens, Autolaunch.Token, :tokens_answer do
+      title(@browser_tools["autolaunch_tokens"]["title"])
+      description @browser_tools["autolaunch_tokens"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_token, Autolaunch.Token, :token_answer do
+      title(@browser_tools["autolaunch_token"]["title"])
+      description @browser_tools["autolaunch_token"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_treasury, Autolaunch.TreasurySecurityReport, :treasury_answer do
+      title(@browser_tools["autolaunch_treasury"]["title"])
+      description @browser_tools["autolaunch_treasury"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_bid_quote, Autolaunch.Auction, :bid_quote_answer do
+      title(@browser_tools["autolaunch_bid_quote"]["title"])
+      description @browser_tools["autolaunch_bid_quote"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_revstake_draft, Autolaunch.AgentAccount, :revstake_draft do
+      title(@browser_tools["autolaunch_revstake_draft"]["title"])
+      description @browser_tools["autolaunch_revstake_draft"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_revstake_draft_save, Autolaunch.AgentAccount, :revstake_draft_save do
+      title(@browser_tools["autolaunch_revstake_draft_save"]["title"])
+      description @browser_tools["autolaunch_revstake_draft_save"]["description"]
+
+      annotations(
+        read_only_hint: false,
+        destructive_hint: true,
+        idempotent_hint: true,
+        open_world_hint: false
+      )
+    end
+
+    tool :autolaunch_memestock_draft, Autolaunch.AgentAccount, :memestock_draft do
+      title(@browser_tools["autolaunch_memestock_draft"]["title"])
+      description @browser_tools["autolaunch_memestock_draft"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_memestock_draft_save, Autolaunch.AgentAccount, :memestock_draft_save do
+      title(@browser_tools["autolaunch_memestock_draft_save"]["title"])
+      description @browser_tools["autolaunch_memestock_draft_save"]["description"]
+
+      annotations(
+        read_only_hint: false,
+        destructive_hint: true,
+        idempotent_hint: true,
+        open_world_hint: false
+      )
+    end
+
+    tool :autolaunch_my_positions, Autolaunch.AgentAccount, :my_positions do
+      title(@browser_tools["autolaunch_my_positions"]["title"])
+      description @browser_tools["autolaunch_my_positions"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :account_points, Autolaunch.AgentAccount, :points do
+      title(@browser_tools["account_points"]["title"])
+      description @browser_tools["account_points"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
     end
   end
@@ -438,6 +526,8 @@ defmodule Autolaunch do
         args: [:id],
         not_found_error?: false
     end
+
+    resource Autolaunch.AgentAccount
 
     resource Autolaunch.Robinhood.LaunchReview do
       define :record_robinhood_launch_review, action: :record

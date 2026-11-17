@@ -395,6 +395,59 @@ defmodule Autolaunch.Auction do
       run fn _input, _context -> Autolaunch.AuctionStats.by_chain() end
     end
 
+    # The auction list, one auction and a bid's estimate as the hosted MCP tools
+    # read them: each gives the document its public route answers, from the
+    # route's parameters as text (`AutolaunchWeb.MarketAnswer`).
+    action :auctions_answer, :map do
+      argument :after, :string, constraints: [allow_empty?: true, trim?: false]
+      argument :q, :string, constraints: [allow_empty?: true, trim?: false]
+      argument :chain, :atom, constraints: [one_of: [:all, :base, :robinhood]]
+      argument :kind, :atom, constraints: [one_of: [:all, :revstake, :memestock]]
+      argument :x, :boolean
+      argument :ens, :boolean
+      argument :github, :boolean
+
+      argument :state, :atom,
+        constraints: [one_of: [:all, :created, :active, :ended, :failed, :graduated, :finished]]
+
+      argument :sort, :atom, constraints: [one_of: [:newest, :ending, :volume]]
+      argument :limit, :integer
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.auctions()
+      end
+    end
+
+    action :auction_answer, :map do
+      argument :id, :string, allow_nil?: false, constraints: [trim?: false]
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.auction()
+      end
+    end
+
+    action :bid_quote_answer, :map do
+      argument :id, :string, allow_nil?: false, constraints: [trim?: false]
+
+      argument :amount, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, trim?: false]
+
+      argument :max_price, :string,
+        allow_nil?: false,
+        constraints: [allow_empty?: true, trim?: false]
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.bid_quote()
+      end
+    end
+
     # What one of the signed-in account's wallets may spend on an auction.
     # `BidActions` proves the wallet against the account the mounted lease
     # locks before anything is read.
@@ -406,10 +459,11 @@ defmodule Autolaunch.Auction do
   end
 
   policies do
-    # Anyone reads the counts, except an app connected to a person's account
-    # calling as itself: its token is for its identity tools alone
-    # (`Autolaunch.Agents.Connection`). Paired, it calls as its agent instead.
-    policy action(:counts) do
+    # Anyone reads the counts, the list, an auction and a bid's estimate, except
+    # an app connected to a person's account calling as itself: its token is for
+    # its identity tools alone (`Autolaunch.Agents.Connection`). Paired, it
+    # calls as its agent instead.
+    policy action([:counts, :auctions_answer, :auction_answer, :bid_quote_answer]) do
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
     end

@@ -265,9 +265,47 @@ defmodule Autolaunch.Token do
       require_atomic? false
       accept [:trades_next_block, :trades_last_hash]
     end
+
+    # The token list and one token as the hosted MCP tools read them: each gives
+    # the document its public route answers, from the route's parameters as text
+    # (`AutolaunchWeb.MarketAnswer`).
+    action :tokens_answer, :map do
+      argument :after, :string, constraints: [allow_empty?: true, trim?: false]
+      argument :q, :string, constraints: [allow_empty?: true, trim?: false]
+      argument :chain, :atom, constraints: [one_of: [:all, :base, :robinhood]]
+      argument :kind, :atom, constraints: [one_of: [:all, :revstake, :memestock]]
+      argument :x, :boolean
+      argument :ens, :boolean
+      argument :github, :boolean
+      argument :limit, :integer
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.tokens()
+      end
+    end
+
+    action :token_answer, :map do
+      argument :id, :string, allow_nil?: false, constraints: [trim?: false]
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.token()
+      end
+    end
   end
 
   policies do
+    # Anyone reads them, except an app connected to a person's account calling
+    # as itself: its token is for its identity tools alone. Paired, it calls as
+    # its agent instead.
+    policy action([:tokens_answer, :token_answer]) do
+      forbid_if actor_attribute_equals(:role, :connected_app)
+      authorize_if always()
+    end
+
     policy action([
              :read,
              :listed,

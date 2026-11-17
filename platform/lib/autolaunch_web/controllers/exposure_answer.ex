@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.ExposureAnswer do
   @moduledoc """
   The Exposure answers every HTTP route gives (`AutolaunchWeb.ExposureController`,
-  `AutolaunchWeb.ExposureAgentController`), so the public, signed-in and
-  signed-agent doors share one shape and one set of refusals. The figures come
+  `AutolaunchWeb.ExposureAgentController`), and the hosted MCP tools that read,
+  so the public, signed-in, signed-agent and hosted doors share one shape and
+  one set of refusals. The figures come
   unchanged from `Autolaunch.Exposure`: stock and leg amounts in raw token
   units, prices and ledgers in WAD (18-decimal) dollars per stock token, pool
   quotes in micro-USDC (6 decimals), times in Unix seconds.
@@ -11,10 +12,8 @@ defmodule AutolaunchWeb.ExposureAnswer do
   answered 200 with `blocked` naming the reason, beside the steps themselves.
   """
 
-  import Phoenix.Controller, only: [json: 2]
-
   alias Autolaunch.Exposure
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{ApiError, Refusal}
 
   @integer_fields ~w(amount overnight session)
 
@@ -71,13 +70,23 @@ defmodule AutolaunchWeb.ExposureAnswer do
   }
 
   @doc "Answers with `result`'s figures shaped by `shape`, or with the refusal it carries."
-  def send(conn, {:ok, result}, shape), do: json(conn, %{data: present(shape, result)})
-  def send(conn, {:error, error}, _shape), do: refuse(conn, reason(error))
+  def send(conn, result, shape), do: ApiError.answer(conn, answer(result, shape))
 
   @doc "Answers with the refusal named `reason`."
-  def refuse(conn, reason) do
+  def refuse(conn, reason), do: ApiError.answer(conn, {:error, refusal(reason)})
+
+  @doc """
+  The whole document a route answers `result` with, its figures shaped by
+  `shape`, or the refusal it carries; a hosted MCP tool gives the same
+  (`Autolaunch.Exposure.Series`' answer actions).
+  """
+  def answer({:ok, result}, shape), do: {:ok, %{data: present(shape, result)}}
+  def answer({:error, error}, _shape), do: {:error, refusal(reason(error))}
+
+  @doc "The refusal named `reason`, with its status and words."
+  def refusal(reason) do
     {status, message} = Map.fetch!(@refusals, reason)
-    ApiError.send(conn, status, Atom.to_string(reason), message)
+    Refusal.new(status, Atom.to_string(reason), message)
   end
 
   @doc """

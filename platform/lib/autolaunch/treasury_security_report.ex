@@ -70,9 +70,29 @@ defmodule Autolaunch.TreasurySecurityReport do
     create :record_observation do
       accept @derived_fields
     end
+
+    # The current report for a treasury address as the hosted MCP tool reads
+    # it: the document its public route answers (`AutolaunchWeb.MarketAnswer`).
+    action :treasury_answer, :map do
+      argument :address, :string, allow_nil?: false, constraints: [trim?: false]
+
+      run fn input, _context ->
+        input.arguments
+        |> AutolaunchWeb.MarketAnswer.params()
+        |> AutolaunchWeb.MarketAnswer.treasury()
+      end
+    end
   end
 
   policies do
+    # Anyone reads it, except an app connected to a person's account calling as
+    # itself: its token is for its identity tools alone. Paired, it calls as its
+    # agent instead.
+    policy action(:treasury_answer) do
+      forbid_if actor_attribute_equals(:role, :connected_app)
+      authorize_if always()
+    end
+
     policy action([:read, :for_address, :by_id]) do
       authorize_if always()
     end

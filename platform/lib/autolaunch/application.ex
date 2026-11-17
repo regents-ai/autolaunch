@@ -117,7 +117,7 @@ defmodule Autolaunch.Application do
   # thousand different lists), so callers asking again and again share one read.
   defp public_auctions_child do
     {Cachex,
-     name: AutolaunchWeb.AuctionController.cache(),
+     name: AutolaunchWeb.MarketAnswer.cache(),
      expiration: expiration(default: :timer.seconds(5), interval: :timer.seconds(1)),
      hooks: [hook(module: Cachex.Limit.Scheduled, args: {1_000, [], []})]}
   end

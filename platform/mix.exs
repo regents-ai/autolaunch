@@ -228,15 +228,15 @@ defmodule Autolaunch.MixProject do
         # the endpoint naming the public documents its agent-access plug serves.
         # More stand as they are: a generic action naming the module it runs (the
         # share video request's room action, covered calls' and Exposure's
-        # steps), the router naming the errors admin page, and the router naming
-        # the hosted MCP server's input check (AshAi takes it only as a
-        # function). Nothing else is permitted. The ceiling is thirty-seven
-        # domain-to-resource edges (Accounts six, Autolaunch twenty-five,
-        # CoveredCalls three, Agents, Exposure and Points one each), forty-five
-        # resource-to-check edges, the one endpoint edge, those three actions and
-        # those two router edges, and it is re-based per unit when a domain,
-        # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 91",
+        # steps, a connected app's identity calls), the router naming the errors
+        # admin page, and the router naming the hosted MCP server's input check
+        # (AshAi takes it only as a function). Nothing else is permitted. The
+        # ceiling is thirty-nine domain-to-resource edges (Accounts six,
+        # Autolaunch twenty-six, CoveredCalls three, Agents, Earn, Exposure and
+        # Points one each), forty-seven resource-to-check edges, the one endpoint
+        # edge, those four actions and those two router edges, and it is
+        # re-based per unit when a domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 93",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

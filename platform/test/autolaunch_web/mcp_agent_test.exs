@@ -7,8 +7,9 @@ defmodule AutolaunchWeb.McpAgentTest do
   - every request carries an agent's signature or a connected app's token, never
     both, and a signature the sign-in service refuses is refused;
   - an agent no person paired is refused `agent_not_paired`, as on every signed
-    route here; a paired agent lists and runs autolaunch_auction_counts, whose
-    answer is the API's;
+    route here; a paired agent lists the site's own tools and runs
+    autolaunch_auction_counts, whose answer is the API's (every other tool's
+    answers are in AutolaunchWeb.AgentDoorsTest);
   - a query string, a page from another site, a batch, a body that is not JSON
     and any other method or address are refused in the site's shape, before any
     signature is checked;
@@ -114,13 +115,20 @@ defmodule AutolaunchWeb.McpAgentTest do
     end
   end
 
-  test "a paired agent lists and reads the auction counts, with the API's answer", %{from: from} do
+  test "a paired agent lists the site's own tools and reads the auction counts, with the API's answer",
+       %{from: from} do
     agent = paired_wallet()
 
     listed = mcp(rpc("tools/list"), from: from, proof: agent)
     assert listed.status == 200
     assert get_resp_header(listed, "cache-control") == ["private, no-store"]
-    assert Enum.map(result(listed)["tools"], & &1["name"]) == ["autolaunch_auction_counts"]
+
+    own =
+      for %{"switch" => nil, "surfaces" => %{"hosted_mcp" => true}, "hosted_tool" => name} <-
+            AutolaunchWeb.Capabilities.operations(),
+          do: name
+
+    assert Enum.sort(Enum.map(result(listed)["tools"], & &1["name"])) == Enum.sort(own)
 
     read = mcp(call("autolaunch_auction_counts"), from: from, proof: agent)
     assert %{"isError" => false, "structuredContent" => counts} = result(read)

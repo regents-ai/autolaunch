@@ -2,21 +2,15 @@ defmodule AutolaunchWeb.MyPositionsController do
   @moduledoc """
   The signed-in wallet's own bids and launched tokens, for the page tool that
   reads them (`autolaunch_my_positions`). The verified session names the
-  account and the one wallet it signed in with, and only that wallet is read.
-  Everything is read now, from the site's records and the chain; a read that
-  fails refuses the whole answer rather than leave part of it out.
+  account and the one wallet it signed in with, and only that wallet is read
+  (`AutolaunchWeb.AccountAnswer.positions/2`, which a paired agent's route and
+  hosted MCP tool read too).
   """
 
   use AutolaunchWeb, :controller
 
-  alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{AuctionBook, TokenHoldings}
-  alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
-  alias AutolaunchWeb.{ApiError, BidSettlementComponent, Paths, PublicDocuments}
-  alias RegentChain.Address
-
-  @read_ms 30_000
+  alias AutolaunchWeb.{AccountAnswer, ApiError}
 
   def show(%{assigns: %{current_human_account: nil}} = conn, _params),
     do:
@@ -29,170 +23,6 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   def show(%{assigns: %{current_human_account: account}} = conn, _params) do
     actor = %Human{human_account_id: account.id}
-    respond(conn, actor, account)
-  end
-
-  # An agent's person may have signed in without a wallet; then there is no
-  # wallet to read.
-  def signed(conn, _params) do
-    account = conn.assigns.agent_owner_account
-
-    if VerifiedSession.current?(account),
-      do: respond(conn, conn.assigns.actor, account),
-      else:
-        ApiError.send(
-          conn,
-          :conflict,
-          "wallet_required",
-          "Your person's Regent account has no verified wallet to read."
-        )
-  end
-
-  defp respond(conn, actor, account) do
-    {:ok, wallet} = Address.normalize(account.wallet_address)
-
-    reads = [
-      fn -> read_bids(actor, wallet) end,
-      fn -> RobinhoodPositions.read_wallet(wallet) end,
-      fn -> TokenHoldings.read_wallet(actor, wallet) end
-    ]
-
-    results =
-      Autolaunch.TaskSupervisor
-      |> Task.Supervisor.async_stream_nolink(reads, & &1.(),
-        timeout: @read_ms,
-        on_timeout: :kill_task
-      )
-      |> Enum.to_list()
-
-    case results do
-      [{:ok, {:ok, base}}, {:ok, {:ok, robinhood}}, {:ok, {:ok, holdings}}] ->
-        books = books(base)
-
-        json(conn, %{
-          data: %{
-            bids: Enum.map(base, &base_bid(&1, books)) ++ Enum.map(robinhood, &robinhood_bid/1),
-            tokens: Enum.map(holdings, &token/1)
-          }
-        })
-
-      _unavailable ->
-        ApiError.send(
-          conn,
-          :service_unavailable,
-          "chain_unavailable",
-          "Your bids and tokens could not be read just now."
-        )
-    end
-  end
-
-  defp read_bids(%Autolaunch.Actors.Agent{} = actor, wallet) do
-    Autolaunch.Bid
-    |> Ash.Query.for_read(:agent_mine_by_wallet, %{wallet_address: wallet}, actor: actor)
-    |> Ash.read()
-  end
-
-  defp read_bids(actor, wallet), do: Autolaunch.list_wallet_bid_positions([wallet], actor: actor)
-
-  # The price books of the auctions still taking bids that the Base bids are
-  # in; a book that cannot be read leaves its bids' standing unread.
-  defp books(positions) do
-    auctions =
-      for %{status: :active, auction: %{state: :active} = auction} <- positions,
-          uniq: true,
-          do: auction
-
-    for auction <- auctions,
-        {:ok, book} <- [AuctionBook.base(auction)],
-        into: %{},
-        do: {auction.id, book}
-  end
-
-  defp base_bid(position, books) do
-    auction = position.auction
-    {standing, can} = base_standing(position, Map.get(books, auction.id))
-
-    %{
-      bid: position.bid_id,
-      chain: "base",
-      name: auction.title,
-      symbol: auction.token_symbol,
-      currency: auction.quote_token_symbol,
-      amount: position.amount,
-      max_price: position.max_price,
-      standing: standing,
-      can: can,
-      page: PublicDocuments.url(Paths.auction(auction)),
-      bid_page: PublicDocuments.url(Paths.bid(position.bid_id))
-    }
-  end
-
-  defp base_standing(%{status: :active, auction: %{state: :active}}, nil),
-    do: {"bidding_open", nil}
-
-  defp base_standing(%{status: :active, auction: %{state: :active} = auction} = position, book),
-    do: live_standing(AuctionBook.bid_standing(position, auction, book))
-
-  defp base_standing(%{status: :active}, _book), do: {"bidding_ended", nil}
-
-  defp base_standing(%{status: :returnable} = position, _book) do
-    if BidSettlementComponent.spent?(position),
-      do: {"claim_ready", "claim"},
-      else: {"withdraw_ready", "withdraw"}
-  end
-
-  defp base_standing(%{status: :claimable}, _book), do: {"claim_ready", "claim"}
-
-  defp base_standing(%{status: :awaiting_claim}, _book), do: {"claim_later", nil}
-
-  defp base_standing(_settled, _book), do: {"done", nil}
-
-  defp robinhood_bid(position) do
-    {standing, can} = robinhood_standing(position.standing)
-    bid = String.downcase("#{position.auction}:#{position.bid_id}")
-
-    %{
-      bid: bid,
-      chain: "robinhood",
-      name: position.name,
-      symbol: position.symbol,
-      currency: position.stock_symbol,
-      amount: position.committed,
-      max_price: position.max_price,
-      standing: standing,
-      can: can,
-      page: position.listing && PublicDocuments.url(Paths.auction(position.listing)),
-      bid_page: PublicDocuments.url(Paths.bid(bid))
-    }
-  end
-
-  defp robinhood_standing(standing) when standing in [:in, :sharing, :outbid],
-    do: live_standing(standing)
-
-  defp robinhood_standing(:ended), do: {"bidding_ended", nil}
-
-  defp robinhood_standing(standing) when standing in [:refundable, :graduated],
-    do: {"withdraw_ready", "withdraw"}
-
-  defp robinhood_standing(:filled), do: {"claim_later", nil}
-  defp robinhood_standing(:claimable), do: {"claim_ready", "claim"}
-  defp robinhood_standing(_settled), do: {"done", nil}
-
-  # A bid while bidding is open, against the auction's price. One that is not
-  # buying may take its unspent money back early; its card says when.
-  defp live_standing(:in), do: {"buying", nil}
-  defp live_standing(:sharing), do: {"sharing_price", "early_return"}
-  defp live_standing(:outbid), do: {"outbid", "early_return"}
-
-  defp token(holding) do
-    %{
-      name: holding.name,
-      symbol: holding.symbol,
-      chain: Atom.to_string(holding.chain),
-      held: holding.held,
-      staked: holding.staked,
-      claimable: holding.claimable,
-      page: holding.token && PublicDocuments.url(Paths.token(holding.token.auction))
-    }
+    ApiError.answer(conn, AccountAnswer.positions(actor, account))
   end
 end

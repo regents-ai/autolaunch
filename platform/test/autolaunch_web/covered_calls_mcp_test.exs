@@ -184,7 +184,7 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
 
     Application.put_env(:autolaunch, :covered_calls, :off)
 
-    assert tool_names(from, agent) == ["autolaunch_auction_counts"]
+    refute Enum.any?(@tools, &(&1 in tool_names(from, agent)))
 
     for name <- @tools do
       assert %{"error" => _} = json(mcp(from, agent, call(name, %{symbol: "AMZNc"})))

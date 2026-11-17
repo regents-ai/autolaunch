@@ -7,13 +7,16 @@ defmodule AutolaunchWeb.ToolErrors do
   it was asked to wait, or, when no answer came, the words every Regent site
   gives it. A covered-call refusal takes the covered-call routes' code and words
   (`AutolaunchWeb.CoveredCallsAnswer.body/1`), and an Earn refusal the Earn
-  routes' (`AutolaunchWeb.EarnAnswer.body/1`). A failure nobody expected answers `internal_error`, as the API does,
-  and is logged by kind alone (`AutolaunchWeb.ReadFailure`).
+  routes' (`AutolaunchWeb.EarnAnswer.body/1`). Every other tool's refusal is
+  its route's own (`AutolaunchWeb.Refusal`). A failure nobody expected answers
+  `internal_error`, as the API does, and is logged by kind alone
+  (`AutolaunchWeb.ReadFailure`).
 
   Input a tool's action cannot take is refused before AshAi runs it
   (`check_input/3`, the server's `tool_argument_transformer`), with the code the
-  same input gets over HTTP: the auction counts', the covered calls' and
-  Earn's `invalid_request`, each in its own route's words, a pairing's
+  same input gets over HTTP: the market reads', the covered calls', Exposure's
+  and Earn's `invalid_request`, each in its own route's words, a draft save's
+  `invalid_draft`, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
@@ -24,7 +27,7 @@ defmodule AutolaunchWeb.ToolErrors do
   refuse it: nothing is cast.
   """
 
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{AccountAnswer, ApiError, ExposureAnswer, MarketAnswer, Refusal}
 
   @doc """
   Casts a hosted tool's `input` as its action takes it. Input it takes goes on to
@@ -72,13 +75,45 @@ defmodule AutolaunchWeb.ToolErrors do
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
        do: Jason.encode!(AutolaunchWeb.CoveredCallsAnswer.body(:invalid_request))
 
-  defp refused(_resource, :counts),
-    do: Jason.encode!(ApiError.body("invalid_request", "The query parameters are invalid."))
+  defp refused(Autolaunch.Exposure.Series, _exposure),
+    do: text(ExposureAnswer.refusal(:invalid_request))
+
+  defp refused(Autolaunch.TreasurySecurityReport, :treasury_answer),
+    do: text(MarketAnswer.invalid_treasury())
+
+  defp refused(Autolaunch.AgentAccount, save)
+       when save in [:revstake_draft_save, :memestock_draft_save],
+       do: text(AccountAnswer.invalid_draft())
+
+  defp refused(_resource, read)
+       when read in [
+              :counts,
+              :auctions_answer,
+              :auction_answer,
+              :bid_quote_answer,
+              :tokens_answer,
+              :token_answer,
+              :revstake_draft,
+              :memestock_draft,
+              :my_positions,
+              :points
+            ],
+       do: text(MarketAnswer.invalid_query())
 
   defp refused(_resource, :pair_identity),
     do: Jason.encode!(%{error: RegentMCPAgents.pairing_input_refusal()})
 
   defp refused(_resource, _identity), do: Jason.encode!(RegentMCPAgents.Tools.refusal())
+
+  defp text({:error, refusal}), do: text(refusal)
+
+  defp text(%Refusal{code: code, message: message}),
+    do: Jason.encode!(ApiError.body(code, message))
+end
+
+defimpl AshAi.ToToolError, for: AutolaunchWeb.Refusal do
+  def to_tool_error(%{code: code, message: message}),
+    do: Jason.encode!(AutolaunchWeb.ApiError.body(code, message))
 end
 
 defimpl AshAi.ToToolError, for: Autolaunch.Agents.Connection.Refused do

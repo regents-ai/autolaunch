@@ -9,6 +9,12 @@ defmodule Autolaunch.Exposure.Series do
     * `:holdings` — what a wallet of the acting account holds of a series
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
+  The hosted MCP tools run the three reads as `:list_answer`, `:series_answer`
+  and `:holdings_answer`: the same operation, answered with the document its
+  route sends (`AutolaunchWeb.ExposureAnswer.answer/2`), only while the site
+  offers Exposure and never for a connected app calling as itself. No hosted
+  tool prepares a step.
+
   Nothing is stored: the contracts are the record. The acting account comes
   from the actor the caller authenticated; a wallet named in the request is
   only ever one of that account's own.
@@ -64,6 +70,38 @@ defmodule Autolaunch.Exposure.Series do
         |> __MODULE__.refused()
       end
     end
+
+    action :list_answer, :map do
+      run fn _input, %{actor: actor} ->
+        [actor: actor]
+        |> Autolaunch.Exposure.exposure_series_list()
+        |> AutolaunchWeb.ExposureAnswer.answer(:list)
+      end
+    end
+
+    action :series_answer, :map do
+      argument :series, :string,
+        allow_nil?: false,
+        constraints: [trim?: false]
+
+      run fn input, %{actor: actor} ->
+        input.arguments.series
+        |> Autolaunch.Exposure.exposure_series(actor: actor)
+        |> AutolaunchWeb.ExposureAnswer.answer(:series)
+      end
+    end
+
+    action :holdings_answer, :map do
+      argument :series, :string,
+        allow_nil?: false,
+        constraints: [trim?: false]
+
+      run fn input, %{actor: actor} ->
+        input.arguments.series
+        |> Autolaunch.Exposure.exposure_holdings(actor: actor)
+        |> AutolaunchWeb.ExposureAnswer.answer(:holdings)
+      end
+    end
   end
 
   @doc false
@@ -116,8 +154,17 @@ defmodule Autolaunch.Exposure.Series do
       authorize_if always()
     end
 
-    policy action([:holdings, :prepare]) do
+    policy action([:holdings, :prepare, :holdings_answer]) do
       authorize_if actor_present()
+    end
+
+    # The hosted MCP tools: only while the site offers Exposure, and never for
+    # an app connected to a person's account calling as itself (its token is
+    # for its identity tools alone; paired, it calls as its agent instead).
+    policy action([:list_answer, :series_answer, :holdings_answer]) do
+      forbid_unless Autolaunch.Exposure.Checks.Offered
+      forbid_if actor_attribute_equals(:role, :connected_app)
+      authorize_if always()
     end
   end
 end

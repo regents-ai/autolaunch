@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.Prelaunch do
   import Plug.Conn
   alias Autolaunch.Prelaunch
 
+  @opens_soon "Autolaunch opens soon."
+
   @read_events %{
     AutolaunchWeb.HomeLive => ~w(filter retry retry_calls load-more),
     AutolaunchWeb.AuctionsLive => ~w(retry),
@@ -40,13 +42,23 @@ defmodule AutolaunchWeb.Prelaunch do
     end
   end
 
+  @doc """
+  What a launch draft save says in read-only mode: on its signed route this
+  plug refuses it, and its hosted MCP tool, which this plug does not reach,
+  answers the same (`Autolaunch.AgentAccount`).
+  """
+  def refusal,
+    do: AutolaunchWeb.Refusal.new(:service_unavailable, "prelaunch_read_only", @opens_soon)
+
   # Sign-in, sign-out, profile editing and connecting an app such as Claude
   # (`AutolaunchWeb.OAuthController`) work before opening. So does the hosted MCP
   # server's address, and anything but POST /mcp is refused there
   # (`AutolaunchWeb.Plugs.McpAgent`). Its tools that read, or keep a connected
-  # app's identity and pairing, work in read-only mode; the one that prepares
-  # wallet steps (`prepare_covered_call`) is neither listed nor run while it is on,
-  # by its action's own policy (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`).
+  # app's identity and pairing, work in read-only mode; the ones that prepare
+  # wallet steps (`prepare_covered_call`, `prepare_earn`) are neither listed nor
+  # run while it is on, by their actions' own policy
+  # (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`), and a launch draft save
+  # refuses as its route does (`refusal/0`).
   defp account_path?(["auth" | _]), do: true
   defp account_path?(["oauth" | _]), do: true
   defp account_path?(["mcp" | _]), do: true
@@ -94,7 +106,7 @@ defmodule AutolaunchWeb.Prelaunch do
          Jason.encode!(%{
            error: %{
              code: "prelaunch_read_only",
-             message: "Autolaunch opens soon."
+             message: @opens_soon
            }
          })}
       else

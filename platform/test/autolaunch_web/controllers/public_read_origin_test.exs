@@ -7,12 +7,12 @@ defmodule AutolaunchWeb.PublicReadOriginTest do
   use AutolaunchWeb.ConnCase, async: false
 
   alias Autolaunch.TestSupport
-  alias AutolaunchWeb.AuctionController
+  alias AutolaunchWeb.MarketAnswer
 
   # The auction list keeps an answer for a few seconds; this case's must not
   # answer the next case's read.
   setup do
-    on_exit(fn -> Cachex.clear(AuctionController.cache()) end)
+    on_exit(fn -> Cachex.clear(MarketAnswer.cache()) end)
   end
 
   test "the public reads allow any origin, and no signed or account route does", %{conn: conn} do

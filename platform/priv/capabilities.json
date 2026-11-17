@@ -5,9 +5,10 @@
       "operation": "autolaunch_auctions",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_auctions",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -16,9 +17,10 @@
       "operation": "autolaunch_auction",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_auction",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -39,9 +41,10 @@
       "operation": "autolaunch_tokens",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_tokens",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -50,9 +53,10 @@
       "operation": "autolaunch_token",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_token",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -61,9 +65,10 @@
       "operation": "autolaunch_treasury",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_treasury",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -72,9 +77,10 @@
       "operation": "autolaunch_bid_quote",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_bid_quote",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -105,9 +111,10 @@
       "operation": "autolaunch_revstake_draft",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "autolaunch_revstake_draft",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -116,9 +123,10 @@
       "operation": "autolaunch_revstake_draft_save",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "autolaunch_revstake_draft_save",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -127,9 +135,10 @@
       "operation": "autolaunch_memestock_draft",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "autolaunch_memestock_draft",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -138,9 +147,10 @@
       "operation": "autolaunch_memestock_draft_save",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "autolaunch_memestock_draft_save",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -149,9 +159,10 @@
       "operation": "autolaunch_my_positions",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "autolaunch_my_positions",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -160,9 +171,10 @@
       "operation": "account_points",
       "authority": "paired_agent",
       "switch": null,
+      "hosted_tool": "account_points",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": true
       }
@@ -219,9 +231,10 @@
       "operation": "autolaunch_after_hour_stocks_list",
       "authority": "public",
       "switch": "exposure",
+      "hosted_tool": "autolaunch_after_hour_stocks_list",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -230,9 +243,10 @@
       "operation": "autolaunch_after_hour_stocks_series",
       "authority": "public",
       "switch": "exposure",
+      "hosted_tool": "autolaunch_after_hour_stocks_series",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -241,9 +255,10 @@
       "operation": "autolaunch_my_after_hour_stocks",
       "authority": "paired_agent",
       "switch": "exposure",
+      "hosted_tool": "autolaunch_my_after_hour_stocks",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
