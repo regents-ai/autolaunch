@@ -107,15 +107,15 @@ defmodule AutolaunchWeb.AgentCheckInTest do
 
   # The library signs an empty body as none; an agent's own signer may instead
   # sign the empty body's digest, as a request sent with `--body ''` does.
-  defp sign_empty_digest(agent, path) do
+  defp sign_empty_digest(agent, method, path) do
     headers =
       agent
-      |> sign("GET", path, "{}")
+      |> sign(method, path, "{}")
       |> Map.put("content-digest", Siwa.RequestAuth.content_digest_for_body(""))
 
     {:ok, message} =
       Siwa.RequestAuth.signing_message(%{
-        method: "GET",
+        method: method,
         path: path,
         authority: "www.example.com",
         headers: headers
@@ -208,7 +208,9 @@ defmodule AutolaunchWeb.AgentCheckInTest do
              conn |> get("/api/agent/v1/positions") |> json_response(503)
   end
 
-  test "SIGNED_EMPTY_BODY_IS_NO_BODY: a signed GET with the empty body's digest or none answers alike; a digest for a body that never arrives is refused" do
+  # An agent with its own key, paired by a signed request with a person who has
+  # an account; the sign-in service checks every signature it is sent.
+  defp paired_signing_agent! do
     siwa_checks_signatures()
     agent = signing_agent()
     account = TestSupport.register_creator!()
@@ -225,9 +227,27 @@ defmodule AutolaunchWeb.AgentCheckInTest do
              |> post_json("/api/agents/v1/pair", body)
              |> json_response(201)
 
-    for path <- ["/api/agents/v1/whoami", "/api/agent/v1/drafts/revstake"] do
+    agent
+  end
+
+  # A draft save sends `body` as JSON under `headers`, whatever they signed.
+  @draft "/api/agent/v1/drafts/revstake"
+  defp save_draft(headers, body),
+    do:
+      headers
+      |> with_headers()
+      |> put_req_header("content-type", "application/json")
+      |> patch(@draft, body)
+
+  defp read_draft(agent),
+    do: agent |> sign("GET", @draft, nil) |> with_headers() |> get(@draft) |> json_response(200)
+
+  test "SIGNED_EMPTY_BODY_IS_NO_BODY: a signed GET with the empty body's digest or none answers alike; a digest for a body that never arrives is refused" do
+    agent = paired_signing_agent!()
+
+    for path <- ["/api/agents/v1/whoami", @draft] do
       no_digest = agent |> sign("GET", path, nil) |> with_headers() |> get(path)
-      empty_digest = agent |> sign_empty_digest(path) |> with_headers() |> get(path)
+      empty_digest = agent |> sign_empty_digest("GET", path) |> with_headers() |> get(path)
       assert json_response(no_digest, 200) == json_response(empty_digest, 200), path
 
       missing_body = agent |> sign("GET", path, ~s({"name":"Sol"})) |> with_headers() |> get(path)
@@ -235,6 +255,54 @@ defmodule AutolaunchWeb.AgentCheckInTest do
       assert %{"error" => %{"code" => "http_body_binding_invalid"}} =
                json_response(missing_body, 401),
              path
+    end
+  end
+
+  describe "a signed draft save, with writes open" do
+    # Read-only mode refuses a save before its signature is checked.
+    setup do
+      previous = Application.get_env(:autolaunch, :prelaunch_read_only)
+      Application.put_env(:autolaunch, :prelaunch_read_only, false)
+      on_exit(fn -> Application.put_env(:autolaunch, :prelaunch_read_only, previous) end)
+    end
+
+    test "SIGNED_EMPTY_SAVE_IS_NO_BODY: a zero-byte JSON save answers alike with the empty body's digest or none" do
+      agent = paired_signing_agent!()
+
+      no_digest = agent |> sign("PATCH", @draft, nil) |> save_draft("")
+      empty_digest = agent |> sign_empty_digest("PATCH", @draft) |> save_draft("")
+
+      # The route's own answer for a save with nothing in it, never a sign-in refusal.
+      assert %{"error" => %{"code" => "invalid_draft"}} = json_response(no_digest, 422)
+      assert json_response(no_digest, 422) == json_response(empty_digest, 422)
+    end
+
+    test "SIGNED_BODY_NEEDS_ITS_DIGEST: a save whose body its signature does not name is refused" do
+      agent = paired_signing_agent!()
+      body = ~s({"name":"Sol"})
+
+      unsigned_body = agent |> sign("PATCH", @draft, nil) |> save_draft(body)
+
+      # A body makes its content-digest a header every signature must carry.
+      assert %{"error" => %{"code" => "http_headers_missing"}} =
+               json_response(unsigned_body, 401)
+
+      assert %{"data" => nil} = read_draft(agent)
+
+      # The same bytes under a signature that names them are saved.
+      assert %{"data" => %{"name" => "Sol"}} =
+               agent |> sign("PATCH", @draft, body) |> save_draft(body) |> json_response(200)
+    end
+
+    test "SIGNED_EMPTY_DIGEST_HAS_NO_BYTES: a save signed with the empty body's digest that carries bytes is refused" do
+      agent = paired_signing_agent!()
+
+      smuggled = agent |> sign_empty_digest("PATCH", @draft) |> save_draft(~s({"name":"Sol"}))
+
+      assert %{"error" => %{"code" => "http_body_binding_invalid"}} =
+               json_response(smuggled, 401)
+
+      assert %{"data" => nil} = read_draft(agent)
     end
   end
 
