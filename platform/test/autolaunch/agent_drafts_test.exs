@@ -28,7 +28,7 @@ defmodule Autolaunch.AgentDraftsTest do
       actor: %RegentAgents.Agent{wallet: @wallet}
     )
 
-    {:ok, agent, _account} = Agents.resolve(@wallet)
+    {:ok, agent} = Agents.resolve(@wallet)
     {:ok, agent: agent, person: %Human{human_account_id: account.id}}
   end
 

@@ -19,7 +19,9 @@ defmodule Autolaunch.CoveredCalls.Market do
   (`Autolaunch.CoveredCalls.Answer`), and only while the site offers covered
   calls (`Autolaunch.CoveredCalls.Checks.Offered`), the steps only once the
   site has left prelaunch read-only mode
-  (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A refusal is an
+  (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A person's positions go only
+  to them, signed in here (their own route runs `:positions_answer` too), and
+  to the agent paired with them; the steps only to that agent. A refusal is an
   `Autolaunch.CoveredCalls.Refused` naming its reason.
 
   Nothing is stored: the contract is the record. The acting account comes from
@@ -214,7 +216,7 @@ defmodule Autolaunch.CoveredCalls.Market do
       authorize_if always()
     end
 
-    policy action([:positions, :prepare, :positions_answer, :prepare_answer]) do
+    policy action([:positions, :prepare]) do
       authorize_if actor_present()
     end
 
@@ -226,6 +228,18 @@ defmodule Autolaunch.CoveredCalls.Market do
       forbid_unless Autolaunch.CoveredCalls.Checks.Offered
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
+    end
+
+    # A person's own covered calls go to them, signed in here, and to the agent
+    # paired with them; the wallet steps to that agent alone, as their doors say
+    # (`Autolaunch.AgentAccount` alike).
+    policy action(:positions_answer) do
+      authorize_if actor_attribute_equals(:role, :human)
+      authorize_if actor_attribute_equals(:role, :agent)
+    end
+
+    policy action(:prepare_answer) do
+      authorize_if actor_attribute_equals(:role, :agent)
     end
 
     # Wallet steps wait for the site to leave prelaunch read-only mode, as the

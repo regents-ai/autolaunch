@@ -364,7 +364,7 @@ defmodule AutolaunchWeb.McpAgentTest do
   # Once the plug has read `agent`'s pairing and the request's action `action`
   # starts, the person unpairs the agent, once.
   defp unpair_during(event, action, agent) do
-    {:ok, actor, _account} = Autolaunch.Agents.resolve(agent)
+    {:ok, actor} = Autolaunch.Agents.resolve(agent)
     person = %RegentAgents.Person{privy_user_id: actor.privy_user_id}
     id = {__MODULE__, make_ref()}
     test = self()

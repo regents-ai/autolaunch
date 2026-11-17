@@ -8,11 +8,28 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
   request ran, the answer, a read or a save whose reply would carry the former
   person's data, is replaced with `agent_not_paired`, as the template's
   signed-agent plug does.
+
+  A signed route spends its person's budget once the agent is known: 120
+  requests a minute for all of one person's agents together, after the
+  endpoint's 120 for each address. The hosted MCP server checks the same
+  signature (`verify/1`) and spends its own budget for that person
+  (`AutolaunchWeb.Plugs.McpAgent`), so an agent busy on the routes never uses
+  up the person's calls there, nor the other way round.
   """
   @behaviour Plug
   import Plug.Conn
+  alias Autolaunch.Accounts.RequestRateLimiter
   alias Autolaunch.Actors.Agent
   alias AutolaunchWeb.{ApiError, ReadFailure}
+  alias RegentAgentAccess.RateLimit
+
+  @budget RateLimit.init(
+            policy: "agent",
+            limit: 120,
+            window: 60,
+            admit: &RequestRateLimiter.admit/3,
+            key: &__MODULE__.account/1
+          )
 
   @not_paired "Pair this named agent with your account before private work."
   @unavailable "Account access is unavailable."
@@ -30,7 +47,14 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
 
   def init(opts), do: opts
 
-  def call(%{method: method} = conn, _opts) when method in ["POST", "PATCH", "PUT"] do
+  def call(conn, _opts), do: conn |> verify() |> spend()
+
+  @doc """
+  Checks the request's signature and the agent's pairing, and names the agent
+  as the request's `actor`, without spending the signed routes' budget.
+  """
+  @spec verify(Plug.Conn.t()) :: Plug.Conn.t()
+  def verify(%{method: method} = conn) when method in ["POST", "PATCH", "PUT"] do
     case get_req_header(conn, "content-type") do
       ["application/json" <> _] ->
         authenticate(conn)
@@ -45,7 +69,13 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
     end
   end
 
-  def call(conn, _opts), do: authenticate(conn)
+  def verify(conn), do: authenticate(conn)
+
+  @doc false
+  def account(conn), do: conn.assigns.actor.privy_user_id
+
+  defp spend(%{halted: true} = conn), do: conn
+  defp spend(conn), do: RateLimit.call(conn, @budget)
 
   defp authenticate(conn) do
     conn =
@@ -92,7 +122,7 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
 
   defp resolve(conn, wallet) do
     case Autolaunch.Agents.resolve(wallet) do
-      {:ok, actor, _account} ->
+      {:ok, actor} ->
         conn
         |> assign(:actor, actor)
         |> recheck_before_send(actor)

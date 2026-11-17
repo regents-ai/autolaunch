@@ -16,10 +16,12 @@ defmodule Autolaunch.Earn.Product do
   each answer shaped once (`Autolaunch.Earn.Answer`), only while the site
   offers Earn (`Autolaunch.Earn.Checks.Offered`), and the steps only once the
   site has left prelaunch read-only mode
-  (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A quote is the steps'
-  preview without the calls: it reserves nothing, and both, like a position,
-  are read again at the latest block on every ask. A refusal is an
-  `Autolaunch.Earn.Refused` naming its reason.
+  (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A person's balances go only
+  to them, signed in here (their own route runs `:positions_answer` too), and
+  to the agent paired with them; a quote and the steps only to that agent. A
+  quote is the steps' preview without the calls: it reserves nothing, and
+  both, like a position, are read again at the latest block on every ask. A
+  refusal is an `Autolaunch.Earn.Refused` naming its reason.
 
   Nothing is stored: the chain is the record. The acting account comes from the
   actor the caller authenticated; a wallet named in the request is only ever
@@ -177,7 +179,7 @@ defmodule Autolaunch.Earn.Product do
       authorize_if always()
     end
 
-    policy action([:position, :prepare, :quote_answer, :positions_answer, :prepare_answer]) do
+    policy action([:position, :prepare]) do
       authorize_if actor_present()
     end
 
@@ -189,6 +191,18 @@ defmodule Autolaunch.Earn.Product do
       forbid_unless Autolaunch.Earn.Checks.Offered
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
+    end
+
+    # A person's own balances go to them, signed in here, and to the agent
+    # paired with them; a preview and the wallet steps to that agent alone, as
+    # their doors say (`Autolaunch.AgentAccount` alike).
+    policy action(:positions_answer) do
+      authorize_if actor_attribute_equals(:role, :human)
+      authorize_if actor_attribute_equals(:role, :agent)
+    end
+
+    policy action([:quote_answer, :prepare_answer]) do
+      authorize_if actor_attribute_equals(:role, :agent)
     end
 
     # Wallet steps wait for the site to leave prelaunch read-only mode, as the

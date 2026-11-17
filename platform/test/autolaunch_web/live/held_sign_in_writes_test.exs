@@ -85,7 +85,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
       actor: %RegentAgents.Agent{wallet: @agent_wallet}
     )
 
-    {:ok, agent, _account} = Agents.resolve(@agent_wallet)
+    {:ok, agent} = Agents.resolve(@agent_wallet)
 
     {:ok, draft} =
       AgentDrafts.save(

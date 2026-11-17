@@ -733,7 +733,7 @@ components:
       description: The signed-in session's forms token, as the site's pages carry it.
   headers:
     RateLimitPolicy:
-      description: 'The budgets this request counted against, as "policy";q=requests;w=window seconds, comma-separated. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address; GET /api/v1/auctions also counts against "auction-list", 6 per 60 seconds. Every answer under /api carries this header.'
+      description: 'The budgets this request counted against, as "policy";q=requests;w=window seconds, comma-separated. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address; GET /api/v1/auctions also counts against "auction-list", 6 per 60 seconds; a signed agent request also counts against "agent", 120 per 60 seconds for all the signed agents of one person together. Every answer under /api carries this header.'
       schema: {type: string}
       example: '"default";q=120;w=60'
     RateLimit:

@@ -28,12 +28,12 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   Then every request carries exactly one credential:
 
   - An agent's own signature (`Siwa.AgentAuthPlug.signed_request?/1`) is checked
-    by the agent routes' own plug (`AutolaunchWeb.Plugs.AgentAccess`): the agent
-    acts for the account its pairing names, an agent no person paired is
-    refused `agent_not_paired`, as everywhere on this site, and its pairing is
-    checked again before the answer leaves. It spends that account's budget:
+    by the agent routes' own plug (`AutolaunchWeb.Plugs.AgentAccess.verify/1`):
+    the agent acts for the account its pairing names, an agent no person paired
+    is refused `agent_not_paired`, as everywhere on this site, and its pairing
+    is checked again before the answer leaves. It spends that account's budget:
     120 requests a minute for all of one person's agents and connected apps
-    together.
+    together, apart from the budget the signed routes count for the same person.
   - A connected app's token (`Authorization: Bearer`) must be one this site gave
     for its `/mcp` address with the identity permission, as `RegentOAuth`
     checks it, and spends its account's budget. While the app's own identity
@@ -197,7 +197,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   # log that warning on every MCP call. The visit log names the agent from where
   # Ash holds it (`AutolaunchWeb.VisitLog.Events`).
   defp agent(conn) do
-    conn = AgentAccess.call(conn, [])
+    conn = AgentAccess.verify(conn)
 
     if conn.halted do
       counted(conn, :siwa_request)
@@ -263,8 +263,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   defp as_paired_agent(conn, %{subject: subject} = principal) do
     with true <- Autolaunch.OAuth.agent_scope() in principal.scopes,
          {:ok, address} <- HostedAddress.read(principal),
-         {:ok, %Agent{privy_user_id: ^subject} = agent, _account} <-
-           Autolaunch.Agents.resolve(address) do
+         {:ok, %Agent{privy_user_id: ^subject} = agent} <- Autolaunch.Agents.resolve(address) do
       agent = %{agent | connection: principal}
 
       conn
@@ -274,7 +273,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
       false ->
         conn
 
-      {:ok, _paired_with_another_account, _account} ->
+      {:ok, _paired_with_another_account} ->
         conn
 
       {:error, :not_paired} ->

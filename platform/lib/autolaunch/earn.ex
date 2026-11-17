@@ -21,9 +21,10 @@ defmodule Autolaunch.Earn do
   asked: the page reads the terms, which anyone may, and its panel always
   calls as a person; the HTTP routes are not there while Earn is off
   (`AutolaunchWeb.Router.admit_earn/2`), every caller of the private ones is
-  an agent, and the steps route is refused before the router in prelaunch
-  read-only mode (`AutolaunchWeb.Prelaunch`), both set when the site starts;
-  the hosted MCP tools put their own errors into words.
+  the actor its policy admits (the person on their own route, a paired agent
+  on the agent routes), and the steps route is refused before the router in
+  prelaunch read-only mode (`AutolaunchWeb.Prelaunch`), both set when the site
+  starts; the hosted MCP tools put their own errors into words.
   """
   def reason(%Ash.Error.Unknown{errors: [%Autolaunch.Earn.Refused{reason: reason}]}), do: reason
   def reason(%Ash.Error.Invalid{}), do: :invalid_request

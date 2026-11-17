@@ -45,11 +45,11 @@ defmodule Autolaunch.Agents do
   end
 
   @doc """
-  The actor a wallet the sign-in service vouches for acts as here, with the
-  account its pairing names: the agent acting for its person while it is
-  paired, `:not_paired` otherwise. The signed-agent routes use it
-  (`AutolaunchWeb.Plugs.AgentAccess`), and so does the hosted MCP server, for
-  the wallet of a connected app's own identity (`AutolaunchWeb.Plugs.McpAgent`).
+  The actor a wallet the sign-in service vouches for acts as here: the agent
+  acting for the account its pairing names while it is paired, `:not_paired`
+  otherwise. The signed-agent routes use it (`AutolaunchWeb.Plugs.AgentAccess`),
+  and so does the hosted MCP server, for the wallet of a connected app's own
+  identity (`AutolaunchWeb.Plugs.McpAgent`).
   """
   def resolve(wallet) do
     with {:ok, pairing} <- RegentAgents.Authority.resolve(Repo, wallet),
@@ -61,7 +61,7 @@ defmodule Autolaunch.Agents do
          pairing_id: pairing.id,
          acting_agent_id: pairing.id,
          human_account_id: account.id
-       }, account}
+       }}
     end
   end
 

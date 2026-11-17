@@ -19,9 +19,11 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     answer; a list read that fails in its cache is refused in words, and a
     tool that raises tells nothing of it;
   - all of one person's signed agents and connected apps spend one budget of
-    120 calls a minute; a person's own reads and saves run, by each action
-    itself, for the agent paired with them alone, and their bids and holdings
-    are read from the account the pairing named, by its id;
+    120 calls a minute, and its signed agents another 120 on the signed
+    routes, apart from it; a person's own reads and saves run, by each action
+    itself, for the agent paired with them alone, their covered calls' and
+    Earn's positions for them signed in too, and their bids and holdings are
+    read from the account the pairing named, by its id;
   - every hosted tool in `priv/capabilities.json` is called, a connected app's
     own as that app, and each one it lists as read-only writes no row;
   - the guides and the server's own instructions name every hosted tool a
@@ -51,7 +53,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   }
 
   alias Autolaunch.Points.Board
-  alias AutolaunchWeb.{AccountAnswer, Capabilities, MarketAnswer, ToolManifest}
+  alias AutolaunchWeb.{AccountAnswer, Capabilities, ClientAddress, MarketAnswer, ToolManifest}
 
   @moduletag :capture_log
   @commands Path.expand("../../../cli/commands.json", __DIR__)
@@ -363,6 +365,36 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     assert app.status == 429 and json(app) == json(refused)
   end
 
+  test "one person's signed agents spend one budget of 120 requests a minute on the signed routes, apart from the hosted server's" do
+    account = TestSupport.register_creator!()
+    agents = {paired_agent(account), paired_agent(account)}
+    other = paired_agent()
+    path = "/api/agent/v1/drafts/revstake"
+
+    # Requests that might straddle two minutes start in the next one.
+    {:ok, %{reset: left}} = RequestRateLimiter.admit({"minute", make_ref()}, 1, 60)
+    if left < 5, do: Process.sleep(left * 1000)
+
+    # Each request from an address of its own, so only the person's budget runs out.
+    answers = for n <- 1..121, do: signed(elem(agents, rem(n, 2)), path)
+    assert Enum.map(answers, & &1.status) == List.duplicate(200, 120) ++ [429]
+    refused = List.last(answers)
+    assert get_resp_header(refused, "ratelimit") |> hd() =~ ~s("agent";r=0)
+    assert [wait] = get_resp_header(refused, "retry-after")
+    assert String.to_integer(wait) in 1..60
+
+    # An address past its own limit is refused in those same words.
+    address = from()
+    key = ClientAddress.key(%{build_conn() | remote_ip: address})
+    for _request <- 1..120, do: RequestRateLimiter.admit({"default", key}, 120, 60)
+    by_address = signed(other, path, address)
+    assert by_address.status == 429 and json(by_address) == json(refused)
+
+    # Another person's agent still goes on, and so do these agents on the hosted server.
+    assert signed(other, path).status == 200
+    assert mcp(elem(agents, 0), rpc("ping")).status == 200
+  end
+
   test "a paged list reads every page by the cursor each page gives, each page the route's own" do
     agent = paired_agent()
 
@@ -541,7 +573,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   end
 
   test "a paired agent's bids and holdings are read from the account its pairing named, by that account's id" do
-    {:ok, agent, _account} = Autolaunch.Agents.resolve(paired_agent())
+    {:ok, agent} = Autolaunch.Agents.resolve(paired_agent())
 
     no_wallet =
       Accounts.register_verified!("did:privy:no-wallet-#{System.unique_integer()}", nil, [],
@@ -557,7 +589,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   test "a person's own hosted reads and saves run for the agent paired with them alone, whoever else asks" do
     ExposureChain.install()
     account = TestSupport.register_creator!()
-    {:ok, agent, _account} = Autolaunch.Agents.resolve(paired_agent(account))
+    {:ok, agent} = Autolaunch.Agents.resolve(paired_agent(account))
     holding = {Autolaunch.Exposure.Series, :holdings_answer, %{series: ExposureChain.series()}}
 
     actions = [
@@ -578,6 +610,31 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       may? = &Ash.can?(Ash.ActionInput.for_action(resource, action, input), &1)
       assert may?.(agent), "#{action}"
       for actor <- others, do: refute(may?.(actor), "#{action} runs for #{inspect(actor)}")
+    end
+  end
+
+  test "a person's covered calls and Earn balances go to them signed in and to the agent paired with them, a preview and the steps to that agent alone" do
+    switch(@features, false)
+    account = TestSupport.register_creator!()
+    {:ok, agent} = Autolaunch.Agents.resolve(paired_agent(account))
+    # A connected app whose identity is paired calls as that agent.
+    app_as_agent = %{agent | connection: %{subject: account.privy_user_id}}
+    person = %Human{human_account_id: account.id}
+    app = %ConnectedApp{principal: %{subject: account.privy_user_id}}
+    deposit = %{product: "aave-usdc", kind: :deposit}
+
+    for {resource, action, input, allowed} <- [
+          {Autolaunch.CoveredCalls.Market, :positions_answer, %{symbol: "AMZNc"},
+           [agent, app_as_agent, person]},
+          {Autolaunch.CoveredCalls.Market, :prepare_answer, %{symbol: "AMZNc", kind: :claim},
+           [agent, app_as_agent]},
+          {Autolaunch.Earn.Product, :positions_answer, %{}, [agent, app_as_agent, person]},
+          {Autolaunch.Earn.Product, :quote_answer, deposit, [agent, app_as_agent]},
+          {Autolaunch.Earn.Product, :prepare_answer, deposit, [agent, app_as_agent]}
+        ],
+        actor <- [agent, app_as_agent, person, app, %Autolaunch.Actors.System{}, nil] do
+      may? = Ash.can?(Ash.ActionInput.for_action(resource, action, input), actor)
+      assert may? == actor in allowed, "#{action} of #{inspect(resource)} for #{inspect(actor)}"
     end
   end
 
@@ -956,6 +1013,14 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     |> Map.put(:remote_ip, from())
     |> put_req_header("content-type", "application/json")
     |> called_by(caller)
+    |> @endpoint.call([])
+  end
+
+  # A paired agent's signed read of a route, from `address`.
+  defp signed(agent, path, address \\ from()) do
+    conn(:get, path, nil)
+    |> Map.put(:remote_ip, address)
+    |> called_by(agent)
     |> @endpoint.call([])
   end
 

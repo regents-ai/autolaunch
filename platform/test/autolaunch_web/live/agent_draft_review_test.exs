@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       actor: %RegentAgents.Agent{wallet: @wallet}
     )
 
-    {:ok, agent, _account} = Agents.resolve(@wallet)
+    {:ok, agent} = Agents.resolve(@wallet)
 
     {:ok, _draft} =
       AgentDrafts.save(
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       actor: %RegentAgents.Agent{wallet: @wallet}
     )
 
-    {:ok, agent, _account} = Agents.resolve(@wallet)
+    {:ok, agent} = Agents.resolve(@wallet)
     {:ok, _draft} = AgentDrafts.save("revstake", %{"treasury" => @treasury}, agent)
     session = signed_in_session(account.id)
 
@@ -119,7 +119,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
       actor: %RegentAgents.Agent{wallet: @wallet}
     )
 
-    {:ok, agent, _account} = Agents.resolve(@wallet)
+    {:ok, agent} = Agents.resolve(@wallet)
     session = signed_in_session(account.id)
 
     for {kind, path} <- [{"revstake", "/agent-business"}, {"memestock", "/create"}] do
