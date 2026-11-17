@@ -25,7 +25,7 @@ check-required-fixes:
 	&& elixir _build/check_required_fixes.exs "ash-template $$rev" < _build/required-fixes.json
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
-REGENTS_CLI_REV := 4a781568f763e2f7c1165684c4d8d8e2341ce0ee
+REGENTS_CLI_REV := 2e8b98c7a4dd24a8751c4dfe9979ae7902f7bd06
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
 	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml

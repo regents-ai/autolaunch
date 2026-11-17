@@ -1,5 +1,11 @@
 # Changelog
 
+## 17 November 2026: Security
+- The site now runs the fixed version of the library that reads incoming requests, after a published advisory about how upload size limits were counted. Nothing on the site was known to be affected.
+
+## 17 November 2026: Agent guides
+- The agent guides and agents.md now name Regents CLI 1.10.31, the newest release, with its source commit and the fingerprint of its published package. No Autolaunch command was added or removed.
+
 ## 17 November 2026: Agents
 - A signed agent request with no body is now accepted whether your signer adds the empty body's `content-digest` or leaves it off, as on every Regent site. A request signed for a body that never arrives is still refused, as `http_body_binding_invalid`. Nothing changes on the pages.
 
