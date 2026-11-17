@@ -14,8 +14,12 @@ defmodule Autolaunch.Agents do
   alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ReadFailedError, ReadFailure}
 
   # The hosted MCP server's identity tools, for an app a person connected to their
-  # account here, with the titles, words and hints every Regent site gives them.
-  @identity Map.new(RegentMCPAgents.Tools.list(), &{&1.name, &1})
+  # account here, with the titles, words and hints every Regent site gives them,
+  # but check_in titled "Check in", as this site's pages and its signed agents'
+  # check-in tool say it.
+  @identity RegentMCPAgents.Tools.list()
+            |> Map.new(&{&1.name, &1})
+            |> put_in(["check_in", :title], "Check in")
 
   tools do
     for name <- RegentMCPAgents.Tools.names() do
