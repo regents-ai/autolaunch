@@ -13,8 +13,8 @@ defmodule AutolaunchWeb.MarketAnswer do
   alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{MarketPage, Paths, ReadFailure, Refusal, UsdValue}
   alias AutolaunchWeb.Components.BidPlaced
+  alias AutolaunchWeb.{MarketPage, Paths, ReadFailure, Refusal, UsdValue}
   alias RegentChain.Address
 
   @cache :autolaunch_public_auctions
