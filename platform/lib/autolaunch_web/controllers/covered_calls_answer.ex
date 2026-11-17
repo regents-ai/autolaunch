@@ -17,6 +17,8 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
 
   @chain_unavailable {:service_unavailable,
                       "Covered calls could not be read from the chain just now."}
+  @site_unavailable {:service_unavailable,
+                     "Covered calls are not available on this site right now."}
 
   @refusals %{
     unknown_market: {:not_found, "There is no covered-call market for that stock."},
@@ -41,7 +43,12 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     # the chain could not be read just now.
     invalid_chain_response: @chain_unavailable,
     invalid_block_header: @chain_unavailable,
-    wrong_chain: @chain_unavailable
+    wrong_chain: @chain_unavailable,
+    # The site started with a covered-calls description for another chain than
+    # its Base deployment's, or with a Base deployment id that is empty; the start
+    # refuses every other fault in either description.
+    base_deployment_mismatch: @site_unavailable,
+    missing_deployment_id: @site_unavailable
   }
 
   @doc "Answers with the operation's answer, or with the refusal it carries."

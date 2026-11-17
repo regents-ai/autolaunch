@@ -80,6 +80,36 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
     end
   end
 
+  test "covered calls on a deployment they cannot run on are refused in words, on the route and the tool alike",
+       %{from: from} do
+    CoveredCallsChain.install()
+    {agent, _wallet} = paired_agent()
+    id = Application.fetch_env!(:autolaunch, :autolaunch_base_deployment_id)
+    on_exit(fn -> Application.put_env(:autolaunch, :autolaunch_base_deployment_id, id) end)
+
+    # The installed description, on another chain than the Base deployment's.
+    other_chain =
+      Path.join(System.tmp_dir!(), "covered-calls-#{System.unique_integer([:positive])}.json")
+
+    :autolaunch
+    |> Application.fetch_env!(:autolaunch_base_covered_calls_deployment)
+    |> File.read!()
+    |> Jason.decode!()
+    |> Map.put("chain_id", 31_337)
+    |> Jason.encode!()
+    |> then(&File.write!(other_chain, &1))
+
+    on_exit(fn -> File.rm(other_chain) end)
+
+    # A Base deployment id that is empty.
+    Application.put_env(:autolaunch, :autolaunch_base_deployment_id, "")
+    assert_book_refused(from, agent, "missing_deployment_id")
+
+    Application.put_env(:autolaunch, :autolaunch_base_deployment_id, id)
+    Application.put_env(:autolaunch, :autolaunch_base_covered_calls_deployment, other_chain)
+    assert_book_refused(from, agent, "base_deployment_mismatch")
+  end
+
   property "a suggested premium answers through the hosted tool as through the route, whatever the strike and expiry",
            %{from: from} do
     CoveredCallsChain.install()
@@ -250,6 +280,13 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
       %{"isError" => true, "content" => [%{"text" => text}]} ->
         {:error, Jason.decode!(text)}
     end
+  end
+
+  # The book refused with `code` by its route, and by its tool in the same code and words.
+  defp assert_book_refused(from, agent, code) do
+    route = http(from, :get, "/api/v1/covered-calls/AMZNc", nil)
+    assert route.status == 503 and route.body["error"]["code"] == code
+    assert tool(from, agent, "covered_call_book", %{symbol: "AMZNc"}) == {:error, route.body}
   end
 
   defp tool_names(from, agent),
