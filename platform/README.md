@@ -362,7 +362,10 @@ sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/
 the pairing box and `/agents/claude`, all behind `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`. Its
 tables, `oauth_*` in `autolaunch_app` and on the site's own repo, are added by migrations
 `20261109231500` and `20261114120000` (`oauth_client_documents`: an app that connects by its
-published identity, which consent and token exchange read). Switching it on
+published identity, which consent and token exchange read). Such an app may sign its token and
+revocation requests with its own key (`private_key_jwt`, read from its own `jwks_uri`); without
+a valid client assertion it is refused `invalid_client`, and `client_assertion` is never logged
+(`config/config.exs`). Switching it on
 needs, in order: the migration run; `autolaunch` in the
 sign-in service's hosted signing list (elixir-utils' `RegentMCPAgents` knows it from 466ca10f);
 this site's `SIWA_HOSTED_SIGNING_KEY`; then the switch, which is a sign-in release.

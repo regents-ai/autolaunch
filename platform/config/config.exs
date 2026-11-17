@@ -383,6 +383,7 @@ config :phoenix, :filter_parameters, [
   "token",
   "secret",
   "code",
+  "client_assertion",
   "proof",
   "name",
   "description",

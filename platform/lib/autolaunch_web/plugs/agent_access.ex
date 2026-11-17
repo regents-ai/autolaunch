@@ -48,15 +48,10 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
   def call(conn, _opts), do: authenticate(conn)
 
   defp authenticate(conn) do
-    conn = put_resp_header(conn, "cache-control", "no-store")
-
     conn =
-      if conn.assigns[:raw_body] == "",
-        do: %{conn | assigns: Map.delete(conn.assigns, :raw_body)},
-        else: conn
-
-    conn =
-      Siwa.AgentAuthPlug.call(conn,
+      conn
+      |> put_resp_header("cache-control", "no-store")
+      |> Siwa.AgentAuthPlug.call(
         client: RegentAgents.Broker,
         hooks: RegentAgents.HTTP.Hooks,
         audience: "autolaunch"
