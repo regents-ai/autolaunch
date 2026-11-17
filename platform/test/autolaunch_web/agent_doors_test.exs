@@ -16,7 +16,12 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     reads every page by the cursor each page gives; the lists and one auction
     say when Robinhood could not be read, as their routes do; the auction list
     has the route's own budget, and a draft save before opening the route's
-    answer;
+    answer; a list read that fails in its cache is refused in words, and a
+    tool that raises tells nothing of it;
+  - all of one person's signed agents and connected apps spend one budget of
+    120 calls a minute; a person's own reads and saves run, by each action
+    itself, for the agent paired with them alone, and their bids and holdings
+    are read from the account the pairing named, by its id;
   - every hosted tool in `priv/capabilities.json` is called, a connected app's
     own as that app, and each one it lists as read-only writes no row;
   - the guides and the server's own instructions name every hosted tool a
@@ -30,7 +35,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   import Plug.Test, only: [conn: 3]
 
+  alias Autolaunch.Accounts
   alias Autolaunch.Accounts.RequestRateLimiter
+  alias Autolaunch.Actors.{ConnectedApp, Human}
   alias Autolaunch.CoveredCalls.Terms
 
   alias Autolaunch.{
@@ -44,7 +51,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   }
 
   alias Autolaunch.Points.Board
-  alias AutolaunchWeb.{Capabilities, MarketAnswer, ToolManifest}
+  alias AutolaunchWeb.{AccountAnswer, Capabilities, MarketAnswer, ToolManifest}
 
   @moduletag :capture_log
   @commands Path.expand("../../../cli/commands.json", __DIR__)
@@ -336,6 +343,26 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     assert {:ok, _page} = tool(paired_agent(), "autolaunch_auctions")
   end
 
+  test "one person's signed agents and connected apps spend one budget of 120 calls a minute here" do
+    account = TestSupport.register_creator!()
+    agents = {paired_agent(account), paired_agent(account)}
+
+    # Budgets are counted in whole minutes; calls that might straddle two start
+    # in the next one.
+    {:ok, %{reset: left}} = RequestRateLimiter.admit({"minute", make_ref()}, 1, 60)
+    if left < 5, do: Process.sleep(left * 1000)
+
+    # Each call from an address of its own, so only the person's budget runs out.
+    answers = for n <- 1..121, do: mcp(elem(agents, rem(n, 2)), rpc("ping"))
+    assert Enum.map(answers, & &1.status) == List.duplicate(200, 120) ++ [429]
+    refused = List.last(answers)
+    assert get_resp_header(refused, "ratelimit") |> hd() =~ ~s("mcp";r=0)
+
+    # The person's connected app is refused from that same budget, in the same words.
+    app = mcp(connected_app(account.privy_user_id), rpc("ping"))
+    assert app.status == 429 and json(app) == json(refused)
+  end
+
   test "a paged list reads every page by the cursor each page gives, each page the route's own" do
     agent = paired_agent()
 
@@ -387,6 +414,41 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         assert tool(agent, name, input) == hosted(name, route), name
       end
     end
+  end
+
+  test "a list read that fails in its cache is refused in words, and a tool that raises tells nothing of it" do
+    agent = paired_agent()
+
+    %{id: id} =
+      TestSupport.project_auction(
+        chain_id: 8453,
+        state: :active,
+        current_clearing_price: "unreadable"
+      )
+
+    # A stored price the list cannot state raises in the cache's own process,
+    # which hands the raise back as its error.
+    route = http(:get, "/api/v1/auctions", nil)
+    assert route.status == 500 and route.body["error"]["code"] == "internal_error"
+    assert tool(agent, "autolaunch_auctions") == {:error, route.body}
+
+    # One auction's read raises in the tool itself: the caller gets the same
+    # refusal and nothing of the raise.
+    raised = mcp(agent, call("autolaunch_auction", %{id: id}))
+    refute IO.iodata_to_binary(raised.resp_body) =~ ~r/Decimal|unreadable|AuctionFigures/
+    assert tool(agent, "autolaunch_auction", %{id: id}) == {:error, route.body}
+
+    # The cache not running, for the moment it restarts.
+    cache = Process.whereis(MarketAnswer.cache())
+
+    {child, _pid, _type, _modules} =
+      Enum.find(Supervisor.which_children(Autolaunch.Supervisor), &(elem(&1, 1) == cache))
+
+    :ok = Supervisor.terminate_child(Autolaunch.Supervisor, child)
+    on_exit(fn -> Supervisor.restart_child(Autolaunch.Supervisor, child) end)
+
+    assert http(:get, "/api/v1/auctions", nil) == route
+    assert tool(agent, "autolaunch_auctions") == {:error, route.body}
   end
 
   test "a paired agent's drafts read and save as their routes do, refusals included" do
@@ -475,6 +537,47 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       route = http(:get, path, nil, agent)
       assert route.status == 503, "#{path} answered #{route.status}"
       assert tool(agent, name) == answer(route)
+    end
+  end
+
+  test "a paired agent's bids and holdings are read from the account its pairing named, by that account's id" do
+    {:ok, agent, _account} = Autolaunch.Agents.resolve(paired_agent())
+
+    no_wallet =
+      Accounts.register_verified!("did:privy:no-wallet-#{System.unique_integer()}", nil, [],
+        actor: %Autolaunch.Actors.System{}
+      )
+
+    # The account the agent's account id names is the one read, never one found
+    # again by its person's sign-in id, which here has a verified wallet.
+    assert {:error, %{code: "wallet_required"}} =
+             AccountAnswer.positions(%{agent | human_account_id: no_wallet.id})
+  end
+
+  test "a person's own hosted reads and saves run for the agent paired with them alone, whoever else asks" do
+    ExposureChain.install()
+    account = TestSupport.register_creator!()
+    {:ok, agent, _account} = Autolaunch.Agents.resolve(paired_agent(account))
+    holding = {Autolaunch.Exposure.Series, :holdings_answer, %{series: ExposureChain.series()}}
+
+    actions = [
+      holding
+      | for(
+          %{name: name} <- Ash.Resource.Info.actions(Autolaunch.AgentAccount),
+          do: {Autolaunch.AgentAccount, name, %{}}
+        )
+    ]
+
+    others = [
+      %Human{human_account_id: account.id},
+      %ConnectedApp{principal: %{subject: account.privy_user_id}},
+      nil
+    ]
+
+    for {resource, action, input} <- actions do
+      may? = &Ash.can?(Ash.ActionInput.for_action(resource, action, input), &1)
+      assert may?.(agent), "#{action}"
+      for actor <- others, do: refute(may?.(actor), "#{action} runs for #{inspect(actor)}")
     end
   end
 
@@ -785,9 +888,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     count
   end
 
-  # A paired agent's signing wallet.
-  defp paired_agent do
-    account = TestSupport.register_creator!()
+  # A paired agent's signing wallet, paired with `account`'s person, or with a
+  # new person's.
+  defp paired_agent(account \\ TestSupport.register_creator!()) do
     agent = wallet()
 
     code =

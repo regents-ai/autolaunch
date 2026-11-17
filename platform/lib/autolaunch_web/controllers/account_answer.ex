@@ -103,14 +103,24 @@ defmodule AutolaunchWeb.AccountAnswer do
   defp with_note(answer, false, _note), do: answer
 
   @doc """
-  The bids and holdings of the person a paired agent acts for, read from the
-  account its pairing names, as the signed route reads it
-  (`AutolaunchWeb.Plugs.AgentAccess`).
+  The bids and holdings of the person a paired agent acts for, on its signed
+  route and its hosted tool alike: read from the account its pairing named
+  when the agent was let in (`Autolaunch.Agents.resolve/1`), by that account's
+  id, so no later read can name another. The person may have signed in
+  without a wallet; then there is no wallet to read.
   """
-  def positions(%Agent{privy_user_id: privy_user_id} = actor) do
-    case Accounts.get_by_privy_did(privy_user_id, actor: %System{}) do
+  def positions(%Agent{human_account_id: id} = actor) do
+    case Accounts.points_account(id, actor: %System{}, not_found_error?: false) do
       {:ok, %{} = account} ->
-        positions(actor, account)
+        if VerifiedSession.current?(account),
+          do: wallet_positions(actor, account),
+          else:
+            {:error,
+             Refusal.new(
+               :conflict,
+               "wallet_required",
+               "Your person's Regent account has no verified wallet to read."
+             )}
 
       {:ok, nil} ->
         account_unavailable()
@@ -122,23 +132,10 @@ defmodule AutolaunchWeb.AccountAnswer do
   end
 
   @doc """
-  The bids and holdings of `account`'s one signed-in wallet, read now from the
-  site's records and the chain; a read that fails refuses the whole answer
-  rather than leave part of it out. An agent's person may have signed in
-  without a wallet; then there is no wallet to read.
+  The bids and holdings of a signed-in person's one signed-in wallet, read now
+  from the site's records and the chain; a read that fails refuses the whole
+  answer rather than leave part of it out.
   """
-  def positions(%Agent{} = actor, account) do
-    if VerifiedSession.current?(account),
-      do: wallet_positions(actor, account),
-      else:
-        {:error,
-         Refusal.new(
-           :conflict,
-           "wallet_required",
-           "Your person's Regent account has no verified wallet to read."
-         )}
-  end
-
   def positions(%Human{} = actor, account), do: wallet_positions(actor, account)
 
   defp wallet_positions(actor, account) do

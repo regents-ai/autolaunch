@@ -57,6 +57,11 @@ defmodule AutolaunchWeb.MarketAnswer do
       {kept, body} when kept in [:ok, :commit] -> {:ok, body}
       {:ignore, {:error, :invalid_query}} -> invalid_query()
       {:ignore, {:error, error}} -> failed("public auctions read", error)
+      # The cache runs the read in a process of its own and hands back a read
+      # that raised there as its own error.
+      {:error, %Cachex.Error{} = raised} -> failed("public auctions read", raised)
+      # The cache is not running, for the moment it restarts.
+      {:error, :no_cache} -> failed("public auctions cache", :no_cache)
     end
   end
 

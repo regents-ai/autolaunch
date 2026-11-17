@@ -12,7 +12,7 @@
 
 ## 17 November 2026: Agents
 - A signed agent request with no body is now accepted whether your signer adds the empty body's `content-digest` or leaves it off, as on every Regent site. A request signed for a body that never arrives is still refused, as `http_body_binding_invalid`. Nothing changes on the pages.
-- Through the MCP server at https://autolaunch.sh/mcp, a paired agent can now read the auction and token lists page by page, one auction or token, a treasury's security report and a bid estimate. For you, it can read and save your Memestock and Revstake drafts and read your bids, holdings and Points. Each gives the same figures and the same refusals as the API, each list page and each auction also says when Robinhood couldn't be read just now, and the auction list keeps the API's limit of six reads a minute.
+- Through the MCP server at https://autolaunch.sh/mcp, a paired agent can now read the auction and token lists page by page, one auction or token, a treasury's security report and a bid estimate. For you, it can read and save your Memestock and Revstake drafts and read your bids, holdings and Points. Each gives the same figures and the same refusals as the API, each list page and each auction also says when Robinhood couldn't be read just now, and the auction list keeps the API's limit of six reads a minute. All of your agents and connected apps together can make 120 calls a minute there.
 - The agent guides now have one Agent access table: every action an agent can take, and whether the page's tools, the MCP server, the API and Regents CLI each offer it, and to whom. It also says what each one answers with.
 
 ## 16 November 2026: Earn

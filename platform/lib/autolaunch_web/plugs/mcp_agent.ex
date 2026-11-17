@@ -31,7 +31,9 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
     by the agent routes' own plug (`AutolaunchWeb.Plugs.AgentAccess`): the agent
     acts for the account its pairing names, an agent no person paired is
     refused `agent_not_paired`, as everywhere on this site, and its pairing is
-    checked again before the answer leaves.
+    checked again before the answer leaves. It spends that account's budget:
+    120 requests a minute for all of one person's agents and connected apps
+    together.
   - A connected app's token (`Authorization: Bearer`) must be one this site gave
     for its `/mcp` address with the identity permission, as `RegentOAuth`
     checks it, and spends its account's budget. While the app's own identity
@@ -95,8 +97,9 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
                        key: &ClientAddress.key/1
                      )
 
-  # 120 requests a minute for each connected account, after the endpoint's ceiling
-  # for each address.
+  # 120 requests a minute for each person's account, spent by all its signed
+  # agents and connected apps together, after the endpoint's ceiling for each
+  # address.
   @budget RateLimit.init(
             policy: "mcp",
             limit: 120,
@@ -157,7 +160,12 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   end
 
   @doc false
-  def account(conn), do: Ash.PlugHelpers.get_actor(conn).principal.subject
+  def account(conn), do: conn |> Ash.PlugHelpers.get_actor() |> person()
+
+  # The person whose budget a call spends, by their sign-in id: the account a
+  # connected app's token is for, or the one a signed agent's pairing names.
+  defp person(%ConnectedApp{principal: %{subject: subject}}), do: subject
+  defp person(%Agent{privy_user_id: privy_user_id}), do: privy_user_id
 
   defp caller(conn) do
     case {Siwa.AgentAuthPlug.signed_request?(conn), get_req_header(conn, "authorization")} do
@@ -198,6 +206,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
 
       %{conn | assigns: assigns}
       |> Ash.PlugHelpers.set_actor(actor)
+      |> spend(@budget)
       |> counted(:siwa_request)
     end
   end

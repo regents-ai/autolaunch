@@ -13,7 +13,7 @@ defmodule Autolaunch.Exposure.Series do
   and `:holdings_answer`: the same operation, answered with the `data` of the
   document its route sends (`AutolaunchWeb.ExposureAnswer.answer/2`), only
   while the site offers Exposure and never for a connected app calling as
-  itself. No hosted tool prepares a step.
+  itself; a holding only for a paired agent. No hosted tool prepares a step.
 
   Nothing is stored: the contracts are the record. The acting account comes
   from the actor the caller authenticated; a wallet named in the request is
@@ -157,7 +157,7 @@ defmodule Autolaunch.Exposure.Series do
       authorize_if always()
     end
 
-    policy action([:holdings, :prepare, :holdings_answer]) do
+    policy action([:holdings, :prepare]) do
       authorize_if actor_present()
     end
 
@@ -168,6 +168,12 @@ defmodule Autolaunch.Exposure.Series do
       forbid_unless Autolaunch.Exposure.Checks.Offered
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
+    end
+
+    # A person's holding goes to the agent paired with them alone, as its door
+    # says, whoever else reaches the action (`Autolaunch.AgentAccount` alike).
+    policy action(:holdings_answer) do
+      authorize_if actor_attribute_equals(:role, :agent)
     end
   end
 end

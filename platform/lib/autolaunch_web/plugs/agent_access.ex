@@ -92,10 +92,9 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
 
   defp resolve(conn, wallet) do
     case Autolaunch.Agents.resolve(wallet) do
-      {:ok, actor, account} ->
+      {:ok, actor, _account} ->
         conn
         |> assign(:actor, actor)
-        |> assign(:agent_owner_account, account)
         |> recheck_before_send(actor)
 
       {:error, :not_paired} ->

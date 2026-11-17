@@ -3,8 +3,8 @@ defmodule AutolaunchWeb.MyPositionsController do
   The signed-in wallet's own bids and launched tokens, for the page tool that
   reads them (`autolaunch_my_positions`). The verified session names the
   account and the one wallet it signed in with, and only that wallet is read
-  (`AutolaunchWeb.AccountAnswer.positions/2`, which a paired agent's route and
-  hosted MCP tool read too).
+  (`AutolaunchWeb.AccountAnswer.positions/2`; a paired agent's route and hosted
+  MCP tool read the same way, `positions/1`).
   """
 
   use AutolaunchWeb, :controller

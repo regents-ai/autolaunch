@@ -10,11 +10,7 @@ defmodule AutolaunchWeb.AgentAccountController do
   plug AutolaunchWeb.Plugs.AgentAccess
 
   def positions(conn, _params),
-    do:
-      ApiError.answer(
-        conn,
-        AccountAnswer.positions(conn.assigns.actor, conn.assigns.agent_owner_account)
-      )
+    do: ApiError.answer(conn, AccountAnswer.positions(conn.assigns.actor))
 
   def draft(conn, %{"kind" => kind}),
     do: ApiError.answer(conn, AccountAnswer.draft(kind, conn.assigns.actor))
