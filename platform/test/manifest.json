@@ -151,78 +151,78 @@
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 53,
+      "line": 59,
       "test_name": "hands the wallet the exact reviewed bytes from the reviewed signer and reports the hash once",
-      "keep_because": "A press sends exactly the step the server built, from the reviewed signer, with the chain read last, and reports its hash once against its own review.",
+      "keep_because": "A press sends exactly the step the server built, from the reviewed signer and for its chain, and reports its hash once against its own review.",
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 40,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 69,
+      "line": 73,
       "test_name": "two presses in a row both reach the wallet while the first is still there",
       "keep_because": "Two presses in a row both reach the wallet; nothing blocks, queues or merges a repeat press.",
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 41,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 91,
-      "test_name": "sends nothing from a wallet other than the reviewed signer",
-      "keep_because": "A wallet other than the reviewed signer sends nothing, whether Privy or the wallet itself names the other account.",
+      "line": 98,
+      "test_name": "sends through the active wallet when it answers for another account, alone or in a batch",
+      "keep_because": "Founder's ruling, 17 Nov 2026: every press reaches Privy's active wallet, and the page never compares the wallet's account with the step's signer. A wallet answering for another account still gets the step as built, from the signer, alone or in a batch. It fails if such a press sends nothing.",
       "generated_case": null,
-      "original_file": "assets/test/onchain_steps.test.ts",
-      "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 42,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 106,
-      "test_name": "sends nothing while the wallet is on another chain",
-      "keep_because": "Nothing is sent on the wrong chain, including a chain change after the switch.",
+      "line": 294,
+      "test_name": "asks on every press off the step's network, and sends once the switch resolves",
+      "keep_because": "Founder's ruling, 17 Nov 2026: a wallet on another network is asked to switch through Privy's own switch on every press, and the same press sends once the switch resolves, alone or in a batch, with no read of the chain after it to refuse the press. It fails if a press is refused after the switch resolves.",
       "generated_case": null,
-      "original_file": "assets/test/onchain_steps.test.ts",
-      "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 43,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 125,
-      "test_name": "sends nothing when Privy changes the active wallet part-way",
-      "keep_because": "A press whose active wallet changes part-way sends nothing from either wallet.",
+      "line": 308,
+      "test_name": "sends nothing when the switch is declined or fails, and the next press asks again and sends",
+      "keep_because": "A switch the person declines (4001, however the wallet wraps it) or that fails any other way sends nothing and is reported as switch_declined or network_mismatch, alone or in a batch; the next press asks the switch again and sends once it resolves.",
       "generated_case": null,
-      "original_file": "assets/test/onchain_steps.test.ts",
-      "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 44,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 140,
+      "line": 136,
       "test_name": "reports a declined request and a step the review does not have",
       "keep_because": "A declined request and a step the review lacks are reported, with nothing else sent.",
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 45,
@@ -320,26 +320,26 @@
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 186,
+      "line": 182,
       "test_name": "hands wallet_sendCalls exactly the reviewed calls, atomically, after the chain read",
       "keep_because": "BATCH_SENDS_ONLY_THE_REVIEW_ATOMICALLY: one Claim rewards press sends settle, every collect and claimAll together; the wallet must get exactly the server's calls, in order, from the reviewed signer, with atomicity required and the chain read last. A lab without a batching wallet cannot show this.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 53,
       "group": "Browser wallet boundary",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 213,
+      "line": 206,
       "test_name": "sends nothing when the wallet cannot send the calls atomically, and says so",
       "keep_because": "BATCH_SENDS_ONLY_THE_REVIEW_ATOMICALLY: a wallet that cannot send the calls atomically must send none of them, and the page must go back to one step at a time, where each press shows what it sends.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 54,
@@ -1867,13 +1867,13 @@
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 234,
+      "line": 340,
       "test_name": "a press with no review yet asks the server for one when the card prepares on press",
       "keep_because": "The page half of the same defect: a press on a card with no review inputs and no review sent nothing. The cases check such a card asks the server first, and that every other card behaves as before. They fail without asksServer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 188,
@@ -2699,26 +2699,26 @@
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 316,
+      "line": 422,
       "test_name": "sends the review the page holds while the connection is down, and before the server that took over answers",
       "keep_because": "Audit finding A3 and its review (12 Nov 2026), rule 11: a press always reaches the wallet, and a duplicate or reverted transaction is an accepted outcome. While the connection is down, and after it is back until the new server's review arrives, a press sends the review the page holds. It fails if such a press sends nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 254,
       "group": "Wallet actions",
       "framework": "vitest",
       "file": "assets/test/onchain_steps.test.ts",
-      "line": 332,
+      "line": 438,
       "test_name": "asks the server that took over for a fresh review as the page rejoins, and sends the one it pushes",
       "keep_because": "Audit finding A3 (12 Nov 2026): as the page rejoins, the server that took over hears the wallet Privy has active and pushes a fresh review, which a press then sends. It fails if the rejoin does not ask, or the fresh review is ignored.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ef4fd963a8de1c7562c35d5b0c85ee3a2d68e7116175794cdf2ba38ff7eb59c"
+      "source_sha256": "94dee73361645814670b7e8a173db9c59c23cc98361e1860995ea7c181a72216"
     },
     {
       "id": 255,

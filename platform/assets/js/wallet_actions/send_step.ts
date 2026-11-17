@@ -21,18 +21,17 @@ export class NothingSent extends Error {
 export type Failure = NothingSent["reason"] | "wallet_declined" | "insufficient_funds" | "send_unconfirmed"
 
 /**
- * Sends one transaction from the signed-in wallet. Chain and account are read
- * again on every press, and `eth_chainId` is the last read before the send, so a
- * wallet that changes network part-way is refused before it sees the transaction.
+ * Sends one transaction through `wallet`, from the signer the server built the
+ * step for. A wallet on another chain is first asked to switch to the step's.
  */
 export async function sendStep(
   chain: StepChain,
   signer: Address,
   step: TransactionStep,
-  wallet: () => SelectedWallet | null,
+  wallet: SelectedWallet,
   sending: () => void,
 ): Promise<Hash> {
-  const provider = await ready(chain, signer, wallet)
+  const provider = await ready(chain, wallet)
 
   sending()
   const hash = await provider.request({
@@ -42,7 +41,7 @@ export async function sendStep(
       to: getAddress(step.to),
       data: step.data,
       value: step.value,
-      // A wallet that checks it refuses the send if it moved off the chain after the read above.
+      // The step's chain, for a wallet that sends only on the chain it is given.
       chainId: `0x${chain.chain_id.toString(16)}`,
     }],
   })
@@ -54,18 +53,19 @@ export async function sendStep(
 
 /**
  * Sends every step in one atomic batch (EIP-5792 `wallet_sendCalls` with
- * `atomicRequired`), after the same chain and account checks as one step, and
- * returns the wallet's id for the batch. A wallet that cannot send them
+ * `atomicRequired`) through `wallet`, from the signer, after the same chain
+ * switch as one step, and returns the wallet's id for the batch. The request
+ * names the step's chain (`chainId`). A wallet that cannot send them
  * atomically must refuse rather than send them one by one.
  */
 export async function sendSteps(
   chain: StepChain,
   signer: Address,
   steps: TransactionStep[],
-  wallet: () => SelectedWallet | null,
+  wallet: SelectedWallet,
   sending: () => void,
 ): Promise<string> {
-  const provider = await ready(chain, signer, wallet)
+  const provider = await ready(chain, wallet)
 
   sending()
   const {id} = await sendCalls(client(provider, signer), {
@@ -131,9 +131,9 @@ const client = (provider: EthereumProvider, signer: Address): WalletClient =>
 
 /**
  * The step's chain as viem describes one, from the name and public node the
- * server gives it: for a batch, which the wallet sends on the chain it already
- * switched to, and for Privy's list of networks, which takes every chain but
- * Base and Robinhood Chain (a lab chain) this way (`privyChains`).
+ * server gives it: for a batch, whose request names this chain's id, and for
+ * Privy's list of networks, which takes every chain but Base and Robinhood
+ * Chain (a lab chain) this way (`privyChains`).
  */
 export const viemChain = (chain: StepChain) =>
   defineChain({
@@ -154,41 +154,22 @@ export function failure(sending: boolean, error: unknown): Failure {
   return hasMessage(error, /insufficient funds/i) ? "insufficient_funds" : "send_unconfirmed"
 }
 
-// The wallet is on the step's chain and account, and still the one Privy holds.
-// A wallet on another chain is asked to switch on every press, through Privy's
-// own switch: a person who says no hears that they did, and any other failure,
-// or a wallet still elsewhere afterwards, is told to change network in the app.
-async function ready(
-  chain: StepChain,
-  signer: Address,
-  wallet: () => SelectedWallet | null,
-): Promise<EthereumProvider> {
-  const selected = wallet()
-  if (!selected) throw new NothingSent("wallet_unavailable")
-  const {provider} = selected
-
+// A wallet on another chain is asked to switch to the step's on every press,
+// through Privy's own switch, and once that switch resolves the press goes on.
+// When the wallet declines or fails the switch, this press sends nothing and
+// the next press asks again.
+async function ready(chain: StepChain, {provider, switchChain}: SelectedWallet): Promise<EthereumProvider> {
   if ((await chainId(provider)) !== chain.chain_id) {
-    await selected.switchChain(chain.chain_id).catch((error: unknown) => {
+    await switchChain(chain.chain_id).catch((error: unknown) => {
       throw new NothingSent(hasCode(error, 4001) ? "switch_declined" : "network_mismatch")
     })
   }
-
-  const [account] = await accounts(provider)
-  if (!account || getAddress(account) !== getAddress(signer)) throw new NothingSent("wallet_unavailable")
-  if ((await chainId(provider)) !== chain.chain_id) throw new NothingSent("network_mismatch")
-  // Privy may have swapped the wallet during those reads; this check makes no request.
-  if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
   return provider
 }
 
 async function chainId(provider: EthereumProvider): Promise<number> {
   const value = await provider.request({method: "eth_chainId"})
   return typeof value === "string" && /^0x[0-9a-f]+$/i.test(value) ? Number(BigInt(value)) : -1
-}
-
-async function accounts(provider: EthereumProvider): Promise<string[]> {
-  const value = await provider.request({method: "eth_accounts"})
-  return Array.isArray(value) ? value.filter((a): a is string => typeof a === "string") : []
 }
 
 // Wallets wrap the EIP-1193 error in `cause` chains of their own.

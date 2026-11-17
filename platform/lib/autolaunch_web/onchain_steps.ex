@@ -452,7 +452,7 @@ defmodule AutolaunchWeb.OnchainSteps do
       do:
         "You're signed in with #{wallets(linked, " and ")}, but your wallet app has no wallet open. Open #{wallets(linked, " or ")} there, then press again. Nothing was sent."
 
-  def failure_note(reason, linked, active, _chain_name)
+  def failure_note(reason, linked, active, chain_name)
       when reason in ~w(step_unknown wallet_unavailable) do
     cond do
       signer(linked, active) == nil ->
@@ -461,17 +461,18 @@ defmodule AutolaunchWeb.OnchainSteps do
       reason == "step_unknown" ->
         "This can't be sent as it stands. Check the details above, then press again. Nothing was sent."
 
+      # No wallet answered the press, as if none were open.
       true ->
-        "Your wallet changed during the press, so nothing was sent. Press again."
+        failure_note(reason, linked, nil, chain_name)
     end
   end
 
+  # The wallet declined or failed the switch; the next press asks again.
   def failure_note("switch_declined", _linked, _active, chain_name),
-    do: "Your wallet declined the switch to #{chain_name}. Nothing was sent."
+    do: "Press again to switch your wallet to #{chain_name}. Nothing was sent."
 
   def failure_note("network_mismatch", _linked, _active, chain_name),
-    do:
-      "Your wallet isn't on #{chain_name}. Change the network to #{chain_name} in your wallet app, then press again. Nothing was sent."
+    do: "Switch your wallet to #{chain_name}, then press again. Nothing was sent."
 
   def failure_note("wallet_declined", _linked, _active, _chain_name),
     do: "Your wallet declined this. Nothing was sent."

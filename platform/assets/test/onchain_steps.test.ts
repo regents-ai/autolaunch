@@ -24,13 +24,12 @@ const review: Review = {
 
 type Answers = Partial<Record<string, (params?: unknown[]) => unknown>>
 
-// A wallet on Base holding the reviewed signer, with any answer replaced.
+// A wallet on Base, with any answer replaced.
 function wallet(answers: Answers = {}) {
   const request = vi.fn(async ({method, params}: {method: string; params?: unknown[]}) => {
     const answer = answers[method]
     if (answer) return answer(params)
     if (method === "eth_chainId") return "0x2105"
-    if (method === "eth_accounts") return [signer]
     if (method === "eth_sendTransaction") return firstHash
     throw new Error(`Unexpected wallet method ${method}`)
   })
@@ -68,8 +67,6 @@ describe("a wallet button sends only the step the server built", () => {
       method: "eth_sendTransaction",
       params: [{from: signer, to: target, data: "0xa52c8728ff", value: "0x0", chainId: "0x2105"}],
     })
-    // The chain is the last thing read before the send.
-    expect(methods(provider).slice(-2)).toEqual(["eth_chainId", "eth_sendTransaction"])
     expect(push.mock.calls).toEqual([["step_sent", {review_id: "review-1", step: "bid", transaction_hash: firstHash}]])
   })
 
@@ -95,43 +92,45 @@ describe("a wallet button sends only the step the server built", () => {
     expect(push.mock.calls.map(([, payload]) => payload.transaction_hash)).toEqual([secondHash, firstHash])
   })
 
-  it("sends nothing from a wallet other than the reviewed signer", async () => {
-    const elsewhere = wallet({eth_accounts: () => [other]})
-    activate(elsewhere, other)
-    const push = vi.fn()
-    await expect(press(review, "bid", push)).resolves.toEqual({reason: "wallet_unavailable"})
-    expect(methods(elsewhere)).not.toContain("eth_sendTransaction")
-
-    // Privy says the signer is active, but the wallet answers for another account.
-    const swapped = wallet({eth_accounts: () => [other]})
-    activate(swapped)
-    await expect(press(review, "bid", push)).resolves.toEqual({reason: "wallet_unavailable"})
-    expect(methods(swapped)).not.toContain("eth_sendTransaction")
-    expect(push.mock.calls.map(([event]) => event)).toEqual(["step_failed", "step_failed"])
-  })
-
-  it("sends nothing while the wallet is on another chain", async () => {
-    // The wallet is on Base at the first read and moves off it before the send.
-    let reads = 0
-    const drifting = wallet({eth_chainId: () => (++reads < 2 ? "0x2105" : "0x1")})
-    activate(drifting)
-    await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "network_mismatch"})
-    expect(methods(drifting)).not.toContain("eth_sendTransaction")
-  })
-
-  it("sends nothing when Privy changes the active wallet part-way", async () => {
-    const replacement = wallet()
+  // Invariant: every press reaches Privy's active wallet. The page never
+  // compares the wallet's account with the signer the server built the step
+  // for: the wallet gets the step as built, from that signer, and decides.
+  it("sends through the active wallet when it answers for another account, alone or in a batch", async () => {
+    const together: Review = {
+      ...review,
+      id: "review-together",
+      steps: [...review.steps, {kind: "transaction", step: "claim", to: other, data: "0xd1058e59" as Hex, value: "0x0" as Hex}],
+    }
     const provider = wallet({
-      eth_accounts: () => {
-        activate(replacement)
-        return [signer]
-      },
+      eth_accounts: () => [other],
+      wallet_sendCalls: () => ({id: "batch-1"}),
+      wallet_getCallsStatus: () => ({version: "2.0.0", id: "batch-1", chainId: "0x2105", status: 200, atomic: true, receipts: []}),
     })
-    activate(provider)
+    activate(provider, other)
+    const push = vi.fn()
 
-    await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "wallet_unavailable"})
-    expect(methods(provider)).not.toContain("eth_sendTransaction")
-    expect(methods(replacement)).toEqual([])
+    await expect(press(review, "bid", push)).resolves.toEqual({transaction_hash: firstHash})
+    await expect(pressCalls(together, push)).resolves.toEqual({calls_id: "batch-1"})
+
+    const sent = provider.request.mock.calls
+      .filter(([call]) => call.method === "eth_sendTransaction" || call.method === "wallet_sendCalls")
+      .map(([call]) => (call.params as [{from: string}])[0].from)
+    expect(sent).toEqual([signer, signer])
+    expect(push.mock.calls.slice(0, 2)).toEqual([
+      ["step_sent", {review_id: "review-1", step: "bid", transaction_hash: firstHash}],
+      ["calls_sent", {review_id: "review-together", calls_id: "batch-1"}],
+    ])
+  })
+
+  it("sends nothing with no active wallet, alone or in a batch", async () => {
+    const push = vi.fn()
+
+    await expect(press(review, "bid", push)).resolves.toEqual({reason: "wallet_unavailable"})
+    await expect(pressCalls(review, push)).resolves.toEqual({reason: "wallet_unavailable"})
+    expect(push.mock.calls).toEqual([
+      ["step_failed", {step: "bid", reason: "wallet_unavailable"}],
+      ["step_failed", {step: "calls", reason: "wallet_unavailable"}],
+    ])
   })
 
   it("reports a declined request and a step the review does not have", async () => {
@@ -200,9 +199,6 @@ describe("a batch press sends the review's calls together or not at all", () => 
       id: undefined,
       version: "2.0.0",
     }])
-    // The chain is the last thing read before the batch.
-    const order = methods(provider)
-    expect(order[order.indexOf("wallet_sendCalls") - 1]).toEqual("eth_chainId")
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith("calls_landed", {calls_id: "batch-1", transaction_hash: firstHash}))
     expect(push.mock.calls[0]).toEqual(["calls_sent", {review_id: "review-batch", calls_id: "batch-1"}])
   })
@@ -225,13 +221,14 @@ describe("a batch press sends the review's calls together or not at all", () => 
   })
 })
 
-// Invariant: a wallet on another network is moved by Privy's own switch, which
-// knows how each wallet app adds a network, before anything is sent, on every
-// press and for each of the site's two networks; a wallet already on the step's
-// network is never asked. Nothing reaches the wallet's send while it is off the
-// step's network, and the press says which: the person said no to the switch
-// (4001, however the wallet wraps it), or the wallet could not switch or is
-// still elsewhere.
+// Invariant: a wallet on another network is asked to switch to the step's
+// through Privy's own switch, which knows how each wallet app adds a network,
+// on every press and for each of the site's two networks, and once that switch
+// resolves the same press sends, with no read of the chain after it to refuse
+// the press. A wallet already on the step's network is never asked. When the
+// wallet declines the switch (4001, however it wraps it) or the switch fails
+// any other way, that press sends nothing and says which, and the next press
+// asks again.
 describe("a press off the step's network asks Privy's switch for it", () => {
   const base = 8453
   const robinhood = 4663
@@ -289,85 +286,49 @@ describe("a press off the step's network asks Privy's switch for it", () => {
     }
   })
 
-  it("asks again on every press while the wallet stays elsewhere", async () => {
-    const {switches, sends} = walletOn(robinhood, () => walletError(4001, "User rejected the request."))
+  const sendsOf = [
+    ["bid", (push: Push) => press(review, "bid", push)],
+    ["calls", (push: Push) => pressCalls(together(review), push)],
+  ] as const
 
-    for (let pressed = 0; pressed < 3; pressed++) {
-      await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "switch_declined"})
-    }
-    expect(switches).toEqual([base, base, base])
-    expect(sends()).toEqual([])
-  })
+  it("asks on every press off the step's network, and sends once the switch resolves", async () => {
+    for (const [, send] of sendsOf) {
+      // The switch resolves, yet the wallet goes on naming another network: each
+      // press still sends, and each asks the switch again.
+      const {switches, sends} = walletOn(robinhood, () => robinhood)
 
-  it("sends nothing when the account changes while the switch prompt is open", async () => {
-    for (const [step, send] of [
-      ["bid", (push: Push) => press(review, "bid", push)],
-      ["calls", (push: Push) => pressCalls(together(review), push)],
-    ] as const) {
-      // In the wallet app the person accepts the switch and picks another account.
-      let network = robinhood
-      let account = signer
-      const app = wallet({eth_chainId: () => `0x${network.toString(16)}`, eth_accounts: () => [account]})
-      replaceActiveEthereumWallet({
-        address: signer,
-        provider: app,
-        switchChain: async wanted => {
-          network = wanted
-          account = other
-        },
-      })
-      const push = vi.fn()
-      await expect(send(push)).resolves.toEqual({reason: "wallet_unavailable"})
-
-      // Privy sees the new account during the prompt and makes it the active wallet.
-      let moved = robinhood
-      const held = wallet({eth_chainId: () => `0x${moved.toString(16)}`})
-      const next = wallet()
-      replaceActiveEthereumWallet({
-        address: signer,
-        provider: held,
-        switchChain: async wanted => {
-          moved = wanted
-          replaceActiveEthereumWallet({address: other, provider: next, switchChain: unasked})
-        },
-      })
-      await expect(send(push)).resolves.toEqual({reason: "wallet_unavailable"})
-
-      expect(push.mock.calls).toEqual([
-        ["step_failed", {step, reason: "wallet_unavailable"}],
-        ["step_failed", {step, reason: "wallet_unavailable"}],
-      ])
-      for (const provider of [app, held, next]) {
-        expect(methods(provider)).not.toContain("eth_sendTransaction")
-        expect(methods(provider)).not.toContain("wallet_sendCalls")
+      for (let pressed = 1; pressed <= 3; pressed++) {
+        expect(await send(vi.fn())).not.toHaveProperty("reason")
+        expect(sends()).toHaveLength(pressed)
       }
+      expect(switches).toEqual([base, base, base])
     }
   })
 
-  it("sends nothing, and tells a declined switch from a failed one", async () => {
-    const cases: Array<[Failure, (wanted: number) => number | Error]> = [
-      ["switch_declined", () => walletError(4001, "User rejected the request.")],
-      ["switch_declined", () => Object.assign(new Error("wrapped"), {cause: walletError(4001, "rejected")})],
-      ["network_mismatch", () => walletError(4902, "Unrecognized chain ID")],
+  it("sends nothing when the switch is declined or fails, and the next press asks again and sends", async () => {
+    const cases: Array<[Failure, Error]> = [
+      ["switch_declined", walletError(4001, "User rejected the request.")],
+      ["switch_declined", Object.assign(new Error("wrapped"), {cause: walletError(4001, "rejected")})],
+      ["network_mismatch", walletError(4902, "Unrecognized chain ID")],
       // Privy refuses a network outside its supportedChains with no code.
-      ["network_mismatch", () => new Error("Unsupported chainId: 8453")],
-      ["network_mismatch", () => walletError(-32603, "Internal error")],
-      // The switch answered, but the wallet still reports another network.
-      ["network_mismatch", () => robinhood],
+      ["network_mismatch", new Error("Unsupported chainId: 8453")],
+      ["network_mismatch", walletError(-32603, "Internal error")],
     ]
 
-    for (const [reason, switching] of cases) {
-      for (const [step, send] of [
-        ["bid", (push: Push) => press(review, "bid", push)],
-        ["calls", (push: Push) => pressCalls(together(review), push)],
-      ] as const) {
-        const held = walletOn(robinhood, switching)
+    for (const [reason, refusal] of cases) {
+      for (const [step, send] of sendsOf) {
+        let refuses = true
+        const held = walletOn(robinhood, wanted => (refuses ? refusal : wanted))
         const push = vi.fn()
 
         await expect(send(push)).resolves.toEqual({reason})
         expect(push.mock.calls).toEqual([["step_failed", {step, reason}]])
-        expect(held.switches).toEqual([base])
         expect(held.sends()).toEqual([])
+
+        refuses = false
+        expect(await send(push)).not.toHaveProperty("reason")
+        expect(held.switches).toEqual([base, base])
+        expect(held.sends()).toHaveLength(1)
       }
     }
   })

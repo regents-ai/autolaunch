@@ -176,11 +176,10 @@ export const OnchainSteps: Hook = {
 }
 
 /**
- * Sends the named step from Privy's active wallet, the only wallet that acts,
- * when it is the signer the server built the review for. With no wallet
- * active, or another one, the press sends nothing. Reports only what
- * the wallet answered, against the review it sent from: the hash, or why
- * nothing was sent. The server decides what the hash did.
+ * Sends the named step through Privy's active wallet, the only wallet that
+ * acts. With no wallet active, the press sends nothing. Reports only what the
+ * wallet answered, against the review it sent from: the hash, or why nothing
+ * was sent. The server decides what the hash did.
  */
 export async function press(review: Review | undefined, name: string, push: Push): Promise<Pressed> {
   const step = review?.steps.find(candidate => candidate.step === name)
@@ -190,13 +189,9 @@ export async function press(review: Review | undefined, name: string, push: Push
   }
 
   try {
-    if (!activeEthereumWallet()) throw new NothingSent("wallet_unavailable")
+    const wallet = activeEthereumWallet()
+    if (!wallet) throw new NothingSent("wallet_unavailable")
     if (!review || !step) throw new NothingSent("step_unknown")
-    const wallet = () => {
-      const active = activeEthereumWallet()
-      return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
-    }
-    if (!wallet()) throw new NothingSent("wallet_unavailable")
 
     const transaction_hash = await sendStep(review.chain, review.signer, step, wallet, started)
     push("step_sent", {review_id: review.id, step: name, transaction_hash})
@@ -209,8 +204,8 @@ export async function press(review: Review | undefined, name: string, push: Push
 }
 
 /**
- * Sends every step of the review in one atomic batch from Privy's active
- * wallet, when it is the review's signer, and reports the wallet's id for it.
+ * Sends every step of the review in one atomic batch through Privy's active
+ * wallet, and reports the wallet's id for it.
  * The wallet's own report on the batch is then awaited without holding the
  * press: the one transaction its receipts name goes to the server, which reads
  * it itself. A wallet that refuses to send the calls atomically sends nothing,
@@ -227,18 +222,13 @@ export async function pressCalls(
   }
 
   try {
-    if (!activeEthereumWallet()) throw new NothingSent("wallet_unavailable")
+    const wallet = activeEthereumWallet()
+    if (!wallet) throw new NothingSent("wallet_unavailable")
     if (!review) throw new NothingSent("step_unknown")
-    const wallet = () => {
-      const active = activeEthereumWallet()
-      return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
-    }
-    const sender = wallet()
-    if (!sender) throw new NothingSent("wallet_unavailable")
 
     const calls_id = await sendSteps(review.chain, review.signer, review.steps, wallet, started)
     push("calls_sent", {review_id: review.id, calls_id})
-    void followCalls(review, sender.provider, calls_id, push, leaving)
+    void followCalls(review, wallet.provider, calls_id, push, leaving)
     return {calls_id}
   } catch (error) {
     if (review && sending && refusedAtomic(error)) {
@@ -270,10 +260,10 @@ async function followCalls(
   else push("calls_unconfirmed", {calls_id})
 }
 
-// Whether Privy's active wallet, as the review's signer, can send its steps together.
+// Whether Privy's active wallet can send the review's steps together, from its signer.
 async function atomically(review: Review): Promise<boolean> {
   const active = activeEthereumWallet()
-  if (active?.address.toLowerCase() !== review.signer.toLowerCase()) return false
+  if (!active) return false
   return sendsAtomically(review.chain, review.signer, active.provider)
 }
 

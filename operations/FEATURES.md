@@ -60,17 +60,18 @@ launches.
 
 Every wallet button goes through the same sender, proved by `onchain_steps.test.ts`: "hands
 the wallet the exact reviewed bytes from the reviewed signer and reports the hash once", "two
-presses in a row both reach the wallet while the first is still there", "sends nothing from a
-wallet other than the reviewed signer", "sends nothing while the wallet is on another chain",
-"sends nothing when Privy changes the active wallet part-way", "reports a declined request and
-a step the review does not have", and for batches "hands wallet_sendCalls exactly the reviewed
-calls, atomically, after the chain read". A wallet off the step's network is asked to switch
-through Privy's own switch on every press, for a Base or a Robinhood step, alone or in a batch,
-and a declined switch is told apart from a failed one with nothing sent: "asks only when the
-wallet is off the step's network, for a Base or Robinhood step sent alone or together", "asks
-again on every press while the wallet stays elsewhere", "sends nothing when the account
-changes while the switch prompt is open", "sends nothing, and tells a declined switch from a
-failed one"; a declined switch is counted and noted like any failed press:
+presses in a row both reach the wallet while the first is still there", "sends through the
+active wallet when it answers for another account, alone or in a batch", "sends nothing with no
+active wallet, alone or in a batch", "reports a declined request and a step the review does not
+have", and for batches "hands wallet_sendCalls exactly the reviewed calls, atomically, after the
+chain read". A wallet off the step's network is asked to switch through Privy's own switch on
+every press, for a Base or a Robinhood step, alone or in a batch, and once the switch resolves
+the same press sends, with no read of the chain after it to refuse the press; a declined switch
+is told apart from a failed one, sends nothing, and the next press asks again: "asks only when
+the wallet is off the step's network, for a Base or Robinhood step sent alone or together",
+"asks on every press off the step's network, and sends once the switch resolves", "sends
+nothing when the switch is declined or fails, and the next press asks again and sends"; a
+declined switch is counted and noted like any failed press:
 `autolaunch_web/onchain_steps_rebuild_test.exs` "a declined network switch is a failed press
 like the others: counted and noted". Privy is given every network the site's steps go to, Base
 first or none at all, and the page carries public doors only: `autolaunch_web/wallet_chains_test.exs`
@@ -78,7 +79,23 @@ first or none at all, and the page carries public doors only: `autolaunch_web/wa
 `privy_chains.test.ts` (every case), which also gives Privy no network settings for a site
 without a wallet chain. The real Privy bridge starting with these settings (the browser walk
 stands in for it), Privy's own prompt as a wallet connects, and its switch in a real wallet app
-(an extension, or a phone through WalletConnect): **gap**. A press while the page's connection is down, or
+(an extension, or a phone through WalletConnect): **gap**.
+
+Accepted, not a fault (founder's ruling, 17 Nov 2026: the wallet swap does not happen, and it is
+not guarded): the page never compares the wallet's account with the account a step was prepared
+for. After the switch resolves, the step's chain rests on the chain id its request carries
+(`chainId` on `eth_sendTransaction`, and on `wallet_sendCalls` for a batch). A step keeps the
+address it was prepared for, as `from` and inside its call, so a press that a wallet signs from a
+different active account pays from that account, while every call that names the prepared address
+still names it, and the page shows that transaction as not the one it prepared. The calls that name
+it: Earn's deposit credits it (`supply`'s `onBehalfOf`, `autolaunch/earn/steps.ex`) and Earn's
+withdrawal pays it (`withdraw`'s `to`); Isolated Exposure's Buy and Sell pay it (the swap's
+recipient, `autolaunch/exposure/steps.ex`); a Base bid in the auction's own currency is owned by
+it (`submitBid`'s owner, `autolaunch/bid_actions.ex`). No other step's call names the prepared
+address: it acts on a contract, a listing or a bid by its id, or on the sender itself, and a Base
+launch names the treasury typed into its form.
+
+A press while the page's connection is down, or
 before the server that took over answers, still reaches the wallet with the review the page holds,
 and the rejoin asks that server for a fresh one: "sends the review the page holds while the
 connection is down, and before the server that took over answers", "asks the server that took
