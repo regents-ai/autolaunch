@@ -430,7 +430,9 @@ defmodule AutolaunchWeb.AgentBidsTest do
         {[], settle_path(unread.bid_id), %{}, "position_not_on_chain"},
         {[], settle_path(theirs.bid_id), %{}, "not_your_bid"},
         {[], settle, %{signer: "nope"}, "wallet_required"},
-        {[exit: {:refused, :bid_not_found}], settle, %{}, "bid_not_found"},
+        # The auction has not issued the bid's id, which the reader knows from
+        # its `nextBidId()` before asking for the bid (`CcaSettlement.bid/3`).
+        {[unavailable: :bid_not_found], settle, %{}, "bid_not_found"},
         {[exit: {:refused, :auction_not_started}], settle, %{}, "auction_not_started"},
         {[exit: {:refused, :auction_not_ended}], settle, %{}, "auction_not_ended"},
         {[exit: {:refused, :settlement_reverted}], settle, %{}, "settlement_reverted"},

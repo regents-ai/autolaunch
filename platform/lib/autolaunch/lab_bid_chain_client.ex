@@ -23,8 +23,34 @@ defmodule Autolaunch.LabBidChainClient do
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
 
+  @typedoc """
+  One reviewed bid's reads, every one at `block`: prices in Q96, amounts in
+  the currency's smallest units.
+  """
+  @type snapshot :: %{
+          tick_spacing_q96: pos_integer(),
+          floor_price_q96: pos_integer(),
+          clearing_price_q96: non_neg_integer(),
+          max_bid_price_q96: pos_integer(),
+          auction: String.t(),
+          currency: String.t(),
+          currency_balance: non_neg_integer(),
+          token_allowance: non_neg_integer(),
+          permit2_amount: non_neg_integer(),
+          permit2_expiration: non_neg_integer(),
+          prev_tick_price_q96: non_neg_integer(),
+          predecessor_source: String.t(),
+          permit2: String.t(),
+          end_block: non_neg_integer(),
+          block: Rpc.block()
+        }
+
   @callback balances(map()) :: {:ok, map()} | {:error, atom()}
-  @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
+  @callback snapshot(%{
+              auction: String.t(),
+              signer: String.t(),
+              max_price_q96: pos_integer()
+            }) :: {:ok, snapshot()} | {:error, atom()}
 
   def balances(%{auction: auction, signer: signer, usdc: usdc?}) do
     with {:ok, held} <- currency_balance(auction, signer),

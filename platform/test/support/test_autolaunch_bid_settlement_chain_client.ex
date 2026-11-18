@@ -5,7 +5,8 @@ defmodule Autolaunch.TestAutolaunchBidSettlementChainClient do
   It answers `snapshot/1` with a scripted reading of the auction and the
   simulated outcome of `exitBid`/`exitPartiallyFilledBid` and `claimTokens`, so
   the exact step list and calldata a review derives from the auction's own
-  answer can be proved without a fork. Nothing it answers is reviewed evidence.
+  answer can be proved without a fork, or with the refusal `unavailable` names,
+  as the reader gives it. Nothing it answers is reviewed evidence.
   """
 
   @key :autolaunch_bid_settlement_fixture
@@ -31,14 +32,18 @@ defmodule Autolaunch.TestAutolaunchBidSettlementChainClient do
   end
 
   def snapshot(%{auction: auction, bid_id: bid_id, signer: signer}) do
-    fixture = Application.get_env(:autolaunch, @key, %{})
+    case Application.get_env(:autolaunch, @key, %{}) do
+      %{unavailable: reason} ->
+        {:error, reason}
 
-    {:ok,
-     Map.merge(fixture, %{
-       auction: auction,
-       signer: signer,
-       bid: Map.put(fixture.bid, :id, bid_id),
-       block: %{number: 100, hash: "0x" <> String.duplicate("ab", 32)}
-     })}
+      fixture ->
+        {:ok,
+         Map.merge(fixture, %{
+           auction: auction,
+           signer: signer,
+           bid: Map.put(fixture.bid, :id, bid_id),
+           block: %{number: 100, hash: "0x" <> String.duplicate("ab", 32)}
+         })}
+    end
   end
 end
