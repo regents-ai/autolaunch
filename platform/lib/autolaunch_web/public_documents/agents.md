@@ -72,6 +72,7 @@ Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_b
 {{agent_bids}}
 {{agent_robinhood_bids}}
 {{agent_launches}}
+{{agent_finish}}
 
 ## Your own Memestock launch
 

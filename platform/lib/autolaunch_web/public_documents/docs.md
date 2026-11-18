@@ -100,6 +100,7 @@ WebMCP exposes public reads and signed, paired private operations through the [t
 {{agent_bids}}
 {{agent_robinhood_bids}}
 {{agent_launches}}
+{{agent_finish}}
 ## Hosted MCP
 
 {{hosted_mcp}}

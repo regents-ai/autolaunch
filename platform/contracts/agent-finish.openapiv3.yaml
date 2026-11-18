@@ -1,0 +1,227 @@
+# Agent finishes, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_FINISH=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json is
+# api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
+# path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/auctions/{auction_id}/finish/steps:
+    post:
+      operationId: autolaunch_finish_prepare
+      summary: Prepare a finish
+      description: The one wallet step that finishes an ended auction listed here, on Base or Robinhood
+        Chain, read from the auction's own chain at the latest block exactly as the auction page's
+        Finish button reads it, for one of the person's own wallets (`signer`, or the wallet they signed
+        in with). Finishing opens the auction's pool, or opens refunds if the minimum wasn't met, and
+        anyone may send it. The site only prepares; the wallet's own key signs and sends the step on the
+        network `chain` names, and its data ends with the site's Builder Code. While even the
+        launchpad clock's next block is before the launch's migration block, the answer is 409
+        finish_not_open with no step, its message naming the block finishing opens at; once the auction
+        is finished it is 409 auction_finished with no step. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentFinishAuctionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentFinishRequest'
+      responses:
+        '200':
+          description: The finish step and the facts it was read from
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+        '404':
+          description: No auction is listed here with that id (auction_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+        '409':
+          description: The person's account has no verified wallet to act with, or signer is not a
+            wallet address (wallet_required), finishing is not open yet (finish_not_open), or the
+            auction is already finished (auction_finished)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+        '422':
+          description: An unknown field, a field that is not text, or an auction id that is not one
+            (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+        '503':
+          description: The auction's chain or the person's account could not be read just now
+            (chain_unavailable, account_unavailable), the site could not prepare it just now
+            (finish_unavailable), or the site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFinishError'
+components:
+  parameters:
+    AgentFinishAuctionId:
+      name: auction_id
+      in: path
+      required: true
+      description: The auction's id exactly as autolaunch_auctions lists it.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AgentFinishRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentFinishAuction:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentFinishChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: The network the auction runs on and the finish step is sent on, Base or Robinhood
+        Chain.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentFinishStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          enum:
+          - finish
+        to:
+          type: string
+          description: The launchpad, or the strategy that holds a Revstake auction.
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentFinishSteps:
+      type: object
+      required:
+      - kind
+      - signer
+      - auction
+      - chain
+      - block
+      - steps
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - finish
+        signer:
+          type: string
+        auction:
+          $ref: '#/components/schemas/AgentFinishAuction'
+        chain:
+          $ref: '#/components/schemas/AgentFinishChain'
+        block:
+          type: integer
+          description: The latest block the step was read at.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentFinishStep'
+        facts:
+          type: object
+          required:
+          - migration_block
+          - clock
+          properties:
+            migration_block:
+              type: integer
+              description: The block finishing opens at.
+            clock:
+              type: integer
+              description: The block the launchpad compares it with at `block`, the block itself on
+                Base and the rollup block on Robinhood Chain.
+    AgentFinishStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentFinishSteps'
+    AgentFinishError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - auction_not_found
+              - wallet_required
+              - finish_not_open
+              - auction_finished
+              - chain_unavailable
+              - finish_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string

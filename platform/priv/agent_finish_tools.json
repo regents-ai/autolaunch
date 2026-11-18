@@ -1,0 +1,45 @@
+{
+  "_comment": "Agent finishes' browser tool. AutolaunchWeb.ToolManifest adds it to tool_manifest.json only while the site offers agent finishes (AUTOLAUNCH_AGENT_FINISH=true). The hosted MCP tool prepare_finish takes its title and words from here, less how a browser host signs (Autolaunch).",
+  "tools": [
+    {
+      "name": "autolaunch_finish_prepare",
+      "title": "Finish",
+      "description": "Prepare the wallet step that finishes an ended auction listed here, by its id from autolaunch_auctions, for one of my person's own wallets, read from the chain at the latest block exactly as the auction page's Finish button reads it: one finish step, its to, data and value for the wallet to send on the network chain names, Base or Robinhood Chain, its data ending with the site's Builder Code: the wallet must be on that network to send it. Finishing opens the auction's pool, or opens refunds if the minimum wasn't met; anyone can do it for the network fee. facts give the launch's migration block and the clock its launchpad compares it with. While finishing is not open yet, the answer is a refusal, finish_not_open, naming the block it opens at; once the auction is finished, auction_finished. The site only prepares: my person's wallet signs and sends the step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "auction_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The auction's id exactly as autolaunch_auctions lists it."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "auction_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/auctions/{auction_id}/finish/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_finish_prepare",
+        "http": "POST /api/agent/v1/auctions/{auction_id}/finish/steps"
+      },
+      "effect": "prepare"
+    }
+  ]
+}

@@ -5,11 +5,13 @@ defmodule Autolaunch.FinishActions do
   An auction does not finish itself: once its launch's migration block has
   passed, anyone may call `migrate`, which graduates the launch into its pool
   or fails it so every bid comes back whole (`Autolaunch.AuctionFinish`). The
-  auction page offers that call to whoever is looking. It is read here at the
-  latest block of the auction's own chain, from the launchpad the auction runs
-  on, first or second (`Autolaunch.AuctionFinish.Launchpads.for_auction/1`).
-  Nothing is stored: the auction's reading job records the outcome from the
-  chain (`Autolaunch.AuctionMarket`).
+  auction page offers that call to whoever is looking, and a paired agent has
+  it prepared for its person's wallet (`Autolaunch.AgentFinish`); both read it
+  here, by one rule. It is read at the latest block of the auction's own
+  chain, from the launchpad the auction runs on, first or second
+  (`Autolaunch.AuctionFinish.Launchpads.for_auction/1`). Nothing is stored:
+  the auction's reading job records the outcome from the chain
+  (`Autolaunch.AuctionMarket`).
   """
 
   alias Autolaunch.AuctionFinish.Launchpads

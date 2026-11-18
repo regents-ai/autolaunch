@@ -9,18 +9,21 @@ defmodule Autolaunch do
 
   # The hosted MCP tools: each gives the answer its HTTP route gives and has the
   # title and words of its browser tool, from priv/tool_manifest.json or, for
-  # agent bids and launches, priv/agent_bids_tools.json,
-  # priv/agent_robinhood_bids_tools.json and priv/agent_launches_tools.json,
-  # less how a browser host signs (`AutolaunchWeb.Capabilities` checks their
-  # inputs). Each reads, or saves the person's launch draft, except agent bids'
-  # four, which prepare the wallet steps of a bid or of its return and claim,
-  # and agent launches' one, which prepares and keeps the launch step of the
-  # person's draft, each for the person's wallet to sign.
+  # agent bids, launches and finishes, priv/agent_bids_tools.json,
+  # priv/agent_robinhood_bids_tools.json, priv/agent_launches_tools.json and
+  # priv/agent_finish_tools.json, less how a browser host signs
+  # (`AutolaunchWeb.Capabilities` checks their inputs). Each reads, or saves the
+  # person's launch draft, except agent bids' four, which prepare the wallet
+  # steps of a bid or of its return and claim, agent launches' one, which
+  # prepares and keeps the launch step of the person's draft, and agent
+  # finishes' one, which prepares the finish step of an ended auction, each for
+  # the person's wallet to sign.
   @tool_paths [
     Application.app_dir(:autolaunch, "priv/tool_manifest.json"),
     Application.app_dir(:autolaunch, "priv/agent_bids_tools.json"),
     Application.app_dir(:autolaunch, "priv/agent_robinhood_bids_tools.json"),
-    Application.app_dir(:autolaunch, "priv/agent_launches_tools.json")
+    Application.app_dir(:autolaunch, "priv/agent_launches_tools.json"),
+    Application.app_dir(:autolaunch, "priv/agent_finish_tools.json")
   ]
   for path <- @tool_paths, do: @external_resource(path)
 
@@ -166,6 +169,14 @@ defmodule Autolaunch do
         idempotent_hint: false,
         open_world_hint: true
       )
+    end
+
+    # Listed and run only while the site offers agent finishes
+    # (`Autolaunch.AgentFinish`'s policies).
+    tool :prepare_finish, Autolaunch.AgentFinish, :prepare do
+      title(@browser_tools["autolaunch_finish_prepare"]["title"])
+      description @browser_tools["autolaunch_finish_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
   end
 
@@ -594,6 +605,10 @@ defmodule Autolaunch do
 
     resource Autolaunch.AgentLaunch do
       define :prepare_launch, action: :prepare
+    end
+
+    resource Autolaunch.AgentFinish do
+      define :prepare_finish, action: :prepare
     end
 
     resource Autolaunch.Robinhood.LaunchReview do

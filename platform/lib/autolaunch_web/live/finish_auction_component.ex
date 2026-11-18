@@ -17,9 +17,9 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   button sends at once; a press made before the card has read the launch reads
   it for that press and sends the finish, as a settlement press does
   (`AutolaunchWeb.BidSettlementComponent`). The button is disabled only when
-  the chain says the finish is certain to fail
-  (`Autolaunch.FinishActions.read/1`'s `blocked`): while even the launchpad
-  clock's next step is before the migration block, or once
+  the chain says the finish is certain to fail, by the rule a paired agent's
+  finish follows too (`Autolaunch.FinishActions.read/1`'s `blocked`): while
+  even the launchpad clock's next step is before the migration block, or once
   the launch is finished. Nothing is stored; the auction's reading job records
   the outcome from the chain (`Autolaunch.AuctionMarket`) and the page follows
   it.

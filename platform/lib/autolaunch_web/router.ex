@@ -166,6 +166,19 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
+  # Agent finishes' route exists only while the site offers them; off, it
+  # answers as an address with nothing at it.
+  pipeline :agent_finish do
+    plug :admit_agent_finish
+  end
+
+  def admit_agent_finish(conn, _opts) do
+    Autolaunch.AgentFinish.enabled?() or
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+
+    conn
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -335,6 +348,11 @@ defmodule AutolaunchWeb.Router do
   scope "/api/agent/v1", AutolaunchWeb do
     pipe_through [:api, :agent_launches]
     post "/launches/:draft/steps", AgentLaunchController, :prepare
+  end
+
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :agent_finish]
+    post "/auctions/:auction_id/finish/steps", AgentFinishController, :prepare
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.

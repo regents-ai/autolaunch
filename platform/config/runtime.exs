@@ -302,6 +302,26 @@ if agent_launches_on do
   config :autolaunch, agent_launches: :on
 end
 
+# A paired agent prepares the finish step of an ended auction the site lists
+# only on a site switched on with AUTOLAUNCH_AGENT_FINISH=true; it reads the
+# auction's own chain through its description, Base or Robinhood Chain, as the
+# auction page's Finish button does. Off, no tool or route offers it
+# (`Autolaunch.AgentFinish`).
+agent_finish_on =
+  case System.get_env("AUTOLAUNCH_AGENT_FINISH") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_FINISH must be true or unset"
+  end
+
+if agent_finish_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_FINISH=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_finish: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

@@ -7,7 +7,9 @@ defmodule Autolaunch.RobinhoodBidChain do
   launchpad and USDG. The launchpad's one launch (`launch_id`) made the
   auction at `auction/0`, still bidding, which sells for the stock at
   `stock/0`, admitted with 18 decimals and a route, which the site lists as
-  TSLA. Bid 7 on it (`bid_id`) is the bid fixture's wallet's
+  TSLA. The launch's record holds it running (`lifecycle` 1) until its
+  `migration_block`, 95, the rollup block finishing opens at. Bid 7 on it
+  (`bid_id`) is the bid fixture's wallet's
   (`Autolaunch.BidFixture.wallet/0`) and the last the auction issued: an
   earlier id holds no bid, and asking for a later one reverts
   `BidIdDoesNotExist`, as the auction does. The auction's logs hold that
@@ -124,6 +126,8 @@ defmodule Autolaunch.RobinhoodBidChain do
         start_block: 10,
         end_block: 90,
         claim_block: 95,
+        lifecycle: 1,
+        migration_block: 95,
         graduated: false,
         final_price: 2 * @q96,
         raised: 0,
@@ -318,8 +322,8 @@ defmodule Autolaunch.RobinhoodBidChain do
       "data" => words([bid.max_price_q96, bid.amount])
     }
 
-  # One launch record's field: a launch still bidding, on the auction's own
-  # schedule.
+  # One launch record's field: a launch on the auction's own schedule, in the
+  # lifecycle the test names.
   defp launch(:launcher, _state), do: number(@launcher)
   defp launch(:new_token, _state), do: number(@token)
   defp launch(:currency, state), do: number(state.stock)
@@ -327,6 +331,8 @@ defmodule Autolaunch.RobinhoodBidChain do
   defp launch(:start_block, state), do: state.start_block
   defp launch(:end_block, state), do: state.end_block
   defp launch(:claim_block, state), do: state.claim_block
+  defp launch(:migration_block, state), do: state.migration_block
+  defp launch(:lifecycle, state), do: state.lifecycle
   defp launch(_unset, _state), do: 0
 
   # price, currencyRaised, mpsPerPrice, cumulativeMps, prev, next
