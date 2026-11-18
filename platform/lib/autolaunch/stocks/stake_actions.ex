@@ -136,9 +136,19 @@ defmodule Autolaunch.Stocks.StakeActions do
   nothing.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
+  def prepare(request, address, opts) do
     with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
-         {:ok, pool} <- pool(launch),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, with the latest block the pool was read at (`block`)
+  and the wallet's own `position/2` there (`position`).
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{kind: kind, launch: launch} = request, signer) when kind in @kinds do
+    with {:ok, pool} <- pool(launch),
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
          :ok <- vests(kind, pool),
@@ -151,7 +161,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          do: {:ok, build(kind, pool, config, contracts, wallet, amount)}
   end
 
-  def prepare(_request, _address, _opts), do: unavailable(:unknown_action)
+  def review(_request, _signer), do: unavailable(:unknown_action)
 
   @doc "A whole-percent share of an amount from `position/2`, as the exact amount to type."
   @spec portion(%{atomic: non_neg_integer(), decimals: non_neg_integer()}, 1..100) :: String.t()
@@ -333,8 +343,10 @@ defmodule Autolaunch.Stocks.StakeActions do
     %{
       kind: kind,
       chain: Client.chain(config),
+      block: pool.block.number,
+      position: wallet,
       steps: reviewed_steps(kind, pool, {venue, config, contracts}, wallet, amount),
-      facts: review(kind, pool, wallet, amount),
+      facts: facts(kind, pool, wallet, amount),
       context: %{
         venue: venue,
         splitter: pool.fees.splitter.address,
@@ -360,7 +372,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp amount_atomic(amount), do: amount
 
   # The plain facts the panel shows beside the wallet steps.
-  defp review(:stake, pool, wallet, amount) do
+  defp facts(:stake, pool, wallet, amount) do
     [
       ["You stake", "#{units(amount, @token_decimals)} #{pool.token.symbol}"],
       [
@@ -370,7 +382,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     ]
   end
 
-  defp review(:unstake, pool, wallet, amount) do
+  defp facts(:unstake, pool, wallet, amount) do
     [
       ["You unstake", "#{units(amount, @token_decimals)} #{pool.token.symbol}"],
       [
@@ -382,15 +394,15 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   # What the wallet can claim now, then the fees the same review moves into
   # the splitter first, which every staker shares.
-  defp review(:claim, pool, wallet, amount) do
+  defp facts(:claim, pool, wallet, amount) do
     [
       [pool.fees.splitter.dollar.symbol, wallet.claimable.dollar.shown],
       [pool.token.symbol, wallet.claimable.token.shown],
       [pool.currency.symbol, wallet.claimable.stock.shown]
-    ] ++ review(:settle, pool, wallet, amount)
+    ] ++ facts(:settle, pool, wallet, amount)
   end
 
-  defp review(:settle, pool, _wallet, _amount) do
+  defp facts(:settle, pool, _wallet, _amount) do
     lane =
       if settle_lane?(pool),
         do: [["Waiting in the pool", "#{pool.fees.stakers.accrued} #{pool.currency.symbol}"]],
@@ -402,7 +414,7 @@ defmodule Autolaunch.Stocks.StakeActions do
       end)
   end
 
-  defp review(:release, pool, _wallet, _amount) do
+  defp facts(:release, pool, _wallet, _amount) do
     [
       ["Paid to the creator", pool.vesting.creator],
       ["Ready to release", "#{pool.vesting.releasable} #{pool.token.symbol}"],
@@ -410,7 +422,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     ]
   end
 
-  defp review(:convert, pool, _wallet, %{stock: stock, worth: nil}) do
+  defp facts(:convert, pool, _wallet, %{stock: stock, worth: nil}) do
     currency = pool.currency
 
     [
@@ -420,7 +432,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     ]
   end
 
-  defp review(:convert, pool, _wallet, %{stock: stock, worth: worth, least: least}) do
+  defp facts(:convert, pool, _wallet, %{stock: stock, worth: worth, least: least}) do
     currency = pool.currency
     dollar = pool.fees.splitter.dollar
 
