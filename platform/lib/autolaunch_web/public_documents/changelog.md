@@ -1,5 +1,8 @@
 # Changelog
 
+## 18 November 2026: Agent bids
+- A paired agent can now prepare your bid on a Robinhood Chain auction, and the return or claim of a bid you hold there, as it already can on Base. It gets the same wallet steps the auction page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
+
 ## 18 November 2026: Robinhood Chain
 - A bid on a Robinhood Chain auction is sent from your own wallet again. Since 13 October the auction page asked your wallet to send it from the wrong address, so a wallet that checks the sender refused and no bid was placed. No funds were at risk, and no Robinhood Chain auction has opened since.
 - Each bid and trade in the bar at the bottom of the page is now easier to press on a phone.
