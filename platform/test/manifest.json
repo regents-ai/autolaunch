@@ -1,5 +1,5 @@
 {
-  "total": 488,
+  "total": 489,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6346,6 +6346,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "d60cbec0c626b51d68e7342626a971927d4ac468c5235a8bd5d7af15886fdec1"
+    },
+    {
+      "id": 608,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/components/wallet_step_test.exs",
+      "line": 12,
+      "test_name": "a held button that would send every step at once sends neither its step nor the batch",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: a wallet button held because its step is certain to fail is disabled and sends nothing. A button that sends every step at once would still send the batch, the held step in it, if it kept its batch mark. It fails if a held button keeps data-onchain-bundle.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cb657441e4ac4c3dde08636b4b40223f7a70f5b429875323131bc833eae2aad6"
     }
   ],
   "legacy_folders_to_remove": [

@@ -489,8 +489,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
   confirmed it is grey with a green border, and still takes presses.
 
   With `blocked`, those words stand above the button, and a step on it that is
-  not an approval stays in place, disabled, sending nothing, until the panel
-  passes `blocked` no more.
+  not an approval stays in place, disabled, sending nothing, not even with
+  `bundle`, until the panel passes `blocked` no more.
   """
   def wallet_step(assigns) do
     shown = pressable(assigns.next_step, assigns.steps)
@@ -517,7 +517,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       type="button"
       class="token-swap__submit token-swap__wallet-step"
       data-onchain-step={!@bundle && !@held && @shown && @shown.name}
-      data-onchain-bundle={@bundle && !!@shown}
+      data-onchain-bundle={@bundle && !@held && !!@shown}
       data-state={@shown && Map.get(@shown, :state)}
       disabled={@held}
       aria-describedby={@held && @id <> "-blocked"}

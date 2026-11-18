@@ -103,7 +103,7 @@ before the server that took over answers, still reaches the wallet with the revi
 and the rejoin asks that server for a fresh one: "sends the review the page holds while the
 connection is down, and before the server that took over answers", "asks the server that took
 over for a fresh review as the page rejoins, and sends the one it pushes". A step that did not go through has its panel's review built again from the chain:
-`autolaunch_web/onchain_steps_rebuild_test.exs` (its first four cases). Every amount a review
+`autolaunch_web/onchain_steps_rebuild_test.exs` (its first four cases). A button held because its step is certain to fail sends nothing, alone or in a batch: `autolaunch_web/components/wallet_step_test.exs` › "a held button that would send every step at once sends neither its step nor the batch". Every amount a review
 shows is the exact raw amount: `autolaunch/stocks/amounts_test.exs` › "a shown amount reads back as the exact
 raw amount", › "the largest uint256 amounts are shown digit for digit". What each action builds:
 
