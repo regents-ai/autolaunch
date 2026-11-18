@@ -1,5 +1,5 @@
 {
-  "total": 547,
+  "total": 549,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -7113,6 +7113,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
+    },
+    {
+      "id": 675,
+      "group": "Agent guides",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_guide_sentences_test.exs",
+      "line": 65,
+      "test_name": "AGENT_GUIDE_SENTENCES_NAMED: in every way the agent switches stand, each guide is whole and names, as a paired agent's to prepare, exactly the switched-on features, pointing to each one's section where it points to sections",
+      "keep_because": "The guides' sentences on who does what are made from the agent switches with a wallet step that are on: in each of the 32 ways those five switches stand, every served guide is whole, names what each switched-on feature lets a paired agent prepare, points to its section where the guide points to sections, and names no switched-off feature as an agent's. It fails if a feature switched on is left out of the sentences or their section pointers, or one switched off is named.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2c44e36dd735eda3c1b8eaec151139fc7c18571f76ea7c64ac592385addb2acb"
+    },
+    {
+      "id": 676,
+      "group": "Agent guides",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_guide_sentences_test.exs",
+      "line": 90,
+      "test_name": "AGENT_GUIDE_SENTENCES_NOT_KEPT: in every way the agent switches stand, no guide says that what a switched-on feature prepares stays with the person, is not exposed or is not registered as an agent tool",
+      "keep_because": "In each of the 32 ways the five agent switches with a wallet step stand, no served guide says that what a switched-on feature prepares stays with the person, is not exposed or is not registered as an agent tool. It fails if a feature on leaves its words in a guide's list of what stays with the person, as staking and claims stayed while agent staking was on.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2c44e36dd735eda3c1b8eaec151139fc7c18571f76ea7c64ac592385addb2acb"
     }
   ],
   "legacy_folders_to_remove": [
