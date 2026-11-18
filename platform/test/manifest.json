@@ -1,5 +1,5 @@
 {
-  "total": 513,
+  "total": 520,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2335,26 +2335,26 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
-      "line": 61,
+      "line": 84,
       "test_name": "FINISH_PRESS_BEFORE_READING_SENDS: a Finish press with no reading on the card is read and sent",
       "keep_because": "The Finish card's button names the finish before the card has read the launch, and a press in that moment sent nothing, so the auction stayed ended (the agent journeys on a busy machine, 12 Nov 2026). The case presses before the card has a reading and checks the card reads the launch and hands back the strategy's migrate for the pressing wallet. It fails without the card's prepare_and_send.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fb6b40f20de94372735cbf2da0378f8b5729e85b0c911aff2bb1f17ec1fce2fe"
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
     },
     {
       "id": 225,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
-      "line": 84,
+      "line": 108,
       "test_name": "a Finish press on a launch the chain shows finished sends nothing",
       "keep_because": "The press that is read on the spot must still send nothing when the chain says the finish is certain to fail. The case fails if a press on a finished launch hands the wallet a transaction.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fb6b40f20de94372735cbf2da0378f8b5729e85b0c911aff2bb1f17ec1fce2fe"
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
     },
     {
       "id": 226,
@@ -6404,221 +6404,221 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
-      "line": 99,
+      "line": 124,
       "test_name": "FINISH_HELD_ONE_BLOCK_TOO_LONG: two blocks before the migration block the button is held with the block it opens at, and nothing is sent",
-      "keep_because": "Agent finish build (18 Nov 2026), house rule 11: every launchpad's migrate reverts only while its clock is before the launch's migration block, and a finish sent at the latest block lands in the next one at the earliest. Two blocks before, the finish is certain to fail, so the card holds the button with the block finishing opens at and a press sends nothing. It fails if the card offers the finish then, or does not say when finishing opens.",
+      "keep_because": "Agent finish build (18 Nov 2026), house rule 11: every launchpad's migrate reverts only while its clock is before the launch's migration block, and a finish sent at the latest block lands in the next one at the earliest. Two blocks before, a finish read at the latest block would revert if sent at the clock's next step, so the card holds the button with the block finishing opens at and a press sends nothing. It fails if the card offers the finish then, or does not say when finishing opens.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fb6b40f20de94372735cbf2da0378f8b5729e85b0c911aff2bb1f17ec1fce2fe"
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
     },
     {
       "id": 621,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
-      "line": 112,
+      "line": 138,
       "test_name": "FINISH_HELD_ONE_BLOCK_TOO_LONG: one block before the migration block the finish is offered and sent",
-      "keep_because": "Agent finish build (18 Nov 2026), house rule 11: the card held the Finish button one block longer than the finish was certain to fail. One block before the migration block a finish may land at the migration block, so the card offers it and a press hands the wallet the strategy's migrate. It fails under the old rule, which held the button until the migration block itself.",
+      "keep_because": "Agent finish build (18 Nov 2026), house rule 11: the card held the Finish button one block longer than a finish sent then would revert. One block before the migration block a finish may land at the migration block, so the card offers it and a press hands the wallet the strategy's migrate. It fails under the old rule, which held the button until the migration block itself.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fb6b40f20de94372735cbf2da0378f8b5729e85b0c911aff2bb1f17ec1fce2fe"
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
     },
     {
       "id": 622,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 120,
+      "line": 124,
       "test_name": "the finish step is the auction page's, for a Revstake and a Memestock auction on Base and a Memestock auction on Robinhood Chain, alike on both ways in",
       "keep_because": "A paired agent's finish step, on its route and its hosted tool alike, is exactly the auction page's step and chain from the same read, the launchpad's own migrate with the Builder Code, with the block it read at and the launch's migration block and clock, for Revstake and Memestock auctions of both Base versions and a Memestock auction on Robinhood Chain.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 623,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 153,
+      "line": 159,
       "test_name": "two blocks before the migration block the finish is refused as finish_not_open naming that block; from one block before, the step comes back, on Base and Robinhood Chain",
       "keep_because": "The agent and the page follow one rule for when a finish is certain to fail: two blocks before the migration block of the launchpad's own clock, the block on Base and the rollup block on Robinhood Chain, the agent is refused finish_not_open with the block it opens at and the page holds its button; one block before, at it and after it, the step comes back. It fails if either chain's boundary moves.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 624,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 191,
+      "line": 197,
       "test_name": "a finished auction is refused as auction_finished with no step, as the page says it is finished, on Base and on Robinhood Chain",
       "keep_because": "A launch the chain shows graduated or failed is refused auction_finished with no step on both ways in and both chains, as the page says the auction is finished.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 625,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 209,
+      "line": 215,
       "test_name": "an auction the site does not list or show, and an id naming none, are answered alike as no auction, before any chain is read",
       "keep_because": "A hidden auction, one the site does not list and an id naming none are answered alike as auction_not_found, on both ways in, before Base or Robinhood Chain is read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 626,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 242,
+      "line": 248,
       "test_name": "only the person's own wallets are prepared for: another of theirs is, any other is refused, as is another person's agent naming theirs",
       "keep_because": "The finish is prepared only for the person's own wallets: another of theirs, named in its checksummed letter case, is answered; any other wallet is wrong_signer, as is another person's agent naming this person's wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 627,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 268,
+      "line": 274,
       "test_name": "the step is prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "Only the paired agent, or a connected app calling as it, may run the finish action; the person signed in, a connected app as itself, the site and nobody may not.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 628,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 286,
+      "line": 292,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent finish contract lists is reached on the route and the hosted tool alike, in a status and code the contract documents, the account read and prelaunch refusals in their own cases.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 629,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 345,
+      "line": 482,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "An agent whose person's account cannot be read is refused authentication_required and prepares nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 630,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 360,
+      "line": 497,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable",
       "keep_because": "A person's account the database cannot read as the request arrives is answered account_unavailable, as the contract documents.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 631,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 372,
+      "line": 509,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required",
       "keep_because": "A person whose wallet evidence has lapsed, or lists wallets with no primary among them, is refused wallet_required on both ways in, with or without a signer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 632,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 394,
+      "line": 531,
       "test_name": "the route spends the person's one budget of 120 signed requests a minute",
       "keep_because": "The agent finish route spends the person's one budget of signed requests, as every signed agent route does.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 633,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 408,
+      "line": 545,
       "test_name": "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as finish_unavailable alike on both ways in",
-      "keep_because": "A launch record no launch holds, a deployment description that raises, a listing read that fails and any other error are logged by kind alone, never with the wallet, and answered finish_unavailable on both ways in.",
+      "keep_because": "A deployment description that raises, a listing read that fails (Ash's own error, which names the lost connection) and any other error are logged by kind alone, never with the wallet, and answered finish_unavailable on both ways in.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 634,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 463,
+      "line": 601,
       "test_name": "each reason the read, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is finish_unavailable",
       "keep_because": "Each reason the finish names has one code, each code one status and the same words on both ways in, documented by the contract; any other reason is finish_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 635,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 494,
+      "line": 633,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "Before the site opens, the route answers prelaunch_read_only and the hosted tool is neither listed nor run.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 636,
       "group": "Agent finishes",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_finish_test.exs",
-      "line": 506,
+      "line": 645,
       "test_name": "switched on a paired agent lists the tool as read-only; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent is listed prepare_finish as read-only; off, it is not listed and any call to it, well formed or not, is answered exactly as one to a tool that does not exist.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e5de09eb25f4d5a938836bfdfae1fd79c1b7128d91f71f4bd9bf33a2e490dde0"
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
     },
     {
       "id": 637,
@@ -6671,6 +6671,97 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c8fd08825c8e8725b3b669e50df8d8740bd5adbeb181649455cad5ea57bd73fd"
+    },
+    {
+      "id": 641,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
+      "line": 153,
+      "test_name": "FINISH_HELD_ONE_BLOCK_TOO_LONG: on a Base Memestock launchpad and on Robinhood Chain, whose clock is not the block, two steps before the migration block the button is held and one step before it the launchpad's own finish is sent",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): the one-step-early rule was proved on Base Revstake alone. A Base Memestock launchpad reads its launch through launchIdOfAuction and launches, and Robinhood Chain keeps time by the rollup block, not the block the page reads at. Two steps before the migration block the wallet's button is absent and the disabled one shown, and a press sends nothing; one step before, the wallet's button is offered and a press hands it the launchpad's own migrate of its launch. It fails if Robinhood's card judged by the block, or Memestock's read a different launch.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
+    },
+    {
+      "id": 642,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
+      "line": 192,
+      "test_name": "a held card reads the launch again as the site reads a new block, and offers the finish once that block is one before the migration block",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): a card held as not open yet must turn offered on its own once the site reads the block one before the migration block, or the button stays disabled until the page is reloaded. It fails if a new block does not read a held launch again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
+    },
+    {
+      "id": 643,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/finish_auction_press_test.exs",
+      "line": 205,
+      "test_name": "an auction whose launchpad holds no launch says so with the button disabled; a press sends nothing and the card stays, and no new block reads it again",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): a launchpad holding no launch for the auction was a crash in the page process. Now the card says the auction has no launch to finish, shows only the disabled button, answers a press with nothing while staying up, and reads the chain no more as new blocks arrive, since no block changes it. It fails if the card crashes, offers the finish, or reads again on every block.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8029ad21c6b2e5b139a47e17a07a5d0ddd45fada4b797767586b07b8559b8185"
+    },
+    {
+      "id": 644,
+      "group": "Agent finishes",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_finish_test.exs",
+      "line": 353,
+      "test_name": "a launchpad holding no launch for a listed auction is refused as finish_unavailable alike on both ways in, logged as launch_not_found, as the page reads no launch",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): every way a launchpad holds no launch for a listed auction, on Revstake (lifecycle 0 or a number no lifecycle names), Base Memestock (launch id 0, a record of another auction, lifecycle 0 or 7) and Robinhood Chain (launch id 0, lifecycle 0 or 7), was a crash or a wrong launch. Each is now the read's launch_not_found, answered finish_unavailable on both ways in and logged by that name, never with the wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
+    },
+    {
+      "id": 645,
+      "group": "Agent finishes",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_finish_test.exs",
+      "line": 397,
+      "test_name": "a listed auction on a chain no deployment description names is refused as chain_unavailable alike on both ways in, nothing read from any chain, the site's fault logged once",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): an auction on a chain no description names was read through Base's launchpads. It is now chain_unavailable on both ways in and on the page, with nothing read from any chain, and the site's fault is logged once on the machine, not once for every reader and block.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
+    },
+    {
+      "id": 646,
+      "group": "Agent finishes",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_finish_test.exs",
+      "line": 428,
+      "test_name": "switched on, the signed route refuses an unsigned request, an agent nobody paired, another's wallet and an id that is none, each in its own words, and answers a hidden auction byte for byte as a missing one",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): the signed route switched on was proved only through its operation. An unsigned request is 401 verification_failed with nothing read, an unpaired agent 403 agent_not_paired, another's wallet 403 wrong_signer and an id that is none 422 invalid_request, each in its fixed words, and a hidden auction's answer is the same bytes as a missing one's, so the route never tells a hidden auction exists.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "209345b71c7f79d6c870ada3d8e1f260dcbd421f8142c247c2a369605229686a"
+    },
+    {
+      "id": 647,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_finish_test.exs",
+      "line": 281,
+      "test_name": "a recorded launch the launchpad holds no record of is sent nothing and named; its job is tried once and discarded, the row kept running",
+      "keep_because": "Review of the agent finish build (18 Nov 2026): a recorded launch whose launchpad holds no record of it (lifecycle 0 or a number no lifecycle names) raised inside the finisher. Now nothing is sent, the error names launch_not_found, the job is tried once and discarded with no retry, and the row stays running for the next scheduled run. It fails if the finisher sends, raises or marks the launch finished.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "13364532a4e36a4810ccf4d3cde90276242247e13929aca09190af8fc8956f69"
     }
   ],
   "legacy_folders_to_remove": [
