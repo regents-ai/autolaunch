@@ -91,6 +91,18 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     def verify(review, hash), do: Chain.verify(review, hash)
   end
 
+  defmodule RaisingLaunchChain do
+    @moduledoc false
+    # Base failing in a way nobody named, saying what it was asked.
+    @behaviour Autolaunch.LaunchChainClient
+
+    @impl true
+    def snapshot(request), do: raise("snapshot failed for #{inspect(request)}")
+
+    @impl true
+    def verify(review, _hash), do: raise("verify failed for #{inspect(review)}")
+  end
+
   defmodule BaseLaunchpad do
     @moduledoc false
     # Base as a Memestock launch's review reads it at one latest block (150):
@@ -204,35 +216,42 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
        %{agent: agent, account: account, draft: draft, wallet: wallet, opts: opts} do
     {:ok, page} = LaunchActions.prepare(draft.id, wallet, opts)
 
+    before = kept(LaunchOperation, account)
+    {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
+    assert [row] = kept(LaunchOperation, account) -- before
+
+    assert_page_answer(data, page, wallet, %{"id" => draft.id, "kind" => "revstake"})
+    assert data["chain"]["rpc_url"] == Autolaunch.Lab.current!().public_rpc_url
+    assert data["block"] == 30_000_000
+    assert data["facts"]["treasury"] == LaunchFixture.treasury()
+
+    # The launch factory's own launch, with the draft's name, ticker and
+    # picture, to the factory the chain names.
+    assert [%{"to" => to, "data" => calldata}] = data["steps"]
+    assert to == LaunchFixture.factory()
+
+    assert String.starts_with?(
+             calldata,
+             LabAbi.selector("launch((string,string,string,string,string,address))")
+           )
+
+    assert %{"name" => "Open Research", "symbol" => "OPEN", "image" => image} = data["facts"]
+    assert image == draft.image
+
+    # Kept as the page keeps its own review: for the person, of this draft,
+    # with the step the wallet is asked to send, marked as the agent's.
+    assert row.human_account_id == account.id and row.launch_draft_id == draft.id
+    assert row.signer == wallet and row.step == :launch and row.prepared_by == :agent
+    assert row.review["step"]["data"] == calldata
+
+    # The same preparation again, on either way in and with the wallet named
+    # or not, is the one already kept, with the same step.
     for input <- [%{}, %{signer: wallet}] do
-      before = kept(LaunchOperation, account)
-      {:ok, data} = answer(http(:post, launch_path(draft.id), input, agent))
-      assert [row] = kept(LaunchOperation, account) -- before
-
       assert tool(agent, "prepare_launch", Map.put(input, :draft, draft.id)) == {:ok, data}
-      assert_page_answer(data, page, wallet, %{"id" => draft.id, "kind" => "revstake"})
-      assert data["block"] == 30_000_000
-      assert data["facts"]["treasury"] == LaunchFixture.treasury()
-
-      # The launch factory's own launch, with the draft's name, ticker and
-      # picture, to the factory the chain names.
-      assert [%{"to" => to, "data" => calldata}] = data["steps"]
-      assert to == LaunchFixture.factory()
-
-      assert String.starts_with?(
-               calldata,
-               LabAbi.selector("launch((string,string,string,string,string,address))")
-             )
-
-      assert %{"name" => "Open Research", "symbol" => "OPEN", "image" => image} = data["facts"]
-      assert image == draft.image
-
-      # Kept as the page keeps its own review: for the person, of this draft,
-      # with the step the wallet is asked to send.
-      assert row.human_account_id == account.id and row.launch_draft_id == draft.id
-      assert row.signer == wallet and row.step == :launch
-      assert row.review["step"]["data"] == calldata
+      assert answer(http(:post, launch_path(draft.id), input, agent)) == {:ok, data}
     end
+
+    assert kept(LaunchOperation, account) -- before == [row]
   end
 
   test "a Memestock draft's launch step on Base is the create page's for the same draft and wallet, alike on both ways in, and kept for the person",
@@ -245,9 +264,13 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
     assert [row] = kept(StocksLaunchOperation, account) -- before
 
+    # The same preparation again is the one already kept.
     assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
+    assert kept(StocksLaunchOperation, account) -- before == [row]
+
     assert_page_answer(data, page, wallet, %{"id" => draft.id, "kind" => "memestock"})
     assert %{"chain_id" => 8453, "name" => "Base"} = data["chain"]
+    assert data["chain"]["rpc_url"] == stocks.public_rpc_url
     assert data["block"] == 150
 
     assert [%{"to" => to, "data" => calldata}] = data["steps"]
@@ -258,6 +281,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
 
     assert row.human_account_id == account.id and row.launch_draft_id == draft.id
     assert row.signer == wallet and row.review["step"]["data"] == calldata
+    assert row.prepared_by == :agent
   end
 
   test "a Memestock draft's launch step on Robinhood Chain is the create page's for the same draft and wallet, alike on both ways in, and kept for the person",
@@ -277,6 +301,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
     assert_page_answer(data, page, wallet, %{"id" => draft.id, "kind" => "memestock"})
     assert %{"chain_id" => 4_663, "name" => "Robinhood Chain"} = data["chain"]
+    assert data["chain"]["rpc_url"] == deployment.public_rpc_url
     assert data["block"] == 100
 
     assert [%{"to" => to}] = data["steps"]
@@ -287,6 +312,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     # this site's and the person's.
     assert kept.human_account_id == account.id and kept.signer == wallet
     assert kept.chain_id == 4_663 and kept.stock == RobinhoodBidChain.stock()
+    assert kept.prepared_by == :agent
     assert {kept.name, kept.symbol} == {data["facts"]["name"], data["facts"]["symbol"]}
 
     assert {:ok, %{id: id}} =
@@ -434,6 +460,46 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     end
   end
 
+  test "an agent's preparations of one Base draft are kept to the latest 20, the same one again is the one kept, and the person's own and a launched one are never removed or reused",
+       %{agent: signing, account: account, draft: draft, wallet: wallet, opts: opts} do
+    {:ok, agent} = Autolaunch.Agents.resolve(signing)
+    meme = memestock!(signing, %{"stock_address" => @aapl})
+    {:ok, _page} = LaunchActions.prepare(draft.id, wallet, opts)
+    {:ok, _page} = StocksLaunchActions.prepare(meme.id, wallet, opts)
+
+    for {resource, draft, verify} <- [
+          {LaunchOperation, draft, &Autolaunch.verify_launch_review/3},
+          {StocksLaunchOperation, meme, &Autolaunch.verify_stocks_launch_review/3}
+        ] do
+      kept = fn -> resource |> kept(account) |> MapSet.new(& &1.id) end
+      assert [%{prepared_by: :person} = own] = kept(resource, account)
+
+      launched = prepare!(resource, draft, agent, 0)
+      {:ok, _launched} = verify.(launched, %{result: %{}}, actor: %System{})
+
+      prepared = for n <- 1..21, do: prepare!(resource, draft, agent, n)
+      newest = Enum.drop(prepared, 1)
+      assert kept.() == MapSet.new([own.id, launched.id | Enum.map(newest, & &1.id)])
+
+      # The newest again, read at another block, is the one kept already.
+      assert prepare!(resource, draft, agent, 21, 31).id == List.last(prepared).id
+      assert kept.() == MapSet.new([own.id, launched.id | Enum.map(newest, & &1.id)])
+
+      # The same as the launched one, or as the person's own, is a new one.
+      again = prepare!(resource, draft, agent, 0)
+      theirs = prepare!(resource, draft, agent, own.review)
+      refute again.id == launched.id or theirs.id == own.id
+
+      assert kept.() ==
+               MapSet.new([
+                 own.id,
+                 launched.id,
+                 again.id,
+                 theirs.id | Enum.map(Enum.drop(newest, 2), & &1.id)
+               ])
+    end
+  end
+
   test "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
        %{person: person} do
     base = with_memestock(person, %{"stock_address" => @aapl})
@@ -467,6 +533,8 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
        "treasury_configuration_drift"},
       {person, [revstake: [paused: true]], %{}, "launches_paused"},
       {person, [revstake: [strategy_factory: @other]], %{}, "strategy_not_bound"},
+      # Base answering part of what a launch is built from.
+      {person, [revstake: [hook: "not an address"]], %{}, "chain_unavailable"},
       # The site's own fault: Base names another REGENT than the site knows.
       {person, [revstake: [regent: @other]], %{}, "launch_unavailable"},
       {with_memestock(person!(), %{}), [], %{}, "stock_invalid"},
@@ -555,8 +623,8 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     end
   end
 
-  test "a read that fails, or a reason nobody named, is logged by kind alone and refused as launch_unavailable alike on both ways in",
-       %{agent: agent, draft: draft, wallet: wallet} do
+  test "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as launch_unavailable alike on both ways in",
+       %{agent: agent, draft: draft, wallet: wallet, opts: opts} do
     refused = fn ->
       {route, log} = with_log(fn -> http(:post, launch_path(draft.id), %{}, agent) end)
 
@@ -577,6 +645,20 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     lose_reads_of("launch_drafts")
     assert refused.() =~ "agent launch connection_lost"
     restore_reads_of("launch_drafts")
+
+    # The treasury's report could not be read, which is not a treasury never
+    # checked; the create page says only that it did not go through.
+    lose_reads_of("treasury_security_reports")
+    assert refused.() =~ "agent launch connection_lost"
+    assert {:error, error} = LaunchActions.prepare(draft.id, wallet, opts)
+    assert AutolaunchWeb.OnchainSteps.refusal(error) == :unavailable
+    restore_reads_of("treasury_security_reports")
+
+    # A raise anywhere in the operation, here Base's own read naming the
+    # wallet, is logged without what it said.
+    Application.put_env(:autolaunch, :autolaunch_launch_chain_client, RaisingLaunchChain)
+    assert refused.() =~ "agent launch failed: RuntimeError"
+    Application.put_env(:autolaunch, :autolaunch_launch_chain_client, WatchedLaunchChain)
 
     # Base answering nothing is a chain that could not be read just now.
     TestAutolaunchLaunchChainClient.put(%{unavailable: :chain_unavailable})
@@ -599,6 +681,61 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       assert Jason.decode!(answered.resp_body)["error"]["code"] == "launch_unavailable"
       assert log =~ "agent launch failed"
     end
+  end
+
+  test "a pairing that ends while the request runs is refused agent_not_paired alike on both ways in, and nothing is kept" do
+    base = fn -> with_memestock(person!(), %{"stock_address" => @aapl}) end
+
+    robinhood = fn ->
+      with_memestock(person!(), %{
+        "chain" => "robinhood",
+        "stock_address" => RobinhoodBidChain.stock()
+      })
+    end
+
+    # Where it ends: as the person's draft is read, as the review is about to
+    # be kept, and inside the write that keeps it, before its lock on the
+    # pairing.
+    for {asker, resource, action} <- [
+          {fn -> person!() end, LaunchOperation, :agent_prepare},
+          {base, StocksLaunchOperation, :agent_prepare},
+          {robinhood, LaunchReview, :agent_record}
+        ],
+        {event, matching} <- [
+          {[:ash, :autolaunch, :read, :start], %{action: :agent_read}},
+          {[:ash, :autolaunch, :create, :start], %{action: action}},
+          {[:ash, :before_action, :start], %{resource: resource, action: action}}
+        ],
+        way <- [:route, :tool] do
+      who = asker.()
+      arrange([], who.draft)
+      named = "#{inspect(resource)} #{inspect(event)} on the #{way}"
+      unpair_during(event, matching, who.agent)
+      {body, log} = with_log(fn -> refusal(way, who) end)
+
+      assert_received :unpaired, named
+
+      assert body == plain(AgentLaunchAnswer.body(:agent_not_paired)),
+             "#{named}: #{inspect(body)}"
+
+      refute log =~ "agent launch", named
+      assert kept(resource, who.account) == [], named
+    end
+
+    assert documented?(403, "agent_not_paired")
+  end
+
+  test "on the create page, a review whose draft no longer names a treasury is one to build again",
+       %{account: account, draft: draft, wallet: wallet, opts: opts} do
+    {:ok, page} = LaunchActions.prepare(draft.id, wallet, opts)
+    assert LaunchActions.current(page, opts) == :current
+
+    {:ok, _cleared} =
+      Autolaunch.autosave_launch_treasury(draft, %{treasury: nil},
+        actor: %Human{human_account_id: account.id}
+      )
+
+    assert LaunchActions.current(page, opts) == :changed
   end
 
   test "each reason the reviews, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is launch_unavailable" do
@@ -854,6 +991,36 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     |> Ash.read!(actor: %System{})
   end
 
+  # The agent's own preparation of `draft`, as `resource` keeps it: the review
+  # `n` names, read at `block`, or `review` itself.
+  defp prepare!(resource, draft, agent, n, block \\ 30)
+
+  defp prepare!(resource, draft, agent, n, block) when is_integer(n) do
+    review = %{
+      "chain" => %{"chain_id" => 8453},
+      "step" => %{"step" => "launch", "data" => "0x0#{n}"},
+      "facts" => %{"n" => n, "block_number" => block, "block_hash" => "0x0#{block}"}
+    }
+
+    prepare!(resource, draft, agent, review, block)
+  end
+
+  defp prepare!(resource, draft, agent, review, _block) do
+    resource
+    |> Ash.Changeset.for_create(
+      :agent_prepare,
+      %{
+        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+        launch_draft_id: draft.id,
+        review: review,
+        signer: LaunchFixture.wallet(),
+        step: :launch
+      },
+      actor: agent
+    )
+    |> Ash.create!()
+  end
+
   # Whether the contract documents `code` for the route answering `status`.
   defp documented?(status, code) do
     response =
@@ -912,6 +1079,48 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
         :error -> Application.delete_env(:autolaunch, key)
       end
     end)
+  end
+
+  # The error document `who`'s agent is answered with on `way` in: the route's,
+  # or the tool's error, or, once the pairing has ended, the whole answer every
+  # signed request is given then (`AutolaunchWeb.Plugs.AgentAccess`).
+  defp refusal(:route, who) do
+    route = http(:post, launch_path(who.draft.id), %{}, who.agent)
+    assert route.status == 403
+    route.body
+  end
+
+  defp refusal(:tool, who) do
+    case json(mcp(who.agent, call("prepare_launch", %{draft: who.draft.id}))) do
+      %{"result" => %{"isError" => true, "content" => [%{"text" => text}]}} -> Jason.decode!(text)
+      %{"error" => %{"code" => _code}} = replaced -> replaced
+    end
+  end
+
+  # Once the request's own `event` starts with `matching` in its metadata, the
+  # person unpairs `agent`, once.
+  defp unpair_during(event, matching, agent) do
+    {:ok, actor} = Autolaunch.Agents.resolve(agent)
+    person = %RegentAgents.Person{privy_user_id: actor.privy_user_id}
+    id = {__MODULE__, make_ref()}
+    test = self()
+
+    :ok =
+      :telemetry.attach(
+        id,
+        event,
+        fn _event, _measurements, metadata, _config ->
+          if Map.take(metadata, Map.keys(matching)) == matching do
+            :telemetry.detach(id)
+            [paired] = RegentAgents.list_my_agents!(actor: person)
+            :ok = RegentAgents.unpair_agent!(paired, actor: person)
+            send(test, :unpaired)
+          end
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(id) end)
   end
 
   # The tool's result, or its error's text decoded: the route's error document.

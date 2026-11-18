@@ -9,7 +9,10 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   one whose wallet launched it with exactly the reviewed name, symbol and
   stock makes it a site launch, in that review's
   account, with the Telegram, Discord and other links the review carried; no
-  match makes it a launch seen only on chain.
+  match makes it a launch seen only on chain. A paired agent's review of the
+  person's draft (`prepared_by: :agent`, `Autolaunch.AgentLaunch`) is matched
+  only when none of the person's is, so it never takes the place of one the
+  person saw.
   """
 
   use Ash.Resource,
@@ -17,6 +20,8 @@ defmodule Autolaunch.Robinhood.LaunchReview do
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  require Ash.Sort
 
   postgres do
     table "robinhood_launch_reviews"
@@ -45,10 +50,12 @@ defmodule Autolaunch.Robinhood.LaunchReview do
     create :agent_record do
       accept [:chain_id, :signer, :name, :symbol, :stock, :telegram, :discord, :links]
       change set_attribute(:human_account_id, actor(:human_account_id))
+      change set_attribute(:prepared_by, :agent)
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
     end
 
-    # The newest review that carried out this exact launch.
+    # The review that carried out this exact launch: the person's newest, or
+    # with none of theirs, the newest an agent prepared.
     read :matching do
       get? true
       argument :chain_id, :integer, allow_nil?: false
@@ -62,7 +69,13 @@ defmodule Autolaunch.Robinhood.LaunchReview do
                  symbol == ^arg(:symbol) and stock == ^arg(:stock)
              )
 
-      prepare build(sort: [inserted_at: :desc], limit: 1)
+      prepare build(
+                sort: [
+                  {Ash.Sort.expr_sort(prepared_by == :agent, :boolean), :asc},
+                  inserted_at: :desc
+                ],
+                limit: 1
+              )
     end
   end
 
@@ -95,6 +108,7 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       default: [],
       constraints: [max_length: 3, items: [max_length: 256]]
 
+    # Set only by `:agent_record`.
     attribute :prepared_by, :atom,
       allow_nil?: false,
       default: :person,

@@ -18,7 +18,7 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     TestSupport
   }
 
-  alias Autolaunch.Robinhood.{Discovery, Lab}
+  alias Autolaunch.Robinhood.{Discovery, Lab, LaunchReview}
 
   @chain_id 4_663
   @stock %{address: "0x2000000000000000000000000000000000000002", symbol: "TSLA", decimals: 18}
@@ -445,6 +445,31 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     assert Enum.map(listed.records, & &1.auction_address) == [@site_auction]
   end
 
+  test "a review a paired agent prepared later never takes the place of the person's own",
+       %{creator: creator} do
+    # For the same wallet, name, symbol and stock, with other links.
+    agent_review(creator, "Launch 1", "L1", ["https://example.test/agent"])
+
+    assert {:snooze, 300} = discover()
+
+    assert %{origin: :site, creator_human_account_id: id, links: []} = row(@site_auction)
+    assert id == creator.id
+  end
+
+  test "a launch only a paired agent's review carried out is listed from that review, for its person" do
+    other = TestSupport.register_creator!()
+    agent_review(other, "Launch 3", "L3", ["https://example.test/agent"])
+    launched = launch(3, @graduated_auction, other.wallet_address, 1, false)
+    Chain.update(&%{&1 | launches: &1.launches ++ [launched]})
+
+    assert {:snooze, 300} = discover()
+
+    assert %{origin: :site, creator_human_account_id: id, links: ["https://example.test/agent"]} =
+             row(@graduated_auction)
+
+    assert id == other.id
+  end
+
   # The Robinhood deployment fixture, answering at a loopback door this test
   # stands in for.
   defp deployment do
@@ -531,6 +556,42 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
       },
       actor: %System{}
     )
+  end
+
+  # The same review with `links`, as a paired agent of `creator`'s person
+  # keeps it (`Autolaunch.AgentLaunch`).
+  defp agent_review(creator, name, symbol, links) do
+    LaunchReview
+    |> Ash.Changeset.for_create(
+      :agent_record,
+      %{
+        chain_id: @chain_id,
+        signer: String.downcase(creator.wallet_address),
+        name: name,
+        symbol: symbol,
+        stock: @stock.address,
+        links: links
+      },
+      actor: paired_agent!(creator)
+    )
+    |> Ash.create!()
+  end
+
+  # An agent paired with `account`'s person, as it acts for them.
+  defp paired_agent!(account) do
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    code =
+      RegentAgents.issue_pairing_code!(
+        actor: %RegentAgents.Person{privy_user_id: account.privy_user_id}
+      )
+
+    RegentAgents.pair_agent!(code.code, "Agent", :codex,
+      actor: %RegentAgents.Agent{wallet: wallet}
+    )
+
+    {:ok, agent} = Autolaunch.Agents.resolve(wallet)
+    agent
   end
 
   defp robinhood_rows do

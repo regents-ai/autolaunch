@@ -437,10 +437,16 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
+  # The treasury's newest report: none yet is not checked yet, and a draft
+  # whose treasury is no longer an address (`current/2` reads it as saved
+  # since) names no treasury. A report that could not be read is that failure.
   defp production_treasury(draft) do
     case Autolaunch.current_treasury_security(draft.treasury, actor: nil) do
       {:ok, nil} ->
         unavailable(:treasury_report_missing)
+
+      :error ->
+        unavailable(:launch_treasury_invalid)
 
       {:ok, report} ->
         with {:ok, report} <-
@@ -449,8 +455,8 @@ defmodule Autolaunch.LaunchActions do
              :ok <- custody_matches(draft, report),
              do: {:ok, report}
 
-      _error ->
-        unavailable(:treasury_report_missing)
+      {:error, error} ->
+        {:error, error}
     end
   end
 

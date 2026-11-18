@@ -10,8 +10,14 @@ defmodule Autolaunch.LaunchOperation do
 
   A review stays `prepared` until the chain shows its launch, even once its
   page has let it go: its exact step can still be sent, and the launch is then
-  this site's. An account may hold any number of reviews; one never cancels
-  another.
+  this site's. An account may hold any number of the reviews its pages save;
+  one never cancels another.
+
+  A paired agent's review of the person's draft (`prepared_by: :agent`,
+  `Autolaunch.AgentLaunch`) is tried only after every review of the person's
+  when a launch is listed, so it never takes the place of one the person saw.
+  Preparing again for a changed draft keeps the latest 20 preparations
+  (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -19,6 +25,8 @@ defmodule Autolaunch.LaunchOperation do
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  require Ash.Sort
 
   @steps [:launch]
   @states [:prepared, :chain_verified]
@@ -48,7 +56,8 @@ defmodule Autolaunch.LaunchOperation do
       filter expr(action_id == ^arg(:action_id))
     end
 
-    # the reviews a launch the chain shows may have come from, newest first,
+    # the reviews a launch the chain shows may have come from, the person's
+    # own before any an agent prepared, newest first within each,
     read :for_signer_on_chain do
       argument :signer, :string, allow_nil?: false
       argument :chain_id, :integer, allow_nil?: false
@@ -58,7 +67,12 @@ defmodule Autolaunch.LaunchOperation do
                  fragment("(?->'chain'->>'chain_id')::bigint = ?", review, ^arg(:chain_id))
              )
 
-      prepare build(sort: [inserted_at: :desc])
+      prepare build(
+                sort: [
+                  {Ash.Sort.expr_sort(prepared_by == :agent, :boolean), :asc},
+                  inserted_at: :desc
+                ]
+              )
     end
 
     # and the one being listed, held until its listing commits.
@@ -93,7 +107,16 @@ defmodule Autolaunch.LaunchOperation do
       argument :launch_draft_id, :uuid, allow_nil?: false
       change set_attribute(:human_account_id, actor(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
+      change set_attribute(:prepared_by, :agent)
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+      change Autolaunch.AgentLaunch.Preparations
+    end
+
+    # An agent's review of a draft that its latest ones replaced
+    # (`Autolaunch.AgentLaunch.Preparations`).
+    destroy :trim do
+      validate attribute_equals(:prepared_by, :agent)
+      validate attribute_equals(:state, :prepared)
     end
   end
 
@@ -124,6 +147,7 @@ defmodule Autolaunch.LaunchOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
+    # Set only by `:agent_prepare`.
     attribute :prepared_by, :atom,
       allow_nil?: false,
       default: :person,

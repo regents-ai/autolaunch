@@ -198,6 +198,47 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert %{state: :prepared, terminal_at: nil} = reload(other_operation)
   end
 
+  test "a review a paired agent prepared later never takes the place of the person's own",
+       %{account: account, draft: draft, operation: operation} do
+    # For the same wallet and launch, with other links.
+    agents =
+      agent_review!(account, draft, LaunchFixture.wallet(), ["https://example.test/agent"])
+
+    record_launch(LaunchFixture.wallet())
+    run_triggers()
+
+    assert [%{creator_human_account_id: creator, links: []}] = auctions()
+    assert creator == account.id
+    assert %{state: :chain_verified} = reload(operation)
+    assert %{state: :prepared} = reload(agents)
+  end
+
+  test "a launch only a paired agent's review carried out is listed from that review, for its person",
+       %{operation: operation} do
+    other =
+      Accounts.register_verified!(
+        "did:privy:other-#{Elixir.System.unique_integer([:positive])}",
+        @other_wallet,
+        [@other_wallet],
+        actor: @actor
+      )
+
+    other_draft = LaunchFixture.draft!(%Autolaunch.Actors.Human{human_account_id: other.id})
+    agents = agent_review!(other, other_draft, @other_wallet, ["https://example.test/agent"])
+
+    record_launch(@other_wallet)
+    run_triggers()
+
+    assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
+    assert creator == other.id
+
+    assert [%{creator_human_account_id: ^creator, links: ["https://example.test/agent"]}] =
+             auctions()
+
+    assert %{state: :chain_verified} = reload(agents)
+    assert %{state: :prepared} = reload(operation)
+  end
+
   # The page sees its own press confirmed and lists the launch at once.
   defp confirm_in_browser(operation),
     do: LaunchReviews.confirm(:launch, operation.action_id, @hash)
@@ -216,10 +257,45 @@ defmodule Autolaunch.LaunchDiscoveryTest do
 
   # One saved launch review, as `LaunchActions.prepare` stores it for `account`.
   defp review!(account, draft, signer) do
+    LaunchOperation
+    |> Ash.Changeset.for_create(
+      :prepare,
+      %{
+        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+        review: review(signer, []),
+        signer: signer,
+        step: :launch,
+        human_account_id: account.id,
+        launch_draft_id: draft.id
+      },
+      actor: @actor
+    )
+    |> Ash.create!(actor: @actor)
+  end
+
+  # The same review with `links`, as a paired agent of `account`'s person
+  # keeps it (`Autolaunch.AgentLaunch`).
+  defp agent_review!(account, draft, signer, links) do
+    LaunchOperation
+    |> Ash.Changeset.for_create(
+      :agent_prepare,
+      %{
+        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+        review: review(signer, links),
+        signer: signer,
+        step: :launch,
+        launch_draft_id: draft.id
+      },
+      actor: paired_agent!(account)
+    )
+    |> Ash.create!()
+  end
+
+  defp review(signer, links) do
     deployment = Lab.current!()
     factory = Lab.address!(deployment, :factory)
 
-    review = %{
+    %{
       "chain" => %{
         "chain_id" => deployment.chain_id,
         "name" => "Base",
@@ -232,7 +308,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         "symbol" => "OPEN",
         "description" => "A launch profile awaiting review.",
         "website" => "https://example.test/open",
-        "links" => [],
+        "links" => links,
         "image" => nil,
         "regent" => Abi.regent_address(),
         "terms" => %{"required_regent_raised" => "1084202174"},
@@ -241,21 +317,23 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         "hook" => LaunchFixture.hook()
       }
     }
+  end
 
-    LaunchOperation
-    |> Ash.Changeset.for_create(
-      :prepare,
-      %{
-        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
-        review: review,
-        signer: signer,
-        step: :launch,
-        human_account_id: account.id,
-        launch_draft_id: draft.id
-      },
-      actor: @actor
+  # An agent paired with `account`'s person, as it acts for them.
+  defp paired_agent!(account) do
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    code =
+      RegentAgents.issue_pairing_code!(
+        actor: %RegentAgents.Person{privy_user_id: account.privy_user_id}
+      )
+
+    RegentAgents.pair_agent!(code.code, "Agent", :codex,
+      actor: %RegentAgents.Agent{wallet: wallet}
     )
-    |> Ash.create!(actor: @actor)
+
+    {:ok, agent} = Autolaunch.Agents.resolve(wallet)
+    agent
   end
 
   # Discovery reads the factory's launch, sent from `launcher`.

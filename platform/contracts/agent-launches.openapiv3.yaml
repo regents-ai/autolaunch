@@ -41,8 +41,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentLaunchError'
         '403':
-          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
-            the person's own wallets (wrong_signer)
+          description: The agent is paired with nobody, or its pairing ended while the request ran
+            (agent_not_paired), or the signer is not one of the person's own wallets (wrong_signer)
           content:
             application/json:
               schema:
@@ -54,8 +54,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentLaunchError'
         '409':
-          description: The person's account has no verified wallet to act with (wallet_required), the
-            draft lacks something the launch needs or waits for the person on the create page
+          description: The person's account has no verified wallet to act with, or signer is not a
+            wallet address (wallet_required), the draft lacks something the launch needs or waits
+            for the person on the create page
             (launch_metadata_incomplete, agent_treasury_unconfirmed, launch_treasury_invalid,
             launch_treasury_refused, treasury_report_missing, treasury_security_changed,
             treasury_configuration_drift, stock_invalid, stock_not_admitted), or the chain or the site

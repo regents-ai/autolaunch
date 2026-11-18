@@ -13,9 +13,10 @@ defmodule Autolaunch.AgentBid do
   Every agent surface runs these two, so each answers in one shape: the signed
   HTTP routes, which the browser tools call (`AutolaunchWeb.AgentBidController`),
   and the hosted MCP tools. The person must have a verified wallet now, as
-  `autolaunch_my_positions` asks (`Autolaunch.Accounts.VerifiedSession.current?/1`).
-  The wallet is one of the person's own (`Autolaunch.CoveredCalls.Signer`):
-  `signer` when named, otherwise the wallet they signed in with, and a bid
+  `autolaunch_my_positions` asks, so their own bids are read as theirs, and the
+  wallet is one of the person's own, `signer` when named, otherwise the wallet
+  they signed in with (`Autolaunch.CoveredCalls.Signer.verified/1` and
+  `wallet/2`, from one read of the account), and a bid
   settled is one a wallet of theirs holds (`Autolaunch.Bid`'s `:agent_by_bid_id`).
   Once the latest block has reached the auction's end block, as the auction
   itself reads it, a bid is refused as `bidding_ended`: the auction would
@@ -36,8 +37,6 @@ defmodule Autolaunch.AgentBid do
     domain: Autolaunch,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.AgentBid.Refused
   alias Autolaunch.{BidActions, BidIdentity, BidSettlementActions}
   alias Autolaunch.CoveredCalls.Signer
@@ -171,8 +170,8 @@ defmodule Autolaunch.AgentBid do
 
   @doc false
   def bid_steps(arguments, actor) do
-    with :ok <- verified(actor),
-         {:ok, signer} <- Signer.wallet(actor, arguments[:signer]),
+    with {:ok, account} <- Signer.verified(actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, reviewed} <- BidActions.review(request(arguments), signer),
          :ok <- open(reviewed) do
       {:ok,
@@ -192,8 +191,8 @@ defmodule Autolaunch.AgentBid do
 
   @doc false
   def settlement_steps(%{bid: bid} = arguments, context) do
-    with :ok <- verified(context.actor),
-         {:ok, signer} <- Signer.wallet(context.actor, arguments[:signer]),
+    with {:ok, account} <- Signer.verified(context.actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, position} <- own_bid(bid, context),
          {:ok, reviewed} <- BidSettlementActions.review(position, signer) do
       {:ok,
@@ -209,20 +208,6 @@ defmodule Autolaunch.AgentBid do
        }}
     end
     |> refused()
-  end
-
-  # The person has a verified wallet now, as `autolaunch_my_positions` asks,
-  # so their own bids are read as theirs; a person whose wallet evidence lapsed
-  # has none to act with. An account that cannot be read is answered as the
-  # wallet's own read answers it (`Autolaunch.CoveredCalls.Signer`).
-  defp verified(%{human_account_id: id}) do
-    case Accounts.points_account(id, actor: %Autolaunch.Actors.System{}) do
-      {:ok, account} ->
-        if VerifiedSession.current?(account), do: :ok, else: {:error, :wallet_required}
-
-      _unread ->
-        {:error, :authentication_required}
-    end
   end
 
   # The review's request: the figures as typed, and the currency paid as the

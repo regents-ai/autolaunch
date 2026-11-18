@@ -13,10 +13,11 @@ defmodule Autolaunch.AgentRobinhoodBid do
   Every agent surface runs these two, so each answers in one shape: the signed
   HTTP routes, which the browser tools call
   (`AutolaunchWeb.AgentRobinhoodBidController`), and the hosted MCP tools. The
-  person must have a verified wallet now, as `autolaunch_my_positions` asks
-  (`Autolaunch.Accounts.VerifiedSession.current?/1`). The wallet is one of the
-  person's own (`Autolaunch.CoveredCalls.Signer`): `signer` when named,
-  otherwise the wallet they signed in with.
+  person must have a verified wallet now, as `autolaunch_my_positions` asks, so
+  their own bids are read as theirs, and the wallet is one of the person's own,
+  `signer` when named, otherwise the wallet they signed in with
+  (`Autolaunch.CoveredCalls.Signer.verified/1` and `wallet/2`, from one read of
+  the account).
 
   The auction is one the site lists on Robinhood Chain, as its pages show it. A
   Robinhood bid is not stored here: it is named by its auction's address and
@@ -42,8 +43,6 @@ defmodule Autolaunch.AgentRobinhoodBid do
     domain: Autolaunch,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.AgentRobinhoodBid.Refused
   alias Autolaunch.CoveredCalls.Signer
   alias Autolaunch.Robinhood.{Lab, StockBidActions, StockBidSettlementActions}
@@ -177,8 +176,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
 
   @doc false
   def bid_steps(arguments, actor) do
-    with {:ok, _account} <- verified(actor),
-         {:ok, signer} <- Signer.wallet(actor, arguments[:signer]),
+    with {:ok, account} <- Signer.verified(actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, auction} <- listed_auction(arguments.auction_id),
          :ok <- open(auction),
          {:ok, reviewed} <- StockBidActions.review(request(arguments, auction), signer),
@@ -200,8 +199,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
 
   @doc false
   def settlement_steps(%{bid: bid} = arguments, actor) do
-    with {:ok, account} <- verified(actor),
-         {:ok, signer} <- Signer.wallet(actor, arguments[:signer]),
+    with {:ok, account} <- Signer.verified(actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, auction, number} <- listed_bid(bid),
          {:ok, reviewed} <-
            StockBidSettlementActions.review(
@@ -222,20 +221,6 @@ defmodule Autolaunch.AgentRobinhoodBid do
        }}
     end
     |> refused()
-  end
-
-  # The person has a verified wallet now, as `autolaunch_my_positions` asks,
-  # so their own bids are read as theirs; a person whose wallet evidence lapsed
-  # has none to act with. An account that cannot be read is answered as the
-  # wallet's own read answers it (`Autolaunch.CoveredCalls.Signer`).
-  defp verified(%{human_account_id: id}) do
-    case Accounts.points_account(id, actor: %Autolaunch.Actors.System{}) do
-      {:ok, account} ->
-        if VerifiedSession.current?(account), do: {:ok, account}, else: {:error, :wallet_required}
-
-      _unread ->
-        {:error, :authentication_required}
-    end
   end
 
   # A Robinhood Chain auction the site lists and shows, as its page reads it;

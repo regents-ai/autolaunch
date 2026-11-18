@@ -13,11 +13,13 @@ defmodule Autolaunch.AgentLaunch do
   Every agent surface runs it, so each answers in one shape: the signed HTTP
   route, which the browser tool calls (`AutolaunchWeb.AgentLaunchController`),
   and the hosted MCP tool. The person must have a verified wallet now, as
-  `autolaunch_my_positions` asks (`Autolaunch.Accounts.VerifiedSession.current?/1`).
-  The wallet is one of the person's own (`Autolaunch.CoveredCalls.Signer`):
-  `signer` when named, otherwise the wallet they signed in with. The draft is
-  the person's own, read through the agent's own draft read, so another
-  person's draft is named nowhere and refused before any chain is read.
+  `autolaunch_my_positions` asks, and the wallet is one of the person's own,
+  `signer` when named, otherwise the wallet they signed in with
+  (`Autolaunch.CoveredCalls.Signer.verified/1` and `wallet/2`, from one read of
+  the account). The draft is the person's own, read through the agent's own
+  draft read, so another person's draft is named nowhere and refused before any
+  chain is read. The signer is proved before any chain is read; the write that
+  keeps the review proves again only the pairing (`RegentAgents.RequirePairing`).
 
   A draft's treasury may be any wallet. What only the person can give stays
   on the create page: the acknowledgement a treasury held by a private key
@@ -26,14 +28,18 @@ defmodule Autolaunch.AgentLaunch do
   the create page names.
 
   A refusal is an `Autolaunch.AgentLaunch.Refused` holding one of the codes the
-  agent launch contract documents (`code/1`). Anything the review returns that
-  is not a reason it names is logged and answered `launch_unavailable`.
+  agent launch contract documents (`code/1`). A pairing that ended or changed
+  hands while the request ran is `agent_not_paired`, as on every signed route.
+  Anything else the review returns or raises that is not a reason it names is
+  logged by kind alone and answered `launch_unavailable`.
 
   The site only prepares: the wallet's own key signs and sends the step. The
   review is kept as the create page keeps its own (`Autolaunch.LaunchOperation`,
   `Autolaunch.Stocks.LaunchOperation`, `Autolaunch.Robinhood.LaunchReview`), for
-  the person the pairing names, so the launch is listed as this site's once
-  the chain shows it.
+  the person the pairing names and marked as the agent's (`prepared_by`), so the
+  launch is listed as this site's once the chain shows it, from the person's own
+  review when there is one. On Base, preparing again for a changed draft keeps
+  the latest 20 preparations (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -43,8 +49,7 @@ defmodule Autolaunch.AgentLaunch do
 
   require Ash.Query
 
-  alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
+  alias Ash.Error.Changes.InvalidChanges
   alias Autolaunch.AgentLaunch.Refused
   alias Autolaunch.CoveredCalls.Signer
   alias Autolaunch.{LaunchActions, LaunchDraft, LaunchOperation}
@@ -55,17 +60,18 @@ defmodule Autolaunch.AgentLaunch do
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
   alias AutolaunchWeb.ReadFailure
 
-  # Every reason the three reviews, the wallet and the person's account name,
-  # as the code an agent is answered with. A refusal the create page names
-  # keeps its own name. A treasury that is not verified has no report yet; one
-  # whose verified state or evidence no longer holds was changed. A stock the
-  # draft names that the chain does not list is not one a launch can pair
-  # with. A chain answering what is not a block of it, part of an answer, or
-  # nothing, could not be read just now. A deployment description that does
-  # not load or no longer matches the chain, and a draft or review the site
-  # could not read or keep, are the site's own fault.
+  # Every reason the three reviews, the wallet, the person's account and the
+  # agent's pairing name, as the code an agent is answered with. A refusal the
+  # create page names keeps its own name. A treasury that is not verified has
+  # no report yet; one whose verified state or evidence no longer holds was
+  # changed. A stock the draft names that the chain does not list is not one a
+  # launch can pair with. A chain answering what is not a block of it, part of
+  # an answer, or nothing, could not be read just now. A deployment description
+  # that does not load or no longer matches the chain, and a draft or review
+  # the site could not read or keep, are the site's own fault.
   @codes %{
     authentication_required: :authentication_required,
+    agent_not_paired: :agent_not_paired,
     wallet_required: :wallet_required,
     wrong_signer: :wrong_signer,
     launch_draft_not_found: :launch_draft_not_found,
@@ -113,10 +119,11 @@ defmodule Autolaunch.AgentLaunch do
 
   @doc """
   The code an agent is answered with for `reason`, a reason any of the three
-  reviews, the wallet or the person's account names. Any other reason, and
-  anything that is not a reason, is `:launch_unavailable`: a deployment
-  description that does not load or no longer matches the chain, a draft that
-  could not be read, or a review that could not be kept.
+  reviews, the wallet, the person's account or the agent's pairing names. Any
+  other reason, and anything that is not a reason, is `:launch_unavailable`: a
+  deployment description that does not load or no longer matches the chain, a
+  draft that could not be read, a review that could not be kept, or a failure
+  nobody expected.
   """
   def code(reason) when is_map_key(@codes, reason), do: Map.fetch!(@codes, reason)
   def code(_unexpected), do: :launch_unavailable
@@ -134,8 +141,8 @@ defmodule Autolaunch.AgentLaunch do
 
   @doc false
   def launch_steps(%{draft: id} = arguments, actor) do
-    with :ok <- verified(actor),
-         {:ok, signer} <- Signer.wallet(actor, arguments[:signer]),
+    with {:ok, account} <- Signer.verified(actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, draft} <- own_draft(id, actor),
          {:ok, prepared} <- prepare(draft, signer, actor) do
       {:ok,
@@ -150,20 +157,8 @@ defmodule Autolaunch.AgentLaunch do
        }}
     end
     |> refused()
-  end
-
-  # The person has a verified wallet now, as `autolaunch_my_positions` asks; a
-  # person whose wallet evidence lapsed has none to act with. An account that
-  # cannot be read is answered as the wallet's own read answers it
-  # (`Autolaunch.CoveredCalls.Signer`).
-  defp verified(%{human_account_id: id}) do
-    case Accounts.points_account(id, actor: %Autolaunch.Actors.System{}) do
-      {:ok, account} ->
-        if VerifiedSession.current?(account), do: :ok, else: {:error, :wallet_required}
-
-      _unread ->
-        {:error, :authentication_required}
-    end
+  rescue
+    failure -> refused({:error, failure})
   end
 
   # The person's draft of either kind, with its picture, through the agent's
@@ -180,54 +175,67 @@ defmodule Autolaunch.AgentLaunch do
     |> Ash.Query.filter(id == ^id)
     |> Ash.Query.load(image)
     |> Ash.read_one()
+    |> paired()
   end
 
   # The create page's own review of the draft, kept as the page keeps it.
   defp prepare(%LaunchDraft{} = draft, signer, actor) do
     with {:ok, review} <- LaunchActions.review(draft, signer),
-         {:ok, operation} <- keep(LaunchOperation, draft, signer, review, actor),
+         {:ok, operation} <-
+           keep(LaunchOperation, :agent_prepare, operation(draft, signer, review), actor),
          do: {:ok, LaunchActions.reviewed(operation)}
   end
 
   defp prepare(%StocksDraft{chain: :base} = draft, signer, actor) do
     with {:ok, review} <- StocksLaunchActions.review(draft, signer),
-         {:ok, operation} <- keep(StocksLaunchOperation, draft, signer, review, actor),
+         {:ok, operation} <-
+           keep(StocksLaunchOperation, :agent_prepare, operation(draft, signer, review), actor),
          do: {:ok, StocksLaunchActions.reviewed(operation)}
   end
 
   defp prepare(%StocksDraft{chain: :robinhood} = draft, signer, actor) do
     with {:ok, review} <- RobinhoodLaunchActions.review(draft, signer),
          {:ok, _kept} <-
-           LaunchReview
-           |> Ash.Changeset.for_create(:agent_record, RobinhoodLaunchActions.kept(review),
-             actor: actor
-           )
-           |> Ash.create(),
+           keep(LaunchReview, :agent_record, RobinhoodLaunchActions.kept(review), actor),
          do: {:ok, review}
   end
 
-  defp keep(resource, draft, signer, review, actor) do
-    resource
-    |> Ash.Changeset.for_create(
-      :agent_prepare,
-      %{
-        action_id: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower),
-        launch_draft_id: draft.id,
-        review: review,
-        signer: signer,
-        step: :launch
-      },
-      actor: actor
-    )
-    |> Ash.create()
+  defp operation(draft, signer, review) do
+    %{
+      action_id: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower),
+      launch_draft_id: draft.id,
+      review: review,
+      signer: signer,
+      step: :launch
+    }
   end
+
+  defp keep(resource, action, input, actor) do
+    resource
+    |> Ash.Changeset.for_create(action, input, actor: actor)
+    |> Ash.create()
+    |> paired()
+  end
+
+  # A pairing that ended or changed hands while the request ran: the agent's
+  # own read or write is forbidden, or the write's lock on the pairing finds
+  # it gone (`RegentAgents.RequirePairing`).
+  defp paired({:error, %Ash.Error.Forbidden{}}), do: {:error, :agent_not_paired}
+
+  defp paired(
+         {:error,
+          %Ash.Error.Invalid{errors: [%InvalidChanges{message: "active pairing required"}]}}
+       ),
+       do: {:error, :agent_not_paired}
+
+  defp paired(answer), do: answer
 
   defp kind(%LaunchDraft{}), do: "revstake"
   defp kind(%StocksDraft{}), do: "memestock"
 
   # A refusal holds the code of the reason it names (`code/1`), which Ash would
   # otherwise turn into text (`AutolaunchWeb.AgentLaunchAnswer`). One nobody
-  # named is logged by kind alone (`AutolaunchWeb.ReadFailure`).
+  # named, or a raise, is logged by kind alone (`AutolaunchWeb.ReadFailure`).
   defp refused({:ok, _answer} = answered), do: answered
 
   defp refused({:error, %Ash.Error.Invalid.Unavailable{reason: reason}}),

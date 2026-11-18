@@ -45,23 +45,10 @@ defmodule Autolaunch.LaunchDraftImage do
       change Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage
     end
 
-    # D4(d) moved :mine onto a required launch_draft_id argument, so it can no
-    # longer be the primary read. LaunchDraft loads this relationship by id.
+    # LaunchDraft loads this relationship by id.
     read :read do
       primary? true
       filter expr(human_account_id == ^actor(:human_account_id))
-    end
-
-    read :mine do
-      get? true
-      argument :launch_draft_id, :uuid, allow_nil?: false
-
-      filter expr(
-               human_account_id == ^actor(:human_account_id) and
-                 launch_draft_id == ^arg(:launch_draft_id)
-             )
-
-      filter expr(launch_draft.launch_draft_image_id == id)
     end
 
     read :mine_by_id do
@@ -117,7 +104,7 @@ defmodule Autolaunch.LaunchDraftImage do
   end
 
   policies do
-    policy action([:store_for_owner, :mine, :mine_by_id, :mine_for_reuse]) do
+    policy action([:store_for_owner, :mine_by_id, :mine_for_reuse]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
@@ -128,7 +115,7 @@ defmodule Autolaunch.LaunchDraftImage do
       authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
     end
 
-    policy action([:read, :mine, :mine_by_id, :mine_for_reuse]) do
+    policy action([:read, :mine_by_id, :mine_for_reuse]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 

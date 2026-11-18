@@ -29,7 +29,8 @@ defmodule Autolaunch.LaunchReviews do
 
   @doc """
   Matches a launch the chain shows to the saved reviews of its launcher on its
-  chain, newest first: `{:listed, account_id, result}` for the review it
+  chain, the person's own before any an agent prepared and newest first within
+  each: `{:listed, account_id, result}` for the review it
   carried out, with the launch the chain records,
   `{:unlisted, :no_matching_review}` when none did, or `{:pending, reason}`
   while the chain cannot answer yet.

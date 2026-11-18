@@ -712,9 +712,12 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
     |> String.replace("{{earn}}\n", earn())
-    |> String.replace("{{agent_bids}}\n", agent_bids())
-    |> String.replace("{{agent_robinhood_bids}}\n", agent_robinhood_bids())
-    |> String.replace("{{agent_launches}}\n", agent_launches())
+    |> String.replace("{{agent_bids}}\n", guide("agent_bids", @agent_bids_guide))
+    |> String.replace(
+      "{{agent_robinhood_bids}}\n",
+      guide("agent_robinhood_bids", @agent_robinhood_bids_guide)
+    )
+    |> String.replace("{{agent_launches}}\n", guide("agent_launches", @agent_launches_guide))
     |> bidding()
     |> launching()
     |> String.replace("{{tools}}", tool_table())
@@ -791,17 +794,8 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp earn, do: if("earn" in ToolManifest.features(), do: @earn_guide, else: "")
 
-  defp agent_bids,
-    do: if("agent_bids" in ToolManifest.features(), do: @agent_bids_guide, else: "")
-
-  defp agent_robinhood_bids do
-    if "agent_robinhood_bids" in ToolManifest.features(),
-      do: @agent_robinhood_bids_guide,
-      else: ""
-  end
-
-  defp agent_launches,
-    do: if("agent_launches" in ToolManifest.features(), do: @agent_launches_guide, else: "")
+  # An agent tools guide, only while the site offers those tools.
+  defp guide(feature, guide), do: if(feature in ToolManifest.features(), do: guide, else: "")
 
   # Each sentence that says who bids and launches as it reads with what the
   # site offers now: as before agent bids and launches while neither is on;

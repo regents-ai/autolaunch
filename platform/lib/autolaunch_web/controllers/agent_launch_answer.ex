@@ -21,6 +21,9 @@ defmodule AutolaunchWeb.AgentLaunchAnswer do
        "Send the draft's id as it is given, and only signer in the body, as text."},
     authentication_required:
       {:unauthorized, "Your person's Regent account could not be read; nothing was prepared."},
+    # In the words every signed route uses (`AutolaunchWeb.Plugs.AgentAccess`).
+    agent_not_paired:
+      {:forbidden, "Pair this named agent with your account before private work."},
     wrong_signer: {:forbidden, "That wallet is not one of your person's own wallets."},
     wallet_required:
       {:conflict,
@@ -94,8 +97,10 @@ defmodule AutolaunchWeb.AgentLaunchAnswer do
   # draft id that is not one. A policy does not refuse here: every caller of
   # the route is a paired agent, the route is not there while agent launches
   # are off (`AutolaunchWeb.Router.admit_agent_launches/2`), and it is refused
-  # before the router in prelaunch read-only mode (`AutolaunchWeb.Prelaunch`).
-  # Anything else is logged by kind alone and answered `launch_unavailable`.
+  # before the router in prelaunch read-only mode (`AutolaunchWeb.Prelaunch`);
+  # a pairing that ends while the request runs is the operation's own
+  # `agent_not_paired`. Anything else is logged by kind alone and answered
+  # `launch_unavailable`.
   defp reason(%Ash.Error.Unknown{errors: [%Refused{reason: reason}]}), do: reason
   defp reason(%Ash.Error.Invalid{}), do: :invalid_request
 

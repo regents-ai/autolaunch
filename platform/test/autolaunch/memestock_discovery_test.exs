@@ -30,6 +30,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
   @actor %System{}
   @launcher "0x1414141414141414141414141414141414141414"
+  # A launcher whose only review here is one its person's agent prepared.
+  @agent_launcher "0x1515151515151515151515151515151515151515"
   @stranger "0x9999999999999999999999999999999999999999"
   # The launchpad the first Memestock launches used, which this site no longer runs.
   @retired "0x7777777777777777777777777777777777777777"
@@ -465,56 +467,138 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [_auction] = auctions()
   end
 
+  test "a review a paired agent prepared later never takes the place of the person's own",
+       %{account: account, config: config, operation: operation, launchpad: launchpad} do
+    # For the same wallet and launch, with other links.
+    agents = agent_review!(account, config, @launcher, ["https://example.test/agent"])
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{creator_human_account_id: creator, links: []}] = auctions()
+    assert creator == account.id
+    assert %{state: :chain_verified} = reload(operation)
+    assert %{state: :prepared} = reload(agents)
+  end
+
+  test "a launch only a paired agent's review carried out is listed from that review, for its person",
+       %{config: config, operation: operation, launchpad: launchpad} do
+    other =
+      Accounts.register_verified!(
+        "did:privy:memestock-#{Elixir.System.unique_integer([:positive])}",
+        @agent_launcher,
+        [@agent_launcher],
+        actor: @actor
+      )
+
+    agents = agent_review!(other, config, @agent_launcher, ["https://example.test/agent"])
+    BaseRpcStub.put(%{launcher: @agent_launcher})
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
+    assert creator == other.id
+
+    assert [%{creator_human_account_id: ^creator, links: ["https://example.test/agent"]}] =
+             auctions()
+
+    assert %{state: :chain_verified} = reload(agents)
+    assert %{state: :prepared} = reload(operation)
+  end
+
   # The page sees its own press confirmed and lists the launch at once.
   defp confirm_in_browser(operation),
     do: LaunchReviews.confirm(:stocks_launch, operation.action_id, @hash)
 
   # One reviewed Memestock launch for `account`, as `prepare` stores it.
   defp review!(account, config) do
-    draft =
-      Autolaunch.create_stocks_launch_draft!(%{}, actor: %Human{human_account_id: account.id})
-
-    launchpad = StocksLab.address!(config, :launchpad)
-
-    review =
-      %{
-        "chain" => Client.chain(config),
-        "signer" => @launcher,
-        "step" => %{
-          "kind" => "transaction",
-          "step" => "launch",
-          "to" => launchpad,
-          "data" => @data
-        },
-        "facts" => %{
-          "draft_id" => draft.id,
-          "name" => "Mint Research",
-          "symbol" => "MINT",
-          "description" => "A Memestock launch awaiting review.",
-          "website" => "https://example.test/mint",
-          "links" => [],
-          "image" => nil,
-          "stock" => @stock,
-          "stock_symbol" => "AAPLc",
-          "stock_decimals" => "8",
-          "required_stock_raised" => Integer.to_string(@required),
-          "floor_price_q96" => Integer.to_string(@floor),
-          "launchpad" => launchpad
-        }
-      }
-      |> Jason.encode!()
-      |> Jason.decode!()
+    draft = draft!(account)
 
     {:ok, operation} =
       LaunchOperations.create(account, %{
         action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
         launch_draft_id: draft.id,
-        review: review,
+        review: review(config, draft, @launcher, []),
         signer: @launcher,
         step: :launch
       })
 
     operation
+  end
+
+  # The same launch from `signer` with `links`, as a paired agent of
+  # `account`'s person keeps it (`Autolaunch.AgentLaunch`).
+  defp agent_review!(account, config, signer, links) do
+    draft = draft!(account)
+
+    LaunchOperation
+    |> Ash.Changeset.for_create(
+      :agent_prepare,
+      %{
+        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+        launch_draft_id: draft.id,
+        review: review(config, draft, signer, links),
+        signer: signer,
+        step: :launch
+      },
+      actor: paired_agent!(account)
+    )
+    |> Ash.create!()
+  end
+
+  defp draft!(account),
+    do: Autolaunch.create_stocks_launch_draft!(%{}, actor: %Human{human_account_id: account.id})
+
+  defp review(config, draft, signer, links) do
+    launchpad = StocksLab.address!(config, :launchpad)
+
+    %{
+      "chain" => Client.chain(config),
+      "signer" => signer,
+      "step" => %{
+        "kind" => "transaction",
+        "step" => "launch",
+        "to" => launchpad,
+        "data" => @data
+      },
+      "facts" => %{
+        "draft_id" => draft.id,
+        "name" => "Mint Research",
+        "symbol" => "MINT",
+        "description" => "A Memestock launch awaiting review.",
+        "website" => "https://example.test/mint",
+        "links" => links,
+        "image" => nil,
+        "stock" => @stock,
+        "stock_symbol" => "AAPLc",
+        "stock_decimals" => "8",
+        "required_stock_raised" => Integer.to_string(@required),
+        "floor_price_q96" => Integer.to_string(@floor),
+        "launchpad" => launchpad
+      }
+    }
+    |> Jason.encode!()
+    |> Jason.decode!()
+  end
+
+  # An agent paired with `account`'s person, as it acts for them.
+  defp paired_agent!(account) do
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    code =
+      RegentAgents.issue_pairing_code!(
+        actor: %RegentAgents.Person{privy_user_id: account.privy_user_id}
+      )
+
+    RegentAgents.pair_agent!(code.code, "Agent", :codex,
+      actor: %RegentAgents.Agent{wallet: wallet}
+    )
+
+    {:ok, agent} = Autolaunch.Agents.resolve(wallet)
+    agent
   end
 
   # The launch transaction, mined and past the safe head, with its one

@@ -155,22 +155,16 @@ defmodule Autolaunch.LaunchFixture do
       |> Map.delete("image")
       |> Autolaunch.create_launch_draft!(actor: actor)
 
-    case Autolaunch.get_my_launch_draft_image(draft.id, actor: actor) do
-      {:ok, nil} ->
-        {:ok, %{draft: attached}} =
-          LaunchDraftImageStorage.store_and_attach(
-            draft,
-            launch_image(),
-            "image/png",
-            "launch.png",
-            actor
-          )
+    {:ok, %{draft: attached}} =
+      LaunchDraftImageStorage.store_and_attach(
+        draft,
+        launch_image(),
+        "image/png",
+        "launch.png",
+        actor
+      )
 
-        attached
-
-      {:ok, _existing_image} ->
-        draft
-    end
+    attached
   end
 
   @doc "The scripted chain a review is derived from, with any part replaced."

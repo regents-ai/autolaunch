@@ -277,11 +277,6 @@ defmodule Autolaunch do
         action: :store_for_owner,
         args: [:bytes, :content_type, :original_filename, :launch_draft_id]
 
-      define :get_my_launch_draft_image,
-        action: :mine,
-        args: [:launch_draft_id],
-        not_found_error?: false
-
       define :get_my_launch_draft_image_for_reuse,
         action: :mine_for_reuse,
         args: [:launch_draft_id, :digest],
