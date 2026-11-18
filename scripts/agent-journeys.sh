@@ -12,10 +12,13 @@
 #   - a copy of Base (Anvil, chain 31337) carrying the version 3 contracts as deployed,
 #     with stand-in stock tokens, launches switched on and AMZNc covered calls
 #     and an Isolated Exposure to After-hours Stocks series deployed, on the copy only (test/journeys/support/base_fork.py);
+#   - the Robinhood lab (contracts/robinhood-v2/bin/local-robinhood-lab.py): a blank Anvil,
+#     chain 31338, carrying the Robinhood launchpad, its bid adapter, USDG and fixture stocks,
+#     whose auctions keep time by a block clock the lab sets, as Robinhood Chain's do by its own;
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
-#   - Autolaunch in the test environment on its own database, open for launches,
-#     with covered calls, Isolated Exposure and agent bids switched on,
+#   - Autolaunch in the test environment on its own database, open for launches on
+#     both chains, with covered calls, Isolated Exposure and agent bids on both chains switched on,
 #     checking agent requests with that sign-in service, and served at
 #     https://autolaunch.localhost with a throwaway certificate, the one address that
 #     sign-in service lists for it (the command line signs for no other); the Mac
@@ -55,6 +58,8 @@ site_db=autolaunch_agents_${id}_test
 siwa_dir=$work/siwa-server-$SIWA_SERVER_REV
 regents_dir=$work/regents-cli-$REGENTS_CLI_REV
 fork="uv run --no-project python $platform/test/journeys/support/base_fork.py"
+lab="uv run --no-project python $work/contracts/robinhood-v2/bin/local-robinhood-lab.py"
+lab_state=$work/contracts/robinhood-v2/reports/generated/local-robinhood-lab/state.json
 main_checkout=$(cd "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/.." && pwd -P)
 export REGENT_BASE_RPC_URL="${REGENT_BASE_RPC_URL:-https://mainnet.base.org}"
 
@@ -99,13 +104,27 @@ stop_pid() {
 }
 
 already_up() {
-  for piece in site siwa base-fork; do
-    if [ -f "$state/$piece.pid" ]; then
+  for piece in site.pid siwa.pid base-fork.pid robinhood.json; do
+    if [ -f "$state/$piece" ]; then
       say "a stack is already up; run scripts/agent-journeys.sh down first"
       return 0
     fi
   done
   return 1
+}
+
+# Waits until the site has read every stock the launchpad on chain $1 admits, $2 of them.
+wait_for_stocks() {
+  tries=0
+  until [ "$(psql -h 127.0.0.1 -U postgres -d "$site_db" -Atc \
+    "select count(*) from autolaunch_app.stocks where admitted and chain_id = $1" 2>/dev/null || echo 0)" -ge "$2" ]; do
+    tries=$((tries + 1))
+    if [ "$tries" -gt 300 ]; then
+      say "the site did not read the admitted stocks on chain $1; its log is in $out"
+      return 1
+    fi
+    sleep 1
+  done
 }
 
 siwa_env() {
@@ -165,7 +184,7 @@ contracts() {
   done
   mkdir -p "$work"
   git -C "$root" archive HEAD contracts/stocks-v3 contracts/revstake-v3 contracts/stocks-v2 contracts/revstake-v2 \
-    contracts/stocks contracts/covered-calls-v2 contracts/exposure | tar -x -C "$work"
+    contracts/stocks contracts/covered-calls-v2 contracts/exposure contracts/robinhood-v2 | tar -x -C "$work"
   [ -d "$work/contracts/stocks-v3/lib" ] || (cd "$work/contracts/stocks-v3" && python3 bootstrap-deps.py "$from")
   # Covered calls and exposure build against stocks-v2's forge-std and solady.
   [ -d "$work/contracts/stocks-v2/lib" ] || (cd "$work/contracts/stocks-v2" && python3 bootstrap-deps.py "$from")
@@ -186,6 +205,13 @@ up() {
   $fork covered-calls "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
   $fork exposure "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
   rpc=http://127.0.0.1:$(cat "$state/base-fork.port")
+
+  # The lab builds its package, starts its own Anvil and writes the site's description of it,
+  # which the site reads from here.
+  say "the Robinhood lab"
+  $lab start >"$out/robinhood-lab.log" 2>&1
+  cp "$(dirname "$lab_state")/site-config.json" "$state/robinhood.json"
+  robinhood_rpc=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["rpc_url"])' "$state/robinhood.json")
 
   say "the sign-in service at $SIWA_SERVER_REV"
   if [ ! -f "$siwa_dir/.built" ]; then
@@ -235,6 +261,8 @@ AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=$state/covered-calls.json
 AUTOLAUNCH_EXPOSURE=true
 AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=$state/exposure.json
 AUTOLAUNCH_AGENT_BIDS=true
+AUTOLAUNCH_ROBINHOOD_DEPLOYMENT=$state/robinhood.json
+AUTOLAUNCH_AGENT_ROBINHOOD_BIDS=true
 AUTOLAUNCH_SIWA_URL=http://127.0.0.1:$siwa_port
 AUTOLAUNCH_JOURNEYS_CERT=$state/site-cert.pem
 AUTOLAUNCH_JOURNEYS_KEY=$state/site-key.pem
@@ -245,20 +273,15 @@ EOF
   # The site learns which stocks the launchpad admits by reading its admission
   # history, which on the copy goes back to the real deployment; the journeys
   # start once it has every stock version 2's deployed manifest admits, which
-  # the Safe admitted to version 3 with the same routes.
-  say "waiting for the site to read the launchpad's admitted stocks"
-  wanted=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['admissions']))" \
-    "$work/contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json")
-  tries=0
-  until [ "$(psql -h 127.0.0.1 -U postgres -d "$site_db" -Atc \
-    'select count(*) from autolaunch_app.stocks where admitted' 2>/dev/null || echo 0)" -ge "$wanted" ]; do
-    tries=$((tries + 1))
-    if [ "$tries" -gt 300 ]; then
-      say "the site did not read the admitted stocks; its log is in $out"
-      return 1
-    fi
-    sleep 1
-  done
+  # the Safe admitted to version 3 with the same routes, and every fixture stock
+  # the Robinhood lab admits. The site keeps Base's stocks under Base's own chain
+  # id, the copy's included (Autolaunch.Stocks.Assets).
+  say "waiting for the site to read the launchpads' admitted stocks"
+  wait_for_stocks 8453 \
+    "$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['admissions']))" \
+      "$work/contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json")"
+  wait_for_stocks "$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["chain_id"])' "$state/robinhood.json")" \
+    "$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["stocks"]))' "$lab_state")"
 
   cat >"$state/stack.env" <<EOF
 AUTOLAUNCH_URL=https://autolaunch.localhost
@@ -266,11 +289,13 @@ SITE_CERT=$state/site-cert.pem
 NODE_EXTRA_CA_CERTS=$state/site-cert.pem
 SIWA_URL=http://127.0.0.1:$siwa_port
 ANVIL_RPC=$rpc
+ROBINHOOD_RPC=$robinhood_rpc
+ROBINHOOD_LAB_STATE=$lab_state
 REGENTS=$regents_dir/bin/regents
 STACK_STATE=$state
 AGENT_JOURNEYS_OUT=$out
 EOF
-  say "up: Autolaunch https://autolaunch.localhost, sign-in http://127.0.0.1:$siwa_port, Base copy $rpc"
+  say "up: Autolaunch https://autolaunch.localhost, sign-in http://127.0.0.1:$siwa_port, Base copy $rpc, Robinhood lab $robinhood_rpc"
 }
 
 start_site() {
@@ -290,13 +315,16 @@ down() {
   stop_pid site "$platform"
   stop_pid siwa "$siwa_dir"
   if [ -f "$state/base-fork.pid" ]; then $fork stop "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1; fi
+  # The lab stops only the Anvil it recorded, once it has checked that it still is.
+  if [ -f "$lab_state" ]; then $lab stop >>"$out/robinhood-lab.log" 2>&1; fi
   if [ -f "$state/site.env" ]; then
     (cd "$platform" && site_env mix run --no-start test/journeys/support/drop.exs) >>"$out/site-setup.log" 2>&1
   fi
   if [ -f "$siwa_dir/.built" ]; then
     (cd "$siwa_dir" && siwa_env 0 mix ecto.drop --force-drop) >>"$out/siwa-setup.log" 2>&1
   fi
-  rm -f "$state/stack.env" "$state/site.env" "$state/siwa-keystore.bin" "$state/site-cert.pem" "$state/site-key.pem"
+  rm -f "$state/stack.env" "$state/site.env" "$state/siwa-keystore.bin" "$state/site-cert.pem" "$state/site-key.pem" \
+    "$state/robinhood.json"
   say "down; $site_db and $siwa_db are dropped"
 }
 

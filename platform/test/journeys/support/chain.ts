@@ -1,17 +1,24 @@
 import {readFileSync} from "node:fs"
 import {decodeEventLog, encodeFunctionData, parseAbi, type Abi, type Hex} from "viem"
 
-// The copy of Base the stack runs (test/journeys/support/base_fork.py). Every
-// write here is on that copy only.
-export async function rpc(method: string, params: unknown[] = []): Promise<any> {
-  const response = await fetch(process.env.ANVIL_RPC!, {
+/** One request to a chain of the stack at `url`; a refusal throws with its code and any revert data. */
+export async function rpcAt(url: string, method: string, params: unknown[] = []): Promise<any> {
+  const response = await fetch(url, {
     method: "POST",
     headers: {"content-type": "application/json"},
     body: JSON.stringify({jsonrpc: "2.0", id: 1, method, params}),
   })
   const reply = await response.json()
-  if (reply.error) throw Object.assign(new Error(`${method}: ${reply.error.message}`), {code: reply.error.code})
+  if (reply.error) {
+    throw Object.assign(new Error(`${method}: ${reply.error.message}`), {code: reply.error.code, data: reply.error.data})
+  }
   return reply.result
+}
+
+// The copy of Base the stack runs (test/journeys/support/base_fork.py). Every
+// write here is on that copy only.
+export async function rpc(method: string, params: unknown[] = []): Promise<any> {
+  return rpcAt(process.env.ANVIL_RPC!, method, params)
 }
 
 export async function blockNumber(): Promise<number> {

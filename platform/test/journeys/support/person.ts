@@ -1,10 +1,10 @@
 import {test as base, expect, type BrowserContext, type Page} from "@playwright/test"
 import {randomBytes} from "node:crypto"
-import {rpc} from "./chain"
+import {rpc, rpcAt} from "./chain"
 
 // The journeys' people, as the browser test server's stand-in for Privy knows them
 // (test/support/test_privy_verifier.ex). Both hold Anvil development keys, so
-// their wallets sign on the copy of Base.
+// their wallets sign on the copy of Base and on the Robinhood lab.
 export const people = {
   a: {token: "journey-a", wallet: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"},
   b: {token: "journey-b", wallet: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"},
@@ -29,29 +29,41 @@ const bridge = /^\/assets\/js\/privy_bridge(-[0-9a-f]+)?\.js$/
 /** A transaction the person's wallet was asked to send, as the page handed it over. */
 export type Sent = {from: string; to: string; data: string; value: string; hash: string}
 
+// The chains the stack runs, by the id a wallet names them with: the copy of Base, and the
+// Robinhood lab (scripts/agent-journeys.sh).
+const chains: Record<string, string | undefined> = {"0x7a69": process.env.ANVIL_RPC, "0x7a6a": process.env.ROBINHOOD_RPC}
+
 // The browser never leaves this machine. The page's sign-in bridge, the one part
 // that talks to Privy, is replaced by a stand-in that holds the person's wallet as
 // Privy would hold an injected one: the page's own wallet module is told it is the
 // active wallet, and every request the page makes of it is answered here, from
-// the copy of Base. Only eth_sendTransaction signs, from the person's own key.
+// the chain the wallet is on: the copy of Base until it is switched to the Robinhood
+// lab, as Privy's switch does. Only eth_sendTransaction signs, from the person's own key.
 // Answers the requests that tried to leave the machine.
 export async function holdWallet(context: BrowserContext, baseURL: string, wallet: string | null, sent: Sent[]) {
   const site = new URL(baseURL).host
   const outside: string[] = []
+  let chain = "0x7a69"
   await context.exposeFunction("journeyWallet", async ({method, params}: {method: string; params: any[]}) => {
     switch (method) {
-      case "eth_chainId": return "0x7a69"
+      case "eth_chainId": return chain
+      case "wallet_switchEthereumChain": {
+        const [{chainId}] = params
+        if (!chains[chainId]) throw Object.assign(new Error(`no chain ${chainId} on this machine`), {code: 4902})
+        chain = chainId
+        return null
+      }
       case "eth_accounts":
       case "eth_requestAccounts": return wallet ? [wallet] : []
       case "wallet_getCapabilities": throw Object.assign(new Error("unsupported"), {code: 4200})
       case "eth_sendTransaction": {
         const [tx] = params
         if (!wallet || tx.from.toLowerCase() !== wallet) throw new Error("not this person's wallet")
-        const hash = await rpc("eth_sendTransaction", [{from: wallet, to: tx.to, data: tx.data, value: tx.value}])
+        const hash = await rpcAt(chains[chain]!, "eth_sendTransaction", [{from: wallet, to: tx.to, data: tx.data, value: tx.value}])
         sent.push({from: wallet, to: tx.to.toLowerCase(), data: tx.data, value: tx.value, hash})
         return hash
       }
-      default: return rpc(method, params)
+      default: return rpcAt(chains[chain]!, method, params)
     }
   })
   await context.route(() => true, async route => {
@@ -85,8 +97,9 @@ function standIn(real: string, wallet: string | null): string {
 import {replaceActiveEthereumWallet, replaceConnectedEthereumWallets} from "${chunk[1]}"
 const address = ${JSON.stringify(wallet)}
 const provider = {request: ({method, params}) => window.journeyWallet({method, params: params ?? []})}
-// Privy's switch, which has nowhere to go: the copy of Base is the only network.
-const switchChain = async () => undefined
+// Privy's switch, onto the copy of Base or the Robinhood lab; any other chain is refused.
+const switchChain = chainId =>
+  window.journeyWallet({method: "wallet_switchEthereumChain", params: [{chainId: "0x" + Number(chainId).toString(16)}]})
 export async function startPrivyBridge() {
   if (address) {
     replaceConnectedEthereumWallets([[address, {provider, switchChain, disconnect() {}}]])

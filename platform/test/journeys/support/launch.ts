@@ -19,12 +19,11 @@ export const draftFor = (tag: string) => ({
 })
 
 /**
- * The paired `agent` fills in the whole draft, and the signed-in person reviews
- * it on /create and presses Create the launch. Answers the launch's draft, its
- * transaction and its auction page.
+ * The paired `agent` fills in the whole draft (on Base with AAPLc unless `draft` names another),
+ * and the signed-in person reviews it on /create and presses Create the launch. Answers the
+ * launch's draft, its transaction and its auction page.
  */
-export async function launch(page: Page, sent: Sent[], agent: Agent, tag: string) {
-  const draft = draftFor(tag)
+export async function launch(page: Page, sent: Sent[], agent: Agent, tag: string, draft = draftFor(tag)) {
   const saved = agent.autolaunch(["drafts", "memestock", "save"], draft)
   expect(saved.status, saved.stdout).toBe(0)
   await page.goto("/create")

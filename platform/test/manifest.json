@@ -1,5 +1,5 @@
 {
-  "total": 465,
+  "total": 466,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6047,6 +6047,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "4730eb19c0d375b014c3e09b7974d4b390ccd43ff53d50d63c284b8ca7ef6993"
+    },
+    {
+      "id": 585,
+      "group": "Agent Robinhood bids",
+      "framework": "playwright",
+      "file": "test/journeys/agent_robinhood_bids.spec.ts",
+      "line": 99,
+      "test_name": "agent Robinhood bids: an agent prepares its person's USDG bids, return and claim on Robinhood Chain, and the person's wallet sends them",
+      "keep_because": "End to end on the Robinhood lab at 390 and 1280: before the start block the agent is refused auction_not_started, as the auction refuses; from it, a paired agent's USDG bid steps, on its signed route and the hosted prepare_robinhood_bid tool, are the auction page's own review for the same budget and max FDV, and the person's wallet sends them, the USDG approval first; the auction records the bid as the person's and the site lists it; a second bid is approved once its approval is on the chain; another person's bid, bid numbers near and past the largest uint256 and another wallet are refused; one block before the end block the steps come back and land, and at the end block the answer is bidding_ended with none, as the auction refuses (AuctionIsOver); at the claim block the return then claim of a graduated auction's bid, and the whole return on a failed one, prepared both ways, land from the person's wallet. It fails if an agent's steps differ from the page's, any step reverts, or an agent is handed a bid the auction refuses.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5892df4103f7a9c93b3b59045b5c14564e0c1a5dd0f1b89936ed13abf9eded2e"
     }
   ],
   "legacy_folders_to_remove": [
