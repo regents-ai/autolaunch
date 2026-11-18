@@ -18,7 +18,8 @@
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
 #   - Autolaunch in the test environment on its own database, open for launches on
-#     both chains, with covered calls, Isolated Exposure and agent bids on both chains switched on,
+#     both chains, with covered calls, Isolated Exposure, agent bids on both chains and
+#     agent launches switched on,
 #     checking agent requests with that sign-in service, and served at
 #     https://autolaunch.localhost with a throwaway certificate, the one address that
 #     sign-in service lists for it (the command line signs for no other); the Mac
@@ -263,6 +264,7 @@ AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=$state/exposure.json
 AUTOLAUNCH_AGENT_BIDS=true
 AUTOLAUNCH_ROBINHOOD_DEPLOYMENT=$state/robinhood.json
 AUTOLAUNCH_AGENT_ROBINHOOD_BIDS=true
+AUTOLAUNCH_AGENT_LAUNCHES=true
 AUTOLAUNCH_SIWA_URL=http://127.0.0.1:$siwa_port
 AUTOLAUNCH_JOURNEYS_CERT=$state/site-cert.pem
 AUTOLAUNCH_JOURNEYS_KEY=$state/site-key.pem

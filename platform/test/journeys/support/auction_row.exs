@@ -1,7 +1,8 @@
 # The auction row the site keeps for one auction (scripts/agent-journeys.sh):
 # where it came from, the account and wallet it names as creator, and whether
-# that account is JOURNEY_PERSON's. Prints them as JSON. Run with the journey
-# site's settings: JOURNEY_AUCTION, JOURNEY_PERSON.
+# that account is JOURNEY_PERSON's, with the name, ticker, description,
+# picture and links it lists. Prints them as JSON. Run with the journey site's
+# settings: JOURNEY_AUCTION, JOURNEY_PERSON.
 Logger.configure(level: :warning)
 {:ok, _apps} = Application.ensure_all_started([:postgrex, :ash, :phoenix_pubsub, :req])
 
@@ -16,10 +17,15 @@ Logger.configure(level: :warning)
     actor: %Autolaunch.Actors.System{}
   )
 
-%{rows: [[origin, account_id, wallet, image, website]]} =
+%{
+  rows: [
+    [origin, account_id, wallet, image, website, title, symbol, summary, telegram, discord, links]
+  ]
+} =
   Autolaunch.Repo.query!(
     """
-    SELECT origin, creator_human_account_id, creator_address, image, website
+    SELECT origin, creator_human_account_id, creator_address, image, website,
+           title, token_symbol, summary, telegram, discord, links
     FROM autolaunch_app.auctions WHERE lower(auction_address) = lower($1)
     """,
     [System.fetch_env!("JOURNEY_AUCTION")]
@@ -33,6 +39,12 @@ IO.puts(
       persons_account: account_id == person.id,
       creator_wallet: wallet,
       image: image,
-      website: website
+      website: website,
+      title: title,
+      symbol: symbol,
+      description: summary,
+      telegram: telegram,
+      discord: discord,
+      links: links
     })
 )

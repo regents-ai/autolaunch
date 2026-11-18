@@ -60,6 +60,11 @@ export function memestock(): {addresses: Record<string, string>; abis: Record<st
   return JSON.parse(readFileSync(`${process.env.STACK_STATE}/base-memestock.json`, "utf8"))
 }
 
+/** The Revstake settings file the site runs with, for its addresses and ABIs. */
+export function revstake(): {addresses: Record<string, string>; abis: Record<string, Abi>} {
+  return JSON.parse(readFileSync(`${process.env.STACK_STATE}/base-revstake.json`, "utf8"))
+}
+
 const SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 const erc20 = parseAbi([
   "function mint(address to, uint256 amount)",
