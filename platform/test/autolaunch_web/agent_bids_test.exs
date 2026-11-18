@@ -11,7 +11,8 @@ defmodule AutolaunchWeb.AgentBidsTest do
   status and code the contract documents, and every reason the reviews give has
   one code. Figures the page would refuse are refused before any treasury or
   chain read. A bid on an auction whose bidding has ended is refused. A read
-  that fails, or a chain error nobody named, is refused as `bid_unavailable`.
+  that fails, a raise, or a chain error nobody named, is refused as
+  `bid_unavailable`.
   Off, or in prelaunch read-only mode, neither tool is listed or run, and off a
   call to either is answered as one to a tool that does not exist.
 
@@ -81,6 +82,19 @@ defmodule AutolaunchWeb.AgentBidsTest do
       send(self(), :chain_read)
       Autolaunch.TestAutolaunchBidChainClient.balances(request)
     end
+  end
+
+  defmodule RaisingChain do
+    @moduledoc false
+    # Base failing in a way nobody named, saying what it was asked, for a bid
+    # and for a settlement alike.
+    @behaviour Autolaunch.LabBidChainClient
+
+    @impl true
+    def snapshot(request), do: raise("snapshot failed for #{inspect(request)}")
+
+    @impl true
+    def balances(request), do: raise("balances failed for #{inspect(request)}")
   end
 
   defmodule StockRpc do
@@ -561,6 +575,33 @@ defmodule AutolaunchWeb.AgentBidsTest do
       assert answered.status == 503
       assert Jason.decode!(answered.resp_body)["error"]["code"] == "bid_unavailable"
       assert log =~ "agent bid failed"
+    end
+  end
+
+  test "a raise in either operation is logged by kind alone and refused as bid_unavailable alike on both ways in",
+       %{agent: agent, auction: auction, wallet: wallet} do
+    mine = position!(auction, wallet)
+    install(@permitted)
+    settle(graduated?: false, exit: exit_bid(1, 0), claim: {:refused, :nothing_to_claim})
+    Application.put_env(:autolaunch, :autolaunch_bid_chain_client, RaisingChain)
+    Application.put_env(:autolaunch, :autolaunch_bid_settlement_chain_client, RaisingChain)
+
+    for {path, documented, input} <- [
+          {@bid_path, @bid_path, %{auction_id: auction.id, amount: "1", max_price: "3"}},
+          {settle_path(mine.bid_id), @settle_path, %{}}
+        ] do
+      {{route, tool}, log} =
+        with_log(fn ->
+          {http(:post, path, input, agent),
+           tool(agent, tool(documented), tool_input(path, input))}
+        end)
+
+      assert route.status == 503 and route.body["error"]["code"] == "bid_unavailable",
+             "#{path} answered #{inspect(route.body)}"
+
+      assert tool == {:error, route.body}, "#{path} tool answered #{inspect(tool)}"
+      assert log =~ "agent bid failed: RuntimeError"
+      refute log =~ wallet
     end
   end
 

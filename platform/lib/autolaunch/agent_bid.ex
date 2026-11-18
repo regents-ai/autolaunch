@@ -23,8 +23,9 @@ defmodule Autolaunch.AgentBid do
   refuse it.
 
   A refusal is an `Autolaunch.AgentBid.Refused` holding one of the codes the
-  agent bid contract documents (`code/1`). Anything the review returns that is
-  not a reason it names is logged and answered `bid_unavailable`.
+  agent bid contract documents (`code/1`). Anything the review returns or
+  raises that is not a reason it names is logged by kind alone and answered
+  `bid_unavailable`.
 
   The site only prepares: the wallet's own key signs and sends each step, and
   nothing is stored. The auction's reader records a bid the auction announces
@@ -187,6 +188,8 @@ defmodule Autolaunch.AgentBid do
        }}
     end
     |> refused()
+  rescue
+    failure -> refused({:error, failure})
   end
 
   @doc false
@@ -208,6 +211,8 @@ defmodule Autolaunch.AgentBid do
        }}
     end
     |> refused()
+  rescue
+    failure -> refused({:error, failure})
   end
 
   # The review's request: the figures as typed, and the currency paid as the

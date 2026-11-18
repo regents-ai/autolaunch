@@ -31,8 +31,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
 
   A refusal is an `Autolaunch.AgentRobinhoodBid.Refused` holding one of the
   codes the Robinhood bid contract documents (`code/1`). Anything the review
-  returns that is not a reason it names is logged and answered
-  `bid_unavailable`.
+  returns or raises that is not a reason it names is logged by kind alone and
+  answered `bid_unavailable`.
 
   The site only prepares: the wallet's own key signs and sends each step on
   Robinhood Chain, and nothing is stored.
@@ -195,6 +195,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
        }}
     end
     |> refused()
+  rescue
+    failure -> refused({:error, failure})
   end
 
   @doc false
@@ -221,6 +223,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
        }}
     end
     |> refused()
+  rescue
+    failure -> refused({:error, failure})
   end
 
   # A Robinhood Chain auction the site lists and shows, as its page reads it;

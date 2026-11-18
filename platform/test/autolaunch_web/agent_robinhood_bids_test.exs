@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
   amount or price text the page refuses is refused before Robinhood Chain is
   read. A bid on an auction whose bidding has not started or has ended, or on a
   hidden one, is refused; a bid on a hidden auction still settles. A read that
-  fails, or a reason nobody named, is refused as `bid_unavailable`. Both
+  fails, a raise, or a reason nobody named, is refused as `bid_unavailable`. Both
   routes spend the person's one budget. Off, or in prelaunch read-only mode,
   neither tool is listed or run, and off a call to either is answered as one to
   a tool that does not exist.
@@ -773,6 +773,34 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       assert answered.status == 503
       assert Jason.decode!(answered.resp_body)["error"]["code"] == "bid_unavailable"
       assert log =~ "agent robinhood bid failed"
+    end
+  end
+
+  test "a raise in either operation is logged by kind alone and refused as bid_unavailable alike on both ways in",
+       %{agent: agent, listed: listed, mine: mine, wallet: wallet} do
+    # The site's deployment description as it is held, naming none of its
+    # contracts: a fault nobody named, which raises where a review reads one.
+    {:ok, config} = Lab.current()
+    held = {Lab, config.path}
+    on_exit(fn -> :persistent_term.erase(held) end)
+    :persistent_term.put(held, %{config | addresses: %{}})
+
+    for {path, documented, input} <- [
+          {@bid_path, @bid_path, %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}},
+          {settle_path(mine), @settle_path, %{}}
+        ] do
+      {{route, tool}, log} =
+        with_log(fn ->
+          {http(:post, path, input, agent),
+           tool(agent, tool(documented), tool_input(path, input))}
+        end)
+
+      assert route.status == 503 and route.body["error"]["code"] == "bid_unavailable",
+             "#{path} answered #{inspect(route.body)}"
+
+      assert tool == {:error, route.body}, "#{path} tool answered #{inspect(tool)}"
+      assert log =~ "agent robinhood bid failed: KeyError"
+      refute log =~ wallet
     end
   end
 
