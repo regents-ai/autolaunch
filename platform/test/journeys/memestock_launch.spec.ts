@@ -31,9 +31,14 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   }
 
   // L1: the person's stock picker offers exactly the stocks the launchpad admits: version 2's
-  // ten, which the Safe admitted to version 3 with the same routes.
+  // ten, which the Safe admitted to version 3 with the same routes. The page opens on the chain of
+  // A's draft, which a journey run before this one may have left on Robinhood Chain, so A puts it
+  // on Base first, from the page's own Chain menu.
   await page.goto("/create")
   await ready(page)
+  await page.locator("#stocks-chain-button").click()
+  await page.locator("#stocks-chain-list").getByRole("button", {name: "Base"}).click()
+  await expect(page.locator("#stocks-chain-button")).toContainText("Base")
   const admitted = JSON.parse(readFileSync("../contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json", "utf8"))
     .admissions.map((admission: any) => admission.symbol).sort()
   await expect.poll(async () => [...new Set(await page.locator(".stock-select__symbol").allTextContents())].sort())
