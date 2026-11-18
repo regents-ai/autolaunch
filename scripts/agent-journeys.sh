@@ -15,11 +15,13 @@
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
 #   - Autolaunch in the test environment on its own database, open for launches,
+#     with covered calls, Isolated Exposure and agent bids switched on,
 #     checking agent requests with that sign-in service, and served at
 #     https://autolaunch.localhost with a throwaway certificate, the one address that
 #     sign-in service lists for it (the command line signs for no other); the Mac
 #     opens port 443 only on every address, so it answers on the network while it runs;
-#   - the regents command line at REGENTS_CLI_REV, which the journeys run as the agent.
+#   - the regents command line at REGENTS_CLI_REV, with its mcp part for the hosted MCP
+#     server (regents mcp), which the journeys run as the agent.
 # The journeys are test/journeys (Playwright at 390 with touch and at 1280). Each
 # journey's agent gets a fresh key folder. Nothing here reaches autolaunch.sh or
 # siwa.regents.sh; the copy reads Base from REGENT_BASE_RPC_URL (default the public
@@ -201,10 +203,10 @@ up() {
   wait_for "http://127.0.0.1:$siwa_port/healthz" "the sign-in service"
 
   say "the regents command line at $REGENTS_CLI_REV"
-  if [ ! -x "$regents_dir/bin/regents" ]; then
-    uv venv -q "$regents_dir"
+  if ! "$regents_dir/bin/python" -c 'import regents_cli.mcp_proxy' 2>/dev/null; then
+    uv venv -q --allow-existing "$regents_dir"
     uv pip install -q --python "$regents_dir/bin/python" \
-      "regents-cli @ git+https://github.com/regents-ai/regents-cli@$REGENTS_CLI_REV"
+      "regents-cli[mcp] @ git+https://github.com/regents-ai/regents-cli@$REGENTS_CLI_REV"
   fi
 
   say "Autolaunch on its own database"
@@ -232,6 +234,7 @@ AUTOLAUNCH_COVERED_CALLS=true
 AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=$state/covered-calls.json
 AUTOLAUNCH_EXPOSURE=true
 AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=$state/exposure.json
+AUTOLAUNCH_AGENT_BIDS=true
 AUTOLAUNCH_SIWA_URL=http://127.0.0.1:$siwa_port
 AUTOLAUNCH_JOURNEYS_CERT=$state/site-cert.pem
 AUTOLAUNCH_JOURNEYS_KEY=$state/site-key.pem

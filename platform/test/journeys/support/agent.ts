@@ -1,6 +1,7 @@
 import {spawn, spawnSync} from "node:child_process"
 import {chmodSync, mkdirSync, mkdtempSync, writeFileSync} from "node:fs"
-import {join} from "node:path"
+import {dirname, join} from "node:path"
+import {createInterface} from "node:readline"
 import {generatePrivateKey, privateKeyToAccount} from "viem/accounts"
 
 // One agent: the regents binary, run as a subprocess against this stack, with a
@@ -70,6 +71,66 @@ export class Agent {
 
   signIn(): Answer {
     return this.run(["auth", "login", "--site", "autolaunch"])
+  }
+
+  /**
+   * One request to the site's signed agent routes, signed and sent by the regents command line's
+   * own signer and sender with this agent's key (support/signed.py): for a route the command
+   * line has no command for yet. Answers the status and the JSON body.
+   */
+  signed(method: string, path: string, body?: unknown): {status: number; json: any} {
+    const result = spawnSync(
+      join(dirname(process.env.REGENTS!), "python"),
+      ["-I", "test/journeys/support/signed.py", method, path],
+      {input: body === undefined ? "" : JSON.stringify(body), encoding: "utf8", env: this.env(), timeout: 60_000},
+    )
+    if (result.status !== 0) throw new Error(`signed ${method} ${path} failed: ${result.stderr}`)
+    return JSON.parse(result.stdout)
+  }
+
+  /**
+   * Calls the site's hosted MCP tools through `regents mcp --site autolaunch`, as an agent host
+   * runs it: one session that initializes, then makes each call in turn. Answers each call's
+   * result: the tool's answer under `structuredContent`, or its refusal with `isError`.
+   */
+  async mcp(calls: {name: string; input: unknown}[]): Promise<any[]> {
+    const child = spawn(process.env.REGENTS!, ["mcp", "--site", "autolaunch"], {env: this.env()})
+    let stderr = ""
+    child.stderr.on("data", chunk => (stderr += chunk))
+    const waiting = new Map<number, (message: any) => void>()
+    createInterface({input: child.stdout}).on("line", line => {
+      const message = JSON.parse(line)
+      waiting.get(message.id)?.(message)
+    })
+    const send = (message: object) => child.stdin.write(JSON.stringify({jsonrpc: "2.0", ...message}) + "\n")
+    const ask = (id: number, method: string, params: object) =>
+      new Promise<any>((resolve, reject) => {
+        const late = setTimeout(() => reject(new Error(`regents mcp did not answer ${method}: ${stderr}`)), 60_000)
+        waiting.set(id, message => {
+          clearTimeout(late)
+          if (message.error) reject(new Error(`regents mcp ${method}: ${JSON.stringify(message.error)}`))
+          else resolve(message.result)
+        })
+        send({id, method, params})
+      })
+
+    try {
+      await ask(0, "initialize", {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: {name: "agent-journeys", version: "1"},
+      })
+      send({method: "notifications/initialized"})
+      const results = []
+      for (const [index, {name, input}] of calls.entries()) {
+        results.push(await ask(index + 1, "tools/call", {name, arguments: {input}}))
+      }
+      return results
+    } finally {
+      const closed = new Promise(resolve => child.on("close", resolve))
+      child.stdin.end()
+      await closed
+    }
   }
 }
 
