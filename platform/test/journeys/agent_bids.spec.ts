@@ -14,8 +14,9 @@ import {expect, holdWallet, people, ready, signIn, test, type Sent} from "./supp
 // to A's page for the same amount and price, and A's wallet sends them, approvals first. The
 // site lists that bid as A's. A second bid relies on the approvals already on the chain, and a
 // third is paid in USDC through the bid adapter. Another person's bid and a wallet that is not
-// A's are refused, and once the latest block is the auction's end block so is a new bid, which
-// the auction would refuse. Then the agent asks for the first
+// A's are refused. A bid prepared two blocks before the auction's end block lands the block
+// before it, and once the latest block is the one before the end so is a new bid refused, as it
+// could only land when the auction refuses it. Then the agent asks for the first
 // bid's return and claim, and A's wallet sends them. On the desktop run the bids pass the
 // minimum, the auction graduates, and the return records the fill and the claim delivers the
 // tokens; on the phone run they stay under it, the auction fails, and the return pays the whole
@@ -308,20 +309,32 @@ test("agent bids: an agent prepares its person's bids, return and claim, and the
     evidence.refusals = {not_your_bid: notYours, wrong_signer: wrongSigner}
 
     // The auction refuses a bid at its end block or after (submitBid reverts AuctionIsOver once
-    // block.number >= endBlock), whatever the site's record of it says yet. One block before, the
-    // agent still gets its steps; at the end block it is refused, with none.
+    // block.number >= endBlock), whatever the site's record of it says yet, and a step prepared at
+    // the latest block lands in the next one at the earliest. Two blocks before the end the agent
+    // still gets a bid's steps, and A's wallet sends the bid, which lands the block before the end;
+    // one block before the end it is refused, with none, as that bid could only land in the end
+    // block. The late bid is small, so the phone run stays under the minimum. Its approvals are
+    // sent first, so the bid prepared two blocks before the end is one transaction.
     const endBlock = Number(await read(auction, "endBlock"))
-    await mineTo(endBlock - 1)
-    const lastOpen = agent.signed("POST", "/api/agent/v1/bids/steps", input)
-    expect(lastOpen.status, JSON.stringify(lastOpen.json)).toBe(200)
-    expect(lastOpen.json.data.block).toBe(endBlock - 1)
-    expect(lastOpen.json.data.steps.at(-1).step).toBe("bid")
-    await mineTo(endBlock)
+    const late = {...input, amount: "0.001"}
+    const lateApprovals = prepare(late)
+    expect(lateApprovals.block, "the end is far enough off to send the late bid's approvals first").toBeLessThan(endBlock - 4)
+    await send(lateApprovals.steps.filter((step: Step) => step.step !== "bid"), "late bid's approvals")
+    await mineTo(endBlock - 2)
+    const lastOpen = prepare(late)
+    expect(lastOpen.block).toBe(endBlock - 2)
+    expect(lastOpen.approved).toBe(true)
+    expect(lastOpen.steps.map((step: Step) => step.step)).toEqual(["bid"])
+    const lastLanded = await send(lastOpen.steps, "bid two blocks before the end")
+    expect(Number(BigInt(lastLanded[0].blockNumber)), "the late bid lands the block before the end").toBe(endBlock - 1)
+    const lateBid = events(lastLanded[0], auction, memestock().abis.auction, "BidSubmitted")
+    expect(String(lateBid[0].owner).toLowerCase()).toBe(wallet)
     const ended = agent.signed("POST", "/api/agent/v1/bids/steps", input)
     const [endedTool] = await agent.mcp([{name: "prepare_bid", input}])
     evidence.refusals.bidding_ended = {
       end_block: endBlock,
-      one_block_before: {block: lastOpen.json.data.block, steps: lastOpen.json.data.steps.map((step: Step) => step.step)},
+      two_blocks_before: {block: lastOpen.block, steps: lastOpen.steps.map((step: Step) => step.step), landed_in: endBlock - 1},
+      refused_at: endBlock - 1,
       listed_as: await state(listed.id),
       route: ended,
       hosted_tool: tool(endedTool),

@@ -5520,13 +5520,13 @@
       "group": "Agent bids",
       "framework": "playwright",
       "file": "test/journeys/agent_bids.spec.ts",
-      "line": 109,
+      "line": 110,
       "test_name": "agent bids: an agent prepares its person's bids, return and claim, and the person's wallet sends them",
-      "keep_because": "End to end on the Base copy at 390 and 1280: a paired agent's bid steps, on its signed route and the hosted prepare_bid tool, are the auction page's own review for the same inputs, and the person's wallet sends them; the auction records the bid as the person's and the site lists it; a second bid is approved once its approvals are on the chain; a USDC bid goes through the bid adapter; one block before the end block the steps come back and at the end block the answer is bidding_ended with none; another person's bid is not_your_bid and another wallet wrong_signer; after the claim block the return and claim (graduated) or the whole return (failed), prepared both ways, reach the wallet. It fails if an agent's steps differ from the page's, any step reverts, or an agent is handed a bid the auction refuses.",
+      "keep_because": "End to end on the Base copy at 390 and 1280: a paired agent's bid steps, on its signed route and the hosted prepare_bid tool, are the auction page's own review for the same inputs, and the person's wallet sends them; the auction records the bid as the person's and the site lists it; a second bid is approved once its approvals are on the chain; a USDC bid goes through the bid adapter; two blocks before the end block a bid's steps come back and the bid lands the block before the end, and one block before the end the answer is bidding_ended with none, as a step lands in the next block at the earliest (since 18 Nov 2026); another person's bid is not_your_bid and another wallet wrong_signer; after the claim block the return and claim (graduated) or the whole return (failed), prepared both ways, reach the wallet. It fails if an agent's steps differ from the page's, any step reverts, or an agent is handed a bid the auction refuses.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "868f29a0038fa0823132266700e061498ccc9b43748fa005d53dcd58c6d30dbf"
+      "source_sha256": "b57ac8f7acb8e29504affddff7fd17db06f59841f20825edee63e70c174182bc"
     },
     {
       "id": 545,
