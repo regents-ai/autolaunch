@@ -106,6 +106,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_finish_guide_path
   @agent_finish_guide File.read!(@agent_finish_guide_path)
 
+  # Agent staking's route and its components, and its section of the agent
+  # guides, added only while the site offers it.
+  @agent_stake_contract_path Path.expand("../../contracts/agent-stake.openapiv3.yaml", __DIR__)
+  @external_resource @agent_stake_contract_path
+  @agent_stake_contract YamlElixir.read_from_file!(@agent_stake_contract_path)
+  @agent_stake_guide_path Path.join(@directory, "agent_stake.md")
+  @external_resource @agent_stake_guide_path
+  @agent_stake_guide File.read!(@agent_stake_guide_path)
+
   # The guides' sentences that say who bids and launches, each as it reads
   # with neither agent bids nor agent launches, as before them; while the site
   # offers agent bids on Base, Robinhood Chain or both: a paired agent prepares
@@ -728,6 +737,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     )
     |> String.replace("{{agent_launches}}\n", guide("agent_launches", @agent_launches_guide))
     |> String.replace("{{agent_finish}}\n", guide("agent_finish", @agent_finish_guide))
+    |> String.replace("{{agent_stake}}\n", guide("agent_staking", @agent_stake_guide))
     |> bidding()
     |> launching()
     |> String.replace("{{tools}}", tool_table())
@@ -1044,7 +1054,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"agent_bids", @agent_bids_contract},
       {"agent_robinhood_bids", @agent_robinhood_bids_contract},
       {"agent_launches", @agent_launches_contract},
-      {"agent_finish", @agent_finish_contract}
+      {"agent_finish", @agent_finish_contract},
+      {"agent_staking", @agent_stake_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->

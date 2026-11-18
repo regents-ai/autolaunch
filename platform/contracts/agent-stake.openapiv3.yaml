@@ -1,0 +1,272 @@
+# Agent staking, added to api-contract.openapiv3.yaml only while the site offers it
+# (AUTOLAUNCH_AGENT_STAKING=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json is
+# api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
+# path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/tokens/{token_id}/stake/steps:
+    post:
+      operationId: autolaunch_stake_prepare
+      summary: Prepare a stake, unstake or claim
+      description: The wallet steps of one staking action on a token listed here, on Base or Robinhood
+        Chain, read from the token's own chain at the latest block exactly as the token page's Stake
+        and Claim views read them, for one of the person's own wallets (`signer`, or the wallet they
+        signed in with). `stake` stakes the wallet's whole balance of the token, with a token approval
+        first when the wallet has not approved enough; `unstake` unstakes `amount`; `claim` moves the
+        trading fees waiting for stakers into the staking contract, then claims everything the wallet
+        has waiting. The site only prepares; the wallet's own key signs and sends each step, in order,
+        on the network `chain` names, and each step's data ends with the site's Builder Code. Changes
+        nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentStakeTokenId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentStakeRequest'
+      responses:
+        '200':
+          description: The staking steps and the wallet's position they were read from
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+        '404':
+          description: No token is listed here with that id (token_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+        '409':
+          description: The person's account has no verified wallet to act with, or signer is not a
+            wallet address (wallet_required), the wallet holds none of the token to stake
+            (nothing_to_stake), or the amount is more than the wallet has staked (amount_above_stake)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+        '422':
+          description: An unknown field, a field that is not text, a token id that is not one, a kind
+            that is not stake, unstake or claim, an amount sent with stake or claim, or none with
+            unstake (invalid_request), or an amount that is not a decimal above zero with at most 18
+            decimal places that the staking contract can move at once (invalid_amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+        '503':
+          description: The staking contract or the person's account could not be read just now
+            (chain_unavailable, account_unavailable), the site could not prepare it just now
+            (stake_unavailable), or the site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStakeError'
+components:
+  parameters:
+    AgentStakeTokenId:
+      name: token_id
+      in: path
+      required: true
+      description: The token's id exactly as autolaunch_tokens lists it.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AgentStakeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      properties:
+        kind:
+          type: string
+          enum:
+          - stake
+          - unstake
+          - claim
+          description: stake stakes the wallet's whole balance of the token, unstake unstakes amount,
+            claim claims everything the wallet has waiting.
+        amount:
+          type: string
+          description: For unstake only, and needed there. The token amount to unstake, as a decimal
+            with at most 18 decimal places.
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentStakeToken:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentStakeChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: The network the token runs on and the steps are sent on, Base or Robinhood Chain.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentStakeStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          description: token_approval then stake for a stake; unstake for an unstake; for a claim, settle
+            when fees wait in the hook's staker share, then one collect_full_range, collect_stock_only
+            or collect_new_only for each locked position, then claim.
+          enum:
+          - token_approval
+          - stake
+          - unstake
+          - settle
+          - collect_full_range
+          - collect_stock_only
+          - collect_new_only
+          - claim
+        to:
+          type: string
+          description: The token for its approval, the staking contract for a stake, an unstake or the
+            claim, the hook for settle, the LP locker for each collect.
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentStakeAmount:
+      type: object
+      required:
+      - amount
+      - symbol
+      properties:
+        amount:
+          type: string
+          description: A decimal in the asset's own units.
+        symbol:
+          type: string
+    AgentStakeSteps:
+      type: object
+      required:
+      - kind
+      - signer
+      - token
+      - chain
+      - block
+      - steps
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - stake
+          - unstake
+          - claim
+        signer:
+          type: string
+        token:
+          $ref: '#/components/schemas/AgentStakeToken'
+        chain:
+          $ref: '#/components/schemas/AgentStakeChain'
+        block:
+          type: integer
+          description: The latest block the steps were read at.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentStakeStep'
+        facts:
+          type: object
+          description: The wallet's position at `block`, before any step is sent.
+          required:
+          - balance
+          - staked
+          - claimable
+          properties:
+            balance:
+              $ref: '#/components/schemas/AgentStakeAmount'
+            staked:
+              $ref: '#/components/schemas/AgentStakeAmount'
+            claimable:
+              type: array
+              description: What the wallet can claim now, in the dollar, the token and the currency the
+                token trades against, in that order.
+              items:
+                $ref: '#/components/schemas/AgentStakeAmount'
+    AgentStakeStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentStakeSteps'
+    AgentStakeError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - token_not_found
+              - wallet_required
+              - invalid_amount
+              - nothing_to_stake
+              - amount_above_stake
+              - chain_unavailable
+              - stake_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string
