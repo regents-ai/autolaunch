@@ -8,10 +8,11 @@ defmodule Autolaunch.RobinhoodBidChain do
   auction at `auction/0`, still bidding, which sells for the stock at
   `stock/0`, admitted with 18 decimals and a route, which the site lists as
   TSLA. Bid 7 on it (`bid_id`) is the bid fixture's wallet's
-  (`Autolaunch.BidFixture.wallet/0`); any other id holds no bid. The auction's
-  logs hold that bid's `BidSubmitted`, so a wallet's positions read it. The
-  launchpad takes new launches unless `launches_paused`, so a launch's review
-  reads it too.
+  (`Autolaunch.BidFixture.wallet/0`) and the last the auction issued: an
+  earlier id holds no bid, and asking for a later one reverts
+  `BidIdDoesNotExist`, as the auction does. The auction's logs hold that
+  bid's `BidSubmitted`, so a wallet's positions read it. The launchpad takes
+  new launches unless `launches_paused`, so a launch's review reads it too.
 
   `install/1` points the site at it and `put/1` replaces what it answers
   mid-test, each as overrides over the defaults; both are undone when the test
@@ -143,8 +144,14 @@ defmodule Autolaunch.RobinhoodBidChain do
 
     if method == state.unreadable,
       do: {:ok, %{status: 200, body: %{"error" => %{"message" => "unavailable"}}}},
-      else: {:ok, %{status: 200, body: %{"result" => answer(method, params, state)}}}
+      else: {:ok, %{status: 200, body: body(answer(method, params, state))}}
   end
+
+  # A call the contract reverts is the node's error, carrying the revert data.
+  defp body({:reverted, data}),
+    do: %{"error" => %{"code" => 3, "message" => "execution reverted", "data" => data}}
+
+  defp body(result), do: %{"result" => result}
 
   defp answer("eth_chainId", [], state), do: state.chain_id
 
@@ -276,7 +283,7 @@ defmodule Autolaunch.RobinhoodBidChain do
       {"nextActiveTickPrice()", fn -> uint(state.next_active_tick) end},
       {"ticks(uint256)", fn -> words([state.tick_next, 0]) end},
       {"bids(uint256)", fn -> bid_record(argument, state) end},
-      {"nextBidId()", fn -> uint(8) end},
+      {"nextBidId()", fn -> uint(state.bid_id + 1) end},
       {"checkpoints(uint64)", fn -> checkpoint(state.checkpoints, argument, state.bid) end}
     ]
   end
@@ -294,7 +301,10 @@ defmodule Autolaunch.RobinhoodBidChain do
         bid.tokens_filled
       ])
 
-  defp bid_record(_none, _state), do: words(List.duplicate(0, 7))
+  defp bid_record(id, %{bid_id: last}) when id > last,
+    do: {:reverted, LabAbi.selector("BidIdDoesNotExist(uint256)") <> BaseRpcStub.hex_word(id)}
+
+  defp bid_record(_earlier, _state), do: words(List.duplicate(0, 7))
 
   # `BidSubmitted(bidId, owner, priceQ96, amount)`, the amount in the stock.
   defp bid_submitted(%{bid_id: id, bid: bid}),

@@ -144,6 +144,7 @@ defmodule AutolaunchWeb.RobinhoodBidSettlementPressTest do
         selector == LabAbi.selector("endBlock()") -> uint(90)
         selector == LabAbi.selector("claimBlock()") -> uint(95)
         selector == LabAbi.selector("currency()") -> words([number(@stock)])
+        selector == LabAbi.selector("nextBidId()") -> uint(@bid_id + 1)
         selector == LabAbi.selector("bids(uint256)") -> bid()
       end
     end

@@ -410,15 +410,17 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
   end
 
-  test "a bid number is any the auction can hold: the largest settles, and one past it names no bid before anything is read",
+  test "a bid number is any the auction can issue: the last it can settles, one it has not issued names no bid, and one past any uint256 names no bid before anything is read",
        %{agent: agent, wallet: wallet, opts: opts} do
-    largest = Integer.pow(2, 256) - 1
-    RobinhoodBidChain.put(bid_id: largest)
-    bid = RobinhoodBidChain.auction() <> ":#{largest}"
+    # The auction's next id is a uint256 too, so the last id it can ever issue
+    # is one below the largest uint256.
+    last = Integer.pow(2, 256) - 2
+    RobinhoodBidChain.put(bid_id: last)
+    bid = RobinhoodBidChain.auction() <> ":#{last}"
 
     {:ok, page} =
       StockBidSettlementActions.prepare(
-        %{auction: RobinhoodBidChain.auction(), bid_id: Integer.to_string(largest)},
+        %{auction: RobinhoodBidChain.auction(), bid_id: Integer.to_string(last)},
         wallet,
         opts
       )
@@ -428,12 +430,19 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
     assert data["steps"] == plain(page.steps)
 
-    # Past the largest, at both ends of the length an id may have, and a
-    # 77-digit number the auction can hold but holds no bid at.
+    # With bid 7 the last issued: past any uint256, at both ends of the length
+    # an id may have, before anything is read; and the largest uint256, a
+    # 77-digit number and the next id, none of which the auction has issued,
+    # once it says which it has, never asking it for their records (it
+    # reverts `BidIdDoesNotExist`).
+    RobinhoodBidChain.put([])
+
     for {number, reads?} <- [
-          {largest + 1, false},
+          {Integer.pow(2, 256), false},
           {Integer.pow(10, 78) - 1, false},
-          {Integer.pow(10, 76), true}
+          {Integer.pow(2, 256) - 1, true},
+          {Integer.pow(10, 76), true},
+          {8, true}
         ] do
       none = RobinhoodBidChain.auction() <> ":#{number}"
       flush_reads()
@@ -456,9 +465,17 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       assert read?() == reads?, none
     end
 
-    # Past the largest is known before the auction is looked up at all.
+    # Past any uint256 is known before the auction is looked up at all.
     lose_reads_of("auctions")
-    route = http(:post, settle_path(RobinhoodBidChain.auction() <> ":#{largest + 1}"), %{}, agent)
+
+    route =
+      http(
+        :post,
+        settle_path(RobinhoodBidChain.auction() <> ":#{Integer.pow(2, 256)}"),
+        %{},
+        agent
+      )
+
     assert route.status == 404 and route.body["error"]["code"] == "not_your_bid"
   end
 
