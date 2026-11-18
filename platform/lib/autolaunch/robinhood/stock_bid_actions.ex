@@ -51,9 +51,12 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   @doc """
   The review `prepare/3` makes once `signer` is proved to be one of the acting
-  account's own wallets, with the latest block it read (`block`) and
-  `blocked: :bidding_ended` once that block's clock has reached the auction's
-  end block, when the auction would refuse the bid; otherwise `nil`.
+  account's own wallets, with the latest block it read (`block`) and why the
+  auction would refuse the bid at that block's clock (`blocked`):
+  `:auction_not_started` before its start block, `:bidding_ended` from its end
+  block on, otherwise `nil`. Every figure's own text is checked before
+  Robinhood Chain is read; which price the maximum names on the auction's grid
+  waits for the stock's decimals.
   """
   @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def review(
@@ -69,6 +72,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, usdg_amount} <- usdg_amount(usdg_amount),
+         :ok <- price_text(max_price),
          {:ok, discovery} <- snapshot(auction, signer, usdg_amount, nil),
          {:ok, price} <- max_price(max_price, discovery.stock_decimals),
          {:ok, snapshot} <- snapshot(auction, signer, usdg_amount, price.candidate_price_q96),
@@ -79,10 +83,21 @@ defmodule Autolaunch.Robinhood.StockBidActions do
       {:ok,
        Map.merge(build(executable, asset, snapshot, config), %{
          block: snapshot.block.number,
-         blocked: if(snapshot.clock >= snapshot.auction.end_block, do: :bidding_ended)
+         blocked: blocked(snapshot)
        })}
     end
   end
+
+  # The auction takes a bid from its start block until its end block, by the
+  # clock it keeps (`ContinuousClearingAuction` reverts `AuctionNotStarted` and
+  # `AuctionIsOver` outside it).
+  defp blocked(%{clock: clock, auction: %{start_block: start}}) when clock < start,
+    do: :auction_not_started
+
+  defp blocked(%{clock: clock, auction: %{end_block: ending}}) when clock >= ending,
+    do: :bidding_ended
+
+  defp blocked(_snapshot), do: nil
 
   @doc """
   Every bid the auction records for the signed-in wallet, read at one pinned
@@ -142,10 +157,20 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   defp usdg_amount(_value), do: unavailable(:amount_required)
 
-  defp max_price(value, decimals) when is_binary(value),
-    do: Amounts.cca_price(value, decimals, @new_decimals) |> refusable()
+  # A maximum price's own text: the plain decimal both parsers take, above
+  # zero, since no decimals make a price of zero.
+  defp price_text(value) when is_binary(value) do
+    case Amounts.decimal_ratio(value) do
+      {:ok, 0, _denominator} -> unavailable(:price_out_of_range)
+      {:ok, _numerator, _denominator} -> :ok
+      error -> refusable(error)
+    end
+  end
 
-  defp max_price(_value, _decimals), do: unavailable(:max_price_required)
+  defp price_text(_value), do: unavailable(:max_price_required)
+
+  defp max_price(value, decimals),
+    do: Amounts.cca_price(value, decimals, @new_decimals) |> refusable()
 
   # The final snapshot must describe the same auction and STOCK the discovery
   # read did, or the review would mix two states.

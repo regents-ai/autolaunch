@@ -90,7 +90,12 @@ defmodule Autolaunch.Stocks.Amounts do
     |> String.reverse()
   end
 
-  defp decimal_ratio(value) when is_binary(value) and byte_size(value) <= @max_input_bytes do
+  @doc """
+  A plain nonnegative decimal string of at most 512 bytes as its exact ratio,
+  `{:ok, numerator, denominator}`: the one shape `parse_units/2` and
+  `cca_price/3` take, before either applies any decimals.
+  """
+  def decimal_ratio(value) when is_binary(value) and byte_size(value) <= @max_input_bytes do
     if Regex.match?(~r/\A(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)\z/, value) do
       case String.split(value, ".", parts: 2) do
         [whole] ->
@@ -104,5 +109,5 @@ defmodule Autolaunch.Stocks.Amounts do
     end
   end
 
-  defp decimal_ratio(_), do: {:error, :invalid_decimal}
+  def decimal_ratio(_), do: {:error, :invalid_decimal}
 end

@@ -8,13 +8,17 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
   return and claim's are the bid's row's. Only the person's own wallets and
   bids are prepared for, and only for the agent paired with them, while the
   person has a verified wallet; another person's bid and a bid that does not
-  exist are answered alike. Every refusal is reached and named, with a status
-  and code the contract documents, and every reason the reviews give has one
-  code. A slippage or amount the page refuses is refused before Robinhood
-  Chain is read. A bid on an auction whose bidding has ended is refused. A
-  read that fails, or a reason nobody named, is refused as `bid_unavailable`.
-  Off, or in prelaunch read-only mode, neither tool is listed or run, and off a
-  call to either is answered as one to a tool that does not exist.
+  exist are answered alike, as is a bid number past what the auction can hold,
+  before anything is read; a bid's id as the positions give it is taken as it
+  is. Every refusal is reached and named, with a status and code the contract
+  documents, and every reason the reviews give has one code. A slippage,
+  amount or price text the page refuses is refused before Robinhood Chain is
+  read. A bid on an auction whose bidding has not started or has ended, or on a
+  hidden one, is refused; a bid on a hidden auction still settles. A read that
+  fails, or a reason nobody named, is refused as `bid_unavailable`. Both
+  routes spend the person's one budget. Off, or in prelaunch read-only mode,
+  neither tool is listed or run, and off a call to either is answered as one to
+  a tool that does not exist.
 
   Robinhood Chain is `Autolaunch.RobinhoodBidChain`, and the sign-in service
   is stubbed: it vouches for the wallet a request names.
@@ -27,12 +31,22 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
   import ExUnit.CaptureLog, only: [with_log: 1]
   import Plug.Test, only: [conn: 3]
 
+  alias Autolaunch.Accounts.RequestRateLimiter
   alias Autolaunch.Actors.{Agent, ConnectedApp, Human}
   alias Autolaunch.AgentRobinhoodBid.Refused
-  alias Autolaunch.Robinhood.{StockBidActions, StockBidSettlementActions}
+  alias Autolaunch.Robinhood.{Lab, StockBidActions, StockBidSettlementActions}
+  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.AgentRobinhoodBidAnswer
+  alias RegentChain.Address
 
-  alias Autolaunch.{Accounts, AgentRobinhoodBid, RobinhoodBidChain, TestSupport}
+  alias Autolaunch.{
+    Accounts,
+    AgentRobinhoodBid,
+    BaseRpcStub,
+    LabAbi,
+    RobinhoodBidChain,
+    TestSupport
+  }
 
   @moduletag :capture_log
   @contract "../../contracts/agent-robinhood-bids.openapiv3.yaml"
@@ -90,13 +104,19 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
   test "a bid's steps are the auction page's for the same inputs and wallet, alike on both ways in",
        %{agent: agent, listed: listed, wallet: wallet, opts: opts} do
     bid = %{auction_id: listed.id, usdg_amount: "12.5", max_price: "3"}
+    {:ok, deployment} = Lab.current()
+    usdg = Lab.address!(deployment, :usdg)
+    adapter = Lab.address!(deployment, :bid_adapter)
 
     for {chain, input, named} <- [
           {[], bid, ~w(usdg_approval usdg_bid)},
           {[],
            %{bid | max_price: "3.3"} |> Map.merge(%{slippage_percent: "12.5", signer: wallet}),
            ~w(usdg_approval usdg_bid)},
-          {[usdg_allowance: 10 ** 8], bid, ~w(usdg_bid)}
+          {[usdg_allowance: 10 ** 8], bid, ~w(usdg_bid)},
+          # An allowance of exactly the amount, and one unit short of it.
+          {[usdg_allowance: 12_500_000], bid, ~w(usdg_bid)},
+          {[usdg_allowance: 12_499_999], bid, ~w(usdg_approval usdg_bid)}
         ] do
       RobinhoodBidChain.put(chain)
       {:ok, page} = StockBidActions.prepare(page_request(input), wallet, opts)
@@ -117,6 +137,19 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       assert data["auction"] == %{"id" => listed.id, "address" => RobinhoodBidChain.auction()}
       # False while the steps still hold an approval, true once only the bid is left.
       assert data["approved"] == (named == ["usdg_bid"])
+
+      # The approval is to the deployment's USDG for its bid adapter, and the bid
+      # to that adapter: addresses the deployment description names.
+      for step <- data["steps"] do
+        assert step["to"] == %{"usdg_approval" => usdg, "usdg_bid" => adapter}[step["step"]]
+      end
+
+      for %{"step" => "usdg_approval", "data" => approval} <- data["steps"] do
+        assert String.starts_with?(
+                 approval,
+                 LabAbi.selector("approve(address,uint256)") <> BaseRpcStub.address_word(adapter)
+               )
+      end
     end
   end
 
@@ -154,6 +187,32 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
 
     RobinhoodBidChain.put(clock: 89)
     assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
+  end
+
+  test "a bid before the auction's clock reaches its start block is refused as auction_not_started with no steps, while the page still reviews it",
+       %{agent: agent, listed: listed, wallet: wallet} do
+    input = %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}
+
+    # The auction starts at block 10 of its own clock.
+    for clock <- [1, 9] do
+      RobinhoodBidChain.put(clock: clock)
+      route = http(:post, @bid_path, input, agent)
+
+      assert route.status == 409 and route.body["error"]["code"] == "auction_not_started",
+             "clock #{clock} answered #{inspect(route.body)}"
+
+      refute Map.has_key?(route.body, "data")
+      assert tool(agent, "prepare_robinhood_bid", input) == {:error, route.body}
+      assert documented?(@bid_path, 409, "auction_not_started")
+
+      assert {:ok, %{blocked: :auction_not_started, steps: [_ | _]}} =
+               StockBidActions.review(page_request(input), wallet)
+    end
+
+    # From its start block the auction takes the bid.
+    RobinhoodBidChain.put(clock: 10)
+    assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
+    assert {:ok, %{blocked: nil}} = StockBidActions.review(page_request(input), wallet)
   end
 
   test "a bid's return and claim are the bid's row's steps, alike on both ways in", context do
@@ -238,6 +297,13 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
 
     assert [_one] = Enum.uniq(answers)
 
+    # An auction the site lists on another chain, at that chain's address,
+    # holds no Robinhood bid, known before Robinhood Chain is read.
+    flush_reads()
+    other_chain = http(:post, settle_path(context.auction.auction_address <> ":7"), %{}, agent)
+    assert other_chain.status == 404 and other_chain.body == hd(answers)
+    refute_received {:robinhood_read, _method}
+
     # A bid another of the person's own wallets placed is theirs to settle.
     second = "0x3333333333333333333333333333333333333334"
 
@@ -254,6 +320,185 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     route = http(:post, settle_path(mine), %{signer: wallet}, stranger)
     assert route.status == 403 and route.body["error"]["code"] == "wrong_signer"
     assert http(:post, settle_path(mine), %{}, stranger).body == hd(answers)
+  end
+
+  test "a bid another of the person's wallets placed, kept in its checksummed letter case, is theirs to settle, alike on the bid's row and on both ways in",
+       %{account: account, agent: agent, mine: mine, wallet: wallet, opts: opts} do
+    {:ok, bytes} = Address.decode("0xabcdef0123456789abcdef0123456789abcdef01")
+    second = Address.checksum(bytes)
+    assert second != String.downcase(second)
+
+    {:ok, _account} =
+      Accounts.refresh_verified(account, wallet, [wallet, second], actor: system())
+
+    # The auction records its owner as a number, which reads back lowercase.
+    RobinhoodBidChain.put(bid: Map.put(RobinhoodBidChain.bid(), :owner, String.downcase(second)))
+
+    {:ok, page} =
+      StockBidSettlementActions.prepare(
+        %{auction: RobinhoodBidChain.auction(), bid_id: "7"},
+        wallet,
+        opts
+      )
+
+    assert page.context.owner == String.downcase(second)
+    {:ok, data} = answer(http(:post, settle_path(mine), %{}, agent))
+    assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: mine}) == {:ok, data}
+    assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
+    assert data["steps"] == plain(page.steps)
+    assert data["signer"] == wallet
+  end
+
+  test "another's bid is answered not_your_bid before the auction is asked to settle it, even where that would fail",
+       %{agent: agent, mine: mine} do
+    theirs = Map.put(RobinhoodBidChain.bid(), :owner, @other)
+    RobinhoodBidChain.put(bid: theirs, unreadable: "eth_simulateV1")
+    flush_reads()
+    route = http(:post, settle_path(mine), %{}, agent)
+
+    assert route.status == 404 and route.body["error"]["code"] == "not_your_bid"
+    refute_received {:robinhood_read, "eth_simulateV1"}
+    assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: mine}) == {:error, route.body}
+
+    # The person's own bid reaches that settlement, which fails.
+    RobinhoodBidChain.put(unreadable: "eth_simulateV1")
+    flush_reads()
+    route = http(:post, settle_path(mine), %{}, agent)
+    assert route.status == 503 and route.body["error"]["code"] == "chain_unavailable"
+    assert_received {:robinhood_read, "eth_simulateV1"}
+  end
+
+  test "a hidden auction takes no bid, known before Robinhood Chain is read, while a bid on it stays the person's to settle",
+       %{agent: agent, listed: listed, mine: mine} do
+    # Hidden in the row itself: `Autolaunch.hide_auction/2` reads through the
+    # primary read, which leaves out Robinhood Chain auctions.
+    Autolaunch.Repo.query!("UPDATE autolaunch_app.auctions SET hidden = true WHERE id = $1", [
+      Ecto.UUID.dump!(listed.id)
+    ])
+
+    input = %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}
+    flush_reads()
+    route = http(:post, @bid_path, input, agent)
+
+    assert route.status == 404 and route.body["error"]["code"] == "auction_not_found"
+    refute_received {:robinhood_read, _method}
+    assert tool(agent, "prepare_robinhood_bid", input) == {:error, route.body}
+
+    {:ok, data} = answer(http(:post, settle_path(mine), %{}, agent))
+    assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: mine}) == {:ok, data}
+    assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
+    assert data["auction"] == %{"id" => listed.id, "address" => RobinhoodBidChain.auction()}
+  end
+
+  test "a bid's id as autolaunch_my_positions and the positions route give it, in lowercase, is taken as it is by the settlement route and tool",
+       %{agent: agent, mine: mine} do
+    # Robinhood Chain is the only chain read here.
+    keep_env(:autolaunch_base_deployment)
+    Application.delete_env(:autolaunch, :autolaunch_base_deployment)
+
+    route = http(:get, "/api/agent/v1/positions", nil, agent)
+    assert route.status == 200, inspect(route.body)
+    assert tool(agent, "autolaunch_my_positions", %{}) == answer(route)
+    assert [%{"chain" => "robinhood", "bid" => bid}] = route.body["data"]["bids"]
+
+    # The auction's address has letters, which the id gives in lowercase.
+    assert bid == mine and bid == String.downcase(bid) and bid =~ ~r/[a-f]/
+
+    {:ok, data} = answer(http(:post, settle_path(bid), %{}, agent))
+    assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: bid}) == {:ok, data}
+    assert data["bid"] == bid
+    assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
+  end
+
+  test "a bid number is any the auction can hold: the largest settles, and one past it names no bid before anything is read",
+       %{agent: agent, wallet: wallet, opts: opts} do
+    largest = Integer.pow(2, 256) - 1
+    RobinhoodBidChain.put(bid_id: largest)
+    bid = RobinhoodBidChain.auction() <> ":#{largest}"
+
+    {:ok, page} =
+      StockBidSettlementActions.prepare(
+        %{auction: RobinhoodBidChain.auction(), bid_id: Integer.to_string(largest)},
+        wallet,
+        opts
+      )
+
+    {:ok, data} = answer(http(:post, settle_path(bid), %{}, agent))
+    assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: bid}) == {:ok, data}
+    assert Enum.map(data["steps"], & &1["step"]) == ["exit"]
+    assert data["steps"] == plain(page.steps)
+
+    # Past the largest, at both ends of the length an id may have, and a
+    # 77-digit number the auction can hold but holds no bid at.
+    for {number, reads?} <- [
+          {largest + 1, false},
+          {Integer.pow(10, 78) - 1, false},
+          {Integer.pow(10, 76), true}
+        ] do
+      none = RobinhoodBidChain.auction() <> ":#{number}"
+      flush_reads()
+      route = http(:post, settle_path(none), %{}, agent)
+
+      assert route.status == 404 and route.body["error"]["code"] == "not_your_bid", none
+      assert read?() == reads?, none
+      assert tool(agent, "prepare_robinhood_bid_settlement", %{bid: none}) == {:error, route.body}
+
+      # The bid's row refuses it alike, as no bid, read only for a number it can hold.
+      flush_reads()
+
+      assert {:error, %{reason: :bid_not_found}} =
+               StockBidSettlementActions.review(
+                 %{auction: RobinhoodBidChain.auction(), bid_id: Integer.to_string(number)},
+                 wallet,
+                 [wallet]
+               )
+
+      assert read?() == reads?, none
+    end
+
+    # Past the largest is known before the auction is looked up at all.
+    lose_reads_of("auctions")
+    route = http(:post, settle_path(RobinhoodBidChain.auction() <> ":#{largest + 1}"), %{}, agent)
+    assert route.status == 404 and route.body["error"]["code"] == "not_your_bid"
+  end
+
+  test "a max_price that is no plain decimal above zero is refused before Robinhood Chain is read, alike on both ways in and on the auction page",
+       %{agent: agent, listed: listed, wallet: wallet} do
+    for {price, code} <- [
+          {"abc", "invalid_decimal"},
+          {"1e5", "invalid_decimal"},
+          {"-1", "invalid_decimal"},
+          {"", "invalid_decimal"},
+          {" 3", "invalid_decimal"},
+          {"3.", "invalid_decimal"},
+          {String.duplicate("9", 513), "invalid_decimal"},
+          {"0", "invalid_price"},
+          {"0.000", "invalid_price"}
+        ] do
+      input = %{auction_id: listed.id, usdg_amount: "1", max_price: price}
+      flush_reads()
+      route = http(:post, @bid_path, input, agent)
+
+      assert route.status == 422 and route.body["error"]["code"] == code,
+             "#{inspect(price)} answered #{inspect(route.body)}"
+
+      assert tool(agent, "prepare_robinhood_bid", input) == {:error, route.body}
+      assert {:error, _refused} = StockBidActions.review(page_request(input), wallet)
+      refute_received {:robinhood_read, _method}, inspect(price)
+    end
+
+    # A plain decimal above zero is placed on the auction's price grid, which
+    # takes reading the auction: one too small for any price is refused then.
+    tiny = %{
+      auction_id: listed.id,
+      usdg_amount: "1",
+      max_price: "0." <> String.duplicate("0", 79) <> "1"
+    }
+
+    flush_reads()
+    route = http(:post, @bid_path, tiny, agent)
+    assert route.status == 422 and route.body["error"]["code"] == "invalid_price"
+    assert_received {:robinhood_read, _method}
   end
 
   test "the steps are prepared for the paired agent alone, a connected app calling as it included",
@@ -298,13 +543,13 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
         {[], Map.put(bid, :slippage_percent, "100"), "invalid_slippage"},
         {[], %{bid | max_price: "0.5"}, "price_below_admissible_tick"},
         {[], %{bid | auction_id: Ecto.UUID.generate()}, "auction_not_found"},
-        # A listed auction on another chain, and one no launchpad here made.
+        # A listed auction on another chain.
         {[], %{bid | auction_id: base.id}, "auction_not_found"},
-        {[launch_id: 0], bid, "auction_not_found"},
         {[], Map.put(bid, :signer, @other), "wrong_signer"},
         {[], Map.put(bid, :signer, "nope"), "wallet_required"},
         {[], %{bid | auction_id: ended.id}, "bidding_ended"},
         {[clock: 90], bid, "bidding_ended"},
+        {[clock: 9], bid, "auction_not_started"},
         {[tick_next: 0], bid, "bid_preparation_unavailable"},
         {[], %{bid | usdg_amount: "1000"}, "amount_above_balance"},
         {[quote: 0], bid, "usdg_route_unavailable"},
@@ -312,10 +557,12 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
         {[stock: @unlisted], bid, "stock_not_listed"},
         {[unreadable: "eth_call"], bid, "chain_unavailable"},
         {[chain_id: "0x2105"], bid, "chain_unavailable"},
-        # The site's own fault: the auction holds no contract, or the bid
-        # adapter is bound to another launchpad than the deployment names.
+        # The site's own fault: the auction holds no contract, the bid adapter
+        # is bound to another launchpad than the deployment names, or no
+        # launchpad of the deployment made the listed auction.
         {[code: "0x"], bid, "bid_unavailable"},
-        {[adapter_launchpad: @other], bid, "bid_unavailable"}
+        {[adapter_launchpad: @other], bid, "bid_unavailable"},
+        {[launch_id: 0], bid, "bid_unavailable"}
       ]
       |> Enum.map(fn {chain, input, code} -> {chain, @bid_path, @bid_path, input, code} end)
 
@@ -406,6 +653,38 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
 
     assert documented?(@bid_path, 401, "authentication_required")
     assert documented?(@settle_path, 401, "authentication_required")
+  end
+
+  test "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable on both routes",
+       %{agent: agent, listed: listed, mine: mine} do
+    # The person's account is read with its ENS name as the pairing is resolved.
+    lose_reads_of("account_ens_identities")
+
+    for {path, documented, input} <- [
+          {@bid_path, @bid_path, %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}},
+          {settle_path(mine), @settle_path, %{}}
+        ] do
+      route = http(:post, path, input, agent)
+
+      assert route.status == 503 and route.body["error"]["code"] == "account_unavailable",
+             "#{path} answered #{inspect(route.body)}"
+
+      assert documented?(documented, 503, "account_unavailable")
+    end
+  end
+
+  test "both routes spend the person's one budget of 120 signed requests a minute",
+       %{agent: agent, mine: mine} do
+    # Requests that might straddle two minutes start in the next one.
+    {:ok, %{reset: left}} = RequestRateLimiter.admit({"minute", make_ref()}, 1, 60)
+    if left < 5, do: Process.sleep(left * 1000)
+
+    for {path, remaining} <- [{@bid_path, 119}, {settle_path(mine), 118}] do
+      answered = signed(:post, path, %{bogus: "x"}, agent)
+      assert answered.status == 422
+      assert [budget] = get_resp_header(answered, "ratelimit")
+      assert budget =~ ~s("agent";r=#{remaining}), "#{path} answered #{budget}"
+    end
   end
 
   test "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both actions, never not_your_bid for their own bid",
@@ -502,11 +781,12 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       authentication_required: :authentication_required,
       wallet_required: :wallet_required,
       wrong_signer: :wrong_signer,
-      unknown_auction: :auction_not_found,
+      auction_not_listed: :auction_not_found,
       invalid_slippage: :invalid_slippage,
       invalid_decimal: :invalid_decimal,
       amount_required: :invalid_amount,
       amount_not_representable: :invalid_amount,
+      max_price_required: :invalid_price,
       price_out_of_range: :invalid_price,
       price_below_admissible_tick: :price_below_admissible_tick,
       bidding_ended: :bidding_ended,
@@ -533,10 +813,12 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       invalid_chain_response: :chain_unavailable,
       invalid_block_header: :chain_unavailable,
       wrong_chain: :chain_unavailable,
+      invalid_decimals: :chain_unavailable,
       robinhood_unavailable: :bid_unavailable,
       lab_config_changed: :bid_unavailable,
       invalid_auction: :bid_unavailable,
       lab_contract_missing: :bid_unavailable,
+      unknown_auction: :bid_unavailable,
       auction_not_found: :bid_unavailable
     }
 
@@ -558,7 +840,7 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     end
   end
 
-  property "any amount, price and slippage is answered or refused alike on both ways in, and a slippage or amount the page refuses never reaches Robinhood Chain",
+  property "any amount, price and slippage is answered or refused alike on both ways in, and a slippage, amount or price text the page refuses never reaches Robinhood Chain",
            %{agent: agent, listed: listed} do
     # Mostly text, as the page's own box sends, and sometimes another JSON value.
     text =
@@ -608,13 +890,7 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
 
       flush_reads()
       route = http(:post, @bid_path, body, agent)
-
-      read? =
-        receive do
-          {:robinhood_read, _method} -> true
-        after
-          0 -> false
-        end
+      read? = read?()
 
       assert tool(agent, "prepare_robinhood_bid", body) == answer(route)
       assert route.status == 200 or route.body["error"]["code"] in @codes
@@ -697,15 +973,15 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     code in @codes and is_map(response) and response["description"] =~ ~r/\b#{code}\b/
   end
 
-  # Whether the page's own parsers refuse a body's slippage or amount, as its
-  # review does before it reads Robinhood Chain.
+  # Whether the page's own parsers refuse a body's slippage, amount or price
+  # text, as its review does before it reads Robinhood Chain.
   defp refused_figures?(body) do
     figures = Map.delete(body, :auction_id)
 
     with true <- Enum.all?(figures, fn {_name, value} -> is_binary(value) end),
          {:ok, _bps} <- Autolaunch.BidSlippage.parse(Map.get(body, :slippage_percent, "5")),
-         {:ok, amount} when amount > 0 <-
-           Autolaunch.Stocks.Amounts.parse_units(body.usdg_amount, 6) do
+         {:ok, amount} when amount > 0 <- Amounts.parse_units(body.usdg_amount, 6),
+         {:ok, price, _denominator} when price > 0 <- Amounts.decimal_ratio(body.max_price) do
       false
     else
       _refused -> true
@@ -724,6 +1000,15 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
       {:robinhood_read, _method} -> flush_reads()
     after
       0 -> :ok
+    end
+  end
+
+  # Whether Robinhood Chain was read since the reads were last flushed.
+  defp read? do
+    receive do
+      {:robinhood_read, _method} -> true
+    after
+      0 -> false
     end
   end
 
@@ -800,17 +1085,19 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     |> @endpoint.call([])
   end
 
-  # One signed request from an address of its own.
   defp http(method, path, body, agent) do
-    conn =
-      conn(method, path, Jason.encode!(body))
-      |> Map.put(:remote_ip, from())
-      |> put_req_header("content-type", "application/json")
-      |> put_req_header("x-siwa-signature", "fixture-proof")
-      |> put_req_header("x-agent-wallet-address", agent)
-      |> @endpoint.call([])
-
+    conn = signed(method, path, body, agent)
     %{status: conn.status, body: json(conn)}
+  end
+
+  # One signed request from an address of its own.
+  defp signed(method, path, body, agent) do
+    conn(method, path, Jason.encode!(body))
+    |> Map.put(:remote_ip, from())
+    |> put_req_header("content-type", "application/json")
+    |> put_req_header("x-siwa-signature", "fixture-proof")
+    |> put_req_header("x-agent-wallet-address", agent)
+    |> @endpoint.call([])
   end
 
   # A route's answer as a hosted tool gives it: its `data`, or its refusal.

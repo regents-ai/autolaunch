@@ -12,7 +12,8 @@ paths:
         (`signer`, or the wallet they signed in with). The site only prepares; the wallet's own key signs
         and sends each step on Robinhood Chain, the network `chain` names, and each step's data ends with
         the site's Builder Code. Once bidding has ended by the auction's record or the clock the auction
-        keeps at that block, the answer is 409 bidding_ended with no steps. Send the steps promptly, and
+        keeps at that block, the answer is 409 bidding_ended with no steps, and before that clock reaches
+        the auction's start block it is 409 auction_not_started with no steps. Send the steps promptly, and
         prepare them again once ten minutes have passed, as the auction page builds its own again; the
         bid step is refused fifteen minutes after the block it was built from. Changes nothing.
       security:
@@ -53,9 +54,9 @@ paths:
                 $ref: '#/components/schemas/AgentRobinhoodBidError'
         '409':
           description: The person's account has no verified wallet to act with (wallet_required),
-            bidding has ended on the auction (bidding_ended), or the auction or the wallet stands so that
-            the auction would refuse the bid now (bid_preparation_unavailable, amount_above_balance,
-            usdg_route_unavailable, stock_not_listed)
+            bidding has not started on the auction (auction_not_started) or has ended (bidding_ended), or
+            the auction or the wallet stands so that the auction would refuse the bid now
+            (bid_preparation_unavailable, amount_above_balance, usdg_route_unavailable, stock_not_listed)
           content:
             application/json:
               schema:
@@ -160,7 +161,7 @@ components:
         Robinhood Chain - the auction's address and the auction's number for the bid.
       schema:
         type: string
-        pattern: '^0x[0-9a-f]{40}:(0|[1-9][0-9]{0,76})$'
+        pattern: '^0x[0-9a-f]{40}:(0|[1-9][0-9]{0,77})$'
   schemas:
     AgentRobinhoodBidRequest:
       type: object

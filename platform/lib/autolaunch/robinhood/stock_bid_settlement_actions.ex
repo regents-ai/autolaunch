@@ -33,6 +33,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   alias RegentChain.{Address, Review}
 
   @new_decimals 18
+  @uint256_max Integer.pow(2, 256) - 1
 
   @doc """
   Reviews the settlement of one bid from `address`, which must be a wallet the
@@ -141,11 +142,13 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   # Inputs
 
-  defp bid_id(value) when is_integer(value) and value >= 0, do: {:ok, value}
+  # A bid number the auction can hold, a uint256; any other names no bid. Its
+  # text is at most the 78 digits of the largest.
+  defp bid_id(value) when is_integer(value) and value in 0..@uint256_max, do: {:ok, value}
 
-  defp bid_id(value) when is_binary(value) do
+  defp bid_id(value) when is_binary(value) and byte_size(value) <= 78 do
     case Integer.parse(value) do
-      {id, ""} when id >= 0 -> {:ok, id}
+      {id, ""} -> bid_id(id)
       _other -> unavailable(:bid_not_found)
     end
   end

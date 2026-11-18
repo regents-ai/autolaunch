@@ -4,10 +4,12 @@ defmodule Autolaunch.RobinhoodBidChain do
   bid's return and claim read it: a JSON-RPC double answering at one latest
   block (100, its clock 50) for the fixture deployment
   (test/fixtures/robinhood-deployment.json), whose bid adapter is bound to its
-  launchpad and USDG. The launchpad made the auction at `auction/0`, which
-  sells for the stock at `stock/0`, admitted with 18 decimals and a route,
-  which the site lists as TSLA. Bid 7 on it is the bid fixture's wallet's
-  (`Autolaunch.BidFixture.wallet/0`); any other id holds no bid.
+  launchpad and USDG. The launchpad's one launch (`launch_id`) made the
+  auction at `auction/0`, still bidding, which sells for the stock at
+  `stock/0`, admitted with 18 decimals and a route, which the site lists as
+  TSLA. Bid 7 on it (`bid_id`) is the bid fixture's wallet's
+  (`Autolaunch.BidFixture.wallet/0`); any other id holds no bid. The auction's
+  logs hold that bid's `BidSubmitted`, so a wallet's positions read it.
 
   `install/1` points the site at it and `put/1` replaces what it answers
   mid-test, each as overrides over the defaults; both are undone when the test
@@ -31,9 +33,12 @@ defmodule Autolaunch.RobinhoodBidChain do
 
   @chain_id 4_663
   @q96 79_228_162_514_264_337_593_543_950_336
-  @auction "0x3000000000000000000000000000000000000003"
+  # Its letters name the case an address is read and listed in.
+  @auction "0x3000000000000000000000000000000000000abc"
   @stock "0x2000000000000000000000000000000000000002"
   @route "0x4444444444444444444444444444444444444444"
+  @token "0x6000000000000000000000000000000000000006"
+  @launcher "0x7000000000000000000000000000000000000007"
   @arb_sys "0x0000000000000000000000000000000000000064"
   @hash "0x" <> String.duplicate("6c", 32)
   @last_block Integer.pow(2, 64) - 1
@@ -118,6 +123,7 @@ defmodule Autolaunch.RobinhoodBidChain do
         graduated: false,
         final_price: 2 * @q96,
         raised: 0,
+        bid_id: 7,
         bid: bid(),
         exit: {:exited, 0, 12 * 10 ** 18},
         claim: {:reverted, "NotGraduated()"},
@@ -139,7 +145,7 @@ defmodule Autolaunch.RobinhoodBidChain do
 
   defp answer("eth_chainId", [], state), do: state.chain_id
 
-  defp answer("eth_getBlockByNumber", ["latest", false], _state),
+  defp answer("eth_getBlockByNumber", [block, false], _state) when block in ["latest", "0x64"],
     do: %{"number" => "0x64", "hash" => @hash, "timestamp" => "0x6700"}
 
   defp answer("eth_getBlockByHash", [@hash, false], _state),
@@ -155,9 +161,18 @@ defmodule Autolaunch.RobinhoodBidChain do
   defp answer("eth_simulateV1", [%{blockStateCalls: [%{calls: calls}]}, _block], state),
     do: [%{"calls" => Enum.map(calls, &simulated(String.slice(&1.data, 0, 10), &1, state))}]
 
+  # The auction's bids for one owner: the one it holds, when that owner placed it.
+  defp answer("eth_getLogs", [%{address: @auction, topics: [submitted, nil, owner]}], state) do
+    if submitted == LabAbi.topic(RobinhoodLabAbi.bid_submitted_signature()) and
+         number(owner) == number(state.bid.owner),
+       do: [bid_submitted(state)],
+       else: []
+  end
+
   defp contract(@arb_sys, _config), do: :clock
   defp contract(@auction, _config), do: :auction
   defp contract(@route, _config), do: :route
+  defp contract(@token, _config), do: :token
 
   defp contract(address, config) do
     {:ok, v1} = Lab.contracts(config, :v1)
@@ -191,10 +206,14 @@ defmodule Autolaunch.RobinhoodBidChain do
       selector == LabAbi.selector("launchIdOfAuction(address)") ->
         uint(state.launch_id)
 
+      selector == LabAbi.selector("nextLaunchId()") ->
+        uint(state.launch_id + 1)
+
       selector == LabAbi.selector("launches(uint256)") ->
-        RobinhoodLabAbi.launch_record_words()
-        |> then(&List.duplicate(0, &1))
-        |> List.replace_at(2, number(state.stock))
+        :v2
+        |> RobinhoodLabAbi.shape()
+        |> Map.fetch!(:record_fields)
+        |> Enum.map(&launch(&1, state))
         |> words()
 
       selector == LabAbi.selector("stockAdmission(address)") ->
@@ -204,7 +223,18 @@ defmodule Autolaunch.RobinhoodBidChain do
 
   # The first Memestock launchpad made no auction here.
   defp read(:first_launchpad, selector, _argument, _state) do
-    if selector == LabAbi.selector("launchIdOfAuction(address)"), do: uint(0)
+    cond do
+      selector == LabAbi.selector("launchIdOfAuction(address)") -> uint(0)
+      selector == LabAbi.selector("nextLaunchId()") -> uint(1)
+    end
+  end
+
+  defp read(:token, selector, _argument, _state) do
+    cond do
+      selector == LabAbi.selector("name()") -> string("Robinhood Dog")
+      selector == LabAbi.selector("symbol()") -> string("RDOG")
+      selector == LabAbi.selector("tokenURI()") -> string("data:application/json;base64,e30=")
+    end
   end
 
   defp read(:usdg, selector, _argument, state) do
@@ -239,14 +269,14 @@ defmodule Autolaunch.RobinhoodBidChain do
       {"checkpoint()", fn -> words([state.checkpoint_price, 0, 0, 0, 0, 0]) end},
       {"nextActiveTickPrice()", fn -> uint(state.next_active_tick) end},
       {"ticks(uint256)", fn -> words([state.tick_next, 0]) end},
-      {"bids(uint256)", fn -> bid_record(argument, state.bid) end},
+      {"bids(uint256)", fn -> bid_record(argument, state) end},
       {"nextBidId()", fn -> uint(8) end},
       {"checkpoints(uint64)", fn -> checkpoint(state.checkpoints, argument, state.bid) end}
     ]
   end
 
   # startBlock, startCumulativeMps, exitedBlock, maxPrice, owner, amountQ96, tokensFilled
-  defp bid_record(7, bid),
+  defp bid_record(id, %{bid_id: id, bid: bid}),
     do:
       words([
         bid.start_block,
@@ -258,7 +288,30 @@ defmodule Autolaunch.RobinhoodBidChain do
         bid.tokens_filled
       ])
 
-  defp bid_record(_none, _bid), do: words(List.duplicate(0, 7))
+  defp bid_record(_none, _state), do: words(List.duplicate(0, 7))
+
+  # `BidSubmitted(bidId, owner, priceQ96, amount)`, the amount in the stock.
+  defp bid_submitted(%{bid_id: id, bid: bid}),
+    do: %{
+      "address" => @auction,
+      "topics" => [
+        LabAbi.topic(RobinhoodLabAbi.bid_submitted_signature()),
+        uint(id),
+        BaseRpcStub.address_topic(bid.owner)
+      ],
+      "data" => words([bid.max_price_q96, bid.amount])
+    }
+
+  # One launch record's field: a launch still bidding, on the auction's own
+  # schedule.
+  defp launch(:launcher, _state), do: number(@launcher)
+  defp launch(:new_token, _state), do: number(@token)
+  defp launch(:currency, state), do: number(state.stock)
+  defp launch(:auction, _state), do: number(@auction)
+  defp launch(:start_block, state), do: state.start_block
+  defp launch(:end_block, state), do: state.end_block
+  defp launch(:claim_block, state), do: state.claim_block
+  defp launch(_unset, _state), do: 0
 
   # price, currencyRaised, mpsPerPrice, cumulativeMps, prev, next
   defp checkpoint(:final, _block, bid),
@@ -335,6 +388,12 @@ defmodule Autolaunch.RobinhoodBidChain do
   defp address(value), do: "0x" <> BaseRpcStub.address_word(value)
   defp words(values), do: "0x" <> Enum.map_join(values, &BaseRpcStub.hex_word/1)
   defp number("0x" <> hex), do: String.to_integer(hex, 16)
+
+  defp string(value) do
+    hex = Base.encode16(value, case: :lower)
+    padded = String.pad_trailing(hex, div(byte_size(hex) + 63, 64) * 64, "0")
+    "0x" <> BaseRpcStub.hex_word(32) <> BaseRpcStub.hex_word(byte_size(value)) <> padded
+  end
 
   defp keep(key) do
     old = Application.fetch_env(:autolaunch, key)

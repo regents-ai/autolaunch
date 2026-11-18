@@ -24,8 +24,9 @@ defmodule Autolaunch.AgentRobinhoodBid do
   settled is one a wallet of the person's placed, by the auction's own record,
   on an auction the site lists, hidden or not, as on the bid's page. A bid on
   an auction whose bidding has ended, by its record or the clock the auction
-  keeps at the latest block, is refused as `bidding_ended`: the auction would
-  refuse it.
+  keeps at the latest block, is refused as `bidding_ended`, and one before
+  that clock reaches the auction's start block as `auction_not_started`: the
+  auction would refuse either.
 
   A refusal is an `Autolaunch.AgentRobinhoodBid.Refused` holding one of the
   codes the Robinhood bid contract documents (`code/1`). Anything the review
@@ -51,21 +52,26 @@ defmodule Autolaunch.AgentRobinhoodBid do
   # Every reason the two reviews, the auction's listing, the wallet and the
   # person's account name, as the code an agent is answered with. A refusal the
   # auction page or the bid's row names keeps its own name where the page gives
-  # it one. A bid id naming no bid, or a bid on no auction listed here, is none
-  # of the person's, as another's bid is. Robinhood Chain answering what is not
-  # a block of it, or not at all, could not be read just now. A deployment
-  # description that does not load or no longer matches the chain, an auction
-  # address the site stored that is not one or holds no contract, and a listed
-  # auction no launchpad of the deployment made, are the site's own fault.
+  # it one. An id naming no auction the site lists on Robinhood Chain names no
+  # auction here. A bid id naming no bid, or a bid on no auction listed here,
+  # is none of the person's, as another's bid is. Robinhood Chain answering
+  # what is not a block of it, or not at all, could not be read just now, and
+  # so could a stock's decimals outside what a token can have, which only the
+  # chain names. A deployment description that does not load or no longer
+  # matches the chain, an auction address the site stored that is not one or
+  # holds no contract, and a listed auction no launchpad of the deployment
+  # made (`unknown_auction` on a bid, `auction_not_found` on a settlement), are
+  # the site's own fault.
   @codes %{
     authentication_required: :authentication_required,
     wallet_required: :wallet_required,
     wrong_signer: :wrong_signer,
-    unknown_auction: :auction_not_found,
+    auction_not_listed: :auction_not_found,
     invalid_slippage: :invalid_slippage,
     invalid_decimal: :invalid_decimal,
     amount_required: :invalid_amount,
     amount_not_representable: :invalid_amount,
+    max_price_required: :invalid_price,
     price_out_of_range: :invalid_price,
     price_below_admissible_tick: :price_below_admissible_tick,
     bidding_ended: :bidding_ended,
@@ -93,10 +99,12 @@ defmodule Autolaunch.AgentRobinhoodBid do
     invalid_chain_response: :chain_unavailable,
     invalid_block_header: :chain_unavailable,
     wrong_chain: :chain_unavailable,
+    invalid_decimals: :chain_unavailable,
     robinhood_unavailable: :bid_unavailable,
     lab_config_changed: :bid_unavailable,
     invalid_auction: :bid_unavailable,
     lab_contract_missing: :bid_unavailable,
+    unknown_auction: :bid_unavailable,
     auction_not_found: :bid_unavailable
   }
 
@@ -105,8 +113,10 @@ defmodule Autolaunch.AgentRobinhoodBid do
   @typed [allow_empty?: true, trim?: false]
 
   # A Robinhood bid's id as `autolaunch_my_positions` gives it: the auction's
-  # address and the auction's number for the bid, which is below 2^256.
-  @bid_id ~r/\A0x[0-9a-f]{40}:(0|[1-9][0-9]{0,76})\z/
+  # address and the auction's number for the bid, at most the 78 digits of the
+  # largest number the auction can hold (`@max_bid_number`).
+  @bid_id ~r/\A0x[0-9a-f]{40}:(0|[1-9][0-9]{0,77})\z/
+  @max_bid_number Integer.pow(2, 256) - 1
 
   # What each input of the hosted tools is, in the browser tools' words
   # (priv/agent_robinhood_bids_tools.json).
@@ -233,23 +243,28 @@ defmodule Autolaunch.AgentRobinhoodBid do
   defp listed_auction(id) do
     case Autolaunch.get_listed_auction(id, actor: nil) do
       {:ok, %Autolaunch.Auction{chain_id: chain_id} = auction} ->
-        if Lab.chain?(chain_id), do: {:ok, auction}, else: {:error, :unknown_auction}
+        if Lab.chain?(chain_id), do: {:ok, auction}, else: {:error, :auction_not_listed}
 
       {:ok, nil} ->
-        {:error, :unknown_auction}
+        {:error, :auction_not_listed}
 
       {:error, error} ->
         {:error, error}
     end
   end
 
-  # A Robinhood bid's auction must be one the site lists, hidden or not, as on
-  # the bid's page; a bid on any other is none of the person's here.
+  # A Robinhood bid's auction must be one the site lists on Robinhood Chain,
+  # hidden or not, as on the bid's page, and its number one the auction can
+  # hold; any other bid is none of the person's here, known before anything is
+  # read.
   defp listed_bid(bid) do
     [address, number] = String.split(bid, ":")
 
-    case Autolaunch.get_held_robinhood_auction(address, actor: %Autolaunch.Actors.System{}) do
-      {:ok, %Autolaunch.Auction{} = auction} -> {:ok, auction, number}
+    with true <- String.to_integer(number) <= @max_bid_number || {:error, :not_your_bid},
+         {:ok, %Autolaunch.Auction{} = auction} <-
+           Autolaunch.get_held_robinhood_auction(address, actor: %Autolaunch.Actors.System{}) do
+      {:ok, auction, number}
+    else
       {:ok, nil} -> {:error, :not_your_bid}
       {:error, error} -> {:error, error}
     end
@@ -265,14 +280,15 @@ defmodule Autolaunch.AgentRobinhoodBid do
   end
 
   # Bidding has ended once the auction's record says so, before Robinhood
-  # Chain is asked anything, or once the review's clock has reached the end
-  # block. The page offers no bid then either.
+  # Chain is asked anything; the page offers no bid then either. Otherwise the
+  # review's clock decides: before the start block bidding has not started,
+  # and from the end block it has ended.
   defp open(%Autolaunch.Auction{state: state}) when state in [:ended, :graduated, :failed],
     do: {:error, :bidding_ended}
 
   defp open(%Autolaunch.Auction{}), do: :ok
   defp open(%{blocked: nil}), do: :ok
-  defp open(%{blocked: :bidding_ended}), do: {:error, :bidding_ended}
+  defp open(%{blocked: reason}), do: {:error, reason}
 
   # A refusal holds the code of the reason it names (`code/1`), which Ash would
   # otherwise turn into text (`AutolaunchWeb.AgentRobinhoodBidAnswer`). One
