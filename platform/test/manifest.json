@@ -6163,7 +6163,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d5c9dd2df907d156dd1acd907ef0a877e2f0f9c844c4c6d28502342fcb8a606c"
+      "source_sha256": "3f51c3212b57f6aa1e78d84067ec4fd63804f9ab9e340b6e66dc6fcf9f3eacfd"
     },
     {
       "id": 594,
@@ -6176,20 +6176,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d5c9dd2df907d156dd1acd907ef0a877e2f0f9c844c4c6d28502342fcb8a606c"
+      "source_sha256": "3f51c3212b57f6aa1e78d84067ec4fd63804f9ab9e340b6e66dc6fcf9f3eacfd"
     },
     {
       "id": 595,
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch/accounts_connected_test.exs",
-      "line": 24,
+      "line": 28,
       "test_name": "a person with #{label} has an account on show",
       "keep_because": "One test for each of a checked X account, GitHub only and ENS only: connected?/1 is true. It fails if any one of the three is not counted.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d5c9dd2df907d156dd1acd907ef0a877e2f0f9c844c4c6d28502342fcb8a606c"
+      "source_sha256": "3f51c3212b57f6aa1e78d84067ec4fd63804f9ab9e340b6e66dc6fcf9f3eacfd"
     }
   ],
   "legacy_folders_to_remove": [

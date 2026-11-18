@@ -20,7 +20,11 @@ defmodule Autolaunch.AccountsConnectedTest do
     refute Accounts.connected?(account.id)
   end
 
-  for {label, provider} <- [{"a checked X account", :x}, {"GitHub only", :github}, {"ENS only", :ens}] do
+  for {label, provider} <- [
+        {"a checked X account", :x},
+        {"GitHub only", :github},
+        {"ENS only", :ens}
+      ] do
     test "a person with #{label} has an account on show" do
       account = TestSupport.register_creator!()
       TestSupport.connect!(account, unquote(provider))
