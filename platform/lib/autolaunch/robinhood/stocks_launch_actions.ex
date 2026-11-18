@@ -43,12 +43,45 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     with {:ok, %{actor: actor, signer: signer}} <-
            LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, fields} <- LaunchActions.launchable(draft),
+         {:ok, review} <- review(draft, signer),
+         {:ok, _kept} <- keep(review, actor),
+         do: {:ok, review}
+  end
+
+  @doc """
+  The review `prepare/3` builds for a saved draft on Robinhood Chain, once
+  `signer` is proved to be one of the draft owner's own wallets: one snapshot
+  of the launchpad, then the review's signer, chain and one step, the facts it
+  was built from and the plain facts the page shows. `draft` is read with its
+  image. A paired agent's launch of its person's draft is reviewed here too
+  (`Autolaunch.AgentLaunch`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{chain: :robinhood} = draft, signer) do
+    with {:ok, fields} <- LaunchActions.launchable(draft),
          {:ok, config} <- robinhood_lab(),
          {:ok, snapshot} <- snapshot(fields.stock),
          {:ok, executable} <- LaunchActions.executable(snapshot),
-         {:ok, _review} <- record_review(actor, signer, fields),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
+  end
+
+  @doc """
+  What a review's launch is kept as (`Autolaunch.Robinhood.LaunchReview`), so
+  Robinhood discovery knows it as this site's launch whether or not the
+  browser reports it back: its chain, signer, name, symbol, stock and links.
+  """
+  @spec kept(map()) :: map()
+  def kept(%{signer: signer, facts: facts}) do
+    %{
+      chain_id: Lab.chain_id(),
+      signer: signer,
+      name: facts["name"],
+      symbol: facts["symbol"],
+      stock: facts["stock"],
+      telegram: facts["telegram"],
+      discord: facts["discord"],
+      links: facts["links"]
+    }
   end
 
   @doc """
@@ -65,22 +98,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     end
   end
 
-  # The launch this review would carry out, kept so Robinhood discovery knows it
-  # as this site's launch whether or not the browser reports it back.
-  defp record_review(%Human{human_account_id: account_id}, signer, fields),
+  # The launch this review would carry out, kept for the signed-in person.
+  defp keep(review, %Human{human_account_id: account_id}),
     do:
       Autolaunch.record_robinhood_launch_review(
-        %{
-          chain_id: Lab.chain_id(),
-          signer: signer,
-          human_account_id: account_id,
-          name: fields.name,
-          symbol: fields.symbol,
-          stock: fields.stock,
-          telegram: fields.telegram,
-          discord: fields.discord,
-          links: fields.links
-        },
+        Map.put(kept(review), :human_account_id, account_id),
         actor: %Autolaunch.Actors.System{}
       )
 
@@ -152,12 +174,12 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           end),
         "risk" => risk_copy()
       },
-      review: review(fields, executable, schedule)
+      review: shown(fields, executable, schedule)
     }
   end
 
   # The plain facts the page shows before anything is signed.
-  defp review(fields, executable, schedule) do
+  defp shown(fields, executable, schedule) do
     [
       ["Launch fee", "None"],
       [

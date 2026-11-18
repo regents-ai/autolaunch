@@ -195,14 +195,26 @@ defmodule Autolaunch.Stocks.LaunchActions do
     with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
            LaunchOperations.signed_in_wallet(address, opts),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, fields} <- launchable(draft),
-         {:ok, config} <- stocks_lab(),
-         {:ok, snapshot} <- snapshot(fields),
-         {:ok, executable} <- executable(snapshot),
-         review <- review(draft, fields, executable, signer, snapshot, config),
+         {:ok, review} <- review(draft, signer),
          {:ok, operation} <- open(lease, draft, signer, review) do
       {:ok, reviewed(operation)}
     end
+  end
+
+  @doc """
+  The review `prepare/3` saves for a saved draft on Base, once `signer` is
+  proved to be one of the draft owner's own wallets: one snapshot of the
+  launchpad, and the chain, signer, one step and facts, exactly as the saved
+  review holds them. `draft` is read with its image. A paired agent's launch
+  of its person's draft is reviewed here too (`Autolaunch.AgentLaunch`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{chain: :base} = draft, signer) do
+    with {:ok, fields} <- launchable(draft),
+         {:ok, config} <- stocks_lab(),
+         {:ok, snapshot} <- snapshot(fields),
+         {:ok, executable} <- executable(snapshot),
+         do: {:ok, saved_review(draft, fields, executable, signer, snapshot, config)}
   end
 
   @doc """
@@ -284,7 +296,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   # Reviews
 
   # The saved review: fixed once written, and read back exactly as stored.
-  defp review(draft, fields, executable, signer, snapshot, config) do
+  defp saved_review(draft, fields, executable, signer, snapshot, config) do
     %{
       "chain" => Client.chain(config),
       "signer" => signer,

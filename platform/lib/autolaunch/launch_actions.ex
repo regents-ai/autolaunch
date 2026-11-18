@@ -23,7 +23,6 @@ defmodule Autolaunch.LaunchActions do
     LabAbi,
     LaunchChainClient,
     LaunchDraft,
-    LaunchDraftImageStorage,
     LaunchLinks,
     LaunchOperation,
     TreasurySecurity
@@ -62,14 +61,26 @@ defmodule Autolaunch.LaunchActions do
     with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
            LaunchOperations.signed_in_wallet(address, opts, LaunchOperation),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, fields} <- launchable(draft, actor),
-         {:ok, snapshot} <- snapshot(signer),
-         :ok <- reviewable(fields, snapshot),
-         {:ok, treasury_report} <- review_treasury(draft),
-         review = review(draft, fields, signer, snapshot, treasury_report),
+         {:ok, review} <- review(draft, signer),
          {:ok, operation} <- open(lease, draft, signer, review) do
       {:ok, reviewed(operation)}
     end
+  end
+
+  @doc """
+  The review `prepare/3` saves, once `signer` is proved to be one of the
+  draft owner's own wallets: one snapshot of Base, and the chain, signer, one
+  step and facts, exactly as the saved review holds them. `draft` is read with
+  its image. A paired agent's launch of its person's draft is reviewed here
+  too (`Autolaunch.AgentLaunch`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(draft, signer) do
+    with {:ok, fields} <- launchable(draft),
+         {:ok, snapshot} <- snapshot(signer),
+         :ok <- reviewable(fields, snapshot),
+         {:ok, treasury_report} <- review_treasury(draft),
+         do: {:ok, saved_review(draft, fields, signer, snapshot, treasury_report)}
   end
 
   @doc """
@@ -183,7 +194,7 @@ defmodule Autolaunch.LaunchActions do
   # Reviews
 
   # The saved review: fixed once written, and read back exactly as stored.
-  defp review(draft, fields, signer, snapshot, treasury_report) do
+  defp saved_review(draft, fields, signer, snapshot, treasury_report) do
     config = Lab.current!()
 
     %{
@@ -268,8 +279,9 @@ defmodule Autolaunch.LaunchActions do
 
   # Everything the factory itself requires of a saved draft, refused here
   # rather than reverting in the customer's wallet. A launch without a website
-  # names this site.
-  defp launchable(draft, actor) do
+  # names this site. Complete token details include the draft's own stored
+  # image at its address (`LaunchDraft.image_complete?/1`).
+  defp launchable(draft) do
     fields = %{
       name: draft.name,
       symbol: draft.symbol,
@@ -278,7 +290,6 @@ defmodule Autolaunch.LaunchActions do
     }
 
     with :ok <- metadata(draft, fields),
-         {:ok, image} <- launch_image(draft, actor),
          :ok <- treasury_confirmed(draft),
          true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- Address.normalize(draft.treasury) do
@@ -287,7 +298,7 @@ defmodule Autolaunch.LaunchActions do
          telegram: draft.telegram,
          discord: draft.discord,
          links: LaunchLinks.others(draft),
-         image: image,
+         image: draft.image,
          treasury: treasury
        })}
     else
@@ -302,23 +313,6 @@ defmodule Autolaunch.LaunchActions do
     if LaunchDraft.treasury_confirmation_needed?(draft),
       do: unavailable(:agent_treasury_unconfirmed),
       else: :ok
-  end
-
-  defp launch_image(draft, actor) do
-    with true <- LaunchDraft.image_complete?(draft),
-         {:ok,
-          %{
-            id: image_id,
-            launch_draft_id: image_draft_id
-          } = image} <- Autolaunch.get_my_launch_draft_image(draft.id, actor: actor),
-         true <- image_id == draft.launch_draft_image_id,
-         true <- image_draft_id == draft.id,
-         expected <- LaunchDraftImageStorage.public_url(image),
-         true <- expected == draft.image do
-      {:ok, expected}
-    else
-      _unavailable -> unavailable(:launch_metadata_incomplete)
-    end
   end
 
   defp metadata(draft, fields) do
