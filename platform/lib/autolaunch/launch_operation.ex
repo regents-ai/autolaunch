@@ -85,9 +85,23 @@ defmodule Autolaunch.LaunchOperation do
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end
+
+    # A paired agent's review of its person's draft (`Autolaunch.AgentLaunch`),
+    # kept for the person the pairing names while the pairing is locked.
+    create :agent_prepare do
+      accept [:action_id, :review, :signer, :step]
+      argument :launch_draft_id, :uuid, allow_nil?: false
+      change set_attribute(:human_account_id, actor(:human_account_id))
+      change set_attribute(:launch_draft_id, arg(:launch_draft_id))
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+    end
   end
 
   policies do
+    bypass action(:agent_prepare) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
+    end
+
     policy always() do
       authorize_if Autolaunch.Checks.SystemActor
     end

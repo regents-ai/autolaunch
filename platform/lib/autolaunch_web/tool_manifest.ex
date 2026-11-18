@@ -3,10 +3,11 @@ defmodule AutolaunchWeb.ToolManifest do
   The WebMCP tools this site offers right now. `priv/tool_manifest.json` is the
   site's own set, the one the pages' script is built with
   (`assets/js/public_tools.ts`). While covered calls, Exposure, Earn, agent
-  bids or agent Robinhood bids are on, the tools in
+  bids, agent Robinhood bids or agent launches are on, the tools in
   `priv/covered_calls_tools.json`, `priv/exposure_tools.json`,
-  `priv/earn_tools.json`, `priv/agent_bids_tools.json` or
-  `priv/agent_robinhood_bids_tools.json` join it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
+  `priv/earn_tools.json`, `priv/agent_bids_tools.json`,
+  `priv/agent_robinhood_bids_tools.json` or `priv/agent_launches_tools.json`
+  join it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
   `/capabilities.json`, the agent guides and the tools dialog list. Off, nothing
   about them reaches a page, the script or any document.
   """
@@ -41,6 +42,10 @@ defmodule AutolaunchWeb.ToolManifest do
                         |> Jason.decode!()
                         |> Map.fetch!("tools")
 
+  @agent_launches_path Application.app_dir(:autolaunch, "priv/agent_launches_tools.json")
+  @external_resource @agent_launches_path
+  @agent_launches @agent_launches_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
   @doc "The features that are on, by name."
   def features do
     [
@@ -48,7 +53,8 @@ defmodule AutolaunchWeb.ToolManifest do
       {"exposure", Autolaunch.Exposure.Deployment.enabled?()},
       {"earn", Autolaunch.Earn.Catalog.enabled?()},
       {"agent_bids", Autolaunch.AgentBid.enabled?()},
-      {"agent_robinhood_bids", Autolaunch.AgentRobinhoodBid.enabled?()}
+      {"agent_robinhood_bids", Autolaunch.AgentRobinhoodBid.enabled?()},
+      {"agent_launches", Autolaunch.AgentLaunch.enabled?()}
     ]
     |> Enum.filter(&elem(&1, 1))
     |> Enum.map(&elem(&1, 0))
@@ -76,6 +82,7 @@ defmodule AutolaunchWeb.ToolManifest do
       if("exposure" in on, do: @exposure, else: []) ++
       if("earn" in on, do: @earn, else: []) ++
       if("agent_bids" in on, do: @agent_bids, else: []) ++
-      if("agent_robinhood_bids" in on, do: @agent_robinhood_bids, else: [])
+      if("agent_robinhood_bids" in on, do: @agent_robinhood_bids, else: []) ++
+      if("agent_launches" in on, do: @agent_launches, else: [])
   end
 end

@@ -1,0 +1,293 @@
+# Agent launches, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_LAUNCHES=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
+# is api-contract.openapiv3.yaml exactly, or that and the agent bid contracts while agent bids are
+# on. Every path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/launches/{draft}/steps:
+    post:
+      operationId: autolaunch_launch_prepare
+      summary: Prepare a launch
+      description: The launch step of one of the person's saved drafts, Revstake or Memestock, built
+        from the chain at the latest block exactly as the create page builds it, for one of the
+        person's own wallets (`signer`, or the wallet they signed in with) - a Revstake draft on Base,
+        a Memestock draft on the chain it names, Base or Robinhood Chain. The site only prepares; the
+        wallet's own key signs and sends the step on the network `chain` names, and its data ends with
+        the site's Builder Code. A draft whose treasury still needs the person on the create page - the
+        acknowledgement a treasury held by a private key takes, the confirmation of a treasury the agent
+        chose, or the treasury check - is refused with that reason and no step. The site keeps the
+        review, so the launch is listed as the person's once the chain shows it.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentLaunchDraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentLaunchRequest'
+      responses:
+        '200':
+          description: The launch step and the facts it was built from
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '404':
+          description: The person has no saved draft with that id (launch_draft_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '409':
+          description: The person's account has no verified wallet to act with (wallet_required), the
+            draft lacks something the launch needs or waits for the person on the create page
+            (launch_metadata_incomplete, agent_treasury_unconfirmed, launch_treasury_invalid,
+            launch_treasury_refused, treasury_report_missing, treasury_security_changed,
+            treasury_configuration_drift, stock_invalid, stock_not_admitted), or the chain or the site
+            takes no launch now (launches_paused, strategy_not_bound, stocks_unavailable,
+            robinhood_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '422':
+          description: An unknown field, a field that is not text, or a draft id that is not one
+            (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '503':
+          description: The chain or the person's account could not be read just now (chain_unavailable,
+            account_unavailable), the site could not prepare it just now (launch_unavailable), or the
+            site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+components:
+  parameters:
+    AgentLaunchDraftId:
+      name: draft
+      in: path
+      required: true
+      description: The draft's id exactly as autolaunch_revstake_draft or autolaunch_memestock_draft
+        gives it (id).
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AgentLaunchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentLaunchDraft:
+      type: object
+      required:
+      - id
+      - kind
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - revstake
+          - memestock
+    AgentLaunchChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: The network the launch step is sent on, Base or Robinhood Chain.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentLaunchStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          enum:
+          - launch
+        to:
+          type: string
+          description: The launch factory or launchpad.
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentLaunchSteps:
+      type: object
+      required:
+      - kind
+      - signer
+      - draft
+      - chain
+      - block
+      - steps
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - launch
+        signer:
+          type: string
+        draft:
+          $ref: '#/components/schemas/AgentLaunchDraft'
+        chain:
+          $ref: '#/components/schemas/AgentLaunchChain'
+        block:
+          type: integer
+          description: The latest block the step was built from.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentLaunchStep'
+        facts:
+          type: object
+          description: Everything the launch carries and the terms it opens with, as the create page
+            shows them. A Revstake launch also gives its treasury (treasury, treasury_path) and the
+            contracts it was built against; a Memestock launch its stock (stock, stock_symbol,
+            stock_decimals) and launchpad.
+          required:
+          - draft_id
+          - name
+          - symbol
+          - description
+          - website
+          - telegram
+          - discord
+          - links
+          - image
+          - agent_set_fields
+          - block_number
+          - block_hash
+          - terms
+          - risk
+          properties:
+            draft_id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            symbol:
+              type: string
+            description:
+              type: string
+            website:
+              type: string
+              description: The website the token carries; this site's when the draft has none.
+            telegram:
+              type: string
+              nullable: true
+            discord:
+              type: string
+              nullable: true
+            links:
+              type: array
+              items:
+                type: string
+            image:
+              type: string
+              description: The draft's picture, stored here.
+            agent_set_fields:
+              type: array
+              description: The draft fields an agent set that the person has not changed since.
+              items:
+                type: string
+            block_number:
+              type: integer
+            block_hash:
+              type: string
+            terms:
+              description: The terms the launch opens with - for a Revstake launch each term's exact
+                value by name, for a Memestock launch each term's label and words.
+            risk:
+              type: string
+    AgentLaunchStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentLaunchSteps'
+    AgentLaunchError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - launch_draft_not_found
+              - wallet_required
+              - launch_metadata_incomplete
+              - agent_treasury_unconfirmed
+              - launch_treasury_invalid
+              - launch_treasury_refused
+              - treasury_report_missing
+              - treasury_security_changed
+              - treasury_configuration_drift
+              - stock_invalid
+              - stock_not_admitted
+              - launches_paused
+              - strategy_not_bound
+              - stocks_unavailable
+              - robinhood_unavailable
+              - chain_unavailable
+              - launch_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string

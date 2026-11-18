@@ -117,8 +117,15 @@ defmodule Autolaunch.LaunchDraftImage do
   end
 
   policies do
-    policy action([:store_for_owner, :read, :mine, :mine_by_id, :mine_for_reuse]) do
+    policy action([:store_for_owner, :mine, :mine_by_id, :mine_for_reuse]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
+    end
+
+    # A paired agent reads its person's draft with its picture, to review the
+    # launch (`Autolaunch.AgentLaunch`).
+    policy action(:read) do
+      authorize_if Autolaunch.Accounts.Checks.HumanActor
+      authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
     end
 
     policy action([:read, :mine, :mine_by_id, :mine_for_reuse]) do

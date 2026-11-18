@@ -9,7 +9,9 @@ defmodule Autolaunch.RobinhoodBidChain do
   `stock/0`, admitted with 18 decimals and a route, which the site lists as
   TSLA. Bid 7 on it (`bid_id`) is the bid fixture's wallet's
   (`Autolaunch.BidFixture.wallet/0`); any other id holds no bid. The auction's
-  logs hold that bid's `BidSubmitted`, so a wallet's positions read it.
+  logs hold that bid's `BidSubmitted`, so a wallet's positions read it. The
+  launchpad takes new launches unless `launches_paused`, so a launch's review
+  reads it too.
 
   `install/1` points the site at it and `put/1` replaces what it answers
   mid-test, each as overrides over the defaults; both are undone when the test
@@ -105,6 +107,7 @@ defmodule Autolaunch.RobinhoodBidChain do
         unreadable: nil,
         adapter_launchpad: nil,
         launch_id: 1,
+        launches_paused: false,
         stock: @stock,
         admission: [1, 18, number(@route)],
         usdg_balance: 100 * 10 ** 6,
@@ -218,6 +221,9 @@ defmodule Autolaunch.RobinhoodBidChain do
 
       selector == LabAbi.selector("stockAdmission(address)") ->
         words(state.admission)
+
+      selector == LabAbi.selector("launchesPaused()") ->
+        bool(state.launches_paused)
     end
   end
 

@@ -85,41 +85,85 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_robinhood_bids_guide_path
   @agent_robinhood_bids_guide File.read!(@agent_robinhood_bids_guide_path)
 
-  # The guides' sentences that say who bids, each as it reads without agent
-  # bids, as before them, and as it reads while the site offers them on Base,
-  # Robinhood Chain or both: a paired agent prepares the steps of a bid on an
-  # auction there, and of its return and claim, and the person's own wallet
-  # signs each one. Each names the chains offered (`%{chains}`), the guide
-  # sections that say how (`%{see}`) and the bids on the chain not offered,
-  # which stay with the site's pages (`%{others_and}`, `%{others_stay}`), as
-  # `bidding/1` words them.
+  # Agent launches' route and its components, and its section of the agent
+  # guides, added only while the site offers them.
+  @agent_launches_contract_path Path.expand(
+                                  "../../contracts/agent-launches.openapiv3.yaml",
+                                  __DIR__
+                                )
+  @external_resource @agent_launches_contract_path
+  @agent_launches_contract YamlElixir.read_from_file!(@agent_launches_contract_path)
+  @agent_launches_guide_path Path.join(@directory, "agent_launches.md")
+  @external_resource @agent_launches_guide_path
+  @agent_launches_guide File.read!(@agent_launches_guide_path)
+
+  # The guides' sentences that say who bids and launches, each as it reads
+  # with neither agent bids nor agent launches, as before them; while the site
+  # offers agent bids on Base, Robinhood Chain or both: a paired agent prepares
+  # the steps of a bid on an auction there, and of its return and claim; while
+  # it offers agent launches: a paired agent prepares the launch step of the
+  # person's saved draft; and while it offers both. The person's own wallet
+  # signs each step. Each names the chains offered (`%{chains}`), the guide
+  # sections that say how (`%{see}` for the bid sections, `%{see_all}` with
+  # Agent launches too) and the bids on the chain not offered, which stay with
+  # the site's pages (`%{others_and}`, `%{others_stay}`), as `bidding/1` words
+  # them.
+  @card_off "No agent command claims, withdraws or\n   bids."
+  @card_bids "For a bid on a %{chains} auction you can\n   prepare its return and claim for your person's wallet to sign (see %{see}); no agent\n   command claims, withdraws or bids by itself."
+
   @bidding [
     {"{{bidding_agents}}",
      "Wallet signing, launch submission, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. The signed interface does not expose these operations.",
-     "Wallet signing, launch submission, trading, staking, claims and treasury verification remain person-controlled. For a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see %{see}); %{others_and}the person's launches stay on the site's pages."},
+     "Wallet signing, launch submission, trading, staking, claims and treasury verification remain person-controlled. For a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see %{see}); %{others_and}the person's launches stay on the site's pages.",
+     "Wallet signing, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. For the launch of the person's saved draft, a paired agent prepares the launch step through the signed interface, and the person's own wallet signs and sends it (see Agent launches); the person's bids stay on the site's pages.",
+     "Wallet signing, trading, staking, claims and treasury verification remain person-controlled. For a bid on a %{chains} auction, and its return and claim, and for the launch of the person's saved draft, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see %{see_all})%{others_stay}."},
     {"{{bidding_skill}}",
      "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; no agent tool or command\ndoes them.",
-     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a %{chains} auction, and its return and claim, you can prepare the steps\n(see %{see}); %{others_and}your person's launches stay on the site's pages."},
-    {"{{bidding_card}}", "No agent command claims, withdraws or\n   bids.",
-     "For a bid on a %{chains} auction you can\n   prepare its return and claim for your person's wallet to sign (see %{see}); no agent\n   command claims, withdraws or bids by itself."},
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a %{chains} auction, and its return and claim, you can prepare the steps\n(see %{see}); %{others_and}your person's launches stay on the site's pages.",
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; no agent tool or command\ndoes them. For your person's launch from their saved draft, you can prepare the launch step\nfor that wallet to sign and send (see Agent launches).",
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a %{chains} auction, and its return and claim, and for your person's launch\nfrom their saved draft, you can prepare the steps (see %{see_all})%{others_stay}."},
+    {"{{bidding_card}}", @card_off, @card_bids, @card_off, @card_bids},
     {"{{bidding_tools}}",
      "Wallet and launch controls remain person-controlled and are not registered as agent tools;",
-     "Wallet and launch controls remain person-controlled; for a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps, which the person's own wallet signs (see %{see});"},
+     "Wallet and launch controls remain person-controlled; for a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps, which the person's own wallet signs (see %{see});",
+     "Wallet and bid controls remain person-controlled; for the launch of the person's saved draft, a paired agent prepares the launch step, which the person's own wallet signs (see Agent launches);",
+     "Wallet controls remain person-controlled; for a bid on a %{chains} auction, and its return and claim, and for the launch of the person's saved draft, a paired agent prepares the steps, which the person's own wallet signs (see %{see_all});"},
     {"{{bidding_controls}}",
      "These financial and launch controls are not registered as agent tools.",
-     "For a bid on a %{chains} auction, and its return and claim, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md))%{others_stay}."},
+     "For a bid on a %{chains} auction, and its return and claim, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md))%{others_stay}.",
+     "A paired agent can also prepare the launch step of the person's saved draft for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md)); the bid, trade and stake controls are not registered as agent tools.",
+     "For a bid on a %{chains} auction, and its return and claim, and for the launch of the person's saved draft, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md))%{others_stay}."},
     {"{{bidding_wallet}}",
      "Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.",
-     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, for that wallet; %{others_and}the person's launches go through the person-controlled interface."},
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, for that wallet; %{others_and}the person's launches go through the person-controlled interface.",
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the launch step of the person's saved draft for that wallet; the person's bids go through the person-controlled interface.",
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, and the launch step of the person's saved draft, for that wallet%{others_stay}."},
     {"{{bidding_docs}}",
      "Bidding, claiming, launching, trading and staking happen on the website with the person's own wallet, and every step asks the wallet holder to confirm, through the person-controlled interface.",
-     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); %{others_and}the person's launches happen on the website, through the person-controlled interface."},
+     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); %{others_and}the person's launches happen on the website, through the person-controlled interface.",
+     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the launch step of the person's saved draft (see Agent launches); the person's bids happen on the website, through the person-controlled interface.",
+     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, and the launch step of the person's saved draft (see %{see_all})%{others_stay}."},
     {"{{bidding_website}}",
      "These happen on the website with the person's own wallet: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake. Every step asks the wallet holder to confirm.",
-     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake."},
+     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake.",
+     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the launch step of the person's saved draft (see Agent launches); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake.",
+     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, and the launch step of the person's saved draft (see %{see_all}); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake."},
     {"{{bidding_home}}",
      "Bidding, launching and staking happen on the website with the person's own wallet; every step asks the wallet holder to sign.",
-     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a %{chains} auction ([agents.md]({{origin}}/agents.md)); the rest happens on the website."}
+     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a %{chains} auction ([agents.md]({{origin}}/agents.md)); the rest happens on the website.",
+     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the launch step of the person's saved draft ([agents.md]({{origin}}/agents.md)); the rest happens on the website.",
+     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a %{chains} auction, and the launch step of the person's saved draft ([agents.md]({{origin}}/agents.md)); the rest happens on the website."}
+  ]
+
+  # The guides' sentences on the person's launch of a draft an agent filled in,
+  # each as it reads without agent launches, as before them, and while the
+  # site offers them, as `launching/1` words them.
+  @launching [
+    {"{{launching_draft}}",
+     "Your person then opens the create page, sees every field you set marked at the top of the form, and signs the launch.",
+     "Your person then opens the create page, sees every field you set marked at the top of the form, and signs the launch, or you prepare its launch step for their own wallet to sign and send (see Agent launches)."},
+    {"{{launching_skill}}", "your person\nsees every field you set on the create page and signs.",
+     "your person\nsees every field you set on the create page and signs, or you prepare the launch step for\ntheir own wallet to sign (see Agent launches)."}
   ]
 
   # Each chain a paired agent can prepare bids on, by the switch that offers
@@ -670,7 +714,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{earn}}\n", earn())
     |> String.replace("{{agent_bids}}\n", agent_bids())
     |> String.replace("{{agent_robinhood_bids}}\n", agent_robinhood_bids())
+    |> String.replace("{{agent_launches}}\n", agent_launches())
     |> bidding()
+    |> launching()
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -754,30 +800,62 @@ defmodule AutolaunchWeb.PublicDocuments do
       else: ""
   end
 
-  # Each sentence that says who bids as it reads with the chains whose agent
-  # bids are on: as before agent bids while none are; otherwise naming those
-  # chains and their guide sections, and the other chain's bids, if any, as
-  # staying with the site's pages.
+  defp agent_launches,
+    do: if("agent_launches" in ToolManifest.features(), do: @agent_launches_guide, else: "")
+
+  # Each sentence that says who bids and launches as it reads with what the
+  # site offers now: as before agent bids and launches while neither is on;
+  # otherwise naming the chains whose agent bids are on and the guide sections
+  # that say how, and the other chain's bids, if any, as staying with the
+  # site's pages.
   defp bidding(markdown) do
     on = ToolManifest.features()
     {offered, others} = Enum.split_with(@bid_chains, &(&1.switch in on))
+    launches? = "agent_launches" in on
 
-    Enum.reduce(@bidding, markdown, fn {mark, off, template}, text ->
-      String.replace(text, mark, bid_sentence(off, template, offered, others))
+    Enum.reduce(@bidding, markdown, fn {mark, off, bids, launches, both}, text ->
+      sentence =
+        case {offered, launches?} do
+          {[], false} -> off
+          {[], true} -> launches
+          {_offered, false} -> bid_sentence(bids, offered, others, [])
+          {_offered, true} -> bid_sentence(both, offered, others, ["Agent launches"])
+        end
+
+      String.replace(text, mark, sentence)
     end)
   end
 
-  defp bid_sentence(off, _template, [], _others), do: off
+  defp bid_sentence(template, offered, others, launches) do
+    sections = Enum.map(offered, & &1.see)
 
-  defp bid_sentence(_off, template, offered, others) do
     template
     |> String.replace("%{chains}", Enum.map_join(offered, " or ", & &1.chain))
-    |> String.replace("%{see}", Enum.map_join(offered, " and ", & &1.see))
+    |> String.replace("%{see_all}", listed(sections ++ launches))
+    |> String.replace("%{see}", listed(sections))
     |> String.replace("%{others_and}", Enum.map_join(others, &(&1.bids <> " and ")))
     |> String.replace(
       "%{others_stay}",
       Enum.map_join(others, &("; " <> &1.bids <> " stay on the auction's page"))
     )
+  end
+
+  # Names in a sentence: "A", "A and B", "A, B and C".
+  defp listed([name]), do: name
+
+  defp listed(names) do
+    {first, [last]} = Enum.split(names, -1)
+    Enum.join(first, ", ") <> " and " <> last
+  end
+
+  # Each sentence on the person's launch of a draft an agent filled in, as it
+  # reads with agent launches off or on.
+  defp launching(markdown) do
+    on? = "agent_launches" in ToolManifest.features()
+
+    Enum.reduce(@launching, markdown, fn {mark, off, on}, text ->
+      String.replace(text, mark, if(on?, do: on, else: off))
+    end)
   end
 
   # The fixed pages the sitemaps list, with covered calls and Earn while the site
@@ -960,7 +1038,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"exposure", @exposure_contract},
       {"earn", @earn_contract},
       {"agent_bids", @agent_bids_contract},
-      {"agent_robinhood_bids", @agent_robinhood_bids_contract}
+      {"agent_robinhood_bids", @agent_robinhood_bids_contract},
+      {"agent_launches", @agent_launches_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->

@@ -282,6 +282,26 @@ if agent_robinhood_bids_on do
   config :autolaunch, agent_robinhood_bids: :on
 end
 
+# A paired agent prepares the launch step of its person's saved draft, Revstake
+# or Memestock, only on a site switched on with AUTOLAUNCH_AGENT_LAUNCHES=true;
+# it reads Base through the Base description, and a Memestock launch the chain
+# its draft names, as the create page does. Off, no tool or route offers it
+# (`Autolaunch.AgentLaunch`).
+agent_launches_on =
+  case System.get_env("AUTOLAUNCH_AGENT_LAUNCHES") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_LAUNCHES must be true or unset"
+  end
+
+if agent_launches_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_LAUNCHES=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_launches: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

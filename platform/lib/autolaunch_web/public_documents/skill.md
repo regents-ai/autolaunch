@@ -64,8 +64,7 @@ ids.
 `agents status` (`agent_status`) checks in and records the time, which your person sees; it is
 not a passive identity check. Use `agents whoami` for that. A draft save needs a pairing and
 the site's launch gate to be open. It can set everything the create form takes, a Revstake
-treasury and a Memestock chain and stock included, but it never submits a launch: your person
-sees every field you set on the create page and signs. To launch a Memestock token on Base
+treasury and a Memestock chain and stock included, but it never submits a launch: {{launching_skill}} To launch a Memestock token on Base
 yourself, from your own wallet, follow Your own Memestock launch in /agents.md.
 
 ## Auctions, bids and claims
@@ -105,6 +104,7 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 {{earn}}
 {{agent_bids}}
 {{agent_robinhood_bids}}
+{{agent_launches}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment the token's staking received,

@@ -8,9 +8,10 @@ defmodule AutolaunchWeb.ToolErrors do
   gives it. A covered-call refusal takes the covered-call routes' code and words
   (`AutolaunchWeb.CoveredCallsAnswer.body/1`), an Earn refusal the Earn
   routes' (`AutolaunchWeb.EarnAnswer.body/1`), an agent bid's refusal the
-  agent bid routes' (`AutolaunchWeb.AgentBidAnswer.body/1`), and an agent
+  agent bid routes' (`AutolaunchWeb.AgentBidAnswer.body/1`), an agent
   Robinhood bid's the agent Robinhood bid routes'
-  (`AutolaunchWeb.AgentRobinhoodBidAnswer.body/1`). Every other tool's
+  (`AutolaunchWeb.AgentRobinhoodBidAnswer.body/1`), and an agent launch's the
+  agent launch route's (`AutolaunchWeb.AgentLaunchAnswer.body/1`). Every other tool's
   refusal is its route's own (`AutolaunchWeb.Refusal`). A failure nobody expected answers
   `internal_error`, as the API does, and is logged by kind alone
   (`AutolaunchWeb.ReadFailure`).
@@ -19,8 +20,8 @@ defmodule AutolaunchWeb.ToolErrors do
   (`check_input/3`, the server's `tool_argument_transformer`), with the code the
   same input gets over HTTP: a bid estimate's own route's answer to the same
   body (`invalid_amount` for an amount that is not text, as there), the other
-  market reads', the covered calls', Exposure's, Earn's, agent bids' and agent
-  Robinhood bids' `invalid_request`, each in its own route's words, a draft save's `invalid_draft`, a pairing's
+  market reads', the covered calls', Exposure's, Earn's, agent bids', agent
+  Robinhood bids' and agent launches' `invalid_request`, each in its own route's words, a draft save's `invalid_draft`, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
@@ -87,6 +88,9 @@ defmodule AutolaunchWeb.ToolErrors do
 
   defp refused(Autolaunch.AgentRobinhoodBid, _bid),
     do: Jason.encode!(AutolaunchWeb.AgentRobinhoodBidAnswer.body(:invalid_request))
+
+  defp refused(Autolaunch.AgentLaunch, _launch),
+    do: Jason.encode!(AutolaunchWeb.AgentLaunchAnswer.body(:invalid_request))
 
   defp refused(_resource, covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
@@ -171,6 +175,11 @@ end
 defimpl AshAi.ToToolError, for: Autolaunch.AgentRobinhoodBid.Refused do
   def to_tool_error(%{reason: reason}),
     do: Jason.encode!(AutolaunchWeb.AgentRobinhoodBidAnswer.body(reason))
+end
+
+defimpl AshAi.ToToolError, for: Autolaunch.AgentLaunch.Refused do
+  def to_tool_error(%{reason: reason}),
+    do: Jason.encode!(AutolaunchWeb.AgentLaunchAnswer.body(reason))
 end
 
 defimpl AshAi.ToToolError, for: Ash.Error.Unknown.UnknownError do

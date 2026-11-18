@@ -40,6 +40,14 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       ]
     end
 
+    # A paired agent's review of its person's draft (`Autolaunch.AgentLaunch`),
+    # kept for the person the pairing names while the pairing is locked.
+    create :agent_record do
+      accept [:chain_id, :signer, :name, :symbol, :stock, :telegram, :discord, :links]
+      change set_attribute(:human_account_id, actor(:human_account_id))
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+    end
+
     # The newest review that carried out this exact launch.
     read :matching do
       get? true
@@ -59,6 +67,10 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   end
 
   policies do
+    bypass action(:agent_record) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
+    end
+
     policy always() do
       authorize_if Autolaunch.Checks.SystemActor
     end
