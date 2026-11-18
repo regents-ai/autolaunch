@@ -1,7 +1,8 @@
 defmodule Autolaunch.LabPositionsTest do
   # After an auction ends, each of its unfinished site positions is read back
   # from the auction's own `bids(bidId)`. A finished bid is never read again; a
-  # bid with a bad answer is skipped; a node that stops answering ends the pass.
+  # bid with a bad answer, or one the auction has not issued, is skipped; a node
+  # that stops answering ends the pass.
   use Autolaunch.DataCase, async: false
 
   import ExUnit.CaptureLog, only: [with_log: 1]
@@ -55,6 +56,23 @@ defmodule Autolaunch.LabPositionsTest do
     refute bid_id_asked?("3")
   end
 
+  # `bids(3)` would revert `BidIdDoesNotExist`, which a read takes for a node
+  # that stopped answering.
+  test "a stored bid the auction has not issued is skipped in one line, from one read of its next bid id, and the bids after it are still read" do
+    {abi, [one, two, three]} = ended_auction_positions()
+    install(%{"3" => :unavailable}, 3)
+
+    {{:ok, readings}, log} =
+      with_log(fn -> LabPositions.read(abi, [one, three, two], @auction, @market, @block, []) end)
+
+    assert read_ids(readings) == ["1", "2"]
+    asked = calls()
+    refute bids_call(abi, "3") in asked
+    assert Enum.count(asked, &(&1 == LabAbi.selector("nextBidId()"))) == 1
+    assert [line] = log |> String.split("\n") |> Enum.filter(&(&1 =~ "[warning]"))
+    assert line =~ "Bid #{three.bid_id} is not one the auction has issued"
+  end
+
   defp ended_auction_positions do
     auction = TestSupport.project_auction(address: @auction, state: :graduated)
     for id <- ["1", "2", "3"], do: position!(auction.id, id, :active)
@@ -62,19 +80,26 @@ defmodule Autolaunch.LabPositionsTest do
     {Lab.current!().abis["auction"], Enum.sort_by(positions, & &1.onchain_bid_id)}
   end
 
-  # Every bid answers as one not yet exited, except the ones `answers` names.
-  defp install(answers) do
+  # An auction that has issued bids up to `next_bid_id`, each answering as one
+  # not yet exited, except the ones `answers` names.
+  defp install(answers, next_bid_id \\ 4) do
     abi = Lab.current!().abis["auction"]
+    next = LabAbi.selector("nextBidId()")
 
-    BaseRpcStub.install(:wallet_http_client, fn %{data: data}, _state ->
-      id = Enum.find(["1", "2", "3"], &(data == bids_call(abi, &1)))
-      Map.get_lazy(answers, id, fn -> unexited_bid() end)
+    BaseRpcStub.install(:wallet_http_client, fn
+      %{data: ^next}, _state ->
+        BaseRpcStub.uint(next_bid_id)
+
+      %{data: data}, _state ->
+        id = Enum.find(["1", "2", "3"], &(data == bids_call(abi, &1)))
+        Map.get_lazy(answers, id, fn -> unexited_bid() end)
     end)
   end
 
-  defp bid_id_asked?(id) do
-    abi = Lab.current!().abis["auction"]
+  defp bid_id_asked?(id), do: Enum.member?(calls(), bids_call(Lab.current!().abis["auction"], id))
 
+  # The data of every call the feed made so far, taking them from the mailbox.
+  defp calls do
     Stream.repeatedly(fn ->
       receive do
         {:rpc, "eth_call", [%{data: data}, _block]} -> data
@@ -84,7 +109,6 @@ defmodule Autolaunch.LabPositionsTest do
       end
     end)
     |> Enum.take_while(&(&1 != :done))
-    |> Enum.member?(bids_call(abi, id))
   end
 
   defp bids_call(abi, id), do: LabAbi.encode(abi, "bids(uint256)", [String.to_integer(id)])

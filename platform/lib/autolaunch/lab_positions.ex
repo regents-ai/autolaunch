@@ -3,8 +3,9 @@ defmodule Autolaunch.LabPositions do
   Keeps the site's bid positions truthful after an auction has ended.
 
   An auction's reading job (`Autolaunch.AuctionMarket`) calls `read/6` once
-  its end block has passed: each position this site holds with an on-chain bid id is read back
-  from the auction's own `bids(bidId)`, and its status follows the contract:
+  its end block has passed: each position this site holds with an on-chain bid
+  id the auction has issued, below its `nextBidId()`, is read back from the
+  auction's own `bids(bidId)`, and its status follows the contract:
   `returnable` while the bid can still be exited, `awaiting_claim` once exited
   with fill before the claim block, `claimable` once exited with fill and the
   claim block reached, `returned` when exited with no fill, `claimed` once the
@@ -38,11 +39,31 @@ defmodule Autolaunch.LabPositions do
   # A node that stops answering ends the pass's bid reads there: the bids
   # already read are still written, and the rest are read on the next pass. A
   # bid whose answer is bad is skipped and read again on the next pass, so it
-  # never holds back the bids after it. Neither holds back the auction's own
-  # figures.
+  # never holds back the bids after it. `bids(bidId)` reverts for an id the
+  # auction has not issued (`BidStorage._getBid`), which a read takes for a
+  # node that stopped answering, so the pass reads `nextBidId()` once, at its
+  # block, and skips a stored id at or above it. None of these holds back the
+  # auction's own figures.
+  defp readings(_abi, [], _auction_address, _market, _block, _opts), do: {:ok, []}
+
   defp readings(abi, positions, auction_address, market, block, opts) do
+    case Rpc.call_uint(auction_address, LabAbi.selector("nextBidId()"), block, opts) do
+      {:ok, next_bid_id} ->
+        issued_readings(abi, positions, auction_address, market, block, next_bid_id, opts)
+
+      {:error, reason} ->
+        Logger.warning(
+          "Next bid id not read (#{inspect(reason)}); " <>
+            "#{length(positions)} bids wait for the next pass"
+        )
+
+        {:ok, []}
+    end
+  end
+
+  defp issued_readings(abi, positions, auction_address, market, block, next_bid_id, opts) do
     Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
-      case chain_bid(abi, auction_address, position, block, opts) do
+      case issued_bid(abi, auction_address, position, block, next_bid_id, opts) do
         {:ok, bid} ->
           {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
 
@@ -53,6 +74,14 @@ defmodule Autolaunch.LabPositions do
           )
 
           {:halt, {:ok, readings}}
+
+        {:error, :bid_not_found} ->
+          Logger.warning(
+            "Bid #{position.bid_id} is not one the auction has issued " <>
+              "(its next bid id is #{next_bid_id}); skipped"
+          )
+
+          {:cont, {:ok, readings}}
 
         {:error, reason} ->
           Logger.warning(
@@ -164,6 +193,12 @@ defmodule Autolaunch.LabPositions do
     do: Rpc.format_units(filled, 18)
 
   defp tokens_filled(position, _reading), do: position.tokens_filled
+
+  defp issued_bid(abi, auction_address, position, block, next_bid_id, opts) do
+    if String.to_integer(position.onchain_bid_id) < next_bid_id,
+      do: chain_bid(abi, auction_address, position, block, opts),
+      else: {:error, :bid_not_found}
+  end
 
   defp chain_bid(abi, auction_address, position, block, opts) do
     with {:ok, [_start, _mps, exited_block, _max_price, owner_word, amount_q96, filled]} <-
