@@ -16,7 +16,9 @@ import {expect, freshPerson, holdWallet, people, ready, signIn, test} from "./su
 // alike, and they are the step, chain and facts the create page's own review gives A for the same
 // draft. What only A can give stays on the page: until A confirms a Safe or contract treasury the
 // agent chose, or acknowledges a treasury a private key holds, the agent is refused with the
-// documented code, and once A has, it gets the step. The same request twice is one preparation.
+// documented code, and once A has, it gets the step. A has no X, GitHub or ENS account, so the
+// Revstake step comes with the no_connections warning, and the Memestock one with none. The same
+// request twice is one preparation.
 // A's wallet sends the agent's step, and the site's own discovery lists the launch as A's, with
 // what the agent's review carried, and starts A's draft over. Then A reviews a second launch on
 // the page, the agent changes only its links and prepares it, A's wallet sends it, and the site
@@ -298,6 +300,14 @@ test("agent launches, Revstake: the agent prepares its person's launch, the pers
       evidence.first_launch.prepared = first
     })
 
+    await test.step("no connections: the agent is told its person has no X, GitHub or ENS account, and gets the step all the same", async () => {
+      // A has none: the page asks A to type its warning before a Revstake launch.
+      await expect(page.locator("#launch-no-connections")).toBeVisible()
+      expect(first.warnings.map((warning: any) => warning.code)).toEqual(["no_connections"])
+      expect(first.warnings[0].message).toEqual(expect.any(String))
+      expect(first.steps).toHaveLength(1)
+    })
+
     await test.step("draft and step: the route, the hosted tool and the create page's review give the same launch", async () => {
       expect(first).toMatchObject({kind: "launch", signer: wallet, draft: {id, kind}, block: first.facts.block_number})
       expect(first.steps).toHaveLength(1)
@@ -505,6 +515,7 @@ test("agent launches, Memestock on Base: the agent prepares its person's launch,
       first = await prepared(agent, id)
       evidence.first_launch.prepared = first
       expect(first).toMatchObject({kind: "launch", signer: wallet, draft: {id, kind}, block: first.facts.block_number})
+      expect(first.warnings, "a Memestock launch is never warned, though A has no connections").toEqual([])
       expect(first.steps).toHaveLength(1)
       expect(first.steps[0]).toMatchObject({kind: "transaction", step: "launch", to: launchpad, value: "0x0"})
       const params = launchCall(kind, first.steps[0])

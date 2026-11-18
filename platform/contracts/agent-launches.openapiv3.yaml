@@ -14,7 +14,9 @@ paths:
         wallet's own key signs and sends the step on the network `chain` names, and its data ends with
         the site's Builder Code. A draft whose treasury still needs the person on the create page - the
         acknowledgement a treasury held by a private key takes, the confirmation of a treasury the agent
-        chose, or the treasury check - is refused with that reason and no step. The site keeps the
+        chose, or the treasury check - is refused with that reason and no step. Every answer carries
+        warnings to tell the person before they sign - a Revstake draft whose person has linked no X,
+        GitHub or ENS account is given no_connections, and its step all the same. The site keeps the
         review, so the launch is listed as the person's once the chain shows it. A preparation stays
         good for 24 hours, and at most 20 unused ones are kept, for each Base draft and for the person
         on Robinhood Chain; the same step as the newest one is that one again.
@@ -174,6 +176,7 @@ components:
       - block
       - steps
       - facts
+      - warnings
       properties:
         kind:
           type: string
@@ -253,6 +256,26 @@ components:
                 value by name, for a Memestock launch each term's label and words.
             risk:
               type: string
+        warnings:
+          type: array
+          description: What to tell the person before they sign; none of it holds the step back. Empty
+            when there is nothing to say.
+          items:
+            $ref: '#/components/schemas/AgentLaunchWarning'
+    AgentLaunchWarning:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: no_connections - a Revstake draft whose person has linked no X, GitHub or ENS
+            account, so its auction may not appear in the gallery or list.
+          enum:
+          - no_connections
+        message:
+          type: string
     AgentLaunchStepsEnvelope:
       type: object
       required:

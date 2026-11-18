@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.CreateReviewTest do
   opens it with the wallet button at its foot, the same button beside it then
   reads Continue Editing and brings the form back as it was. What a draft
   still needs follows the form as it is typed, not the last save, and each
-  field saves when the person leaves it.
+  field saves when the person leaves it. A Revstake creator with no X, GitHub
+  or ENS account on show types a warning before the review.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -240,6 +241,47 @@ defmodule AutolaunchWeb.CreateReviewTest do
     assert saved.symbol == "OPEN"
     assert has_element?(view, ~s(#launch-token-details-symbol[value="AB$"]))
     assert has_element?(view, "#launch-token-details-symbol-error")
+  end
+
+  test "a Revstake creator with no X, GitHub or ENS account on show types a warning before Review launch; one with any of them is not asked",
+       %{conn: conn} do
+    LaunchFixture.install()
+    TestAutolaunchTreasuryChainClient.seed_verified!(LaunchFixture.treasury())
+
+    linked = fn provider ->
+      fn account ->
+        Accounts.upsert_linked_identity!(
+          provider,
+          "#{provider}-#{account.id}",
+          "#{provider}-#{account.id}",
+          "#{provider}-#{account.id}",
+          DateTime.utc_now(),
+          %{},
+          account.id,
+          actor: %System{}
+        )
+      end
+    end
+
+    for {connect, asked?} <- [
+          {fn _account -> :none end, true},
+          {&Autolaunch.TestSupport.verify_x!(&1, :profile, username: "creator#{&1.id}"), false},
+          {linked.(:github), false},
+          {linked.(:ens), false}
+        ] do
+      setup = LaunchFixture.actor()
+      connect.(setup[:account])
+      session = signed_in_session(setup[:account].id)
+
+      {:ok, view, _html} =
+        conn
+        |> Phoenix.ConnTest.init_test_session(session)
+        |> connects_with(session)
+        |> live("/agent-business")
+
+      render_async(view)
+      assert has_element?(view, "#launch-no-connections") == asked?
+    end
   end
 
   # The Revstake page, signed in, for a saved draft with `draft` fields replaced.

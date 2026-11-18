@@ -3,6 +3,25 @@ defmodule Autolaunch.Accounts do
 
   use Ash.Domain
 
+  alias Autolaunch.Actors.System
+
+  @doc """
+  Whether the person with account `id` has an account on show: a checked X
+  account, GitHub or ENS. A Revstake auction whose creator has none may not
+  appear in the gallery or list, so the create page asks the person to type a
+  warning before such a launch, and a paired agent's launch step carries one
+  for the agent to tell them (`Autolaunch.AgentLaunch`). A read that fails
+  counts as none.
+  """
+  @spec connected?(integer()) :: boolean()
+  def connected?(id) do
+    match?({:ok, [_ | _]}, list_public_x_connections([id])) or
+      case list_linked_identities_for_account(id, actor: %System{}) do
+        {:ok, identities} -> Enum.any?(identities, &(&1.provider in [:github, :ens]))
+        {:error, _error} -> false
+      end
+  end
+
   resources do
     resource Autolaunch.Accounts.HumanAccount do
       define :points_account, action: :points_account, args: [:id]

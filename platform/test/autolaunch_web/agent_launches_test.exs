@@ -12,7 +12,9 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
   person's draft and a draft that does not exist are answered alike, before
   any chain is read. What only the person can give stays on the create page:
   a treasury the agent chose, a private key's acknowledgement and the treasury
-  check. Every refusal is reached and named, with a status and code the
+  check. A Revstake draft whose person has no X, GitHub or ENS account on show
+  is given its step with the `no_connections` warning; a Memestock draft is
+  never warned. Every refusal is reached and named, with a status and code the
   contract documents, and every reason the reviews give has one code. A read
   that fails, or a reason nobody named, is refused as `launch_unavailable`.
   Off, or in prelaunch read-only mode, the tool is not listed or run, and off
@@ -329,6 +331,82 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
              )
 
     assert id in Enum.map(kept(LaunchReview, account), & &1.id)
+  end
+
+  test "a Revstake draft whose person has no X, GitHub or ENS account on show is given its step with the no_connections warning, alike on both ways in",
+       %{agent: agent, account: account, draft: draft} do
+    # An X connection begun and never checked is none on show.
+    Accounts.begin_x_connection_attempt!(
+      %{
+        role: :profile,
+        attempt_state: "state-#{Ash.UUID.generate()}",
+        attempt_verifier: "verifier-#{Ash.UUID.generate()}",
+        attempt_generation: Ash.UUID.generate(),
+        attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second),
+        intent_sequence: 1,
+        intent_generation: Ash.UUID.generate()
+      },
+      actor: %Human{human_account_id: account.id}
+    )
+
+    {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
+
+    assert [%{"code" => "no_connections", "message" => message}] = data["warnings"]
+    assert is_binary(message)
+    assert [%{"step" => "launch"}] = data["steps"]
+    assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
+  end
+
+  test "a Revstake draft whose person has a checked X account, GitHub or ENS is given no warning, alike on both ways in" do
+    linked = fn provider ->
+      fn account ->
+        Accounts.upsert_linked_identity!(
+          provider,
+          "#{provider}-#{account.id}",
+          "#{provider}-#{account.id}",
+          "#{provider}-#{account.id}",
+          DateTime.utc_now(),
+          %{},
+          account.id,
+          actor: %System{}
+        )
+      end
+    end
+
+    for connect <- [
+          &Autolaunch.TestSupport.verify_x!(&1, :profile, username: "creator#{&1.id}"),
+          linked.(:github),
+          linked.(:ens)
+        ] do
+      %{agent: agent, account: account, draft: draft} = person!()
+      connect.(account)
+
+      {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
+
+      assert data["warnings"] == []
+      assert [%{"step" => "launch"}] = data["steps"]
+      assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
+    end
+  end
+
+  test "a Memestock draft is given no warning on Base or Robinhood Chain, though its person has no account on show",
+       %{agent: agent} do
+    base = memestock!(agent, %{"stock_address" => @aapl})
+
+    assert {:ok, %{"warnings" => []} = data} =
+             answer(http(:post, launch_path(base.id), %{}, agent))
+
+    assert tool(agent, "prepare_launch", %{draft: base.id}) == {:ok, data}
+
+    robinhood_chain()
+
+    robinhood =
+      memestock!(agent, %{"chain" => "robinhood", "stock_address" => RobinhoodBidChain.stock()})
+
+    assert {:ok, %{"warnings" => []} = data} =
+             answer(http(:post, launch_path(robinhood.id), %{}, agent))
+
+    assert tool(agent, "prepare_launch", %{draft: robinhood.id}) == {:ok, data}
   end
 
   test "another person's draft and a draft that does not exist are answered alike, before any chain is read",

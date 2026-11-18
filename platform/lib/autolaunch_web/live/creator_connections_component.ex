@@ -40,8 +40,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
   # (`Session.check_component_lease/2`): the connections are its own.
   defp take_account(socket, account), do: assign(socket, current_human_id: account.id)
 
-  @doc "The accounts other than X that a person has linked, by provider."
-  def identities(actor), do: identities_from(Accounts.list_my_linked_identities(actor: actor))
+  defp identities(actor), do: identities_from(Accounts.list_my_linked_identities(actor: actor))
 
   defp identities_from(linked), do: linked |> records() |> Map.new(&{&1.provider, &1})
 

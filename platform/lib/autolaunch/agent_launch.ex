@@ -27,6 +27,12 @@ defmodule Autolaunch.AgentLaunch do
   and a Safe's verification. Until then the draft is refused with the reason
   the create page names.
 
+  Every answer carries `warnings`, what the agent tells its person before they
+  sign, none of which holds the step back: empty, or for a Revstake draft whose
+  person has no X, GitHub or ENS account on show (`Autolaunch.Accounts.connected?/1`)
+  `no_connections`, the warning the create page has the person type before
+  such a launch.
+
   A refusal is an `Autolaunch.AgentLaunch.Refused` holding one of the codes the
   agent launch contract documents (`code/1`). A pairing that ended or changed
   hands while the request ran is `agent_not_paired`, as on every signed route.
@@ -53,9 +59,9 @@ defmodule Autolaunch.AgentLaunch do
 
   alias Ash.Error.Changes.InvalidChanges
   alias Ash.Error.Invalid.Unavailable
+  alias Autolaunch.{Accounts, LaunchActions, LaunchDraft, LaunchOperation}
   alias Autolaunch.AgentLaunch.Refused
   alias Autolaunch.CoveredCalls.Signer
-  alias Autolaunch.{LaunchActions, LaunchDraft, LaunchOperation}
   alias Autolaunch.Robinhood.LaunchReview
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.LaunchActions, as: StocksLaunchActions
@@ -120,6 +126,12 @@ defmodule Autolaunch.AgentLaunch do
   @draft "The draft's id exactly as autolaunch_revstake_draft or autolaunch_memestock_draft gives it (id)."
   @signer "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
 
+  @no_connections %{
+    code: "no_connections",
+    message:
+      "This Revstake auction may not appear in the gallery or list, because its creator, your person, has linked no X, GitHub or ENS account; they can link one under Socials on the create page."
+  }
+
   @doc "Whether the site offers agent launches (`AUTOLAUNCH_AGENT_LAUNCHES=true`, config/runtime.exs)."
   def enabled?, do: Application.get_env(:autolaunch, :agent_launches, :off) == :on
 
@@ -175,7 +187,8 @@ defmodule Autolaunch.AgentLaunch do
          chain: prepared.chain,
          block: prepared.facts["block_number"],
          steps: prepared.steps,
-         facts: prepared.facts
+         facts: prepared.facts,
+         warnings: warnings(draft, account)
        }}
     end
     |> refused()
@@ -239,6 +252,15 @@ defmodule Autolaunch.AgentLaunch do
 
   defp kind(%LaunchDraft{}), do: "revstake"
   defp kind(%StocksDraft{}), do: "memestock"
+
+  # What the agent tells its person before they sign; none of it stops the
+  # launch. A Revstake auction whose creator has no account on show may not
+  # appear in the gallery or list, which the create page has the person type
+  # before such a launch.
+  defp warnings(%LaunchDraft{}, account),
+    do: if(Accounts.connected?(account.id), do: [], else: [@no_connections])
+
+  defp warnings(%StocksDraft{}, _account), do: []
 
   # A refusal holds the code of the reason it names (`code/1`), which Ash would
   # otherwise turn into text (`AutolaunchWeb.AgentLaunchAnswer`), as a write

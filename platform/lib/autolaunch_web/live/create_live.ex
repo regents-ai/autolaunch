@@ -12,10 +12,10 @@ defmodule AutolaunchWeb.CreateLive do
 
   require Logger
 
-  alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
 
   alias Autolaunch.{
+    Accounts,
     AgentDrafts,
     ChainHead,
     ImageColor,
@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.CreateLive do
   }
 
   alias AutolaunchWeb.Components.{AutolaunchHelpers, MarketCard}
-  alias AutolaunchWeb.{CreatorConnectionsComponent, DraftMarks, UsdValue}
+  alias AutolaunchWeb.{DraftMarks, UsdValue}
   alias AutolaunchWeb.Live.Session
   alias RegentChain.Address
 
@@ -1011,34 +1011,21 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  # Whether the creator has any account on show: a checked X account, GitHub
-  # or ENS. A Revstake launch without one asks for a typed warning first. With
-  # it, the accounts as a listed auction's gallery card shows them, for the
-  # card's preview.
+  # Whether the creator has any account on show (`Autolaunch.Accounts.connected?/1`).
+  # A Revstake launch without one asks for a typed warning first. With it, the
+  # accounts as a listed auction's gallery card shows them, for the card's
+  # preview.
   defp assign_connections(%{assigns: %{current_human_id: id}} = socket) do
-    x_connections = load_x_connections(account(socket))
-    identities = CreatorConnectionsComponent.identities(human_actor(socket))
     creator = %{creator_human_account_id: id}
 
     assign(socket,
-      has_connections:
-        Enum.any?(x_connections, &match?(%{verified_at: %DateTime{}}, &1)) or
-          Map.take(identities, [:github, :ens]) != %{},
+      has_connections: Accounts.connected?(id),
       creator_connections:
         AutolaunchHelpers.connections_for(
           creator,
           AutolaunchHelpers.creator_connections_for([creator])
         )
     )
-  end
-
-  defp load_x_connections(nil), do: []
-
-  defp load_x_connections(account) do
-    case XOAuth.list_for_account(account) do
-      {:ok, connections} -> connections
-      {:error, _error} -> []
-    end
   end
 
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}} = failure) do
@@ -1070,9 +1057,6 @@ defmodule AutolaunchWeb.CreateLive do
        do: %Human{human_account_id: id}
 
   defp human_actor(_socket), do: nil
-
-  defp account(%{assigns: %{access_context: %{principal: {:human, account}}}}), do: account
-  defp account(_socket), do: nil
 
   # Whether the saved treasury step is done. A Safe treasury is done only once
   # Base shows it is a 2-of-3 Safe; the local test chain is not read, as its
