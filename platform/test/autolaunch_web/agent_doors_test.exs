@@ -44,11 +44,13 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   alias Autolaunch.CoveredCalls.Terms
 
   alias Autolaunch.{
+    BidFixture,
     ChainHead,
     CoveredCallsChain,
     EarnChain,
     ExposureChain,
     SharedReading,
+    TestAutolaunchBidSettlementChainClient,
     TestAutolaunchTreasuryChainClient,
     TestSupport
   }
@@ -58,7 +60,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   @moduletag :capture_log
   @commands Path.expand("../../../cli/commands.json", __DIR__)
-  @features ~w(covered_calls exposure earn)
+  @features ~w(covered_calls exposure earn agent_bids)
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
   @lists %{"autolaunch_auctions" => "/api/v1/auctions", "autolaunch_tokens" => "/api/v1/tokens"}
@@ -130,7 +132,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     agent = paired_agent()
     commands = commands()
 
-    for on <- [[], ["covered_calls"], ["exposure"], ["earn"], @features],
+    for on <- [[], ["covered_calls"], ["exposure"], ["earn"], ["agent_bids"], @features],
         connector? <- [false, true] do
       switch(on, connector?)
       offered = Capabilities.offered(on ++ if(connector?, do: ["connected_apps"], else: []))
@@ -682,7 +684,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   test "every hosted tool listed as read-only writes nothing when it is called" do
     switch(@features, false)
-    agent = paired_agent()
+    # Paired with the bid fixture's bidder, whose wallet holds a bid to settle.
+    {:ok, bidder} = BidFixture.bidder()
+    agent = paired_agent(bidder[:account])
     person = TestSupport.register_creator!().privy_user_id
     graduated = TestSupport.project_auction(chain_id: 8453, state: :graduated)
 
@@ -690,10 +694,15 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       TestSupport.project_auction(chain_id: 8453, state: :active, current_clearing_price: "3")
 
     token = TestSupport.project_token(auction_id: graduated.id, graduated_at: DateTime.utc_now())
-    TestAutolaunchTreasuryChainClient.seed_verified!(@safe)
+    report = TestAutolaunchTreasuryChainClient.seed_verified!(@safe)
     assert :ok = Board.read()
     on_exit(fn -> SharedReading.delete(Board.key()) end)
 
+    Autolaunch.set_auction_treasury_security_report!(bidder[:auction], report.id,
+      actor: BidFixture.system()
+    )
+
+    bid = bid_position!(bidder[:auction])
     series = ExposureChain.series()
     expiry = hd(Terms.expiries(CoveredCallsChain.now()))
     deposit = %{product: "aave-usdc", kind: "deposit", amount: 10 * EarnChain.unit()}
@@ -724,6 +733,8 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       "earn_quote" => deposit,
       "earn_positions" => nil,
       "prepare_earn" => deposit,
+      "prepare_bid" => %{auction_id: bidder[:auction].id, amount: "1", max_price: "3"},
+      "prepare_bid_settlement" => %{bid: bid.bid_id},
       "register_identity" => nil,
       "get_identity" => nil,
       "pair_identity" => %{code: code.code, name: "Claude", harness: "claude"},
@@ -734,7 +745,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       for %{"surfaces" => %{"hosted_mcp" => true}} = row <- Capabilities.operations(), do: row
 
     assert Enum.sort(Map.keys(inputs)) == Enum.sort(Enum.map(hosted, & &1["hosted_tool"]))
-    assert length(hosted) == 28
+    assert length(hosted) == 30
 
     # Each switch's tools are called in turn, by their caller (`caller/3`); every
     # call answers.
@@ -753,7 +764,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         end
       end)
 
-    assert length(called) == 28
+    assert length(called) == 30
 
     # The ones that write: a draft save, and a connected app's identity, pairing
     # and check-in.
@@ -915,6 +926,52 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp chain("earn"),
     do: EarnChain.install(%{balance: 40 * EarnChain.unit(), allowance: 10 * EarnChain.unit()})
+
+  # A bid's chain, and a settlement chain on which the bidder's bid has only its
+  # price to record.
+  defp chain("agent_bids") do
+    BidFixture.install([])
+    q96 = 79_228_162_514_264_337_593_543_950_336
+
+    TestAutolaunchBidSettlementChainClient.install(%{
+      end_block: 90,
+      claim_block: 95,
+      currency: BidFixture.regent(),
+      final_clearing_price_q96: 2 * q96,
+      graduated?: false,
+      exit: {:refused, :price_not_recorded},
+      claim: {:refused, :claim_not_open},
+      bid: %{
+        start_block: 10,
+        exited_block: 0,
+        max_price_q96: 3 * q96,
+        owner: BidFixture.wallet(),
+        amount: 12 * 10 ** 18,
+        tokens_filled: 0
+      }
+    })
+  end
+
+  # A saved bid of the bid fixture's bidder on `auction`, on chain as bid 7.
+  defp bid_position!(auction) do
+    Autolaunch.Bid
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        bid_id: "lab:doors:#{System.unique_integer([:positive])}",
+        auction_id: auction.id,
+        owner_address: BidFixture.wallet(),
+        amount: "12",
+        max_price: "0.00003",
+        current_clearing_price: "0.00002",
+        status: :returnable,
+        auction_address: BidFixture.auction_address(),
+        onchain_bid_id: "7"
+      },
+      actor: BidFixture.system()
+    )
+    |> Ash.create!()
+  end
 
   defp keep_env(app, key) do
     old = Application.fetch_env(app, key)
