@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.BidLive do
   import AutolaunchWeb.Components.MarketCard, only: [auction_status: 1]
   import AutolaunchWeb.Components.SwapModal
 
-  alias Autolaunch.AuctionBook
+  alias Autolaunch.{AuctionBook, ChainHead}
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.StoredImage
   alias Autolaunch.Token
@@ -54,6 +54,7 @@ defmodule AutolaunchWeb.BidLive do
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page(:bid))
      |> assign(id: id, dialog: nil, queued?: false, bid: %AsyncResult{}, book: %AsyncResult{})
+     |> assign(:robinhood_clock, ChainHead.block("robinhood"))
      |> LabMarket.subscribe_heads()
      |> LabMarket.subscribe_wallet_bids()
      |> LiveListings.subscribe()
@@ -81,9 +82,12 @@ defmodule AutolaunchWeb.BidLive do
     do: {:noreply, socket |> LiveListings.taken() |> request_read()}
 
   # A block went by, or one of the wallet's bids was written: the bid may
-  # have become returnable or claimable.
+  # have become returnable or claimable. A Robinhood bid dialog follows
+  # Robinhood's clock.
   def handle_info({:shared_reading, {:chain_head, _feed}}, socket),
-    do: {:noreply, request_read(socket)}
+    do:
+      {:noreply,
+       socket |> assign(:robinhood_clock, ChainHead.block("robinhood")) |> request_read()}
 
   def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
     do: {:noreply, request_read(socket)}
@@ -154,6 +158,7 @@ defmodule AutolaunchWeb.BidLive do
           bid={@bid.result}
           book={@book}
           dialog={@dialog}
+          observed={@robinhood_clock}
           signed_in?={@signed_in?}
           human_id={@human_id}
           session_lease={@session_lease}
@@ -166,6 +171,7 @@ defmodule AutolaunchWeb.BidLive do
   attr :bid, :map, required: true
   attr :book, AsyncResult, required: true, doc: "the price book of a Base bid's open auction"
   attr :dialog, :atom, default: nil
+  attr :observed, :any, required: true, doc: "Robinhood's clock as the page last read it"
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
@@ -259,6 +265,7 @@ defmodule AutolaunchWeb.BidLive do
       :if={@dialog}
       kind={@dialog}
       bid={@bid}
+      observed={@observed}
       signed_in?={@signed_in?}
       human_id={@human_id}
       session_lease={@session_lease}
@@ -271,6 +278,7 @@ defmodule AutolaunchWeb.BidLive do
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
+  attr :observed, :any, required: true, doc: "Robinhood's clock as the page last read it"
 
   defp dialog(%{bid: %{chain: :base}} = assigns) do
     ~H"""
@@ -297,6 +305,7 @@ defmodule AutolaunchWeb.BidLive do
       auction={@listing}
       ended={if @kind == :settle, do: RobinhoodStockBidComponent.ended_copy(@listing)}
       stake_path={@stake_path}
+      observed={@observed}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

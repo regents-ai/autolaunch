@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   import AutolaunchWeb.Components.SwapModal
 
   alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.AuctionBook
+  alias Autolaunch.{AuctionBook, ChainHead}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
@@ -68,7 +68,10 @@ defmodule AutolaunchWeb.PortfolioLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/portfolio"))
-     |> assign(robinhood_swap?: RobinhoodLab.swap_configured?())
+     |> assign(
+       robinhood_swap?: RobinhoodLab.swap_configured?(),
+       robinhood_clock: ChainHead.block("robinhood")
+     )
      |> LabMarket.subscribe_heads()
      |> LabMarket.subscribe_wallet_bids()
      |> subscribe_covered_calls()
@@ -116,9 +119,11 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   # A block went by, or one of the wallet's bids was written: positions may
   # have become returnable or claimable, and a trade may have changed what the
-  # wallets hold.
+  # wallets hold. A Robinhood bid dialog follows Robinhood's clock.
   def handle_info({:shared_reading, {:chain_head, _feed}}, socket),
-    do: {:noreply, request_reads(socket)}
+    do:
+      {:noreply,
+       socket |> assign(:robinhood_clock, ChainHead.block("robinhood")) |> request_reads()}
 
   def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
     do: {:noreply, request_reads(socket)}
@@ -428,6 +433,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         positions={@positions}
         robinhood={@robinhood_current ++ @robinhood_history}
         holdings={@holdings}
+        observed={@robinhood_clock}
         signed_in?={@signed_in?}
         human_id={@human_id}
         session_lease={@session_lease}
@@ -741,6 +747,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :positions, :list, required: true
   attr :robinhood, :list, required: true
   attr :holdings, :list, required: true
+  attr :observed, :any, required: true, doc: "Robinhood's clock as the page last read it"
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
@@ -804,6 +811,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       ended={@ended}
       stake_path={@stake_path}
       page={:portfolio}
+      observed={@observed}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

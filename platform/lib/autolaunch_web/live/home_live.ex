@@ -27,7 +27,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.StockLists
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.ValueCards
-  alias Autolaunch.{CoveredCalls, HomeMarket}
+  alias Autolaunch.{ChainHead, CoveredCalls, HomeMarket}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
   alias Phoenix.LiveView.AsyncResult
 
@@ -77,7 +77,7 @@ defmodule AutolaunchWeb.HomeLive do
        unfiltered: @unfiltered,
        no_connection: @no_connection,
        values: values(),
-       robinhood_clock: robinhood_clock()
+       robinhood_clock: ChainHead.block("robinhood")
      )
      |> LiveListings.subscribe()
      |> LiveSettle.watch()
@@ -292,7 +292,9 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do:
       {:noreply,
-       socket |> LabMarket.robinhood_stale() |> assign(:robinhood_clock, robinhood_clock())}
+       socket
+       |> LabMarket.robinhood_stale()
+       |> assign(:robinhood_clock, ChainHead.block("robinhood"))}
 
   # The catching-up notice follows whether the lists hold every Base launch.
   def handle_info({:shared_reading, {:launch_count, _launchpad}}, socket),
@@ -306,9 +308,6 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread_market()}
-
-  # Robinhood's clock, nil before the site first read it.
-  defp robinhood_clock, do: Autolaunch.ChainHead.fetch("robinhood")[:block]
 
   # The cards already shown stay until the new listing arrives and replaces
   # them, so changing a setting never blanks the gallery.

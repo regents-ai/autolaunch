@@ -114,9 +114,9 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
   attr :observed, :integer,
-    default: nil,
+    required: true,
     doc:
-      "Robinhood's clock as the page last read it, on a page that offers auctions before they open"
+      "Robinhood's clock as the page last read it (`Autolaunch.ChainHead.block/1`), nil before then"
 
   def robinhood_bid_modal(assigns) do
     ~H"""

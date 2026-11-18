@@ -49,7 +49,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
        |> assign(open?: Lab.configured?(), outbid: nil, launched_token: nil)
        |> LabMarket.subscribe_auction(id, "robinhood")
        |> LabMarket.assign_robinhood_stale()
-       |> assign(reading: id |> LabMarket.reading() |> elem(0), clock: clock())
+       |> assign(
+         reading: id |> LabMarket.reading() |> elem(0),
+         clock: ChainHead.block("robinhood")
+       )
        |> assign(draft_price: nil, scrub_at: nil, checked_bid: nil, check_number: "")
        |> assign_usd_prices()}
 
@@ -126,12 +129,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket) do
     socket = LabMarket.robinhood_stale(socket)
 
-    if clock() == socket.assigns.clock,
+    clock = ChainHead.block("robinhood")
+
+    if clock == socket.assigns.clock,
       do: {:noreply, socket},
       else:
         {:noreply,
          socket
-         |> assign(:clock, clock())
+         |> assign(:clock, clock)
          |> reload_launch()
          |> load_history(false)
          |> load_book(false)
@@ -303,14 +308,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     </article>
     <.page_states open?={@open?} launch={@launch} launch_failed?={@launch_failed?} auction={@auction} />
     """
-  end
-
-  # Robinhood's clock, nil before it was first read.
-  defp clock do
-    case ChainHead.fetch("robinhood") do
-      %{block: clock} -> clock
-      nil -> nil
-    end
   end
 
   # The bid form is named after its auction, so a form never carries one

@@ -1,5 +1,5 @@
 {
-  "total": 489,
+  "total": 491,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6359,6 +6359,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "cb657441e4ac4c3dde08636b4b40223f7a70f5b429875323131bc833eae2aad6"
+    },
+    {
+      "id": 609,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_dialog_clock_test.exs",
+      "line": 42,
+      "test_name": "the bid page's dialog holds a bid two clock steps before the start, and brings it back once the site reads the clock one step before",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: a bid held because it is certain to fail comes back once the chain's state changes. The bid page's Robinhood bid dialog was not given Robinhood's clock, so a bid held as not started stayed held until the form or wallet changed or the ten-minute refresh. It fails if the bid page does not pass the clock as the site last read it, or does not follow a new reading.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cce2542fce0bda2ad7716316d7508c13c6147de0e3f17d7fe54101858c84750b"
+    },
+    {
+      "id": 610,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_bid_dialog_clock_test.exs",
+      "line": 52,
+      "test_name": "the portfolio's dialog holds a bid two clock steps before the start, and brings it back once the site reads the clock one step before",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: as for the bid page, the portfolio's Robinhood bid dialog was not given Robinhood's clock, so a held bid stayed held after it could land. It fails if the portfolio does not pass the clock as the site last read it, or does not follow a new reading.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cce2542fce0bda2ad7716316d7508c13c6147de0e3f17d7fe54101858c84750b"
     }
   ],
   "legacy_folders_to_remove": [

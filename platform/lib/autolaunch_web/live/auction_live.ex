@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.AuctionLive do
      socket
      |> assign(market_feed: feed)
      |> LabMarket.subscribe_auction(id, feed)
-     |> assign(clock: clock(feed), reading: reading, page_reading: page)
+     |> assign(clock: ChainHead.block(feed), reading: reading, page_reading: page)
      |> assign_snapshot()
      |> LiveListings.subscribe()
      |> assign(
@@ -155,7 +155,7 @@ defmodule AutolaunchWeb.AuctionLive do
       else:
         {:noreply,
          socket
-         |> assign(:clock, clock(feed))
+         |> assign(:clock, ChainHead.block(feed))
          |> clock_snapshot()
          |> load_receipts()}
   end
@@ -665,14 +665,6 @@ defmodule AutolaunchWeb.AuctionLive do
     socket
     |> assign(snapshot: snapshot, snapshot_unread?: unread?, book: book(snapshot, unread?))
     |> clock_snapshot()
-  end
-
-  # The newest block of the auction's chain, nil before it was first read.
-  defp clock(feed) do
-    case ChainHead.fetch(feed) do
-      %{block: block} -> block
-      nil -> nil
-    end
   end
 
   # The reading names the block its figures were read at; the auction's clock

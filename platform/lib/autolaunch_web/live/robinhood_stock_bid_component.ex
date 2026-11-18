@@ -27,10 +27,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   A bid the auction is certain to refuse by its own clock at the latest block
   (the review's `blocked`) stays on its button, disabled, with the reason
   above it; its USDG approval is never held back, since the approval succeeds
-  whatever the auction's clock. Before the start, the page passes Robinhood's
-  clock as it last read it (`Autolaunch.ChainHead`) as `observed`, and each
-  new reading builds the review again, so the bid comes back as soon as it
-  can land.
+  whatever the auction's clock. Every page passes Robinhood's clock as it
+  last read it (`Autolaunch.ChainHead.block/1`, nil before then) as
+  `observed`, the one input it must give, and while the bid is held as not
+  started each new reading builds the review again, so the bid comes back as
+  soon as it can land.
   """
 
   use AutolaunchWeb, :live_component
@@ -118,7 +119,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  def update(assigns, socket) do
+  def update(%{observed: _clock} = assigns, socket) do
     seen = socket.assigns[:observed]
 
     {:ok,
@@ -126,7 +127,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign(assigns)
      |> assign_new(:outbid_banner, fn -> false end)
      |> assign_new(:draft_marker, fn -> false end)
-     |> assign_new(:observed, fn -> nil end)
      |> assign_new(:form, &blank/0)
      |> assign_book_and_supply()
      |> assign_usd_prices()

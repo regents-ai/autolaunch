@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponentTest do
           block: 150
         }),
       supply: AsyncResult.ok(nil),
+      observed: clock,
       authenticated: true,
       # The panel already holds the signed-in wallet and its reading, so it
       # does not look the account's wallets up from the session again.

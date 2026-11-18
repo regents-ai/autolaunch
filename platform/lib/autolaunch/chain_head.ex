@@ -67,6 +67,13 @@ defmodule Autolaunch.ChainHead do
     end
   end
 
+  @doc """
+  The newest block of `feed` as the site last read it, the clock a page draws
+  time passing by, or nil while it has never been read.
+  """
+  @spec block(String.t()) :: non_neg_integer() | nil
+  def block(feed), do: fetch(feed)[:block]
+
   @doc "Whether the site could not read `feed`'s chain on its last attempt."
   @spec stale?(String.t()) :: boolean()
   def stale?(feed), do: match?(%{degraded?: true}, fetch(feed))
