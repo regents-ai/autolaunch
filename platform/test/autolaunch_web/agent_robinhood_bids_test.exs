@@ -189,12 +189,13 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
     assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
   end
 
-  test "a bid before the auction's clock reaches its start block is refused as auction_not_started with no steps, while the page still reviews it",
+  test "a bid while even the auction clock's next step is before its start block is refused as auction_not_started with no steps, while the page still reviews it",
        %{agent: agent, listed: listed, wallet: wallet} do
     input = %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}
 
-    # The auction starts at block 10 of its own clock.
-    for clock <- [1, 9] do
+    # The auction starts at block 10 of its own clock, which never runs back:
+    # a bid sent at 8 lands at 8 or 9 at the earliest, which it refuses.
+    for clock <- [1, 8] do
       RobinhoodBidChain.put(clock: clock)
       route = http(:post, @bid_path, input, agent)
 
@@ -209,10 +210,13 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
                StockBidActions.review(page_request(input), wallet)
     end
 
-    # From its start block the auction takes the bid.
-    RobinhoodBidChain.put(clock: 10)
-    assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
-    assert {:ok, %{blocked: nil}} = StockBidActions.review(page_request(input), wallet)
+    # One step before the start the bid may land at the start, which takes it,
+    # so it is not refused; from the start block the auction takes the bid.
+    for clock <- [9, 10] do
+      RobinhoodBidChain.put(clock: clock)
+      assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
+      assert {:ok, %{blocked: nil}} = StockBidActions.review(page_request(input), wallet)
+    end
   end
 
   test "a bid's return and claim are the bid's row's steps, alike on both ways in", context do
@@ -562,7 +566,7 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
         {[], Map.put(bid, :signer, "nope"), "wallet_required"},
         {[], %{bid | auction_id: ended.id}, "bidding_ended"},
         {[clock: 90], bid, "bidding_ended"},
-        {[clock: 9], bid, "auction_not_started"},
+        {[clock: 8], bid, "auction_not_started"},
         {[tick_next: 0], bid, "bid_preparation_unavailable"},
         {[], %{bid | usdg_amount: "1000"}, "amount_above_balance"},
         {[quote: 0], bid, "usdg_route_unavailable"},

@@ -25,9 +25,9 @@ defmodule Autolaunch.AgentRobinhoodBid do
   settled is one a wallet of the person's placed, by the auction's own record,
   on an auction the site lists, hidden or not, as on the bid's page. A bid on
   an auction whose bidding has ended, by its record or the clock the auction
-  keeps at the latest block, is refused as `bidding_ended`, and one before
-  that clock reaches the auction's start block as `auction_not_started`: the
-  auction would refuse either.
+  keeps at the latest block, is refused as `bidding_ended`, and one while even
+  that clock's next step is before the auction's start block as
+  `auction_not_started`: the auction is certain to refuse either.
 
   A refusal is an `Autolaunch.AgentRobinhoodBid.Refused` holding one of the
   codes the Robinhood bid contract documents (`code/1`). Anything the review
@@ -270,8 +270,8 @@ defmodule Autolaunch.AgentRobinhoodBid do
 
   # Bidding has ended once the auction's record says so, before Robinhood
   # Chain is asked anything; the page offers no bid then either. Otherwise the
-  # review's clock decides: before the start block bidding has not started,
-  # and from the end block it has ended.
+  # review's clock decides: while even its next step is before the start
+  # block bidding has not started, and from the end block it has ended.
   defp open(%Autolaunch.Auction{state: state}) when state in [:ended, :graduated, :failed],
     do: {:error, :bidding_ended}
 

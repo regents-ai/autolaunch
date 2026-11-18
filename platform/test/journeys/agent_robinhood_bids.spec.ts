@@ -12,8 +12,9 @@ import {
 // Agent bids on Robinhood Chain, against the Robinhood lab with the site switched on for them
 // (scripts/agent-journeys.sh). Person A pairs an agent, which fills in two Memestock launches on
 // the lab, paired with a fixture stock; A signs both on /create. The lab's auctions keep time by a
-// block clock the journey moves, as Robinhood Chain's auctions do by its own. Before the first
-// auction's start block the agent's bid is refused, as the auction refuses it. From the start, the
+// block clock the journey moves, as Robinhood Chain's auctions do by its own. Two clock steps
+// before the first auction's start block the agent's bid is refused, as the auction is certain to
+// refuse it; one step before, its steps are given, as the bid may land at the start. From the start, the
 // agent asks for A's USDG bid's wallet steps through its signed route and through the hosted MCP
 // tool (regents mcp); both hold the steps the auction page's own review pushes to A's page for the
 // same budget and max FDV, and A's wallet sends them, the USDG approval first. A second bid shows
@@ -194,9 +195,11 @@ test("agent Robinhood bids: an agent prepares its person's USDG bids, return and
     const submitBid = (owner: string) =>
       encodeFunctionData({abi: abis.auction, functionName: "submitBid", args: [FLOOR_Q96 * 2n, 1n, owner as Hex, FLOOR_Q96, "0x"]}) as Hex
 
-    // Before the start block the auction refuses a bid (AuctionNotStarted), and so does the agent's.
-    step("start-1: auction_not_started, as the auction refuses")
-    await clockTo(start - 1)
+    // Before the start block the auction refuses a bid (AuctionNotStarted). Its clock never runs
+    // back, so two steps before the start a bid sent now is certain to be refused, and so is the
+    // agent's.
+    step("start-2: auction_not_started, as the auction refuses")
+    await clockTo(start - 2)
     const early = agent.signed("POST", BID_PATH, input)
     const [earlyTool] = await agent.mcp([{name: "prepare_robinhood_bid", input}])
     const notStarted = await refusal(auction, submitBid(wallet), wallet, abis.auction)
@@ -228,6 +231,15 @@ test("agent Robinhood bids: an agent prepares its person's USDG bids, return and
         : null,
       notices: await page.locator(".bid-panel [role=alert]:visible, .bid-panel [role=status]:visible").allTextContents(),
     }
+
+    // One step before the start the bid may land at the start, which takes it, so its steps are
+    // given. Nothing is sent: on the lab the clock moves only when the journey moves it.
+    step("start-1: the steps are given, as the bid may land at the start")
+    await clockTo(start - 1)
+    const lastStep = agent.signed("POST", BID_PATH, input)
+    expect(lastStep.status, JSON.stringify(lastStep.json)).toBe(200)
+    expect(lastStep.json.data.steps.at(-1).step).toBe("usdg_bid")
+    evidence.clock.one_step_before_start = {clock: await clock(), steps: lastStep.json.data.steps.map((step: Step) => step.step)}
 
     step("start: B's bid, and A's under-minimum bid on the second auction")
     await clockTo(start)

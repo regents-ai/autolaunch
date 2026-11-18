@@ -52,9 +52,10 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   @doc """
   The review `prepare/3` makes once `signer` is proved to be one of the acting
   account's own wallets, with the latest block it read (`block`), the
-  auction's start block (`start_block`) and why the auction would refuse the
-  bid at that block's clock (`blocked`): `:auction_not_started` before its
-  start block, `:bidding_ended` from its end block on, otherwise `nil`. Every
+  auction's start block (`start_block`) and why the auction is certain to
+  refuse the bid by the clock it keeps at that block (`blocked`):
+  `:auction_not_started` while even the clock's next step is before the start
+  block, `:bidding_ended` from the end block on, otherwise `nil`. Every
   figure's own text is checked before Robinhood Chain is read; which price the
   maximum names on the auction's grid waits for the stock's decimals.
   """
@@ -91,8 +92,11 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   # The auction takes a bid from its start block until its end block, by the
   # clock it keeps (`ContinuousClearingAuction` reverts `AuctionNotStarted` and
-  # `AuctionIsOver` outside it).
-  defp blocked(%{clock: clock, auction: %{start_block: start}}) when clock < start,
+  # `AuctionIsOver` outside it). That clock never runs back, and a bid sent now
+  # lands at the clock as it is or later: it is certain to be refused while
+  # even the clock's next step is before the start, or once the clock has
+  # reached the end. One step before the start it may land in time.
+  defp blocked(%{clock: clock, auction: %{start_block: start}}) when clock + 1 < start,
     do: :auction_not_started
 
   defp blocked(%{clock: clock, auction: %{end_block: ending}}) when clock >= ending,

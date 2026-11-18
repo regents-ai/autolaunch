@@ -1,7 +1,7 @@
 # Changelog
 
 ## 18 November 2026: Auctions
-- Before a Robinhood Chain auction opens, its Place bid button stays in place but can't be pressed, with the block bidding opens at beside it. It comes back on its own once the auction opens. Before, you could send a bid the auction would turn down. You can still approve USDG ahead of time.
+- Before a Robinhood Chain auction opens, its Place bid button stays in place but can't be pressed, with the block bidding opens at beside it. It comes back on its own just before the auction opens, once a bid sent then can arrive in time. Before, you could send a bid the auction would turn down. You can still approve USDG ahead of time.
 - Once a Robinhood Chain auction's bidding has ended, its Place bid button can't be pressed, with "Bidding has ended." beside it.
 - A Base auction now takes your bid from the block before it opens, since a bid sent then arrives as it opens. The countdown on the bid button ends one block sooner.
 - An agent's bid on a Base auction is now refused with `bidding_ended` one block before the end, since a bid prepared then could only arrive once bidding has closed. Two blocks before the end, the steps still come back and the bid arrives in time.

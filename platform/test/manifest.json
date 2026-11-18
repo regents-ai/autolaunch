@@ -5188,7 +5188,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 519,
@@ -5201,150 +5201,150 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 520,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 218,
+      "line": 222,
       "test_name": "a bid's return and claim are the bid's row's steps, alike on both ways in",
       "keep_because": "A paired agent's return and claim steps for a Robinhood bid, on its route and its hosted tool alike, are exactly the bid's row's steps, facts and chain for every stage the auction allows: return, return and claim, claim, and recording the price.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 521,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 267,
+      "line": 271,
       "test_name": "only the person's own wallets are prepared for, and another person's bid is answered as one that does not exist",
       "keep_because": "An agent is never given steps for a wallet its person does not hold, nor for a Robinhood bid another person placed; another person's bid, a bid that does not exist, a bid on an auction the site does not list and a bid number on an auction of another chain get the same answer in the same words, and a bid placed by another of the person's wallets settles.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 522,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 517,
+      "line": 521,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "Both Robinhood bid actions run for the agent paired with the person, or a connected app calling as that agent, and for no one else: not the person signed in, a connected app as itself, the site or nobody.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 523,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 536,
+      "line": 540,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent Robinhood bid contract lists is reached, with the same code and words on the route and the hosted tool, and each at a status the contract documents for it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 524,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 649,
+      "line": 653,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "An agent whose person's account cannot be read is refused authentication_required on both Robinhood bid actions and prepares nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 525,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 703,
+      "line": 707,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both actions, never not_your_bid for their own bid",
       "keep_because": "A person whose verified wallets were withdrawn, or whose primary wallet is not among them, is refused wallet_required on both Robinhood bid actions and both ways in, with or without a named signer; their own bid is never called not_your_bid and no steps are prepared.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 526,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 733,
+      "line": 737,
       "test_name": "a read that fails, or a reason nobody named, is logged by kind alone and refused as bid_unavailable alike on both ways in",
       "keep_because": "An auction holding no contract, a lost auction read, a missing Robinhood description and odd errors reaching the answer are each logged by kind, with no wallet in the line, and answered 503 bid_unavailable alike on both ways in; none crashes the answer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 527,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 820,
+      "line": 824,
       "test_name": "each reason the reviews, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is bid_unavailable",
       "keep_because": "Pins the whole mapping from every reason the Robinhood bid and settlement reviews, the listing, the wallet and the account can give to the one code an agent is answered with, each answered with its own words at a status the contract documents; an unknown reason or any other term is bid_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 528,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 884,
+      "line": 888,
       "test_name": "any amount, price and slippage is answered or refused alike on both ways in, and a slippage, amount or price text the page refuses never reaches Robinhood Chain",
       "keep_because": "Any amount, price or slippage, of any JSON type, is answered or refused with a documented code alike on both ways in, never raises, and a slippage, amount or maximum price the page's own parsers refuse is refused before Robinhood Chain is read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 529,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 951,
+      "line": 955,
       "test_name": "in prelaunch read-only mode neither tool is listed or run, and both routes wait",
       "keep_because": "Before the site opens, neither agent Robinhood bid tool is listed or run and both routes answer prelaunch_read_only.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 530,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 971,
+      "line": 975,
       "test_name": "switched on a paired agent lists both tools; off, neither is listed, and a call to either is answered as one to no tool",
       "keep_because": "The agent Robinhood bid tools are listed to a paired agent, as read-only, only while agent Robinhood bids are on; off, neither is listed, and a call to either, well formed or not, is answered byte for byte as a call to a tool that does not exist, in no words of them.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 531,
@@ -5404,116 +5404,116 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
       "line": 192,
-      "test_name": "a bid before the auction's clock reaches its start block is refused as auction_not_started with no steps, while the page still reviews it",
-      "keep_because": "Before the auction's own clock at the latest block reaches its start block, an agent's Robinhood bid is refused auction_not_started with no steps on both ways in, as the auction would revert it, while the auction page still shows its review; from the start block the steps come back. It fails if an agent is handed a bid the auction would refuse as not started.",
+      "test_name": "a bid while even the auction clock's next step is before its start block is refused as auction_not_started with no steps, while the page still reviews it",
+      "keep_because": "The auction's own clock never runs back, and a bid sent now lands at that clock or later. While even the clock's next step is before the start block, an agent's Robinhood bid is refused auction_not_started with no steps on both ways in, as the auction is certain to revert it, while the auction page still shows its review; one step before the start, where the bid may land in time, and from the start block the steps come back (since 18 Nov 2026). It fails if an agent is handed a bid the auction is certain to refuse as not started, or refused one that may land in time.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 536,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 325,
+      "line": 329,
       "test_name": "a bid another of the person's wallets placed, kept in its checksummed letter case, is theirs to settle, alike on the bid's row and on both ways in",
       "keep_because": "A Robinhood bid placed by another of the person's wallets, stored in its checksummed letter case while the auction records it in lowercase, settles with the same steps on the bid's row, the route and the hosted tool. It fails if a wallet's letter case decides whose bid it is.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 537,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 352,
+      "line": 356,
       "test_name": "another's bid is answered not_your_bid before the auction is asked to settle it, even where that would fail",
       "keep_because": "Another person's Robinhood bid is answered not_your_bid before the auction is asked to simulate its settlement, even where that simulation would fail; the person's own bid reaches it. It fails if a failing chain read could tell an agent that someone else's bid exists.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 538,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 371,
+      "line": 375,
       "test_name": "a hidden auction takes no bid, known before Robinhood Chain is read, while a bid on it stays the person's to settle",
       "keep_because": "An auction the site hides refuses an agent's Robinhood bid as auction_not_found before Robinhood Chain is read, while a bid already on it still gets its return and claim steps. The auction is hidden through the operator's own hide action, which on a Robinhood auction failed as a stale record until 18 Nov 2026.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 539,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 389,
+      "line": 393,
       "test_name": "a bid's id as autolaunch_my_positions and the positions route give it, in lowercase, is taken as it is by the settlement route and tool",
       "keep_because": "The Robinhood bid id the positions route and autolaunch_my_positions give, lowercase with letters in the auction's address, is accepted unchanged by the settlement route and hosted tool and names the same bid. It fails if the two disagree on the id's shape.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 540,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 409,
+      "line": 413,
       "test_name": "a bid number is any the auction can issue: the last it can settles, one it has not issued names no bid, and one past any uint256 names no bid before anything is read",
       "keep_because": "The last bid number an auction can ever issue (one below the largest uint256, since its next id is a uint256 too) settles, alike on the bid's row and the route. A number it has not issued, the largest uint256 included, is not_your_bid on both ways in and no bid on the bid's row once the auction's next id is read, never asking for its record, which the auction refuses (BidIdDoesNotExist) and the site would read as Robinhood Chain being unreachable; past any uint256 is answered before the auction is looked up or Robinhood Chain is read. Agent Robinhood bids rehearsal, 18 Nov 2026.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 541,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 478,
+      "line": 482,
       "test_name": "a max_price that is no plain decimal above zero is refused before Robinhood Chain is read, alike on both ways in and on the auction page",
       "keep_because": "A maximum price that is not a plain decimal, is too long, or is zero is refused invalid_decimal or invalid_price with no Robinhood Chain read, alike on the route, the hosted tool and the auction page's review.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 542,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 671,
+      "line": 675,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable on both routes",
       "keep_because": "When the person's account cannot be read as a paired agent's signed request arrives, both Robinhood bid routes answer 503 account_unavailable and prepare nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 543,
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 689,
+      "line": 693,
       "test_name": "both routes spend the person's one budget of 120 signed requests a minute",
       "keep_because": "The bid and settlement routes draw on the same per-person budget of 120 signed agent requests a minute, so one route's request is counted against the other's.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 544,
@@ -5962,13 +5962,13 @@
       "group": "Agent Robinhood bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_robinhood_bids_test.exs",
-      "line": 792,
+      "line": 796,
       "test_name": "a raise in either operation is logged by kind alone and refused as bid_unavailable alike on both ways in",
       "keep_because": "A raise anywhere in preparing a Robinhood bid or its settlement is answered bid_unavailable on the route and the hosted tool alike, logged by its kind alone, never what it said.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad13c4792cfd455b37623910896d4be36cd8ecb30584ba30e94b337e79b665aa"
+      "source_sha256": "8fb2d882a63a5f85fec15bd48ac1bb5018d91575ce40c0af9cf08ea054508111"
     },
     {
       "id": 579,
@@ -6046,20 +6046,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
     },
     {
       "id": 585,
       "group": "Agent Robinhood bids",
       "framework": "playwright",
       "file": "test/journeys/agent_robinhood_bids.spec.ts",
-      "line": 99,
+      "line": 100,
       "test_name": "agent Robinhood bids: an agent prepares its person's USDG bids, return and claim on Robinhood Chain, and the person's wallet sends them",
-      "keep_because": "End to end on the Robinhood lab at 390 and 1280: before the start block the agent is refused auction_not_started, as the auction refuses; from it, a paired agent's USDG bid steps, on its signed route and the hosted prepare_robinhood_bid tool, are the auction page's own review for the same budget and max FDV, and the person's wallet sends them, the USDG approval first; the auction records the bid as the person's and the site lists it; a second bid is approved once its approval is on the chain; another person's bid, bid numbers near and past the largest uint256 and another wallet are refused; one block before the end block the steps come back and land, and at the end block the answer is bidding_ended with none, as the auction refuses (AuctionIsOver); at the claim block the return then claim of a graduated auction's bid, and the whole return on a failed one, prepared both ways, land from the person's wallet. It fails if an agent's steps differ from the page's, any step reverts, or an agent is handed a bid the auction refuses.",
+      "keep_because": "End to end on the Robinhood lab at 390 and 1280: two clock steps before the start block the agent is refused auction_not_started, as the auction refuses, and one step before it the steps are given (since 18 Nov 2026); from the start, a paired agent's USDG bid steps, on its signed route and the hosted prepare_robinhood_bid tool, are the auction page's own review for the same budget and max FDV, and the person's wallet sends them, the USDG approval first; the auction records the bid as the person's and the site lists it; a second bid is approved once its approval is on the chain; another person's bid, bid numbers near and past the largest uint256 and another wallet are refused; one block before the end block the steps come back and land, and at the end block the answer is bidding_ended with none, as the auction refuses (AuctionIsOver); at the claim block the return then claim of a graduated auction's bid, and the whole return on a failed one, prepared both ways, land from the person's wallet. It fails if an agent's steps differ from the page's, any step reverts, or an agent is handed a bid the auction refuses.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5892df4103f7a9c93b3b59045b5c14564e0c1a5dd0f1b89936ed13abf9eded2e"
+      "source_sha256": "d5c4a151ef8a8dff806e516d5bbe06feff7590a0521ecd61f41398d85166fbe6"
     },
     {
       "id": 586,
@@ -6196,39 +6196,39 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 121,
-      "test_name": "before the auction starts the bid is held on its button, saying when bidding opens, and comes back once Robinhood's clock reaches the start",
-      "keep_because": "Bid follow-ups (18 Nov 2026): before a Robinhood auction's start the page offered an enabled Place bid, which the auction refuses (AuctionNotStarted). With Robinhood's clock below the start block the bid stays on its button, disabled, with \"Bidding opens at block N.\" above it, and a press that builds the review again hands nothing out to send; once the page reads the clock at the start, the review is built again and the bid can be sent. It fails if the bid is pressable before the start, a press hands it out, or it stays held once the clock reaches the start.",
+      "line": 122,
+      "test_name": "two clock steps before the auction starts the bid is held on its button, saying when bidding opens, and one step before it comes back",
+      "keep_because": "Bid follow-ups (18 Nov 2026): before a Robinhood auction's start the page offered an enabled Place bid, which the auction refuses (AuctionNotStarted). Its clock never runs back and a bid sent now lands at that clock or later, so while even the clock's next step is before the start block the bid stays on its button, disabled, with \"Bidding opens at block N.\" above it, and a press that builds the review again hands nothing out to send; once the page reads the clock one step before the start, where the bid may land in time, the review is built again and the bid can be sent. It fails if the bid is pressable two steps before the start, a press hands it out, or it stays held one step before the start.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
     },
     {
       "id": 597,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 155,
+      "line": 156,
       "test_name": "before the auction starts its USDG approval is still sent, and only the bid is held",
       "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: only the press certain to fail is held. A USDG approval to the bid adapter succeeds whatever the auction's clock, so before the start the approval is still offered and a press sends it, while the words say when bidding opens. It fails if the approval is held or a press does not send it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
     },
     {
       "id": 598,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 174,
+      "line": 175,
       "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
       "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
     },
     {
       "id": 599,

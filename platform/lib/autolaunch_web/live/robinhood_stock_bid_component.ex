@@ -24,12 +24,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   at the top. With `draft_marker`, the page hears `{:bid_draft_price, price}`
   whenever the form's maximum price changes, so it can mark it on the chart.
 
-  A bid the auction would refuse by its own clock at the latest block (the
-  review's `blocked`) stays on its button, disabled, with the reason above it;
-  its USDG approval is never held back, since the approval succeeds whatever
-  the auction's clock. Before the start, the page passes Robinhood's clock as
-  it last read it (`Autolaunch.ChainHead`) as `observed`, and each new reading
-  builds the review again, so the bid comes back as soon as it can land.
+  A bid the auction is certain to refuse by its own clock at the latest block
+  (the review's `blocked`) stays on its button, disabled, with the reason
+  above it; its USDG approval is never held back, since the approval succeeds
+  whatever the auction's clock. Before the start, the page passes Robinhood's
+  clock as it last read it (`Autolaunch.ChainHead`) as `observed`, and each
+  new reading builds the review again, so the bid comes back as soon as it
+  can land.
   """
 
   use AutolaunchWeb, :live_component

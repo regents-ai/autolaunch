@@ -113,15 +113,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
     assert_reviewed(view, wallet, opts)
   end
 
-  # Robinhood's clock reads 5 and the auction opens at block 60: the auction
-  # would refuse the bid (`AuctionNotStarted`), so its button stays, disabled,
-  # saying when bidding opens, and a press hands nothing out to send. Once the
-  # page reads the clock at the start, the review is built again and the bid
-  # can be sent.
-  test "before the auction starts the bid is held on its button, saying when bidding opens, and comes back once Robinhood's clock reaches the start",
+  # Robinhood's clock reads 58 and the auction opens at block 60: a bid sent
+  # now lands at 58 or 59 at the earliest, which the auction refuses
+  # (`AuctionNotStarted`), so its button stays, disabled, saying when bidding
+  # opens, and a press hands nothing out to send. Once the page reads the clock
+  # at 59, the bid may land at the start, so the review is built again and the
+  # bid can be sent.
+  test "two clock steps before the auction starts the bid is held on its button, saying when bidding opens, and one step before it comes back",
        %{conn: conn, account: account, wallet: wallet} do
     allowed = 100 * 10 ** 6
-    RobinhoodBidChain.put(%{clock: 5, start_block: 60, usdg_allowance: allowed})
+    RobinhoodBidChain.put(%{clock: 58, start_block: 60, usdg_allowance: allowed})
     {view, panel, inputs} = filled_panel(conn, account, wallet, ["usdg_bid"])
 
     assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding opens at block 60.")
@@ -138,8 +139,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
     assert_reply(view, reply)
     assert reply == %{}
 
-    RobinhoodBidChain.put(%{clock: 60, start_block: 60, usdg_allowance: allowed})
-    send(view.pid, {:observed, 60})
+    RobinhoodBidChain.put(%{clock: 59, start_block: 60, usdg_allowance: allowed})
+    send(view.pid, {:observed, 59})
     render_async(view)
 
     assert has_element?(
