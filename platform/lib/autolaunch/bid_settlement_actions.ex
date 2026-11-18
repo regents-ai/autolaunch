@@ -57,7 +57,17 @@ defmodule Autolaunch.BidSettlementActions do
     with {:ok, %{actor: actor, signer: signer}} <-
            LaunchOperations.signed_in_wallet(address, opts, Bid),
          {:ok, position} <- owned_position(bid_position_id, actor),
-         {:ok, bid_id} <- onchain_bid_id(position),
+         do: review(position, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes of `position`, already read as one the acting
+  account holds (its auction loaded), from `signer`, one of that account's own
+  wallets, with the latest block it read (`block`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(position, signer) do
+    with {:ok, bid_id} <- onchain_bid_id(position),
          {:ok, snapshot} <- snapshot(position.auction_address, bid_id, signer),
          :ok <- owner(snapshot.bid.owner, position.owner_address),
          {:ok, steps} <- eligible_steps(snapshot),
@@ -69,6 +79,7 @@ defmodule Autolaunch.BidSettlementActions do
          chain: Client.chain(config),
          steps: Enum.map(steps, &Review.step(&1.name, snapshot.auction, &1.data)),
          facts: facts(auction, snapshot, steps),
+         block: snapshot.block.number,
          context: %{
            bid_id: position.bid_id,
            auction_address: snapshot.auction,

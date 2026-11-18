@@ -158,18 +158,29 @@ defmodule Autolaunch.BidActions do
   minutes.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(
-        %{auction_id: auction_id, amount: amount, max_price: max_price} = request,
-        address,
-        opts
-      ) do
+  def prepare(request, address, opts) do
     with {:ok, %{signer: signer}} <-
            LaunchOperations.signed_in_wallet(address, opts, Autolaunch.Auction),
-         {:ok, auction} <- auction(auction_id),
-         :ok <- verified_treasury(auction),
-         {:ok, auction_address} <- normalize(auction.auction_address),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, with the latest block it read (`block`) and
+  `blocked: :bidding_ended` once the auction's record or that block says bidding
+  has ended, when the page no longer offers its bid form; otherwise `nil`.
+
+  What was typed is read before anything is asked of Base, so input this refuses
+  never reaches the chain.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{auction_id: auction_id, amount: amount, max_price: max_price} = request, signer) do
+    with {:ok, auction} <- auction(auction_id),
          {:ok, max_price_q96} <-
            refusable(price_q96(max_price, auction.quote_token_decimals)),
+         {:ok, payment} <- payment(request, amount, auction),
+         :ok <- verified_treasury(auction),
+         {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, snapshot} <-
            chain(
              chain_client().snapshot(%{
@@ -180,20 +191,53 @@ defmodule Autolaunch.BidActions do
            ),
          {:ok, max_price_q96} <- refusable(BidPrice.align(max_price_q96, snapshot)),
          :ok <- bound_currency(snapshot, auction),
-         :ok <- bounded_predecessor(snapshot, max_price_q96) do
-      bid = %{
-        auction: auction,
-        auction_address: auction_address,
-        signer: signer,
-        max_price_q96: max_price_q96,
-        snapshot: Map.put(snapshot, :auction, auction_address)
-      }
-
-      if request[:pay_with] == "USDC",
-        do: usdc_bid(bid, amount, Map.get(request, :slippage_percent, BidSlippage.default())),
-        else: currency_bid(bid, amount)
+         :ok <- bounded_predecessor(snapshot, max_price_q96),
+         bid = %{
+           auction: auction,
+           auction_address: auction_address,
+           signer: signer,
+           max_price_q96: max_price_q96,
+           snapshot: Map.put(snapshot, :auction, auction_address)
+         },
+         {:ok, reviewed} <- review_bid(bid, payment) do
+      {:ok,
+       Map.merge(reviewed, %{
+         block: snapshot.block.number,
+         blocked: if(bidding_ended?(auction, snapshot.block), do: :bidding_ended)
+       })}
     end
   end
+
+  # What the bid pays with, read from what was typed: the auction's own
+  # currency in its decimals, or USDC on a Stocks auction that takes it, with
+  # its slippage.
+  defp payment(%{pay_with: "USDC"} = request, typed, auction) do
+    with {:ok, bps} <-
+           refusable(
+             BidSlippage.parse(Map.get(request, :slippage_percent, BidSlippage.default()))
+           ),
+         :ok <- stocks_auction(auction),
+         {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
+         do: {:ok, {:usdc, usdc_amount, bps}}
+  end
+
+  defp payment(_request, typed, auction) do
+    with {:ok, amount} <- refusable(atomic_amount(typed, auction.quote_token_decimals)),
+         do: {:ok, {:currency, amount}}
+  end
+
+  defp review_bid(bid, {:currency, amount}), do: currency_bid(bid, amount)
+  defp review_bid(bid, {:usdc, usdc_amount, bps}), do: usdc_bid(bid, usdc_amount, bps)
+
+  # Bidding has ended once the auction's record says so, or once the latest
+  # block has reached its end block, as the auction page decides it.
+  defp bidding_ended?(%{state: state}, _block) when state in [:ended, :graduated, :failed],
+    do: true
+
+  defp bidding_ended?(%{end_block: end_block}, %{number: number}) when is_integer(end_block),
+    do: number >= end_block
+
+  defp bidding_ended?(_auction, _block), do: false
 
   @doc """
   What a confirmed step of a bid placed, read from its receipt's logs: the
@@ -251,11 +295,10 @@ defmodule Autolaunch.BidActions do
 
   # Reviews
 
-  defp currency_bid(bid, typed) do
+  defp currency_bid(bid, amount) do
     %{auction: auction, auction_address: address, signer: signer, snapshot: snapshot} = bid
 
-    with {:ok, amount} <- refusable(atomic_amount(typed, auction.quote_token_decimals)),
-         :ok <- affordable(snapshot, amount),
+    with :ok <- affordable(snapshot, amount),
          {:ok, config} <- lab(Lab) do
       expiration = DateTime.to_unix(DateTime.utc_now()) + @permit2_seconds
 
@@ -291,11 +334,8 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, typed, slippage) do
-    with {:ok, bps} <- refusable(BidSlippage.parse(slippage)),
-         :ok <- stocks_auction(auction),
-         {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
-         {:ok, usdc} <-
+  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, usdc_amount, bps) do
+    with {:ok, usdc} <-
            chain(
              LabBidChainClient.usdc_snapshot(%{
                stock: snapshot.currency,

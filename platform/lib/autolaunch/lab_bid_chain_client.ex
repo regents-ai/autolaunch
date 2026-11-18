@@ -7,10 +7,10 @@ defmodule Autolaunch.LabBidChainClient do
   USDC. It reads nothing about the auction's bidding window, so a balance shows
   before an auction opens.
 
-  `snapshot/1` answers the whole reviewed question at once: the auction's own
-  currency, the wallet's balance of it, both allowances that stand between it
-  and the auction, and a tick below the bid's price for the canonical call
-  (`Autolaunch.Chain.CcaLists.tick_hint/4`).
+  `snapshot/1` answers the whole reviewed question at once, at the latest block,
+  which it names (`block`): the auction's own currency, the wallet's balance of
+  it, both allowances that stand between it and the auction, and a tick below
+  the bid's price for the canonical call (`Autolaunch.Chain.CcaLists.tick_hint/4`).
   There is no partial answer: a review is derived from one snapshot or from none.
 
   A test answers both callbacks itself, installed under
@@ -101,7 +101,8 @@ defmodule Autolaunch.LabBidChainClient do
          permit2_expiration: permit2_expiration,
          prev_tick_price_q96: prev_tick_price_q96,
          predecessor_source: "bounded local auction tick walk",
-         permit2: Lab.address!(config, :permit2)
+         permit2: Lab.address!(config, :permit2),
+         block: block
        }}
     else
       :error -> {:error, :invalid_chain_response}
