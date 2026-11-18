@@ -1268,7 +1268,12 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   defp json(conn), do: conn.resp_body |> IO.iodata_to_binary() |> Jason.decode!()
 
-  defp from, do: {10, 9, :rand.uniform(250), :rand.uniform(250)}
+  # An address no other call in this run gives, so no request meets the budget
+  # another test spent at its address.
+  defp from do
+    n = System.unique_integer([:positive, :monotonic])
+    {10, 9, rem(div(n, 250), 250) + 1, rem(n, 250) + 1}
+  end
 
   defp wallet, do: "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
 end
