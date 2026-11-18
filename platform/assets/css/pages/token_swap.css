@@ -110,6 +110,11 @@
   cursor: pointer;
 }
 .token-swap__portions button:hover, .token-swap__portions button:focus-visible { color: var(--color-fg); border-color: var(--color-fg); }
+/* On a touch screen each shortcut is a full 44px press, by the design system's
+   touch rule, reaching over the head's edges so the head keeps its height. */
+@media (hover: none), (pointer: coarse) {
+  .token-swap__portions button { min-block-size: 2.75rem; min-inline-size: 2.75rem; margin-block: -.5rem; }
+}
 .token-swap__amount-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
