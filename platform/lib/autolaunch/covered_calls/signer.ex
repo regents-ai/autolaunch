@@ -12,7 +12,7 @@ defmodule Autolaunch.CoveredCalls.Signer do
   """
 
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
+  alias Autolaunch.Accounts.{HumanAccount, VerifiedSession}
   alias Autolaunch.Actors.{Agent, Human, System}
   alias RegentChain.Address
 
@@ -43,7 +43,7 @@ defmodule Autolaunch.CoveredCalls.Signer do
     with {:ok, account} <- account(id), do: wallet(account, candidate)
   end
 
-  def wallet(%{wallet_address: primary, wallet_addresses: addresses}, candidate) do
+  def wallet(%HumanAccount{wallet_address: primary, wallet_addresses: addresses}, candidate) do
     with {:ok, wallet} <- candidate(candidate || primary) do
       if Enum.any?(addresses || [], &Address.equal?(&1, wallet)),
         do: {:ok, wallet},
