@@ -616,9 +616,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       {signer,
        %{auction: auction, usdg_amount: amount, max_price: max_price, slippage_percent: slippage}}
 
-  defp reviewed(socket, key, inputs, {:ok, prepared}) do
+  defp reviewed(
+         socket,
+         {_auction, signer, _amount, _max_price, _slippage} = key,
+         inputs,
+         {:ok, prepared}
+       ) do
     {steps, socket} = OnchainSteps.with_approved(socket, approves(key), prepared.steps)
-    review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, steps, inputs)
+    review = Review.new(socket.assigns.id, signer, prepared.chain, steps, inputs)
 
     socket
     |> assign(prepared: prepared, prepared_for: key, notice: nil)

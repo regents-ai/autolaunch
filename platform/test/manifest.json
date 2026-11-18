@@ -1,5 +1,5 @@
 {
-  "total": 464,
+  "total": 465,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6034,6 +6034,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f7a4ddf0d369768f0f1cb63f2de47dba7fea774094a590b0adafa1070059d5aa"
+    },
+    {
+      "id": 584,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 68,
+      "test_name": "a bid's review on the auction page is for the person's open wallet",
+      "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing. The review is for the person's open wallet, with the steps the bid action prepares for it. It fails if the review names any other signer.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4730eb19c0d375b014c3e09b7974d4b390ccd43ff53d50d63c284b8ca7ef6993"
     }
   ],
   "legacy_folders_to_remove": [
