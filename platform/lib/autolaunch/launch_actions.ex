@@ -87,8 +87,9 @@ defmodule Autolaunch.LaunchActions do
   Whether the review on the page still stands on Base as it is now: launches
   open, the strategy still bound to the factory, the factory, strategy and hook
   it was built against, and the treasury security it was built with.
-  `:changed` means the page builds it again; `:unread` means Base or the
-  treasury report could not be read, and the review stays as it is.
+  `:changed` means the page builds it again, as it does when the treasury
+  report cannot be read; `:unread` means the draft or Base could not be read,
+  and the review stays as it is.
   """
   @spec current(map(), keyword()) :: :current | :changed | :unread
   def current(%{signer: signer, facts: facts}, opts) do
