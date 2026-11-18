@@ -68,7 +68,7 @@ defmodule AutolaunchWeb.AgentStakeTest do
   @position %{
     balance: 5 * @unit,
     staked: 3 * @unit,
-    claimable: %{usdc: 1_500_000, token: div(@unit, 4), regent: 2 * @unit}
+    claimable: %{dollar: 1_500_000, token: div(@unit, 4), currency: 2 * @unit}
   }
 
   setup :bidder
@@ -186,7 +186,7 @@ defmodule AutolaunchWeb.AgentStakeTest do
   # The page offers a claim with nothing waiting too: it pays nothing.
   test "a claim with nothing waiting is still the page's steps, the claim paying nothing",
        %{agent: agent, listed: listed, opts: opts, wallet: wallet} do
-    StakeChain.put(%{claimable: %{usdc: 0, token: 0, regent: 0}})
+    StakeChain.put(%{claimable: %{dollar: 0, token: 0, currency: 0}})
     {:ok, page} = StakeActions.prepare(page_request(listed, %{kind: "claim"}), wallet, opts)
     {:ok, data} = answer(http(:post, path(listed.id), %{kind: "claim"}, agent))
 

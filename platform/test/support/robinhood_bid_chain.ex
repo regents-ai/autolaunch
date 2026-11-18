@@ -16,6 +16,17 @@ defmodule Autolaunch.RobinhoodBidChain do
   bid's `BidSubmitted`, so a wallet's positions read it. The launchpad takes
   new launches unless `launches_paused`, so a launch's review reads it too.
 
+  Once the record says the launch graduated (`lifecycle` 2), it names its pool,
+  its staking contract (`splitter/0`) and its two locked positions, a full
+  range one and a token-only one above the opening price, each of whose
+  simulated `collect` gives 2 of the stock and 1 of the token; the pool has had
+  no trade and its hook no fee or settlement, and the hook holds `lanes` (what
+  waits for the creator, REGENT and the stakers). One wallet, the bid
+  fixture's, holds `token_balance` of the token, lets the staking contract
+  take `token_allowance` of it, has `staked` everything staked there and can
+  claim `claimable` of each asset (`:dollar`, USDG; `:token`; `:currency`, the
+  stock); any other wallet holds, has staked and can claim nothing.
+
   `install/1` points the site at it and `put/1` replaces what it answers
   mid-test, each as overrides over the defaults; both are undone when the test
   exits. Prices are Q96, the stock's
@@ -44,14 +55,46 @@ defmodule Autolaunch.RobinhoodBidChain do
   @route "0x4444444444444444444444444444444444444444"
   @token "0x6000000000000000000000000000000000000006"
   @launcher "0x7000000000000000000000000000000000000007"
+  @splitter "0x8000000000000000000000000000000000000008"
+  @executor "0x9000000000000000000000000000000000000009"
+  @lp_token_id 61
+  @new_only_token_id 62
   @arb_sys "0x0000000000000000000000000000000000000064"
   @hash "0x" <> String.duplicate("6c", 32)
   @last_block Integer.pow(2, 64) - 1
   @deployment Path.expand("../fixtures/robinhood-deployment.json", __DIR__)
+  @owner_of "0x6352211e"
+  @extsload "0x1e2eaeaf"
+  # What a graduated launch's record adds to a running one's: its pool, its
+  # staking contract, its two locked positions and when its creator's vesting
+  # starts.
+  @graduated %{
+    pool_id: 29,
+    final_sqrt_price_x96: @q96,
+    splitter: String.to_integer(String.trim_leading(@splitter, "0x"), 16),
+    lp_token_id: @lp_token_id,
+    lp_currency_used: 5 * 10 ** 18,
+    lp_new_used: 7 * 10 ** 18,
+    new_only_token_id: @new_only_token_id,
+    new_only_used: 10 ** 18,
+    vesting_start_block: 95
+  }
+  # A full range for a 60 tick spacing, and the token-only position's range:
+  # every price of the token above the opening one, ticks below the pool's,
+  # the token being its currency1.
+  @full_range {-887_220, 887_220}
+  @above_opening {-887_220, -60}
 
   def chain_id, do: @chain_id
   def auction, do: @auction
   def stock, do: @stock
+  def token, do: @token
+  def splitter, do: @splitter
+  def lp_token_id, do: @lp_token_id
+  def new_only_token_id, do: @new_only_token_id
+
+  @doc "The graduated launch's pool id, as its record holds it."
+  def pool_id, do: "0x" <> BaseRpcStub.hex_word(@graduated.pool_id)
 
   @doc "Bid 7 as the auction holds it unless a test says otherwise: 12 of the stock at most 3 per token."
   def bid,
@@ -135,7 +178,12 @@ defmodule Autolaunch.RobinhoodBidChain do
         bid: bid(),
         exit: {:exited, 0, 12 * 10 ** 18},
         claim: {:reverted, "NotGraduated()"},
-        checkpoints: :final
+        checkpoints: :final,
+        lanes: [0, 0, 0],
+        token_balance: 0,
+        token_allowance: 0,
+        staked: 0,
+        claimable: %{dollar: 0, token: 0, currency: 0}
       },
       Application.get_env(:autolaunch, __MODULE__, %{})
     )
@@ -169,7 +217,7 @@ defmodule Autolaunch.RobinhoodBidChain do
 
   defp answer("eth_call", [%{to: to, data: data}, _block], state) do
     {:ok, config} = Lab.current()
-    read(contract(to, config), String.slice(data, 0, 10), argument(data), state)
+    read(contract(to, config), String.slice(data, 0, 10), arguments(data), state)
   end
 
   defp answer("eth_simulateV1", [%{blockStateCalls: [%{calls: calls}]}, _block], state),
@@ -183,10 +231,18 @@ defmodule Autolaunch.RobinhoodBidChain do
        else: []
   end
 
+  # The pool has had no trade, and its hook has charged no fee and settled no lane.
+  defp answer("eth_getLogs", [%{address: address}], _state) do
+    {:ok, config} = Lab.current()
+    true = contract(address, config) in [:hook, :pool_manager]
+    []
+  end
+
   defp contract(@arb_sys, _config), do: :clock
   defp contract(@auction, _config), do: :auction
   defp contract(@route, _config), do: :route
   defp contract(@token, _config), do: :token
+  defp contract(@splitter, _config), do: :splitter
 
   defp contract(address, config) do
     {:ok, v1} = Lab.contracts(config, :v1)
@@ -194,6 +250,10 @@ defmodule Autolaunch.RobinhoodBidChain do
     cond do
       address == Lab.address!(config, :bid_adapter) -> :adapter
       address == Lab.address!(config, :stocks_launchpad) -> :launchpad
+      address == Lab.address!(config, :stocks_hook) -> :hook
+      address == Lab.address!(config, :stocks_locker) -> :locker
+      address == Lab.address!(config, :pool_manager) -> :pool_manager
+      address == Lab.address!(config, :position_manager) -> :position_manager
       address == Lab.address!(config, :usdg) -> :usdg
       address == v1.launchpad -> :first_launchpad
     end
@@ -235,6 +295,9 @@ defmodule Autolaunch.RobinhoodBidChain do
 
       selector == LabAbi.selector("launchesPaused()") ->
         bool(state.launches_paused)
+
+      selector == LabAbi.selector("creatorReleasable(uint256)") ->
+        uint(0)
     end
   end
 
@@ -246,11 +309,77 @@ defmodule Autolaunch.RobinhoodBidChain do
     end
   end
 
-  defp read(:token, selector, _argument, _state) do
+  defp read(:token, selector, arguments, state) do
     cond do
-      selector == LabAbi.selector("name()") -> string("Robinhood Dog")
-      selector == LabAbi.selector("symbol()") -> string("RDOG")
-      selector == LabAbi.selector("tokenURI()") -> string("data:application/json;base64,e30=")
+      selector == LabAbi.selector("name()") ->
+        string("Robinhood Dog")
+
+      selector == LabAbi.selector("symbol()") ->
+        string("RDOG")
+
+      selector == LabAbi.selector("tokenURI()") ->
+        string("data:application/json;base64,e30=")
+
+      selector == LabAbi.selector("balanceOf(address)") ->
+        uint(own(arguments, state.token_balance))
+
+      selector == LabAbi.selector("allowance(address,address)") ->
+        uint(own(arguments, state.token_allowance))
+    end
+  end
+
+  # Both pool slots the site reads answer one word: a price of one stock per
+  # token, at tick 0, and as much liquidity.
+  defp read(:pool_manager, @extsload, _slot, _state), do: uint(@q96)
+
+  defp read(:position_manager, selector, [id], _state) do
+    {:ok, config} = Lab.current()
+
+    cond do
+      selector == @owner_of -> address(Lab.address!(config, :stocks_locker))
+      selector == LabAbi.selector("positionInfo(uint256)") -> uint(range(id))
+      selector == LabAbi.selector("getPositionLiquidity(uint256)") -> uint(0)
+    end
+  end
+
+  # Collecting either position deposits 2 of the stock (currency0) and 1 of the token.
+  defp read(:locker, selector, [id], _state) when id in [@lp_token_id, @new_only_token_id] do
+    if selector == LabAbi.selector("collect(uint256)"), do: words([2 * 10 ** 18, 10 ** 18])
+  end
+
+  defp read(:hook, selector, arguments, state) do
+    cond do
+      selector == LabAbi.selector("accrued(bytes32)") and arguments == [@graduated.pool_id] ->
+        words(state.lanes)
+
+      selector == LabAbi.selector("settled(bytes32)") and arguments == [@graduated.pool_id] ->
+        words([0, 0, 0, 0])
+
+      selector == LabAbi.selector("executor()") ->
+        address(@executor)
+    end
+  end
+
+  # The staking contract, with the fixture's wallet its only staker.
+  defp read(:splitter, selector, arguments, state) do
+    {:ok, config} = Lab.current()
+
+    cond do
+      selector == LabAbi.selector("totalStaked()") ->
+        uint(state.staked)
+
+      selector == LabAbi.selector("SKIM_BPS()") ->
+        uint(200)
+
+      selector == LabAbi.selector("dollar()") ->
+        address(Lab.address!(config, :usdg))
+
+      selector == LabAbi.selector("stakedOf(address)") ->
+        uint(own(arguments, state.staked))
+
+      selector == LabAbi.selector("claimable(address,address)") ->
+        [asset, holder] = arguments
+        uint(own([holder], Map.fetch!(state.claimable, asset(asset, config, state))))
     end
   end
 
@@ -266,8 +395,8 @@ defmodule Autolaunch.RobinhoodBidChain do
       do: uint(state.quote)
   end
 
-  defp read(:auction, selector, argument, state) do
-    Enum.find_value(auction_reads(argument, state), fn {signature, answer} ->
+  defp read(:auction, selector, arguments, state) do
+    Enum.find_value(auction_reads(List.first(arguments), state), fn {signature, answer} ->
       if LabAbi.selector(signature) == selector, do: answer.()
     end)
   end
@@ -333,7 +462,34 @@ defmodule Autolaunch.RobinhoodBidChain do
   defp launch(:claim_block, state), do: state.claim_block
   defp launch(:migration_block, state), do: state.migration_block
   defp launch(:lifecycle, state), do: state.lifecycle
+
+  defp launch(field, %{lifecycle: 2}) when is_map_key(@graduated, field),
+    do: Map.fetch!(@graduated, field)
+
   defp launch(_unset, _state), do: 0
+
+  # A wallet's own figure for the fixture's wallet, and nothing for any other.
+  defp own([holder | _rest], amount),
+    do: if(holder == number(BidFixture.wallet()), do: amount, else: 0)
+
+  defp asset(address, config, state) do
+    cond do
+      address == number(Lab.address!(config, :usdg)) -> :dollar
+      address == number(@token) -> :token
+      address == number(state.stock) -> :currency
+      true -> raise "the staking contract holds no asset at 0x#{BaseRpcStub.hex_word(address)}"
+    end
+  end
+
+  defp range(@new_only_token_id), do: packed(@above_opening)
+  defp range(@lp_token_id), do: packed(@full_range)
+
+  # PositionInfo packs `tickUpper` at bit 32 and `tickLower` at bit 8, each a
+  # 24-bit two's complement tick.
+  defp packed({lower, upper}) do
+    import Bitwise
+    (upper &&& 0xFFFFFF) <<< 32 ||| (lower &&& 0xFFFFFF) <<< 8
+  end
 
   # price, currencyRaised, mpsPerPrice, cumulativeMps, prev, next
   defp checkpoint(:final, _block, bid),
@@ -403,6 +559,13 @@ defmodule Autolaunch.RobinhoodBidChain do
     do: data |> String.slice(10, 64) |> String.to_integer(16)
 
   defp argument(_data), do: nil
+
+  # Every argument of a call, a whole word each.
+  defp arguments(data),
+    do:
+      for(<<word::binary-size(64) <- String.slice(data, 10..-1//1)>>,
+        do: String.to_integer(word, 16)
+      )
 
   defp ok(data), do: %{"status" => "0x1", "returnData" => data, "logs" => []}
   defp uint(value), do: BaseRpcStub.uint(value)
