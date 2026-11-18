@@ -11,7 +11,6 @@ defmodule Autolaunch.Accounts.XOAuth do
   alias Autolaunch.Accounts.{SessionAuthority, XConnection}
   alias Autolaunch.Actors.Human
 
-  @roles [:profile, :company]
   @attempt_ttl 600
   @max_intent_sequence 9_007_199_254_740_991
   @scope "tweet.read users.read"
@@ -108,18 +107,6 @@ defmodule Autolaunch.Accounts.XOAuth do
     end
   end
 
-  @spec list_for_account(Ash.Resource.record()) :: {:ok, list()} | {:error, term()}
-  def list_for_account(account) do
-    actor = actor(account)
-
-    with {:ok, connections} <- Accounts.list_my_x_connections(actor: actor),
-         {:ok, changed?} <- cleanup_expired_attempts(connections, actor) do
-      if changed?,
-        do: Accounts.list_my_x_connections(actor: actor),
-        else: {:ok, connections}
-    end
-  end
-
   @spec public_for_humans([integer()]) :: {:ok, list()} | {:error, term()}
   def public_for_humans(ids) do
     ids = ids |> Enum.filter(&is_integer/1) |> Enum.uniq()
@@ -207,58 +194,6 @@ defmodule Autolaunch.Accounts.XOAuth do
        (current_sequence == intent.cancel_sequence and
           connection.intent_generation == intent.cancel_generation)) and
       intent.sequence > current_sequence
-  end
-
-  defp cleanup_expired_attempts(connections, actor) do
-    candidates = connections |> Enum.filter(&expired_attempt?/1) |> Enum.take(length(@roles))
-
-    case Enum.reduce_while(candidates, :ok, &cleanup_expired_candidate(&1, actor, &2)) do
-      :ok -> {:ok, candidates != []}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp cleanup_expired_candidate(connection, actor, :ok) do
-    case clear_expired_attempt(connection, actor) do
-      {:ok, _cleared?} -> {:cont, :ok}
-      {:error, reason} -> {:halt, {:error, reason}}
-    end
-  end
-
-  defp clear_expired_attempt(connection, actor) do
-    snapshot = attempt_snapshot(connection)
-    observe_expired_cleanup(snapshot)
-
-    Ash.DataLayer.transaction(XConnection, fn ->
-      clear_expired_attempt_transaction(connection.role, snapshot, actor)
-    end)
-  end
-
-  defp clear_expired_attempt_transaction(role, snapshot, actor) do
-    case Accounts.get_my_x_connection_for_update(role, actor: actor) do
-      {:ok, %XConnection{} = locked} ->
-        case maybe_clear_expired_attempt(locked, snapshot, actor) do
-          {:ok, cleared?} -> cleared?
-          {:error, reason} -> Ash.DataLayer.rollback(XConnection, reason)
-        end
-
-      {:ok, nil} ->
-        false
-
-      {:error, reason} ->
-        Ash.DataLayer.rollback(XConnection, reason)
-    end
-  end
-
-  defp maybe_clear_expired_attempt(locked, snapshot, actor) do
-    if same_attempt?(locked, snapshot) and expired_attempt?(locked) do
-      case Accounts.clear_x_connection_attempt(locked, actor: actor) do
-        {:ok, _cleared} -> {:ok, true}
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      {:ok, false}
-    end
   end
 
   defp preflight(claim, state, generation) do
@@ -497,12 +432,6 @@ defmodule Autolaunch.Accounts.XOAuth do
 
   defp active?(_connection), do: false
 
-  defp expired_attempt?(%{attempt_generation: generation, attempt_expires_at: %DateTime{} = at})
-       when is_binary(generation),
-       do: DateTime.compare(at, now()) != :gt
-
-  defp expired_attempt?(_connection), do: false
-
   defp same_attempt?(connection, attempt) do
     connection.role == attempt.role and
       connection.attempt_generation == attempt.generation and
@@ -517,16 +446,6 @@ defmodule Autolaunch.Accounts.XOAuth do
       verifier: connection.attempt_verifier,
       generation: connection.attempt_generation
     }
-  end
-
-  defp observe_expired_cleanup(snapshot) do
-    case Application.get_env(:autolaunch, :x_oauth_expired_cleanup_observer) do
-      observer when is_function(observer, 1) ->
-        observer.(%{role: snapshot.role, generation: snapshot.generation})
-
-      _disabled ->
-        :ok
-    end
   end
 
   defp actor(account), do: %Human{human_account_id: account.id}
