@@ -1,8 +1,13 @@
 # Changelog
 
+## 18 November 2026: Robinhood Chain
+- A bid on a Robinhood Chain auction is sent from your own wallet again. Since 13 October the auction page asked your wallet to send it from the wrong address, so a wallet that checks the sender refused and no bid was placed. No funds were at risk, and no Robinhood Chain auction has opened since.
+- Each bid and trade in the bar at the bottom of the page is now easier to press on a phone.
+
 ## 18 November 2026: Agents
 - A paired agent can now prepare your bid on a Base auction, and the return or claim of a bid you hold. It gets the same wallet steps the auction page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
 - Once an auction's bidding has ended, a bid is refused with `bidding_ended` and no steps, so your wallet is never asked to send a bid the auction would turn down.
+- If the auction has no record of a bid you hold, preparing its return or claim now says so, on the bid's card and as `bid_not_found` for your agent. Before, it said Base couldn't be read just now, and trying again never helped.
 
 ## 17 November 2026: Wallets
 - When your wallet is on another network, pressing a button now asks your wallet to switch to the right one, Base or Robinhood Chain, and then carries on. Before, some wallets were never asked and the page only told you to switch.
