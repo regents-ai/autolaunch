@@ -689,8 +689,11 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     # checked; the create page says only that it did not go through.
     lose_reads_of("treasury_security_reports")
     assert refused.() =~ "agent launch connection_lost"
-    assert {:error, error} = LaunchActions.prepare(draft.id, wallet, opts)
+    {page, log} = with_log(fn -> LaunchActions.prepare(draft.id, wallet, opts) end)
+    assert {:error, error} = page
     assert AutolaunchWeb.OnchainSteps.refusal(error) == :unavailable
+    assert [_once] = Regex.scan(~r/\[warning\] launch review read connection_lost/, log)
+    refute log =~ wallet or log =~ LaunchFixture.treasury()
     restore_reads_of("treasury_security_reports")
 
     # A raise anywhere in the operation, here Base's own read naming the

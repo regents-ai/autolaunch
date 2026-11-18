@@ -16,6 +16,7 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Client, LaunchAbi, Rpc}
   alias Autolaunch.Stocks.{Amounts, LaunchOperations}
+  alias AutolaunchWeb.ReadFailure
   alias RegentChain.{Address, Review}
 
   alias Autolaunch.{
@@ -61,11 +62,21 @@ defmodule Autolaunch.LaunchActions do
     with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
            LaunchOperations.signed_in_wallet(address, opts, LaunchOperation),
          {:ok, draft} <- owned_draft(draft_id, actor),
-         {:ok, review} <- review(draft, signer),
+         {:ok, review} <- draft |> review(signer) |> unread_logged(),
          {:ok, operation} <- open(lease, draft, signer, review) do
       {:ok, reviewed(operation)}
     end
   end
+
+  # A review the site could not finish because something it reads failed, such
+  # as the treasury's report, is the site's own fault, which the page answers
+  # only with its try-again words: logged once, by kind alone.
+  defp unread_logged({:error, %{errors: _errors} = error} = unread) do
+    ReadFailure.log("launch review read", error)
+    unread
+  end
+
+  defp unread_logged(answer), do: answer
 
   @doc """
   The review `prepare/3` saves, once `signer` is proved to be one of the
