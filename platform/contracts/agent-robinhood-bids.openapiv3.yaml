@@ -1,0 +1,454 @@
+# Agent Robinhood bids, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_ROBINHOOD_BIDS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
+# is api-contract.openapiv3.yaml exactly, or that and agent-bids.openapiv3.yaml while agent bids
+# are on. Every path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/robinhood/bids/steps:
+    post:
+      operationId: autolaunch_robinhood_bid_prepare
+      summary: Prepare a Robinhood bid
+      description: The wallet steps for one USDG bid on a Robinhood Chain auction, built from the chain
+        at the latest block as the auction page builds them, for one of the person's own wallets
+        (`signer`, or the wallet they signed in with). The site only prepares; the wallet's own key signs
+        and sends each step on Robinhood Chain, the network `chain` names, and each step's data ends with
+        the site's Builder Code. Once bidding has ended by the auction's record or the clock the auction
+        keeps at that block, the answer is 409 bidding_ended with no steps. Send the steps promptly, and
+        prepare them again once ten minutes have passed, as the auction page builds its own again; the
+        bid step is refused fifteen minutes after the block it was built from. Changes nothing.
+      security:
+      - SiwaProof: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRobinhoodBidRequest'
+      responses:
+        '200':
+          description: The steps, and whether the USDG approval is already in place
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '404':
+          description: No Robinhood Chain auction taking bids is listed here with that id
+            (auction_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '409':
+          description: The person's account has no verified wallet to act with (wallet_required),
+            bidding has ended on the auction (bidding_ended), or the auction or the wallet stands so that
+            the auction would refuse the bid now (bid_preparation_unavailable, amount_above_balance,
+            usdg_route_unavailable, stock_not_listed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '422':
+          description: An unknown field or a field that is not text, an auction id that is not one, an
+            amount, price or slippage the page would refuse, or a price below the auction's next allowed
+            price (invalid_request, invalid_amount, invalid_decimal, invalid_price, invalid_slippage,
+            price_below_admissible_tick)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '503':
+          description: Robinhood Chain or the person's account could not be read just now
+            (chain_unavailable, account_unavailable), the site could not prepare it just now
+            (bid_unavailable), or the site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+  /api/agent/v1/robinhood/bids/{bid}/steps:
+    post:
+      operationId: autolaunch_robinhood_bid_settlement_prepare
+      summary: Prepare a Robinhood settlement
+      description: The wallet steps that settle one of the person's own bids on a Robinhood Chain
+        auction listed here, built from the chain at the latest block as the bid's row builds them, for
+        one of the person's own wallets (`signer`, or the wallet they signed in with). Only steps the
+        auction would accept now come back - exit then claim, claim alone, or record - and when there are
+        none the answer is a refusal naming the auction's reason. The site only prepares; the wallet's own
+        key signs and sends each step on Robinhood Chain. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentRobinhoodBidId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRobinhoodBidSettlementRequest'
+      responses:
+        '200':
+          description: The steps the auction would accept now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidSettlementEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '404':
+          description: None of the person's wallets holds a bid with that id on a Robinhood Chain auction
+            listed here (not_your_bid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '409':
+          description: The person's account has no verified wallet to act with (wallet_required), the
+            auction's stock is not one this site lists (stock_not_listed), or the auction accepts nothing
+            for this bid now (auction_not_started, auction_not_ended, already_exited, claim_not_open,
+            nothing_to_claim, bid_not_exited, failed_bid_returned, settlement_reverted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '422':
+          description: An unknown field, a field that is not text, or a bid id that is not one
+            (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+        '503':
+          description: Robinhood Chain, the auction's records or the person's account could not be read
+            just now (chain_unavailable, price_history_long, bid_needs_partial_exit_hints_unavailable,
+            account_unavailable), the site could not prepare it just now (bid_unavailable), or the site is
+            not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRobinhoodBidError'
+components:
+  parameters:
+    AgentRobinhoodBidId:
+      name: bid
+      in: path
+      required: true
+      description: The bid's id exactly as autolaunch_my_positions gives it (bid), for a bid on
+        Robinhood Chain - the auction's address and the auction's number for the bid.
+      schema:
+        type: string
+        pattern: '^0x[0-9a-f]{40}:(0|[1-9][0-9]{0,76})$'
+  schemas:
+    AgentRobinhoodBidRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - auction_id
+      - usdg_amount
+      - max_price
+      properties:
+        auction_id:
+          type: string
+          format: uuid
+          description: The auction's id exactly as autolaunch_auctions lists it, for a Robinhood Chain
+            auction.
+        usdg_amount:
+          type: string
+          description: The total to bid in USDG, as a decimal with at most 6 decimal places. The bid
+            converts it into the auction's stock and returns what is left over.
+        max_price:
+          type: string
+          description: The most to pay per token, as a decimal in the auction's stock. It is lowered to
+            the auction's price grid.
+        slippage_percent:
+          type: string
+          description: The most the stock bought may fall short of the route's estimate, in percent from
+            0 to 99.99 with at most two decimal places. 5 when left out.
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentRobinhoodBidSettlementRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentRobinhoodBidChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: Robinhood Chain, the network every step is sent on.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentRobinhoodBidAuction:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentRobinhoodBidStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          enum:
+          - usdg_approval
+          - usdg_bid
+          - record
+          - exit
+          - claim
+        to:
+          type: string
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentRobinhoodBidSteps:
+      type: object
+      required:
+      - kind
+      - signer
+      - auction
+      - chain
+      - block
+      - steps
+      - approved
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - bid
+        signer:
+          type: string
+        auction:
+          $ref: '#/components/schemas/AgentRobinhoodBidAuction'
+        chain:
+          $ref: '#/components/schemas/AgentRobinhoodBidChain'
+        block:
+          type: integer
+          description: The latest block the steps were built from.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentRobinhoodBidStep'
+        approved:
+          type: boolean
+          description: True when no USDG approval step is needed.
+        facts:
+          type: object
+          required:
+          - usdg_amount
+          - slippage_percent
+          - stock_symbol
+          - max_price
+          - max_price_adjusted
+          - max_price_entered
+          - stock_quote
+          - min_stock_out
+          properties:
+            usdg_amount:
+              type: string
+              description: The USDG the bid spends, as a decimal.
+            slippage_percent:
+              type: string
+            stock_symbol:
+              type: string
+              description: The auction's stock, which the bid commits.
+            max_price:
+              type: string
+              description: The most per token in the stock after it is lowered to the auction's price
+                grid.
+            max_price_adjusted:
+              type: boolean
+              description: True when max_price is lower than the price sent.
+            max_price_entered:
+              type: string
+              description: The price as sent.
+            stock_quote:
+              type: string
+              description: The stock the route estimates the USDG buys now, as a decimal.
+            min_stock_out:
+              type: string
+              description: The least stock the USDG must buy, as a decimal.
+    AgentRobinhoodBidStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentRobinhoodBidSteps'
+    AgentRobinhoodBidSettlement:
+      type: object
+      required:
+      - kind
+      - signer
+      - bid
+      - auction
+      - chain
+      - block
+      - steps
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - settle
+        signer:
+          type: string
+        bid:
+          type: string
+        auction:
+          $ref: '#/components/schemas/AgentRobinhoodBidAuction'
+        chain:
+          $ref: '#/components/schemas/AgentRobinhoodBidChain'
+        block:
+          type: integer
+          description: The latest block the steps were built from.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentRobinhoodBidStep'
+        facts:
+          type: object
+          required:
+          - stock_symbol
+          - graduated
+          - bid_amount
+          - max_price
+          - final_price
+          - stock_refunded
+          - tokens_filled
+          - tokens_claimed
+          properties:
+            stock_symbol:
+              type: string
+            graduated:
+              type: boolean
+            bid_amount:
+              type: string
+              description: The stock the bid committed, as a decimal.
+            max_price:
+              type: string
+              description: The bid's most per token, in the stock.
+            final_price:
+              type: string
+              description: The auction's clearing price as the settlement would leave it, in the stock.
+            stock_refunded:
+              type: string
+              nullable: true
+              description: The stock exit returns, as a decimal; null without an exit step.
+            tokens_filled:
+              type: string
+              nullable: true
+              description: The tokens the bid bought, as a decimal; null without an exit step.
+            tokens_claimed:
+              type: string
+              nullable: true
+              description: The tokens claim delivers, as a decimal; null without a claim step.
+    AgentRobinhoodBidSettlementEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentRobinhoodBidSettlement'
+    AgentRobinhoodBidError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - invalid_amount
+              - invalid_decimal
+              - invalid_price
+              - invalid_slippage
+              - price_below_admissible_tick
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - auction_not_found
+              - not_your_bid
+              - wallet_required
+              - bidding_ended
+              - bid_preparation_unavailable
+              - amount_above_balance
+              - usdg_route_unavailable
+              - stock_not_listed
+              - auction_not_started
+              - auction_not_ended
+              - already_exited
+              - claim_not_open
+              - nothing_to_claim
+              - bid_not_exited
+              - failed_bid_returned
+              - settlement_reverted
+              - chain_unavailable
+              - price_history_long
+              - bid_needs_partial_exit_hints_unavailable
+              - bid_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string

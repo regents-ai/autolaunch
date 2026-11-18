@@ -224,6 +224,7 @@ The separate `autolaunch` CLI package remains unpublished. The unified Regents C
 {{exposure}}
 {{earn}}
 {{agent_bids}}
+{{agent_robinhood_bids}}
 ## Related Regent products
 
 - [Regents](https://regents.sh/llms.txt): Agent identity, operations, staking and redemption. [Website](https://regents.sh) · [Source](https://github.com/regents-ai/regents).

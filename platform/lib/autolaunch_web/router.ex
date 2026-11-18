@@ -140,6 +140,19 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
+  # Agent Robinhood bids' routes exist only while the site offers them; off,
+  # each answers as an address with nothing at it.
+  pipeline :agent_robinhood_bids do
+    plug :admit_agent_robinhood_bids
+  end
+
+  def admit_agent_robinhood_bids(conn, _opts) do
+    Autolaunch.AgentRobinhoodBid.enabled?() or
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+
+    conn
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -298,6 +311,12 @@ defmodule AutolaunchWeb.Router do
     pipe_through [:api, :agent_bids]
     post "/bids/steps", AgentBidController, :prepare
     post "/bids/:bid/steps", AgentBidController, :settle
+  end
+
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :agent_robinhood_bids]
+    post "/robinhood/bids/steps", AgentRobinhoodBidController, :prepare
+    post "/robinhood/bids/:bid/steps", AgentRobinhoodBidController, :settle
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.

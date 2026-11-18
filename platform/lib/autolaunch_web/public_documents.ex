@@ -73,37 +73,66 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_bids_guide_path
   @agent_bids_guide File.read!(@agent_bids_guide_path)
 
+  # Agent Robinhood bids' routes and their components, and their section of
+  # the agent guides, added only while the site offers them.
+  @agent_robinhood_bids_contract_path Path.expand(
+                                        "../../contracts/agent-robinhood-bids.openapiv3.yaml",
+                                        __DIR__
+                                      )
+  @external_resource @agent_robinhood_bids_contract_path
+  @agent_robinhood_bids_contract YamlElixir.read_from_file!(@agent_robinhood_bids_contract_path)
+  @agent_robinhood_bids_guide_path Path.join(@directory, "agent_robinhood_bids.md")
+  @external_resource @agent_robinhood_bids_guide_path
+  @agent_robinhood_bids_guide File.read!(@agent_robinhood_bids_guide_path)
+
   # The guides' sentences that say who bids, each as it reads without agent
-  # bids, as before them, and as it reads while the site offers them: a paired
-  # agent prepares the steps of a bid on a Base auction, and of its return and
-  # claim, and the person's own wallet signs each one (`bidding/1`).
+  # bids, as before them, and as it reads while the site offers them on Base,
+  # Robinhood Chain or both: a paired agent prepares the steps of a bid on an
+  # auction there, and of its return and claim, and the person's own wallet
+  # signs each one. Each names the chains offered (`%{chains}`), the guide
+  # sections that say how (`%{see}`) and the bids on the chain not offered,
+  # which stay with the site's pages (`%{others_and}`, `%{others_stay}`), as
+  # `bidding/1` words them.
   @bidding [
     {"{{bidding_agents}}",
      "Wallet signing, launch submission, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. The signed interface does not expose these operations.",
-     "Wallet signing, launch submission, trading, staking, claims and treasury verification remain person-controlled. For a bid on a Base auction, and its return and claim, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see Agent bids); Robinhood Chain bids and the person's launches stay on the site's pages."},
+     "Wallet signing, launch submission, trading, staking, claims and treasury verification remain person-controlled. For a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see %{see}); %{others_and}the person's launches stay on the site's pages."},
     {"{{bidding_skill}}",
      "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; no agent tool or command\ndoes them.",
-     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a Base auction, and its return and claim, you can prepare the steps\n(see Agent bids); Robinhood Chain bids and your person's launches stay on the site's pages."},
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a %{chains} auction, and its return and claim, you can prepare the steps\n(see %{see}); %{others_and}your person's launches stay on the site's pages."},
     {"{{bidding_card}}", "No agent command claims, withdraws or\n   bids.",
-     "For a bid on a Base auction you can\n   prepare its return and claim for your person's wallet to sign (see Agent bids); no agent\n   command claims, withdraws or bids by itself."},
+     "For a bid on a %{chains} auction you can\n   prepare its return and claim for your person's wallet to sign (see %{see}); no agent\n   command claims, withdraws or bids by itself."},
     {"{{bidding_tools}}",
      "Wallet and launch controls remain person-controlled and are not registered as agent tools;",
-     "Wallet and launch controls remain person-controlled; for a bid on a Base auction, and its return and claim, a paired agent prepares the steps, which the person's own wallet signs (see Agent bids);"},
+     "Wallet and launch controls remain person-controlled; for a bid on a %{chains} auction, and its return and claim, a paired agent prepares the steps, which the person's own wallet signs (see %{see});"},
     {"{{bidding_controls}}",
      "These financial and launch controls are not registered as agent tools.",
-     "For a bid on a Base auction, and its return and claim, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md)); Robinhood Chain bids stay on the auction's page."},
+     "For a bid on a %{chains} auction, and its return and claim, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md))%{others_stay}."},
     {"{{bidding_wallet}}",
      "Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.",
-     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim, for that wallet; Robinhood Chain bids and the person's launches go through the person-controlled interface."},
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim, for that wallet; %{others_and}the person's launches go through the person-controlled interface."},
     {"{{bidding_docs}}",
      "Bidding, claiming, launching, trading and staking happen on the website with the person's own wallet, and every step asks the wallet holder to confirm, through the person-controlled interface.",
-     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim (see Agent bids); Robinhood Chain bids and the person's launches happen on the website, through the person-controlled interface."},
+     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); %{others_and}the person's launches happen on the website, through the person-controlled interface."},
     {"{{bidding_website}}",
      "These happen on the website with the person's own wallet: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake. Every step asks the wallet holder to confirm.",
-     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim (see Agent bids); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake."},
+     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a %{chains} auction, and of its return and claim (see %{see}); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake."},
     {"{{bidding_home}}",
      "Bidding, launching and staking happen on the website with the person's own wallet; every step asks the wallet holder to sign.",
-     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a Base auction ([agents.md]({{origin}}/agents.md)); the rest happens on the website."}
+     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a %{chains} auction ([agents.md]({{origin}}/agents.md)); the rest happens on the website."}
+  ]
+
+  # Each chain a paired agent can prepare bids on, by the switch that offers
+  # it: its name, its guide section, and its bids' name while only the other
+  # chain's are offered.
+  @bid_chains [
+    %{switch: "agent_bids", chain: "Base", see: "Agent bids", bids: "Base bids"},
+    %{
+      switch: "agent_robinhood_bids",
+      chain: "Robinhood Chain",
+      see: "Robinhood bids",
+      bids: "Robinhood Chain bids"
+    }
   ]
 
   @needs %{
@@ -640,6 +669,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{exposure}}\n", exposure())
     |> String.replace("{{earn}}\n", earn())
     |> String.replace("{{agent_bids}}\n", agent_bids())
+    |> String.replace("{{agent_robinhood_bids}}\n", agent_robinhood_bids())
     |> bidding()
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
@@ -718,12 +748,36 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp agent_bids,
     do: if("agent_bids" in ToolManifest.features(), do: @agent_bids_guide, else: "")
 
-  defp bidding(markdown) do
-    on? = "agent_bids" in ToolManifest.features()
+  defp agent_robinhood_bids do
+    if "agent_robinhood_bids" in ToolManifest.features(),
+      do: @agent_robinhood_bids_guide,
+      else: ""
+  end
 
-    Enum.reduce(@bidding, markdown, fn {mark, off, on}, text ->
-      String.replace(text, mark, if(on?, do: on, else: off))
+  # Each sentence that says who bids as it reads with the chains whose agent
+  # bids are on: as before agent bids while none are; otherwise naming those
+  # chains and their guide sections, and the other chain's bids, if any, as
+  # staying with the site's pages.
+  defp bidding(markdown) do
+    on = ToolManifest.features()
+    {offered, others} = Enum.split_with(@bid_chains, &(&1.switch in on))
+
+    Enum.reduce(@bidding, markdown, fn {mark, off, template}, text ->
+      String.replace(text, mark, bid_sentence(off, template, offered, others))
     end)
+  end
+
+  defp bid_sentence(off, _template, [], _others), do: off
+
+  defp bid_sentence(_off, template, offered, others) do
+    template
+    |> String.replace("%{chains}", Enum.map_join(offered, " or ", & &1.chain))
+    |> String.replace("%{see}", Enum.map_join(offered, " and ", & &1.see))
+    |> String.replace("%{others_and}", Enum.map_join(others, &(&1.bids <> " and ")))
+    |> String.replace(
+      "%{others_stay}",
+      Enum.map_join(others, &("; " <> &1.bids <> " stay on the auction's page"))
+    )
   end
 
   # The fixed pages the sitemaps list, with covered calls and Earn while the site
@@ -905,7 +959,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"covered_calls", @covered_calls_contract},
       {"exposure", @exposure_contract},
       {"earn", @earn_contract},
-      {"agent_bids", @agent_bids_contract}
+      {"agent_bids", @agent_bids_contract},
+      {"agent_robinhood_bids", @agent_robinhood_bids_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->

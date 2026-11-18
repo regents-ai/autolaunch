@@ -49,6 +49,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     CoveredCallsChain,
     EarnChain,
     ExposureChain,
+    RobinhoodBidChain,
     SharedReading,
     TestAutolaunchBidSettlementChainClient,
     TestAutolaunchTreasuryChainClient,
@@ -60,7 +61,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   @moduletag :capture_log
   @commands Path.expand("../../../cli/commands.json", __DIR__)
-  @features ~w(covered_calls exposure earn agent_bids)
+  @features ~w(covered_calls exposure earn agent_bids agent_robinhood_bids)
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
   @lists %{"autolaunch_auctions" => "/api/v1/auctions", "autolaunch_tokens" => "/api/v1/tokens"}
@@ -132,7 +133,15 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     agent = paired_agent()
     commands = commands()
 
-    for on <- [[], ["covered_calls"], ["exposure"], ["earn"], ["agent_bids"], @features],
+    for on <- [
+          [],
+          ["covered_calls"],
+          ["exposure"],
+          ["earn"],
+          ["agent_bids"],
+          ["agent_robinhood_bids"],
+          @features
+        ],
         connector? <- [false, true] do
       switch(on, connector?)
       offered = Capabilities.offered(on ++ if(connector?, do: ["connected_apps"], else: []))
@@ -703,6 +712,15 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     )
 
     bid = bid_position!(bidder[:auction])
+
+    robinhood =
+      TestSupport.project_auction(
+        chain_id: @robinhood,
+        kind: :stocks,
+        state: :active,
+        address: RobinhoodBidChain.auction()
+      )
+
     series = ExposureChain.series()
     expiry = hd(Terms.expiries(CoveredCallsChain.now()))
     deposit = %{product: "aave-usdc", kind: "deposit", amount: 10 * EarnChain.unit()}
@@ -735,6 +753,8 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       "prepare_earn" => deposit,
       "prepare_bid" => %{auction_id: bidder[:auction].id, amount: "1", max_price: "3"},
       "prepare_bid_settlement" => %{bid: bid.bid_id},
+      "prepare_robinhood_bid" => %{auction_id: robinhood.id, usdg_amount: "1", max_price: "3"},
+      "prepare_robinhood_bid_settlement" => %{bid: RobinhoodBidChain.auction() <> ":7"},
       "register_identity" => nil,
       "get_identity" => nil,
       "pair_identity" => %{code: code.code, name: "Claude", harness: "claude"},
@@ -745,7 +765,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       for %{"surfaces" => %{"hosted_mcp" => true}} = row <- Capabilities.operations(), do: row
 
     assert Enum.sort(Map.keys(inputs)) == Enum.sort(Enum.map(hosted, & &1["hosted_tool"]))
-    assert length(hosted) == 30
+    assert length(hosted) == 32
 
     # Each switch's tools are called in turn, by their caller (`caller/3`); every
     # call answers.
@@ -764,7 +784,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         end
       end)
 
-    assert length(called) == 30
+    assert length(called) == 32
 
     # The ones that write: a draft save, and a connected app's identity, pairing
     # and check-in.
@@ -951,6 +971,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       }
     })
   end
+
+  # Robinhood Chain's double, on whose auction the bidder holds bid 7.
+  defp chain("agent_robinhood_bids"), do: RobinhoodBidChain.install()
 
   # A saved bid of the bid fixture's bidder on `auction`, on chain as bid 7.
   defp bid_position!(auction) do

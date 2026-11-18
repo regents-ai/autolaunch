@@ -9,13 +9,15 @@ defmodule Autolaunch do
 
   # The hosted MCP tools: each gives the answer its HTTP route gives and has the
   # title and words of its browser tool, from priv/tool_manifest.json or, for
-  # agent bids, priv/agent_bids_tools.json, less how a browser host signs
+  # agent bids, priv/agent_bids_tools.json and
+  # priv/agent_robinhood_bids_tools.json, less how a browser host signs
   # (`AutolaunchWeb.Capabilities` checks their inputs). Each reads, or saves the
-  # person's launch draft, except agent bids' two, which prepare the wallet
+  # person's launch draft, except agent bids' four, which prepare the wallet
   # steps of a bid or of its return and claim for the person's wallet to sign.
   @tool_paths [
     Application.app_dir(:autolaunch, "priv/tool_manifest.json"),
-    Application.app_dir(:autolaunch, "priv/agent_bids_tools.json")
+    Application.app_dir(:autolaunch, "priv/agent_bids_tools.json"),
+    Application.app_dir(:autolaunch, "priv/agent_robinhood_bids_tools.json")
   ]
   for path <- @tool_paths, do: @external_resource(path)
 
@@ -132,6 +134,20 @@ defmodule Autolaunch do
     tool :prepare_bid_settlement, Autolaunch.AgentBid, :settle do
       title(@browser_tools["autolaunch_bid_settlement_prepare"]["title"])
       description @browser_tools["autolaunch_bid_settlement_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    # Listed and run only while the site offers agent Robinhood bids
+    # (`Autolaunch.AgentRobinhoodBid`'s policies).
+    tool :prepare_robinhood_bid, Autolaunch.AgentRobinhoodBid, :prepare do
+      title(@browser_tools["autolaunch_robinhood_bid_prepare"]["title"])
+      description @browser_tools["autolaunch_robinhood_bid_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :prepare_robinhood_bid_settlement, Autolaunch.AgentRobinhoodBid, :settle do
+      title(@browser_tools["autolaunch_robinhood_bid_settlement_prepare"]["title"])
+      description @browser_tools["autolaunch_robinhood_bid_settlement_prepare"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
   end
@@ -557,6 +573,11 @@ defmodule Autolaunch do
     resource Autolaunch.AgentBid do
       define :prepare_bid, action: :prepare
       define :prepare_bid_settlement, action: :settle
+    end
+
+    resource Autolaunch.AgentRobinhoodBid do
+      define :prepare_robinhood_bid, action: :prepare
+      define :prepare_robinhood_bid_settlement, action: :settle
     end
 
     resource Autolaunch.Robinhood.LaunchReview do

@@ -2,7 +2,8 @@ defmodule AutolaunchWeb.Capabilities do
   @moduledoc """
   The surfaces each agent operation is on, from `priv/capabilities.json`: one row
   per browser tool (`priv/tool_manifest.json`, and the covered-call,
-  Isolated Exposure to After-hours Stocks, Earn and agent bid page tools), and one per tool only
+  Isolated Exposure to After-hours Stocks, Earn, agent bid and agent Robinhood
+  bid page tools), and one per tool only
   the hosted MCP server has, such as a connected app's identity tools. Each row names its four
   surfaces, `webmcp`, `hosted_mcp`, `http` and `cli`, each `true` or the reason
   it is left out, who may run it, the switch it follows and, when it is on the
@@ -31,7 +32,8 @@ defmodule AutolaunchWeb.Capabilities do
     covered_calls: Application.app_dir(:autolaunch, "priv/covered_calls_tools.json"),
     exposure: Application.app_dir(:autolaunch, "priv/exposure_tools.json"),
     earn: Application.app_dir(:autolaunch, "priv/earn_tools.json"),
-    agent_bids: Application.app_dir(:autolaunch, "priv/agent_bids_tools.json")
+    agent_bids: Application.app_dir(:autolaunch, "priv/agent_bids_tools.json"),
+    agent_robinhood_bids: Application.app_dir(:autolaunch, "priv/agent_robinhood_bids_tools.json")
   ]
 
   for {_name, path} <- paths, do: @external_resource(path)
@@ -44,7 +46,8 @@ defmodule AutolaunchWeb.Capabilities do
           covered_calls: "covered_calls",
           exposure: "exposure",
           earn: "earn",
-          agent_bids: "agent_bids"
+          agent_bids: "agent_bids",
+          agent_robinhood_bids: "agent_robinhood_bids"
         ],
         tool <- files[file]["tools"],
         do: Map.put(tool, "switch", switch)

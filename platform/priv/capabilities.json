@@ -1,5 +1,5 @@
 {
-  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call, Isolated Exposure to After-hours Stocks, Earn and agent bid page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out, and hosted_tool names the hosted MCP tool of a row whose hosted_mcp is true; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE), earn (AUTOLAUNCH_EARN), agent_bids (AUTOLAUNCH_AGENT_BIDS) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED). The guides' Agent access table is made from these rows.",
+  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call, Isolated Exposure to After-hours Stocks, Earn, agent bid and agent Robinhood bid page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out, and hosted_tool names the hosted MCP tool of a row whose hosted_mcp is true; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE), earn (AUTOLAUNCH_EARN), agent_bids (AUTOLAUNCH_AGENT_BIDS), agent_robinhood_bids (AUTOLAUNCH_AGENT_ROBINHOOD_BIDS) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED). The guides' Agent access table is made from these rows.",
   "operations": [
     {
       "operation": "autolaunch_auctions",
@@ -339,6 +339,30 @@
       "authority": "paired_agent",
       "switch": "agent_bids",
       "hosted_tool": "prepare_bid_settlement",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_robinhood_bid_prepare",
+      "authority": "paired_agent",
+      "switch": "agent_robinhood_bids",
+      "hosted_tool": "prepare_robinhood_bid",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_robinhood_bid_settlement_prepare",
+      "authority": "paired_agent",
+      "switch": "agent_robinhood_bids",
+      "hosted_tool": "prepare_robinhood_bid_settlement",
       "surfaces": {
         "webmcp": true,
         "hosted_mcp": true,
