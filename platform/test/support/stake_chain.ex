@@ -10,7 +10,7 @@ defmodule Autolaunch.StakeChain do
     * the Revstake launch: the strategy's record of the migrated launch (its
       locked position, `lp_token_id/0`), the pool, and the LP locker's
       simulated `collect` of that position (2 REGENT and 1 of the token);
-    * the Memestock launch (`launch_id/0`, made by the auction `auction/0`):
+    * the Memestock launch (launch 3, made by the auction `auction/0`):
       the launchpad's record of it, trading against the stock `stock/0`
       (AAPLc, 8 decimals) with its full-range position (`memestock_lp/0`)
       and its token-only one above the opening price (`memestock_new_only/0`),
@@ -64,14 +64,12 @@ defmodule Autolaunch.StakeChain do
 
   def subject, do: @subject
   def splitter, do: @splitter
-  def usdc, do: @usdc
   def stock, do: @stock
   def auction, do: @auction
   def route, do: @route
   def lp_token_id, do: @lp_token_id
   def memestock_lp, do: @memestock_lp
   def memestock_new_only, do: @memestock_new_only
-  def launch_id, do: @launch_id
 
   @doc "The Memestock launch's pool id, as its record holds it."
   def memestock_pool_id, do: "0x" <> BaseRpcStub.hex_word(@memestock_pool_id)

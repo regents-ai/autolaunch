@@ -90,11 +90,6 @@ defmodule Autolaunch.RobinhoodBidChain do
   def stock, do: @stock
   def token, do: @token
   def splitter, do: @splitter
-  def lp_token_id, do: @lp_token_id
-  def new_only_token_id, do: @new_only_token_id
-
-  @doc "The graduated launch's pool id, as its record holds it."
-  def pool_id, do: "0x" <> BaseRpcStub.hex_word(@graduated.pool_id)
 
   @doc "Bid 7 as the auction holds it unless a test says otherwise: 12 of the stock at most 3 per token."
   def bid,
