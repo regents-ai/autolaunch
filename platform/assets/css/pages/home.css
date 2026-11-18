@@ -219,13 +219,21 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 .market-ticker__window { overflow: hidden; min-width: 0; }
 .market-ticker__track { display: flex; width: max-content; height: 100%; animation: market-ticker-slide 80s linear infinite; }
 .market-ticker__group { display: flex; align-items: center; gap: 12px; padding: 0 12px; }
-.market-ticker__entry { display: flex; align-items: center; gap: 8px; flex: none; --pill-h: 32px; height: var(--pill-h); padding: 0 12px 0 14px; border-radius: calc(var(--pill-h) / 2); font-size: .875rem; text-decoration: none; color: inherit; }
+/* Each entry is a press as tall as the bar's Pause, with its pill drawn behind it at the middle. */
+.market-ticker__entry { position: relative; isolation: isolate; display: flex; align-items: center; gap: 8px; flex: none; --pill-h: 32px; min-height: 44px; padding: 0 12px 0 14px; font-size: .875rem; text-decoration: none; color: inherit; }
+.market-ticker__entry::before { content: ""; position: absolute; inset: 0; z-index: -1; height: var(--pill-h); margin-block: auto; border-radius: calc(var(--pill-h) / 2); }
+.market-ticker__entry:focus-visible { outline: none; }
+.market-ticker__entry:focus-visible::before { outline: 2px solid var(--color-focus); outline-offset: 4px; }
 .market-ticker__entry strong { font-variant-numeric: tabular-nums; }
-.market-ticker__entry--bid { background: color-mix(in srgb, var(--product-autolaunch) 12%, transparent); }
+.market-ticker__entry--bid::before { background: color-mix(in srgb, var(--product-autolaunch) 12%, transparent); }
 .market-ticker__entry--bid strong { color: var(--product-autolaunch); }
-/* Buys run bright orange into white, sells blue into black, in either theme. */
-.market-ticker__entry--buy { border: 1px solid #FF8A00; background: linear-gradient(90deg in oklch, #FF8A00, #FFFFFF); color: #1A1208; }
-.market-ticker__entry--sell { border: 1px solid #1F5BFF; background: linear-gradient(90deg in oklch, #1F5BFF, #000000); color: #FFFFFF; }
+/* Buys run bright orange into white, sells blue into black, in either theme. The pill's
+   1px edge sits inside the entry, so their text keeps its place one pixel further in. */
+.market-ticker__entry--buy, .market-ticker__entry--sell { padding: 0 13px 0 15px; }
+.market-ticker__entry--buy { color: #1A1208; }
+.market-ticker__entry--buy::before { border: 1px solid #FF8A00; background: linear-gradient(90deg in oklch, #FF8A00, #FFFFFF); }
+.market-ticker__entry--sell { color: #FFFFFF; }
+.market-ticker__entry--sell::before { border: 1px solid #1F5BFF; background: linear-gradient(90deg in oklch, #1F5BFF, #000000); }
 .market-ticker__entry img { border-radius: 50%; object-fit: cover; }
 .market-ticker:hover .market-ticker__track, .market-ticker:focus-within .market-ticker__track, .market-ticker--paused .market-ticker__track { animation-play-state: paused; }
 @keyframes market-ticker-slide { to { transform: translateX(-50%); } }

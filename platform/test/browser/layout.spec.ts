@@ -51,6 +51,43 @@ test("on a phone, the open menu covers the bottom bar and makes it and the page 
   }
 })
 
+// Found by the agent Robinhood bids journey on 18 Nov: the bottom bar's bids and trades were
+// 32px pills, short of the 44px press a phone needs. Each is now a press as tall as the bar's
+// Pause, at 390 and at 1280, and its pill is drawn as before: 32px tall with round ends, its
+// text where it was. The walk's database has none, so the bar is added here as the page draws it.
+test("each bid and trade in the bottom bar is a 44px press, its pill as before", async ({page}) => {
+  await page.goto("/auctions")
+  await ready(page)
+  const entries = await page.evaluate(() => {
+    const bar = document.createElement("div")
+    bar.className = "market-ticker market-ticker--paused"
+    bar.innerHTML = `<button type="button" class="market-ticker__pause">Pause</button>
+      <div class="market-ticker__window"><div class="market-ticker__track"><div class="market-ticker__group"></div></div></div>`
+    document.body.append(bar)
+    const group = bar.querySelector(".market-ticker__group")!
+    // A bid, a buy and a sell, each alone in the bar so it is on a phone's screen.
+    return ["bid", "buy", "sell"].map(side => {
+      group.innerHTML = `<a href="/auctions" class="market-ticker__entry market-ticker__entry--${side}"><strong>2.00 USDG</strong><span>AR4FA7</span></a>`
+      const link = group.querySelector("a")!
+      const box = link.getBoundingClientRect()
+      const pill = getComputedStyle(link, "::before")
+      // Four pixels above the pill, still inside the press.
+      const above = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2 - 20)
+      return {
+        height: link.offsetHeight,
+        pill: [pill.height, pill.borderTopLeftRadius, pill.borderTopWidth],
+        textFromEdge: link.querySelector("strong")!.getBoundingClientRect().x - box.x,
+        pressedAbovePill: above !== null && link.contains(above),
+      }
+    })
+  })
+  expect(entries).toEqual([
+    {height: 44, pill: ["32px", "16px", "0px"], textFromEdge: 14, pressedAbovePill: true},
+    {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, pressedAbovePill: true},
+    {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, pressedAbovePill: true},
+  ])
+})
+
 // Found on Autolaunch on 19 Oct: while a sign-in can't be read the top bar shows
 // nothing to the right of Regents Products, and that button's hover name, centred
 // under it, reached 3px past a 390px phone's screen, so the page scrolled sideways.
