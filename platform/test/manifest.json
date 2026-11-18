@@ -1,5 +1,5 @@
 {
-  "total": 485,
+  "total": 488,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6307,6 +6307,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "936df711251fbcad8d5d6f92710ebe9f950ad4549d6dbdcf76ef3389187c853a"
+    },
+    {
+      "id": 605,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_last_block_test.exs",
+      "line": 71,
+      "test_name": "one block before the end the bid is held on its button, saying bidding has ended, and a press sends nothing",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: a Base bid sent one block before the end lands at the end block at the earliest, which the auction refuses (AuctionIsOver), and the agent is refused bidding_ended there. The page holds that bid on its button with the words, and a press that builds such a review sends nothing. It fails if the page sends a bid its review says has ended.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d60cbec0c626b51d68e7342626a971927d4ac468c5235a8bd5d7af15886fdec1"
+    },
+    {
+      "id": 606,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_last_block_test.exs",
+      "line": 91,
+      "test_name": "two blocks before the end the bid can still be sent",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: only a bid certain to fail is held. Two blocks before the end a bid sent now lands in time, so its button sends it and a press hands it out. It fails if the hold reaches a block where the bid can still land.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d60cbec0c626b51d68e7342626a971927d4ac468c5235a8bd5d7af15886fdec1"
+    },
+    {
+      "id": 607,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_last_block_test.exs",
+      "line": 104,
+      "test_name": "one block before the end an approval is still sent, and only the bid is held",
+      "keep_because": "Bid follow-ups review (18 Nov 2026), house rule 11: an approval succeeds whatever the block, so it is never held. One block before the end the approval stays pressable and a press sends it. It fails if the hold reaches an approval.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d60cbec0c626b51d68e7342626a971927d4ac468c5235a8bd5d7af15886fdec1"
     }
   ],
   "legacy_folders_to_remove": [

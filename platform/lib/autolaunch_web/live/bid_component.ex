@@ -162,7 +162,8 @@ defmodule AutolaunchWeb.BidComponent do
         rate: assigns.usd_rate.result,
         steps: steps,
         next_step: next_step(assigns, steps),
-        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
+        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared),
+        blocked: blocked(assigns)
       )
 
     ~H"""
@@ -295,6 +296,7 @@ defmodule AutolaunchWeb.BidComponent do
               signer={@review && @review.signer}
               chain_name={@review && @review.chain.name}
               mismatch={@mismatch}
+              blocked={@blocked}
               check_event="check_again"
               target={@myself}
             />
@@ -354,13 +356,14 @@ defmodule AutolaunchWeb.BidComponent do
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
-  # pressed and the first step it built handed back to send.
+  # pressed and the first step it built handed back to send, unless that is a
+  # bid the auction would refuse.
   def handle_event("prepare_and_send", %{"form" => inputs}, socket) when is_map(inputs) do
     socket = assign(socket, form: pressed_form(socket.assigns, inputs), notice: nil)
 
     case prepared_now(socket) do
       {:ok, %{assigns: %{review: %{} = review} = assigns} = socket} ->
-        {:reply, %{review: review, send: OnchainSteps.first_built(assigns, review)}, socket}
+        {:reply, to_send(assigns, review), socket}
 
       {:error, socket} ->
         {:reply, %{}, socket}
@@ -566,6 +569,25 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp reviewed(socket, key, _inputs, {:error, error}),
     do: assign(socket, prepared_for: {:refused, key}, notice: copy(OnchainSteps.refusal(error)))
+
+  # Why the auction would refuse the bid on the page, by the latest block its
+  # review read (`BidActions.review/2`), or nil while it would take it. The
+  # page takes the form away once that block reaches the end block; in the one
+  # block before it the form stays and its bid is held.
+  defp blocked(%{review: %{}, prepared: %{blocked: :bidding_ended}}), do: "Bidding has ended."
+  defp blocked(_assigns), do: nil
+
+  # The step a press that built the review sends: its first, unless that is a
+  # bid the auction would refuse now, when nothing is sent.
+  defp to_send(assigns, review) do
+    case OnchainSteps.first_built(assigns, review) do
+      step when step in ["bid", "usdc_bid"] ->
+        if blocked(assigns), do: %{}, else: %{review: review, send: step}
+
+      step ->
+        %{review: review, send: step}
+    end
+  end
 
   # What a bid's approvals allow: this wallet's amount of this currency to this
   # auction, whatever the most per token.
