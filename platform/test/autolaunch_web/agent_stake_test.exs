@@ -8,10 +8,14 @@ defmodule AutolaunchWeb.AgentStakeTest do
   and Claim views call (`Autolaunch.Stocks.StakeActions.prepare/3`, through
   its `review/2`): on a Base Revstake token, a stake of the wallet's whole
   balance with its approval while the allowance is short, an unstake of the
-  amount named, and a claim that collects the locked position's fees first,
-  each equal to what the page's review holds for the same wallet. A Base
-  Memestock token and a Robinhood Chain token are read from their own
-  chains, each answered as the page is answered. Only the person's own
+  amount named, the whole stake included, and a claim that collects the
+  locked position's fees first, each equal to what the page's review holds
+  for the same wallet. A Base Memestock claim with fees waiting for the
+  stakers and a Robinhood Chain stake are each read from their own chain and
+  answered as the page is; a chain that cannot be read, or a node answering
+  as another chain or with a block header it cannot vouch for, is
+  `chain_unavailable`, as on the page. An unstake amount that is no amount is
+  refused before any chain is read. Only the person's own
   wallets are prepared for, and only for the agent paired with them, while
   the person has a verified wallet; a token the site does not list or show is
   answered as no token, byte for byte as a missing one, before any chain is
@@ -21,8 +25,9 @@ defmodule AutolaunchWeb.AgentStakeTest do
   read-only mode, the tool is not listed or run, and off a call to it is
   answered as one to a tool that does not exist.
 
-  Base is `Autolaunch.StakeChain`, a Revstake launch's staking contract, and
-  Robinhood Chain is `Autolaunch.RobinhoodBidChain`; the two share the site's
+  Base is `Autolaunch.StakeChain`, a Revstake launch and a Memestock one
+  staking in one contract, and Robinhood Chain is
+  `Autolaunch.RobinhoodBidChain`, its launch graduated; the two share the site's
   one chain client, so each case reads through the chain its token runs on.
   The sign-in service is stubbed: it vouches for the wallet a request names.
   """
@@ -36,6 +41,7 @@ defmodule AutolaunchWeb.AgentStakeTest do
   alias Autolaunch.Actors.{Agent, ConnectedApp, Human}
   alias Autolaunch.AgentStake.Refused
   alias Autolaunch.Chain.Abi
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.AgentStakeAnswer
@@ -44,8 +50,10 @@ defmodule AutolaunchWeb.AgentStakeTest do
   alias Autolaunch.{
     Accounts,
     AgentStake,
+    BaseRpcStub,
     Lab,
     LabAbi,
+    Pool,
     RobinhoodBidChain,
     StakeChain,
     TestSupport
@@ -115,6 +123,8 @@ defmodule AutolaunchWeb.AgentStakeTest do
       {%{allowance: 0}, %{kind: "stake"}, ["token_approval", "stake"]},
       {%{allowance: 5 * @unit}, %{kind: "stake"}, ["stake"]},
       {%{}, %{kind: "unstake", amount: "1.5"}, ["unstake"]},
+      # The whole stake, to the last unit.
+      {%{}, %{kind: "unstake", amount: "3"}, ["unstake"]},
       {%{}, %{kind: "claim"}, ["collect_full_range", "claim"]}
     ]
 
@@ -168,6 +178,11 @@ defmodule AutolaunchWeb.AgentStakeTest do
     assert unstake ==
              step("unstake", splitter, splitter_data("unstake(uint256)", [div(3 * @unit, 2)]))
 
+    assert {:ok, %{"steps" => [whole]}} =
+             answer(http(:post, path(listed.id), %{kind: "unstake", amount: "3"}, agent))
+
+    assert whole == step("unstake", splitter, splitter_data("unstake(uint256)", [3 * @unit]))
+
     assert {:ok, %{"steps" => [collect, claim]}} =
              answer(http(:post, path(listed.id), %{kind: "claim"}, agent))
 
@@ -198,14 +213,8 @@ defmodule AutolaunchWeb.AgentStakeTest do
   test "a Base Memestock token and a Robinhood Chain token are each read from their own chain, answered as the page is",
        %{agent: agent, opts: opts, wallet: wallet} do
     {:ok, stocks} = StocksLab.contracts(StocksLab.current!(), :v2)
-    memestock = token!(kind: :stocks)
-
-    robinhood =
-      token!(
-        chain_id: RobinhoodBidChain.chain_id(),
-        kind: :stocks,
-        address: RobinhoodBidChain.auction()
-      )
+    memestock = memestock!()
+    robinhood = robinhood!()
 
     cases = [
       {memestock, fn -> StakeChain.put(Map.put(@position, :unavailable, true)) end},
@@ -243,17 +252,198 @@ defmodule AutolaunchWeb.AgentStakeTest do
     end
   end
 
+  test "a Base Memestock claim with fees waiting for the stakers settles them, collects both locked positions, then claims, as the page's does",
+       %{agent: agent, opts: opts, wallet: wallet} do
+    config = StocksLab.current!()
+    {:ok, stocks} = StocksLab.contracts(config, :v2)
+    memestock = memestock!()
+    splitter = Address.normalize!(StakeChain.splitter())
+    # 1.5 USDC, 0.25 of the token and 2 AAPLc to claim, and 3 AAPLc waiting
+    # in the hook's staker lane.
+    StakeChain.put(
+      Map.merge(@position, %{
+        claimable: %{dollar: 1_500_000, token: div(@unit, 4), currency: 2 * 10 ** 8},
+        lanes: [0, 0, 3 * 10 ** 8]
+      })
+    )
+
+    {:ok, page} = StakeActions.prepare(page_request(memestock, %{kind: "claim"}), wallet, opts)
+    {:ok, data} = answer(http(:post, path(memestock.id), %{kind: "claim"}, agent))
+
+    assert tool(agent, "prepare_stake", %{token_id: memestock.id, kind: "claim"}) == {:ok, data}
+    assert data["steps"] == plain(page.steps)
+    assert data["chain"] == plain(page.chain)
+    assert data["chain"]["chain_id"] == 8453
+
+    collect = fn name, id ->
+      step(name, stocks.locker, LabAbi.encode(stocks.abis["locker"], "collect(uint256)", [id]))
+    end
+
+    assert data["steps"] == [
+             step(
+               "settle",
+               stocks.hook,
+               LabAbi.encode(stocks.abis["hook"], "settleStakerLane(bytes32)", [
+                 StakeChain.memestock_pool_id()
+               ])
+             ),
+             collect.("collect_full_range", StakeChain.memestock_lp()),
+             collect.("collect_new_only", StakeChain.memestock_new_only()),
+             step(
+               "claim",
+               splitter,
+               LabAbi.encode(StocksLab.abi!(config, :splitter), "claimAll()", [])
+             )
+           ]
+
+    assert data["facts"]["claimable"] == [
+             %{"amount" => "1.5", "symbol" => "USDC"},
+             %{"amount" => "0.25", "symbol" => "LRVS"},
+             %{"amount" => "2", "symbol" => "AAPLc"}
+           ]
+
+    assert data["token"] == %{"id" => memestock.id, "address" => StakeChain.subject()}
+  end
+
+  test "a Robinhood Chain stake approves the whole balance and stakes it, as the page's does",
+       %{agent: agent, opts: opts, wallet: wallet} do
+    robinhood = robinhood!()
+    token = Address.normalize!(RobinhoodBidChain.token())
+    splitter = Address.normalize!(RobinhoodBidChain.splitter())
+
+    RobinhoodBidChain.install(%{
+      lifecycle: 2,
+      token_balance: 5 * @unit,
+      token_allowance: 0,
+      staked: 3 * @unit,
+      claimable: %{dollar: 1_500_000, token: div(@unit, 4), currency: 2 * @unit}
+    })
+
+    {:ok, config} = RobinhoodLab.current()
+
+    {:ok, page} = StakeActions.prepare(page_request(robinhood, %{kind: "stake"}), wallet, opts)
+    {:ok, data} = answer(http(:post, path(robinhood.id), %{kind: "stake"}, agent))
+
+    assert tool(agent, "prepare_stake", %{token_id: robinhood.id, kind: "stake"}) == {:ok, data}
+    assert data["steps"] == plain(page.steps)
+    assert data["chain"] == plain(page.chain)
+    assert data["chain"]["chain_id"] == RobinhoodBidChain.chain_id()
+    assert data["block"] == 100
+
+    assert data["steps"] == [
+             step("token_approval", token, Abi.encode_erc20("approve", [splitter, 5 * @unit])),
+             step(
+               "stake",
+               splitter,
+               LabAbi.encode(RobinhoodLab.abi!(config, :splitter), "stake(uint256)", [5 * @unit])
+             )
+           ]
+
+    assert data["facts"] == %{
+             "balance" => %{"amount" => "5", "symbol" => "RDOG"},
+             "staked" => %{"amount" => "3", "symbol" => "RDOG"},
+             "claimable" => [
+               %{"amount" => "1.5", "symbol" => "USDG"},
+               %{"amount" => "0.25", "symbol" => "RDOG"},
+               %{"amount" => "2", "symbol" => "TSLA"}
+             ]
+           }
+
+    assert data["token"] == %{"id" => robinhood.id, "address" => token}
+  end
+
+  test "a node answering as another chain, or with a block header it cannot vouch for, is chain_unavailable on both ways in, as on the page",
+       %{agent: agent, listed: listed, opts: opts, wallet: wallet} do
+    robinhood = robinhood!()
+    header = %{"number" => "0x20", "hash" => "0xnope", "timestamp" => "0x6700"}
+
+    # Robinhood Chain's double takes over the one chain client, so it comes last.
+    cases = [
+      {listed, fn -> BaseRpcStub.put(%{chain_id: "0x1"}) end, :wrong_chain},
+      {listed, fn -> BaseRpcStub.put(%{chain_id: "0x2105", blocks: %{"latest" => header}}) end,
+       :invalid_block_header},
+      {robinhood, fn -> RobinhoodBidChain.install(%{lifecycle: 2, chain_id: "0x2105"}) end,
+       :wrong_chain}
+    ]
+
+    for {token, arrange, fault} <- cases, input <- [%{kind: "stake"}, %{kind: "claim"}] do
+      arrange.()
+      named = "#{token.auction.chain_id} #{inspect(input)} #{fault}"
+
+      # The pool's own read names the fault.
+      read = if token == robinhood, do: &Autolaunch.Robinhood.Pool.read/1, else: &Pool.read/1
+      assert read.(token.auction) == {:error, fault}, named
+
+      assert {:error, %Ash.Error.Invalid.Unavailable{reason: :chain_unavailable}} =
+               StakeActions.prepare(page_request(token, input), wallet, opts),
+             named
+
+      route = http(:post, path(token.id), input, agent)
+
+      assert route.status == 503 and route.body["error"]["code"] == "chain_unavailable",
+             "#{named} answered #{inspect(route.body)}"
+
+      assert tool(agent, "prepare_stake", Map.put(input, :token_id, token.id)) ==
+               {:error, route.body},
+             named
+    end
+  end
+
+  test "an unstake amount that is no amount is refused before any chain is read, on the page and on both ways in; only one above the stake asks the chain",
+       %{agent: agent, listed: listed, opts: opts, wallet: wallet} do
+    too_large = Integer.to_string(div(Integer.pow(2, 128), @unit) + 1)
+
+    for {amount, reason} <- [
+          {"abc", :invalid_decimal},
+          {"", :invalid_decimal},
+          {" 1", :invalid_decimal},
+          {"0", :amount_required},
+          {"0.0000000000000000001", :amount_not_representable},
+          {too_large, :amount_too_large}
+        ] do
+      input = %{kind: "unstake", amount: amount}
+      chain_reads()
+
+      assert {:error, %Ash.Error.Invalid.Unavailable{reason: ^reason}} =
+               StakeActions.prepare(page_request(listed, input), wallet, opts),
+             inspect(amount)
+
+      route = http(:post, path(listed.id), input, agent)
+      assert route.body["error"]["code"] == "invalid_amount", inspect(amount)
+
+      assert tool(agent, "prepare_stake", Map.put(input, :token_id, listed.id)) ==
+               {:error, route.body}
+
+      assert chain_reads() == [], inspect(amount)
+    end
+
+    input = %{kind: "unstake", amount: "3.000000000000000001"}
+    chain_reads()
+
+    assert {:error, %Ash.Error.Invalid.Unavailable{reason: :amount_above_stake}} =
+             StakeActions.prepare(page_request(listed, input), wallet, opts)
+
+    assert chain_reads() != []
+  end
+
   test "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
        %{agent: agent} do
     hidden = token!(kind: :agent)
     {:ok, _hidden} = Autolaunch.hide_auction(hidden.auction, actor: system())
 
     robinhood =
-      token!(chain_id: RobinhoodBidChain.chain_id(), kind: :stocks, address: unique_address())
+      token!(
+        chain_id: RobinhoodBidChain.chain_id(),
+        kind: :stocks,
+        address: unique_address(),
+        quote_token_address: RobinhoodBidChain.stock(),
+        quote_token_symbol: "TSLA",
+        quote_token_decimals: 18
+      )
 
     {:ok, _hidden} = Autolaunch.hide_auction(robinhood.auction, actor: system())
     # The site lists only its own launches, and the chain's Base Memestock ones.
-    unlisted = token!(kind: :agent, origin: :chain)
+    unlisted = unlisted!()
 
     answers =
       for id <- [Ecto.UUID.generate(), hidden.id, robinhood.id, unlisted.id],
@@ -326,7 +516,7 @@ defmodule AutolaunchWeb.AgentStakeTest do
        %{agent: agent, listed: listed} do
     hidden = token!(kind: :agent)
     {:ok, _hidden} = Autolaunch.hide_auction(hidden.auction, actor: system())
-    unlisted = token!(kind: :agent, origin: :chain)
+    unlisted = unlisted!()
     id = listed.id
     # More than the staking contract can move at once: 2^128 of the smallest unit.
     too_large = Integer.to_string(div(Integer.pow(2, 128), @unit) + 1)
@@ -345,6 +535,8 @@ defmodule AutolaunchWeb.AgentStakeTest do
       # Only an unstake takes an amount, and it needs one.
       {%{}, id, %{kind: "stake", amount: "1"}, "invalid_request"},
       {%{}, id, %{kind: "claim", amount: "1"}, "invalid_request"},
+      {%{}, id, %{kind: "stake", amount: ""}, "invalid_request"},
+      {%{}, id, %{kind: "claim", amount: ""}, "invalid_request"},
       {%{}, id, %{kind: "unstake"}, "invalid_request"},
       {%{}, Ecto.UUID.generate(), %{kind: "stake"}, "token_not_found"},
       {%{}, hidden.id, %{kind: "stake"}, "token_not_found"},
@@ -676,11 +868,55 @@ defmodule AutolaunchWeb.AgentStakeTest do
 
     TestSupport.project_token(
       auction_id: auction.id,
-      symbol: "LRVS",
+      symbol: auction.token_symbol,
       graduated_at: DateTime.utc_now()
     )
     |> Map.put(:auction, auction)
   end
+
+  # The site's graduated Memestock launch on Base, `Autolaunch.StakeChain`'s,
+  # trading against AAPLc.
+  defp memestock!,
+    do:
+      token!(
+        kind: :stocks,
+        address: StakeChain.auction(),
+        quote_token_address: StakeChain.stock(),
+        quote_token_symbol: "AAPLc",
+        quote_token_decimals: 8
+      )
+
+  # The site's graduated launch on Robinhood Chain, `Autolaunch.RobinhoodBidChain`'s,
+  # trading against TSLA.
+  defp robinhood!,
+    do:
+      token!(
+        chain_id: RobinhoodBidChain.chain_id(),
+        kind: :stocks,
+        address: RobinhoodBidChain.auction(),
+        symbol: "RDOG",
+        token_address: RobinhoodBidChain.token(),
+        quote_token_address: RobinhoodBidChain.stock(),
+        quote_token_symbol: "TSLA",
+        quote_token_decimals: 18
+      )
+
+  # A graduated Robinhood Chain launch made elsewhere, which the site records
+  # from the chain as nobody's here and does not list.
+  defp unlisted!,
+    do:
+      token!(
+        chain_id: RobinhoodBidChain.chain_id(),
+        kind: :stocks,
+        origin: :chain,
+        creator_human_account_id: nil,
+        address: unique_address(),
+        symbol: "ELSE",
+        token_address: unique_address(),
+        quote_token_address: RobinhoodBidChain.stock(),
+        quote_token_symbol: "TSLA",
+        quote_token_decimals: 18
+      )
 
   # The request the token page's Stake or Claim view makes for the same input.
   defp page_request(token, input) do
