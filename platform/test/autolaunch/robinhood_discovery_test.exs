@@ -4,6 +4,8 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
 
   @moduletag :capture_log
 
+  import ExUnit.CaptureLog, only: [with_log: 1]
+
   require Ash.Query
 
   alias Autolaunch.Actors.System
@@ -445,6 +447,38 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     assert Enum.map(listed.records, & &1.auction_address) == [@site_auction]
   end
 
+  test "a site launch's review is marked in the listing's own write, so a mark that fails leaves the launch to the next pass",
+       %{creator: creator} do
+    [%{id: id, adopted_at: nil}] = reviews(creator)
+    fail_marking_once(id)
+
+    {{:snooze, 300}, log} = with_log(&discover/0)
+    assert_received :marking_failed
+    assert log =~ "Robinhood launch 1 not listed"
+    assert row(@site_auction) == nil
+    assert %{origin: :chain} = row(@outside_auction)
+    assert [%{id: ^id, adopted_at: nil}] = reviews(creator)
+
+    assert {:snooze, 300} = discover()
+    assert %{origin: :site, creator_human_account_id: creator_id} = row(@site_auction)
+    assert creator_id == creator.id
+    assert [%{id: ^id, adopted_at: %DateTime{} = adopted_at}] = reviews(creator)
+
+    # A listed launch is never read again, and its review still matches it.
+    assert {:snooze, 300} = discover()
+    assert [%{id: ^id, adopted_at: ^adopted_at}] = reviews(creator)
+
+    assert {:ok, %{id: ^id}} =
+             Autolaunch.matching_robinhood_launch_review(
+               @chain_id,
+               String.downcase(creator.wallet_address),
+               "Launch 1",
+               "L1",
+               @stock.address,
+               actor: %System{}
+             )
+  end
+
   test "a review a paired agent prepared later never takes the place of the person's own",
        %{creator: creator} do
     # For the same wallet, name, symbol and stock, with other links.
@@ -454,6 +488,12 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
 
     assert %{origin: :site, creator_human_account_id: id, links: []} = row(@site_auction)
     assert id == creator.id
+
+    assert [
+             %{prepared_by: :agent, adopted_at: nil},
+             %{prepared_by: :person, adopted_at: %DateTime{}}
+           ] =
+             Enum.sort_by(reviews(creator), & &1.prepared_by)
   end
 
   test "a launch only a paired agent's review carried out is listed from that review, for its person" do
@@ -468,6 +508,7 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
              row(@graduated_auction)
 
     assert id == other.id
+    assert [%{prepared_by: :agent, adopted_at: %DateTime{}}] = reviews(other)
   end
 
   # The Robinhood deployment fixture, answering at a loopback door this test
@@ -575,6 +616,36 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
       actor: paired_agent!(creator)
     )
     |> Ash.create!()
+  end
+
+  # The reviews this site keeps for `creator`.
+  defp reviews(creator) do
+    LaunchReview
+    |> Ash.Query.filter(human_account_id == ^creator.id)
+    |> Ash.read!(actor: %System{})
+  end
+
+  # As discovery next marks the review `id`, the review is gone, once: the
+  # mark cannot be written.
+  defp fail_marking_once(id) do
+    handler = {__MODULE__, make_ref()}
+    test = self()
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:ash, :autolaunch, :action, :start],
+        fn _event, _measurements, metadata, _config ->
+          if metadata.action == :adopt do
+            :telemetry.detach(handler)
+            {1, _} = Repo.delete_all(from review in LaunchReview, where: review.id == ^id)
+            send(test, :marking_failed)
+          end
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
   end
 
   # An agent paired with `account`'s person, as it acts for them.

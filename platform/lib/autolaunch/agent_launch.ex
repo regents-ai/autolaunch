@@ -38,8 +38,8 @@ defmodule Autolaunch.AgentLaunch do
   `Autolaunch.Stocks.LaunchOperation`, `Autolaunch.Robinhood.LaunchReview`), for
   the person the pairing names and marked as the agent's (`prepared_by`), so the
   launch is listed as this site's once the chain shows it, from the person's own
-  review when there is one. On Base, preparing again for a changed draft keeps
-  the latest 20 preparations (`Autolaunch.AgentLaunch.Preparations`).
+  review when there is one. Preparing again for a changed draft keeps the
+  latest 20 preparations (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,

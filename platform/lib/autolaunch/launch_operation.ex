@@ -109,11 +109,17 @@ defmodule Autolaunch.LaunchOperation do
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
       change set_attribute(:prepared_by, :agent)
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
-      change Autolaunch.AgentLaunch.Preparations
+      change {Autolaunch.AgentLaunch.Preparations, of: [:launch_draft_id], same: [:review]}
     end
 
-    # An agent's review of a draft that its latest ones replaced
+    # An agent's reviews the chain has not shown, newest first
     # (`Autolaunch.AgentLaunch.Preparations`).
+    read :agent_preparations do
+      filter expr(prepared_by == :agent and state == :prepared)
+      prepare build(sort: [inserted_at: :desc])
+    end
+
+    # An agent's review of a draft that its latest ones replaced.
     destroy :trim do
       validate attribute_equals(:prepared_by, :agent)
       validate attribute_equals(:state, :prepared)

@@ -296,9 +296,10 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
 
     before = kept(LaunchReview, account)
     {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
-    assert [kept] = kept(LaunchReview, account) -- before
 
+    # The same again, on the other way in, is the review kept already.
     assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
+    assert [kept] = kept(LaunchReview, account) -- before
     assert_page_answer(data, page, wallet, %{"id" => draft.id, "kind" => "memestock"})
     assert %{"chain_id" => 4_663, "name" => "Robinhood Chain"} = data["chain"]
     assert data["chain"]["rpc_url"] == deployment.public_rpc_url
@@ -498,6 +499,44 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
                  theirs.id | Enum.map(Enum.drop(newest, 2), & &1.id)
                ])
     end
+  end
+
+  test "an agent's Robinhood preparations for its person are kept to the latest 20, the same one again is the one kept, and the person's own and an adopted one are never removed or reused",
+       %{agent: signing, account: account} do
+    {:ok, agent} = Autolaunch.Agents.resolve(signing)
+    kept = fn -> LaunchReview |> kept(account) |> MapSet.new(& &1.id) end
+
+    own =
+      0
+      |> robinhood_review()
+      |> Map.put(:human_account_id, account.id)
+      |> Autolaunch.record_robinhood_launch_review!(actor: %System{})
+
+    adopted =
+      agent
+      |> record!(robinhood_review(1))
+      |> Autolaunch.adopt_robinhood_launch_review!(actor: %System{})
+
+    prepared = for n <- 2..22, do: record!(agent, robinhood_review(n))
+    newest = Enum.drop(prepared, 1)
+    assert kept.() == MapSet.new([own.id, adopted.id | Enum.map(newest, & &1.id)])
+
+    # The newest again is the one kept already.
+    assert record!(agent, robinhood_review(22)).id == List.last(prepared).id
+    assert kept.() == MapSet.new([own.id, adopted.id | Enum.map(newest, & &1.id)])
+
+    # The same as the adopted one, or as the person's own, is a new one.
+    again = record!(agent, robinhood_review(1))
+    theirs = record!(agent, robinhood_review(0))
+    refute again.id == adopted.id or theirs.id == own.id
+
+    assert kept.() ==
+             MapSet.new([
+               own.id,
+               adopted.id,
+               again.id,
+               theirs.id | Enum.map(Enum.drop(newest, 2), & &1.id)
+             ])
   end
 
   test "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
@@ -1018,6 +1057,24 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       },
       actor: agent
     )
+    |> Ash.create!()
+  end
+
+  # The Robinhood launch `n` names, for the launch fixture's wallet.
+  defp robinhood_review(n) do
+    %{
+      chain_id: 4_663,
+      signer: LaunchFixture.wallet(),
+      name: "Pair #{n}",
+      symbol: "PR#{n}",
+      stock: RobinhoodBidChain.stock()
+    }
+  end
+
+  # The agent's own Robinhood review of `fields`, as `LaunchReview` keeps it.
+  defp record!(agent, fields) do
+    LaunchReview
+    |> Ash.Changeset.for_create(:agent_record, fields, actor: agent)
     |> Ash.create!()
   end
 

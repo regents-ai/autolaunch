@@ -603,6 +603,8 @@ defmodule Autolaunch do
         action: :matching,
         args: [:chain_id, :signer, :name, :symbol, :stock],
         not_found_error?: false
+
+      define :adopt_robinhood_launch_review, action: :adopt
     end
 
     resource Autolaunch.LaunchDiscovery do

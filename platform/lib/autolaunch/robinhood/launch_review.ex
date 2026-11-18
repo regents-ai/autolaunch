@@ -9,10 +9,15 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   one whose wallet launched it with exactly the reviewed name, symbol and
   stock makes it a site launch, in that review's
   account, with the Telegram, Discord and other links the review carried; no
-  match makes it a launch seen only on chain. A paired agent's review of the
-  person's draft (`prepared_by: :agent`, `Autolaunch.AgentLaunch`) is matched
-  only when none of the person's is, so it never takes the place of one the
-  person saw.
+  match makes it a launch seen only on chain. The review a launch is listed
+  from is marked `adopted_at` in the same write as the listing; the mark does
+  not change what `:matching` finds.
+
+  A paired agent's review of the person's draft (`prepared_by: :agent`,
+  `Autolaunch.AgentLaunch`) is matched only when none of the person's is, so it
+  never takes the place of one the person saw. Preparing again for a changed
+  draft keeps the latest 20 preparations of the person on that chain
+  (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -52,6 +57,29 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       change set_attribute(:human_account_id, actor(:human_account_id))
       change set_attribute(:prepared_by, :agent)
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+
+      change {Autolaunch.AgentLaunch.Preparations,
+              of: [:human_account_id, :chain_id],
+              same: [:signer, :name, :symbol, :stock, :telegram, :discord, :links]}
+    end
+
+    # An agent's reviews no launch was listed from, newest first
+    # (`Autolaunch.AgentLaunch.Preparations`).
+    read :agent_preparations do
+      filter expr(prepared_by == :agent and is_nil(adopted_at))
+      prepare build(sort: [inserted_at: :desc])
+    end
+
+    # An agent's review that its latest ones replaced.
+    destroy :trim do
+      validate attribute_equals(:prepared_by, :agent)
+      validate absent(:adopted_at)
+    end
+
+    # Discovery lists a launch from this review (`Autolaunch.Robinhood.Discovery`).
+    update :adopt do
+      accept []
+      change set_attribute(:adopted_at, &DateTime.utc_now/0)
     end
 
     # The review that carried out this exact launch: the person's newest, or
@@ -114,6 +142,7 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       default: :person,
       constraints: [one_of: [:person, :agent]]
 
+    # Set only by `:adopt`; nil until a launch is listed from this review.
     attribute :adopted_at, :utc_datetime_usec
 
     create_timestamp :inserted_at

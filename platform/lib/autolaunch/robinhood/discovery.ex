@@ -10,8 +10,9 @@ defmodule Autolaunch.Robinhood.Discovery do
 
   A launch made outside the site is a row too, with origin `:chain`; one that
   matches a review this site stored (`Autolaunch.Robinhood.LaunchReview`) has
-  origin `:site`, names that review's account as its creator, and starts that
-  account's draft over. Only site launches are listed.
+  origin `:site`, names that review's account as its creator, marks the review
+  as the one it was listed from (`adopted_at`) and starts that account's draft
+  over, all in the listing's one write. Only site launches are listed.
 
   One job (`Autolaunch.ChainWatch` makes sure of it) reads the launch ids that
   have no row yet, at most two hundred a pass, then waits five minutes (a
@@ -97,8 +98,8 @@ defmodule Autolaunch.Robinhood.Discovery do
 
   defp discover(head, launch_id) do
     with {:ok, launch} <- Launchpad.launch(head, launch_id),
-         {:ok, origin} <- origin(head.chain_id, launch),
-         {:ok, _auction} <- Ash.transaction(Auction, fn -> project(head, launch, origin) end) do
+         {:ok, review} <- review(head.chain_id, launch),
+         {:ok, _auction} <- Ash.transaction(Auction, fn -> project(head, launch, review) end) do
       :ok
     else
       {:error, reason} ->
@@ -106,43 +107,43 @@ defmodule Autolaunch.Robinhood.Discovery do
     end
   end
 
-  # A launch this site prepared is the site's, in the account the review was
-  # for; any other launch was only seen on chain.
-  defp origin(chain_id, launch) do
-    case Autolaunch.matching_robinhood_launch_review(
-           chain_id,
-           launch.launcher,
-           launch.name,
-           launch.symbol,
-           launch.stock.address,
-           actor: @actor
-         ) do
-      {:ok, %{human_account_id: account_id} = review} ->
-        {:ok, {:site, account_id, Map.take(review, [:telegram, :discord, :links])}}
-
-      {:ok, nil} ->
-        {:ok, {:chain, nil, %{}}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  # The review this site stored for the launch, when it prepared it.
+  defp review(chain_id, launch) do
+    Autolaunch.matching_robinhood_launch_review(
+      chain_id,
+      launch.launcher,
+      launch.name,
+      launch.symbol,
+      launch.stock.address,
+      actor: @actor
+    )
   end
 
-  # A site launch's draft starts over with its listing.
-  defp project(head, launch, origin) do
-    with {:ok, auction} <- record(head, launch, origin),
+  # A launch this site prepared is the site's, in the account the review was
+  # for: the review is marked as the one it was listed from, and its draft
+  # starts over, with its listing. Any other launch was only seen on chain.
+  defp project(head, launch, review) do
+    with {:ok, auction} <- record(head, launch, origin(review)),
          :ok <- LabProjection.project_graduated_token(auction),
-         :ok <- start_over(origin, launch) do
+         :ok <- adopt(review, launch) do
       auction
     else
       {:error, reason} -> Ash.DataLayer.rollback(Auction, reason)
     end
   end
 
-  defp start_over({:site, account_id, _links}, launch),
-    do: LaunchedDrafts.clear(:memestock, account_id, launch.name, launch.symbol)
+  defp origin(nil), do: {:chain, nil, %{}}
 
-  defp start_over({:chain, nil, _links}, _launch), do: :ok
+  defp origin(%{human_account_id: account_id} = review),
+    do: {:site, account_id, Map.take(review, [:telegram, :discord, :links])}
+
+  defp adopt(nil, _launch), do: :ok
+
+  defp adopt(review, launch) do
+    with {:ok, _adopted} <- Autolaunch.adopt_robinhood_launch_review(review, actor: @actor) do
+      LaunchedDrafts.clear(:memestock, review.human_account_id, launch.name, launch.symbol)
+    end
+  end
 
   defp record(head, launch, {origin, creator_id, links}) do
     Autolaunch.record_launch_auction(

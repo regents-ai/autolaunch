@@ -2,21 +2,24 @@ defmodule Autolaunch.AgentLaunch.Preparations do
   @kept 20
 
   @moduledoc """
-  A paired agent's reviews of one draft (`:agent_prepare` on
-  `Autolaunch.LaunchOperation` and `Autolaunch.Stocks.LaunchOperation`), kept
-  bounded in the write itself, once the pairing is locked
-  (`RegentAgents.RequirePairing`).
+  A paired agent's reviews (`:agent_prepare` on `Autolaunch.LaunchOperation`
+  and `Autolaunch.Stocks.LaunchOperation`, `:agent_record` on
+  `Autolaunch.Robinhood.LaunchReview`), kept bounded in the write itself, once
+  the pairing is locked (`RegentAgents.RequirePairing`).
 
-  When the draft already has a review of the agent's that the chain has not
-  shown, with the same content, that review is the answer and nothing is
-  written. Otherwise the new one is written, and those beyond the latest
-  #{@kept} are removed: preparing again for a changed draft keeps the latest
-  #{@kept} preparations. A review the person's page saved, and one the chain
-  has shown, are never reused or removed.
+  `of` names whose preparations they are (one draft on Base, one person on one
+  chain on Robinhood) and `same` what two of them must share to be the same.
+  Each resource's `:agent_preparations` read is the agent's reviews that have
+  not carried out a launch, newest first.
 
-  The content is what the wallet is asked to send and what the launch is listed
-  with, without the moment it was read: the block, and the treasury check's
-  record of that read.
+  When one of those is the same, it is the answer and nothing is written.
+  Otherwise the new one is written, and those beyond the latest #{@kept} are
+  removed (`:trim`): preparing again for a changed draft keeps the latest
+  #{@kept} preparations. A review the person's page saved, and one that carried
+  out a launch, are never reused or removed.
+
+  A Base review is the same without the moment it was read: the block, and the
+  treasury check's record of that read.
   """
 
   use Ash.Resource.Change
@@ -29,19 +32,18 @@ defmodule Autolaunch.AgentLaunch.Preparations do
   @checked_at ["report_id", "source_block_number", "source_block_hash"]
 
   @impl true
-  def change(changeset, _opts, _context) do
+  def change(changeset, opts, _context) do
     changeset
-    |> Ash.Changeset.before_action(&same_or_new/1)
-    |> Ash.Changeset.after_action(&trim/2)
+    |> Ash.Changeset.before_action(&same_or_new(&1, opts))
+    |> Ash.Changeset.after_action(&trim(&1, &2, opts))
   end
 
-  defp same_or_new(changeset) do
-    draft = Ash.Changeset.get_attribute(changeset, :launch_draft_id)
-    content = content(Ash.Changeset.get_attribute(changeset, :review))
+  defp same_or_new(changeset, opts) do
+    content = changeset |> attributes(opts[:same]) |> content()
 
-    case changeset.resource |> preparations(draft) |> Ash.Query.limit(@kept) |> read() do
+    case changeset |> preparations(opts) |> Ash.Query.limit(@kept) |> Ash.read() do
       {:ok, kept} ->
-        case Enum.find(kept, &(content(&1.review) == content)) do
+        case Enum.find(kept, &(&1 |> Map.take(opts[:same]) |> content() == content)) do
           nil -> changeset
           same -> Ash.Changeset.set_result(changeset, {:ok, same})
         end
@@ -51,9 +53,9 @@ defmodule Autolaunch.AgentLaunch.Preparations do
     end
   end
 
-  defp trim(changeset, kept) do
-    changeset.resource
-    |> preparations(kept.launch_draft_id)
+  defp trim(changeset, kept, opts) do
+    changeset
+    |> preparations(opts)
     |> Ash.Query.offset(@kept)
     |> Ash.bulk_destroy(:trim, %{},
       actor: %System{},
@@ -66,19 +68,20 @@ defmodule Autolaunch.AgentLaunch.Preparations do
     end
   end
 
-  # The draft's reviews an agent prepared that the chain has not shown, newest
-  # first.
-  defp preparations(resource, draft) do
-    resource
-    |> Ash.Query.filter(
-      launch_draft_id == ^draft and prepared_by == :agent and state == :prepared
-    )
-    |> Ash.Query.sort(inserted_at: :desc)
+  defp preparations(changeset, opts) do
+    of = changeset |> attributes(opts[:of]) |> Map.to_list()
+
+    changeset.resource
+    |> Ash.Query.for_read(:agent_preparations, %{}, actor: %System{})
+    |> Ash.Query.filter(^of)
   end
 
-  defp read(query), do: Ash.read(query, actor: %System{})
+  defp attributes(changeset, names),
+    do: Map.new(names, &{&1, Ash.Changeset.get_attribute(changeset, &1)})
 
-  defp content(%{"facts" => facts} = review) do
+  defp content(attributes), do: Map.replace_lazy(attributes, :review, &unread/1)
+
+  defp unread(%{"facts" => facts} = review) do
     facts = Map.drop(facts, @read_at)
 
     case facts do
