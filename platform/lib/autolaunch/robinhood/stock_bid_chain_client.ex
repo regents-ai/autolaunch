@@ -9,8 +9,10 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   bid adapter's bindings, the auction's STOCK and its admission record, the
   signer's USDG balance and allowance to the adapter, the admitted route's
   estimate of the STOCK the USDG buys, the auction's price limits, the
-  requested maximum aligned to the auction's tick grid, and a tick the auction
-  holds below it (`Autolaunch.Chain.CcaLists.tick_hint/4`).
+  requested maximum aligned to the auction's tick grid, a tick the auction
+  holds below it (`Autolaunch.Chain.CcaLists.tick_hint/4`), and the block it
+  pinned with the clock the auction keeps time by there (`clock`,
+  `Autolaunch.Robinhood.BlockClock`).
   """
 
   alias Autolaunch.BidPrice
@@ -58,7 +60,8 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          max_price_q96: aligned,
          prev_tick_price_q96: prev_tick,
          predecessor_source: "bounded local auction tick walk",
-         block: block
+         block: block,
+         clock: clock
        }}
     else
       :error -> {:error, :invalid_chain_response}

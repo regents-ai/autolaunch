@@ -16,10 +16,15 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
 
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.Lab
+  alias RegentChain.Address
 
-  @doc "Everything the review states about one bid, read and simulated at one block."
+  @doc """
+  Everything the review states about one bid, read and simulated at one block.
+  A bid none of `owners` placed, by the auction's own record, is refused as
+  `:not_your_bid` before anything is simulated for it.
+  """
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  def snapshot(%{auction: auction, bid_id: bid_id, signer: signer}) do
+  def snapshot(%{auction: auction, bid_id: bid_id, signer: signer, owners: owners}) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
@@ -32,6 +37,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
          {:ok, contracts} <- launchpad(config, auction, block, opts),
          {:ok, decimals} <- stock_decimals(contracts, stock, block, opts),
          {:ok, bid} <- CcaSettlement.bid(venue, auction, bid_id),
+         :ok <- owned(bid, owners),
          {:ok, simulated} <- CcaSettlement.simulate(venue, auction, bid, end_block) do
       {:ok,
        Map.merge(simulated, %{
@@ -49,6 +55,12 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
       {:error, reason} -> {:error, reason}
       _other -> {:error, :invalid_chain_response}
     end
+  end
+
+  defp owned(%{owner: owner}, owners) do
+    if Enum.any?(owners, &Address.equal?(&1, owner)),
+      do: :ok,
+      else: {:error, :not_your_bid}
   end
 
   defp venue(config, block, opts) do

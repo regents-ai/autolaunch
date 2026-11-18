@@ -44,10 +44,21 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   the page's review shows.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(
+  def prepare(request, address, opts) do
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, with the latest block it read (`block`) and
+  `blocked: :bidding_ended` once that block's clock has reached the auction's
+  end block, when the auction would refuse the bid; otherwise `nil`.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(
         %{auction: auction, usdg_amount: usdg_amount, max_price: max_price} = request,
-        address,
-        opts
+        signer
       ) do
     with {:ok, bps} <-
            refusable(
@@ -55,7 +66,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
                Map.get(request, :slippage_percent, Autolaunch.BidSlippage.default())
              )
            ),
-         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, usdg_amount} <- usdg_amount(usdg_amount),
@@ -65,8 +75,13 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          :ok <- consistent(discovery, snapshot),
          {:ok, header} <- block_header(snapshot.block, Lab.rpc_opts(config)),
          {:ok, asset} <- listed_stock(snapshot.stock),
-         {:ok, executable} <- executable(usdg_amount, price, snapshot, header, bps),
-         do: {:ok, build(executable, asset, snapshot, config)}
+         {:ok, executable} <- executable(usdg_amount, price, snapshot, header, bps) do
+      {:ok,
+       Map.merge(build(executable, asset, snapshot, config), %{
+         block: snapshot.block.number,
+         blocked: if(snapshot.clock >= snapshot.auction.end_block, do: :bidding_ended)
+       })}
+    end
   end
 
   @doc """

@@ -42,14 +42,24 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   done for the bid right now.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(%{auction: auction, bid_id: bid_id}, address, opts) do
+  def prepare(request, address, opts) do
     with {:ok, %{account: account, signer: signer}} <-
            LaunchOperations.signed_in_wallet(address, opts),
-         {:ok, config} <- robinhood_lab(),
+         do: review(request, signer, account.wallet_addresses)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, of a bid one of `wallets`, that account's wallets,
+  placed, with the latest block it read (`block`). A bid none of them placed is
+  refused as `:not_your_bid` before the auction is asked anything about it.
+  """
+  @spec review(map(), String.t(), [String.t()]) :: {:ok, map()} | {:error, term()}
+  def review(%{auction: auction, bid_id: bid_id}, signer, wallets) do
+    with {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, bid_id} <- bid_id(bid_id),
-         {:ok, snapshot} <- snapshot(auction, bid_id, signer),
-         :ok <- owned(snapshot, account),
+         {:ok, snapshot} <- snapshot(auction, bid_id, signer, wallets),
          {:ok, asset} <- listed_stock(snapshot.stock),
          {:ok, steps} <- eligible_steps(snapshot) do
       {:ok,
@@ -57,6 +67,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
          chain: Client.chain(config),
          steps: Enum.map(steps, &Review.step(&1.name, snapshot.auction, &1.data)),
          facts: facts(asset, snapshot, steps),
+         block: snapshot.block.number,
          context: %{
            auction: snapshot.auction,
            onchain_bid_id: snapshot.bid.id,
@@ -120,7 +131,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
     with {:ok, _config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, bid_id} <- bid_id(bid_id),
-         {:ok, snapshot} <- snapshot(auction, bid_id, owner) do
+         {:ok, snapshot} <- snapshot(auction, bid_id, owner, [owner]) do
       case CcaSettlement.return_status(snapshot) do
         {:refused, reason} -> unavailable(reason)
         status -> {:ok, status}
@@ -140,13 +151,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   end
 
   defp bid_id(_value), do: unavailable(:bid_not_found)
-
-  # The auction's own record of the bid names one of the account's wallets.
-  defp owned(%{bid: %{owner: owner}}, %{wallet_addresses: wallets}) do
-    if Enum.any?(wallets, &Address.equal?(&1, owner)),
-      do: :ok,
-      else: unavailable(:not_your_bid)
-  end
 
   defp listed_stock(stock) do
     case Assets.fetch(Lab.chain_id(), stock) do
@@ -226,13 +230,14 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
     end
   end
 
-  defp snapshot(auction, bid_id, signer),
+  defp snapshot(auction, bid_id, signer, owners),
     do:
       chain(
         StockBidSettlementChainClient.snapshot(%{
           auction: auction,
           bid_id: bid_id,
-          signer: signer
+          signer: signer,
+          owners: owners
         })
       )
 
