@@ -62,9 +62,10 @@ defmodule Autolaunch.LabBidChainClientTest do
     end
   end
 
-  # An open auction with a tick at every whole price from the floor (1) to
-  # 700, clearing at 400. A bid's tick walk starts at the lowest price above
-  # the clearing price, so the 400 prices below it are never read.
+  # An open auction, at block 300 of 200 to 400, with a tick at every whole
+  # price from the floor (1) to 700, clearing at 400. A bid's tick walk starts
+  # at the lowest price above the clearing price, so the 400 prices below it
+  # are never read.
   defmodule BusyStub do
     @block %{
       "number" => "0x12c",
@@ -125,6 +126,7 @@ defmodule Autolaunch.LabBidChainClientTest do
         LabAbi.selector("tickSpacing()") => [@spacing],
         LabAbi.selector("floorPrice()") => [@spacing],
         LabAbi.selector("startBlock()") => [200],
+        LabAbi.selector("endBlock()") => [400],
         LabAbi.selector("checkpoint()") => [price(400), 0, 0, 0, 0, 2 ** 64 - 1],
         LabAbi.selector("MAX_BID_PRICE()") => [price(10_000)],
         LabAbi.selector("nextActiveTickPrice()") => [price(401)]
@@ -142,7 +144,8 @@ defmodule Autolaunch.LabBidChainClientTest do
   test "a bid in a busy auction names the tick just below its price, however many lie below" do
     BusyStub.install()
 
-    assert {:ok, %{prev_tick_price_q96: hint}} =
+    # The auction's own end block comes with the block the snapshot read.
+    assert {:ok, %{prev_tick_price_q96: hint, end_block: 400, block: %{number: 300}}} =
              LabBidChainClient.snapshot(%{
                auction: @auction,
                signer: @signer,

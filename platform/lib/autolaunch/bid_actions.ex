@@ -167,8 +167,9 @@ defmodule Autolaunch.BidActions do
   @doc """
   The review `prepare/3` makes once `signer` is proved to be one of the acting
   account's own wallets, with the latest block it read (`block`) and
-  `blocked: :bidding_ended` once the auction's record or that block says bidding
-  has ended, when the page no longer offers its bid form; otherwise `nil`.
+  `blocked: :bidding_ended` once that block has reached the auction's end block,
+  read from the auction at that same block, when the page no longer offers its
+  bid form; otherwise `nil`.
 
   What was typed is read before anything is asked of Base, so input this refuses
   never reaches the chain.
@@ -203,7 +204,7 @@ defmodule Autolaunch.BidActions do
       {:ok,
        Map.merge(reviewed, %{
          block: snapshot.block.number,
-         blocked: if(bidding_ended?(auction, snapshot.block), do: :bidding_ended)
+         blocked: if(bidding_ended?(snapshot), do: :bidding_ended)
        })}
     end
   end
@@ -229,15 +230,9 @@ defmodule Autolaunch.BidActions do
   defp review_bid(bid, {:currency, amount}), do: currency_bid(bid, amount)
   defp review_bid(bid, {:usdc, usdc_amount, bps}), do: usdc_bid(bid, usdc_amount, bps)
 
-  # Bidding has ended once the auction's record says so, or once the latest
-  # block has reached its end block, as the auction page decides it.
-  defp bidding_ended?(%{state: state}, _block) when state in [:ended, :graduated, :failed],
-    do: true
-
-  defp bidding_ended?(%{end_block: end_block}, %{number: number}) when is_integer(end_block),
+  # The auction's own rule: it refuses a bid at its end block or after.
+  defp bidding_ended?(%{block: %{number: number}, end_block: end_block}),
     do: number >= end_block
-
-  defp bidding_ended?(_auction, _block), do: false
 
   @doc """
   What a confirmed step of a bid placed, read from its receipt's logs: the

@@ -304,13 +304,25 @@ test("agent bids: an agent prepares its person's bids, return and claim, and the
     expect(tool(wrongSignerTool).error.code).toBe("wrong_signer")
     evidence.refusals = {not_your_bid: notYours, wrong_signer: wrongSigner}
 
-    // Once the latest block is the end block a new bid is refused, with no steps: the auction
-    // would refuse it.
+    // The auction refuses a bid at its end block or after (submitBid reverts AuctionIsOver once
+    // block.number >= endBlock), whatever the site's record of it says yet. One block before, the
+    // agent still gets its steps; at the end block it is refused, with none.
     const endBlock = Number(await read(auction, "endBlock"))
+    await mineTo(endBlock - 1)
+    const lastOpen = agent.signed("POST", "/api/agent/v1/bids/steps", input)
+    expect(lastOpen.status, JSON.stringify(lastOpen.json)).toBe(200)
+    expect(lastOpen.json.data.block).toBe(endBlock - 1)
+    expect(lastOpen.json.data.steps.at(-1).step).toBe("bid")
     await mineTo(endBlock)
     const ended = agent.signed("POST", "/api/agent/v1/bids/steps", input)
     const [endedTool] = await agent.mcp([{name: "prepare_bid", input}])
-    evidence.refusals.bidding_ended = {end_block: endBlock, listed_as: await state(listed.id), route: ended, hosted_tool: tool(endedTool)}
+    evidence.refusals.bidding_ended = {
+      end_block: endBlock,
+      one_block_before: {block: lastOpen.json.data.block, steps: lastOpen.json.data.steps.map((step: Step) => step.step)},
+      listed_as: await state(listed.id),
+      route: ended,
+      hosted_tool: tool(endedTool),
+    }
     expect(ended.status, JSON.stringify(ended.json)).toBe(409)
     expect(ended.json.error.code).toBe("bidding_ended")
     expect(ended.json.data).toBeUndefined()

@@ -9,9 +9,10 @@ defmodule Autolaunch.LabBidChainClient do
 
   `snapshot/1` answers the whole reviewed question at once, at the latest block,
   which it names (`block`): the auction's own currency, the wallet's balance of
-  it, both allowances that stand between it and the auction, and a tick below
-  the bid's price for the canonical call (`Autolaunch.Chain.CcaLists.tick_hint/4`).
-  There is no partial answer: a review is derived from one snapshot or from none.
+  it, both allowances that stand between it and the auction, the auction's end
+  block (`end_block`), and a tick below the bid's price for the canonical call
+  (`Autolaunch.Chain.CcaLists.tick_hint/4`). There is no partial answer: a
+  review is derived from one snapshot or from none.
 
   A test answers both callbacks itself, installed under
   `:autolaunch_bid_chain_client` (`Autolaunch.BidActions`).
@@ -76,6 +77,7 @@ defmodule Autolaunch.LabBidChainClient do
          {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
          {:ok, start_block} <- call_uint(config, auction, "startBlock()", [], block, opts),
          :ok <- started(block, start_block),
+         {:ok, end_block} <- call_uint(config, auction, "endBlock()", [], block, opts),
          {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
            call_words(config, auction, "checkpoint()", [], 6, block, opts),
          {:ok, cap} <- call_uint(config, auction, "MAX_BID_PRICE()", [], block, opts),
@@ -102,6 +104,7 @@ defmodule Autolaunch.LabBidChainClient do
          prev_tick_price_q96: prev_tick_price_q96,
          predecessor_source: "bounded local auction tick walk",
          permit2: Lab.address!(config, :permit2),
+         end_block: end_block,
          block: block
        }}
     else

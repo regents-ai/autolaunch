@@ -227,37 +227,35 @@ defmodule AutolaunchWeb.AgentBidsTest do
     end
   end
 
-  test "a bid on an auction whose bidding has ended is refused, by the auction's record or the block, while the page still reviews it",
+  test "a bid is refused from the auction's end block on, as the auction reads it at the latest block, while its record still says active and the page still reviews it",
        %{agent: agent, report: report, wallet: wallet} do
-    install(@permitted)
+    # A Base auction's record holds no end block, and says active until the
+    # market reader next reads it; the chain's latest block is 30_000_000.
+    auction = base_auction!(%{state: :active}, report)
+    input = %{auction_id: auction.id, amount: "1", max_price: "3"}
 
-    for fields <- [
-          %{state: :ended},
-          %{state: :graduated},
-          %{state: :failed},
-          # The latest block, 30_000_000, at the end block and past it.
-          %{state: :active, end_block: 30_000_000},
-          %{state: :active, end_block: 29_999_999}
-        ] do
-      auction = base_auction!(fields, report)
-      input = %{auction_id: auction.id, amount: "1", max_price: "3"}
+    # One block before the end, the bid's steps come back.
+    install(@permitted ++ [end_block: 30_000_001])
+    assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
+    assert {:ok, %{blocked: nil}} = BidActions.review(input, wallet)
+
+    # At the end block and past it, the auction refuses a bid, and so does the agent's.
+    for end_block <- [30_000_000, 29_999_999] do
+      install(@permitted ++ [end_block: end_block])
       route = http(:post, @bid_path, input, agent)
 
       assert route.status == 409 and route.body["error"]["code"] == "bidding_ended",
-             "#{inspect(fields)} answered #{inspect(route.body)}"
+             "end block #{end_block} answered #{inspect(route.body)}"
 
       refute Map.has_key?(route.body, "data")
       assert tool(agent, "prepare_bid", input) == {:error, route.body}
       assert documented?(@bid_path, 409, "bidding_ended")
+      assert {:ok, %{state: :active}} = Autolaunch.get_public_auction(auction.id, actor: nil)
 
       # The auction page still shows its review, with why it no longer bids.
       assert {:ok, %{blocked: :bidding_ended, steps: [_ | _]}} =
                BidActions.review(input, wallet)
     end
-
-    open = base_auction!(%{state: :active, end_block: 30_000_001}, report)
-    input = %{auction_id: open.id, amount: "1", max_price: "3"}
-    assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
   end
 
   test "a bid's return and claim are the bid card's steps, alike on both ways in", context do
@@ -363,7 +361,6 @@ defmodule AutolaunchWeb.AgentBidsTest do
     ]
 
     no_report = base_auction!(%{state: :active}, nil)
-    ended = base_auction!(%{state: :ended}, context.report)
     memestock = memestock_auction!()
     stock = %{usdc | auction_id: memestock.id}
     unread = position!(auction, wallet, nil)
@@ -387,7 +384,8 @@ defmodule AutolaunchWeb.AgentBidsTest do
         {[], %{bid | auction_id: Ecto.UUID.generate()}, "auction_not_found"},
         {[], Map.put(bid, :signer, @other), "wrong_signer"},
         {[], Map.put(bid, :signer, "nope"), "wallet_required"},
-        {[], %{bid | auction_id: ended.id}, "bidding_ended"},
+        # The latest block, 30_000_000, is the auction's end block.
+        {[end_block: 30_000_000], bid, "bidding_ended"},
         {[predecessor_source: ""], bid, "bid_preparation_unavailable"},
         {[], %{bid | auction_id: no_report.id}, "treasury_report_missing"},
         {{:treasury, threshold: 1}, bid, "treasury_security_changed"},

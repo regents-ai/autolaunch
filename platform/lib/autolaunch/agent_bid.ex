@@ -17,8 +17,9 @@ defmodule Autolaunch.AgentBid do
   The wallet is one of the person's own (`Autolaunch.CoveredCalls.Signer`):
   `signer` when named, otherwise the wallet they signed in with, and a bid
   settled is one a wallet of theirs holds (`Autolaunch.Bid`'s `:agent_by_bid_id`).
-  A bid on an auction whose bidding has ended, by its record or the latest
-  block, is refused as `bidding_ended`: the auction would refuse it.
+  Once the latest block has reached the auction's end block, as the auction
+  itself reads it, a bid is refused as `bidding_ended`: the auction would
+  refuse it.
 
   A refusal is an `Autolaunch.AgentBid.Refused` holding one of the codes the
   agent bid contract documents (`code/1`). Anything the review returns that is
@@ -112,7 +113,7 @@ defmodule Autolaunch.AgentBid do
   # What each input of the hosted tools is, in the browser tools' words
   # (priv/agent_bids_tools.json).
   @auction_id "The auction's id exactly as autolaunch_auctions lists it, for a Base auction."
-  @amount "The total to bid, as a decimal in the currency paid: the auction's own (18 decimals) or, with pay_with USDC, USDC (6 decimals)."
+  @amount "The total to bid, as a decimal in the currency paid, with at most as many decimal places as that currency has: the auction's own (its quote_token.decimals in autolaunch_auction) or, with pay_with USDC, USDC (6 decimals)."
   @max_price "The most to pay per token, as a decimal in the auction's own currency. It is lowered to the auction's price grid."
   @pay_with "USDC to pay in USDC on a Memestock auction that takes it; leave it out to pay in the auction's own currency."
   @slippage "For a USDC bid, the most the stock bought may fall short of the route's estimate, in percent from 0 to 99.99 with at most two decimal places. 5 when left out."

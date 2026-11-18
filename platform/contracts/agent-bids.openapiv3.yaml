@@ -9,8 +9,8 @@ paths:
       description: The wallet steps for one bid on a Base auction, built from the chain at the latest
         block as the auction page builds them, for one of the person's own wallets (`signer`, or the
         wallet they signed in with). The site only prepares; the wallet's own key signs and sends each
-        step, and each step's data ends with the site's Builder Code. Once bidding has ended by the
-        auction's record or that block, the answer is 409 bidding_ended with no steps. Send the steps
+        step, and each step's data ends with the site's Builder Code. Once that block has reached the
+        auction's end block, the answer is 409 bidding_ended with no steps. Send the steps
         promptly, and prepare them again once ten minutes have passed, as the auction page builds its
         own again. A Permit2 allowance an answer grants lasts 30 minutes, one the wallet already holds
         is relied on only with at least 10 minutes left, and a USDC bid is refused 15 minutes after it
@@ -177,8 +177,9 @@ components:
           description: The auction's id exactly as autolaunch_auctions lists it, for a Base auction.
         amount:
           type: string
-          description: The total to bid, as a decimal in the currency paid - the auction's own or, with
-            pay_with USDC, USDC (6 decimals).
+          description: The total to bid, as a decimal in the currency paid, with at most as many decimal
+            places as that currency has - the auction's own (its quote_token.decimals in
+            autolaunch_auction) or, with pay_with USDC, USDC (6 decimals).
         max_price:
           type: string
           description: The most to pay per token, as a decimal in the auction's own currency. It is

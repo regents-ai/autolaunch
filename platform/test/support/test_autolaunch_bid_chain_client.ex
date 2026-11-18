@@ -72,6 +72,7 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
            permit2_expiration: fixture.permit2_expiration,
            predecessor_source: fixture.predecessor_source,
            prev_tick_price_q96: fixture.prev_tick_price_q96,
+           end_block: fixture.end_block,
            block: fixture.block
          }}
     end
@@ -163,6 +164,8 @@ defmodule Autolaunch.BidFixture do
       permit2_expiration: 0,
       predecessor_source: "fixture",
       prev_tick_price_q96: 2 * @q96,
+      # An auction still taking bids: its end block is past the latest block.
+      end_block: 30_000_100,
       block: %{number: 30_000_000, hash: "0x" <> String.duplicate("ab", 32)},
       outcomes: %{}
     }
