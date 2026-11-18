@@ -4,7 +4,9 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
   reaches the wallet: the card reads the launch for the press and hands back
   the finish to send, as a settlement press does
   (`AutolaunchWeb.BidSettlementComponent`). A launch the chain already shows
-  finished hands back nothing.
+  finished hands back nothing. The button is held, with the block finishing
+  opens at, only while even the next block is before the migration block; one
+  block before it, the finish is offered and sent.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -90,9 +92,42 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
     assert reply == %{}
   end
 
+  # FINISH_HELD_ONE_BLOCK_TOO_LONG: `migrate` reverts only while the
+  # launchpad's clock is before the migration block, and a finish sent at the
+  # latest block lands in the next one or later, so the card held the button
+  # one block longer than the finish was certain to fail.
+  test "FINISH_HELD_ONE_BLOCK_TOO_LONG: two blocks before the migration block the button is held with the block it opens at, and nothing is sent",
+       %{conn: conn} = context do
+    {view, card, _auction} = card(conn, context, %{latest: @migration_block - 2})
+    html = render(view)
+
+    assert html =~ "Finishing opens at block #{@migration_block}."
+    refute html =~ "Ready to finish."
+
+    render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "finish"})
+    assert_reply(view, reply)
+    assert reply == %{}
+  end
+
+  test "FINISH_HELD_ONE_BLOCK_TOO_LONG: one block before the migration block the finish is offered and sent",
+       %{conn: conn} = context do
+    {view, card, auction} = card(conn, context, %{latest: @migration_block - 1})
+    html = render(view)
+
+    assert html =~ "Ready to finish."
+    refute html =~ "Finishing opens at block"
+
+    render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "finish"})
+    {:ok, config} = Lab.contracts(Lab.current!(), auction.contracts_version)
+    strategy = Lab.address!(config, :strategy)
+    assert_reply(view, %{send: "finish", review: %{steps: [%{step: "finish", to: ^strategy}]}})
+  end
+
   # The card of an ended auction, opened by a signed-in person with their
-  # wallet active, whose first reading of the launch the chain did not answer.
-  defp card(conn, context) do
+  # wallet active. By default the chain did not answer its first reading of the
+  # launch; with `latest`, the chain answers it at that block, the launch still
+  # running.
+  defp card(conn, context, chain \\ %{answers?: false}) do
     auction =
       Autolaunch.TestSupport.project_auction(
         address: BidFixture.auction_address(),
@@ -103,17 +138,17 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
       )
 
     BaseRpcStub.install(:autolaunch_lab_http_client, &answer/2)
+    {latest, chain} = Map.pop(chain, :latest, 100)
 
-    BaseRpcStub.put(%{
-      answers?: false,
-      blocks: %{
-        "latest" => %{
-          "number" => "0x64",
-          "hash" => BaseRpcStub.safe_hash(),
-          "timestamp" => "0x6700"
-        }
-      }
-    })
+    block = %{
+      "number" => "0x" <> Integer.to_string(latest, 16),
+      "hash" => BaseRpcStub.safe_hash(),
+      "timestamp" => "0x6700"
+    }
+
+    BaseRpcStub.put(
+      Map.merge(%{answers?: true, lifecycle: @running, blocks: %{"latest" => block}}, chain)
+    )
 
     session = signed_in_session(context.account.id)
 
@@ -131,7 +166,7 @@ defmodule AutolaunchWeb.FinishAuctionPressTest do
     {view, card, auction}
   end
 
-  # The strategy's record of the auction: past its migration block, with the
+  # The strategy's record of the auction: its migration block, with the
   # lifecycle the test names.
   defp answer(_call, %{answers?: false}), do: :unavailable
 

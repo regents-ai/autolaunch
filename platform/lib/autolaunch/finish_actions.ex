@@ -14,12 +14,17 @@ defmodule Autolaunch.FinishActions do
 
   alias Autolaunch.AuctionFinish.Launchpads
   alias Autolaunch.Chain.Rpc
+  alias RegentChain.Review
 
   @doc """
   Where the launch of `auction` stands now: its `state` (`:running`,
-  `:graduated` or `:failed`), its `migration_block` and the `clock` the
-  launchpad compares it with, the `chain` a review names, and the `call` that
-  finishes it.
+  `:graduated` or `:failed`), the latest `block` it was read at, its
+  `migration_block` and the `clock` the launchpad compares it with, the `chain`
+  a review names, the one `finish` step that finishes it (`steps`, its data
+  ending with the site's Builder Code), and why `migrate` is certain to revert
+  now (`blocked`): `:finish_not_open` while even the clock's next step is
+  before the migration block, `:auction_finished` once the launch is
+  finished, otherwise `nil`.
   """
   @spec read(map()) :: {:ok, map()} | {:error, :chain_unavailable}
   def read(auction) do
@@ -27,16 +32,33 @@ defmodule Autolaunch.FinishActions do
          {:ok, block} <- Rpc.latest_block(pad.opts),
          {:ok, clock} <- Launchpads.clock(pad, block),
          {:ok, launch} <- Launchpads.launch_of_auction(pad, auction.auction_address, block) do
+      call = Launchpads.migrate_call(pad, launch)
+
       {:ok,
        %{
          state: launch.state,
+         block: block.number,
          migration_block: launch.migration_block,
          clock: clock,
          chain: pad.chain,
-         call: Launchpads.migrate_call(pad, launch)
+         steps: [Review.step("finish", call.to, call.data)],
+         blocked: blocked(launch, clock)
        }}
     else
       {:error, _reason} -> {:error, :chain_unavailable}
     end
   end
+
+  # Every launchpad's `migrate` reverts while its clock is before the launch's
+  # migration block: the block itself on Base, the rollup block on Robinhood
+  # Chain. That clock never runs back, and a finish sent now lands at the clock
+  # as it is or later: it is certain to revert while even the clock's next
+  # step is before the migration block, or once the launch is finished. One
+  # step before the migration block it may land in time.
+  defp blocked(%{state: :running, migration_block: migration_block}, clock)
+       when clock + 1 < migration_block,
+       do: :finish_not_open
+
+  defp blocked(%{state: :running}, _clock), do: nil
+  defp blocked(%{state: _finished}, _clock), do: :auction_finished
 end

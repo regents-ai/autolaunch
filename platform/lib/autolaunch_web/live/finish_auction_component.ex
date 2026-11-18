@@ -17,7 +17,9 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   button sends at once; a press made before the card has read the launch reads
   it for that press and sends the finish, as a settlement press does
   (`AutolaunchWeb.BidSettlementComponent`). The button is disabled only when
-  the chain says the finish would fail: before the migration block, or once
+  the chain says the finish is certain to fail
+  (`Autolaunch.FinishActions.read/1`'s `blocked`): while even the launchpad
+  clock's next step is before the migration block, or once
   the launch is finished. Nothing is stored; the auction's reading job records
   the outcome from the chain (`Autolaunch.AuctionMarket`) and the page follows
   it.
@@ -53,7 +55,7 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   defp read_again?(:error, _assigns), do: true
   defp read_again?({:ok, seen}, %{observed: seen}), do: false
   defp read_again?(_seen, %{unread: true}), do: true
-  defp read_again?(_seen, %{launch: launch}), do: waiting?(launch)
+  defp read_again?(_seen, %{launch: launch}), do: match?(%{blocked: :finish_not_open}, launch)
 
   # The account as it reads now, before each event and background result
   # (`Session.check_component_lease/2`): a change to its wallets moves the
@@ -132,12 +134,10 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
     socket = read_now(socket)
 
     case socket.assigns do
-      %{review: %{} = review, launch: %{state: :running} = launch} ->
-        if waiting?(launch),
-          do: {:reply, %{}, socket},
-          else: {:reply, %{review: review, send: "finish"}, socket}
+      %{review: %{} = review, launch: %{blocked: nil}} ->
+        {:reply, %{review: review, send: "finish"}, socket}
 
-      _no_review ->
+      _no_review_or_blocked ->
         {:reply, %{}, socket}
     end
   end
@@ -195,20 +195,11 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
     end
   end
 
-  defp waiting?(%{state: :running, clock: clock, migration_block: migration_block}),
-    do: clock < migration_block
-
-  defp waiting?(_launch), do: false
-
   # The review for the wallet that may act, once the launch is read. A review
-  # never changes, so the same signer and call keep the one on the page.
-  defp reviewed(%{assigns: %{signer: signer, launch: %{chain: chain, call: call}}} = socket)
-       when is_binary(signer) do
-    review =
-      Review.new(socket.assigns.id, signer, chain, [Review.step("finish", call.to, call.data)])
-
-    OnchainSteps.put_review(socket, review)
-  end
+  # never changes, so the same signer and step keep the one on the page.
+  defp reviewed(%{assigns: %{signer: signer, launch: %{chain: chain, steps: steps}}} = socket)
+       when is_binary(signer),
+       do: OnchainSteps.put_review(socket, Review.new(socket.assigns.id, signer, chain, steps))
 
   defp reviewed(socket), do: OnchainSteps.put_review(socket, nil)
 
@@ -228,16 +219,13 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   defp next_step(_step, nil), do: nil
 
   # Why the finish is certain to fail now, from the chain's own reading.
-  defp blocked(%{state: :running, clock: clock, migration_block: migration_block})
-       when clock < migration_block,
-       do: "Finishing opens at block #{migration_block}."
+  defp blocked(%{blocked: :finish_not_open, migration_block: migration_block}),
+    do: "Finishing opens at block #{migration_block}."
 
-  defp blocked(%{state: :running}), do: nil
-
-  defp blocked(%{state: _finished}),
+  defp blocked(%{blocked: :auction_finished}),
     do: "This auction is finished. The page shows the result shortly."
 
-  defp blocked(nil), do: nil
+  defp blocked(_open_or_unread), do: nil
 
   defp progress(nil, _chain_name), do: nil
 
