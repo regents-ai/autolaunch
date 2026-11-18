@@ -21,9 +21,11 @@ defmodule Autolaunch.Stocks.StakeActions do
   offers no convert. Nothing is written anywhere: the chain is the only
   record, and the page reads what each step did from its receipt.
 
-  Every review binds to one of the wallets of the account the session lease
-  names, read inside the lease at call time: the page's active wallet must be
-  one the account links, never a guess.
+  `prepare/3` binds every review it makes to one of the wallets of the account
+  the session lease names, read inside the lease at call time: the page's
+  active wallet must be one the account links, never a guess. `review/2`
+  checks nothing about the wallet it is given, so its caller must already have
+  proved that wallet is one of the acting person's own.
   """
 
   import Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
@@ -75,6 +77,10 @@ defmodule Autolaunch.Stocks.StakeActions do
   @bps 10_000
   @uint128_max Integer.pow(2, 128) - 1
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
+  # A pool the chain could not be read for just now, as the agent tools name
+  # it: also a node that answered as another chain or with a block header it
+  # cannot vouch for.
+  @unreadable @transient ++ [:invalid_block_header, :wrong_chain]
 
   @doc """
   What one wallet has in a launch's splitter, read at the block the pool facts
@@ -85,43 +91,11 @@ defmodule Autolaunch.Stocks.StakeActions do
   """
   @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def position(pool, address) do
-    splitter = pool.fees.splitter.address
-    dollar = pool.fees.splitter.dollar
-    venue = venue(pool)
-
     with {:ok, holder} <- address(address),
-         {:ok, config} <- lab(venue),
-         rpc <- venue.lab.rpc_opts(config),
-         abi <- venue.lab.abi!(config, :splitter),
-         {:ok, balance} <- erc20(pool.token.address, "balance_of", [holder], pool.block, rpc),
-         {:ok, allowance} <-
-           erc20(pool.token.address, "allowance", [holder, splitter], pool.block, rpc),
-         {:ok, staked} <-
-           splitter_uint(splitter, abi, "stakedOf(address)", [holder], pool.block, rpc),
-         {:ok, dollar_owed} <- claimable(splitter, abi, dollar.address, holder, pool, rpc),
-         {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
-         {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc),
-         {:ok, claimed} <-
-           chain(WalletHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
-      claimed_of = &Map.get(claimed, String.downcase(&1), 0)
-
-      {:ok,
-       %{
-         balance: amount(balance, @token_decimals),
-         staked: amount(staked, @token_decimals),
-         allowance: allowance,
-         claimable: %{
-           dollar: amount(dollar_owed, dollar.decimals),
-           token: amount(token, @token_decimals),
-           stock: amount(stock, pool.currency.decimals)
-         },
-         claimed: %{
-           dollar: amount(claimed_of.(dollar.address), dollar.decimals),
-           token: amount(claimed_of.(pool.token.address), @token_decimals),
-           stock: amount(claimed_of.(pool.currency.address), pool.currency.decimals)
-         }
-       }}
-    end
+         {:ok, config} <- lab(venue(pool)),
+         {:ok, holding} <- holding(pool, holder, config),
+         {:ok, claimed} <- claimed_so_far(pool, holder, config),
+         do: {:ok, Map.put(holding, :claimed, claimed)}
   end
 
   @doc """
@@ -142,20 +116,26 @@ defmodule Autolaunch.Stocks.StakeActions do
   end
 
   @doc """
-  The review `prepare/3` makes once `signer` is proved to be one of the acting
-  account's own wallets, with the latest block the pool was read at (`block`)
-  and the wallet's own `position/2` there (`position`).
+  The review `prepare/3` makes once it has proved `signer` is one of the
+  acting account's own wallets, with the latest block the pool was read at
+  (`block`) and what the wallet holds there (`position`: `position/2`'s
+  figures but what it has claimed so far, which no review needs). It checks
+  nothing about `signer` itself, so its caller must have proved it is one of
+  the acting person's own wallets. An unstake's amount that is no amount to
+  move is refused before any chain is read.
   """
   @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def review(%{kind: kind, launch: launch} = request, signer) when kind in @kinds do
-    with {:ok, pool} <- pool(launch),
+    with {:ok, typed} <- typed(kind, Map.get(request, :amount)),
+         {:ok, pool} <- pool(launch),
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
          :ok <- vests(kind, pool),
          {:ok, config} <- lab(venue(pool)),
          {:ok, contracts} <- contracts(pool, venue(pool), config),
-         {:ok, wallet} <- position(pool, signer),
-         {:ok, amount} <- amount(kind, Map.get(request, :amount), wallet),
+         {:ok, holder} <- address(signer),
+         {:ok, wallet} <- holding(pool, holder, config),
+         {:ok, amount} <- amount(kind, typed, wallet),
          {:ok, amount} <-
            conversion(kind, amount, Map.get(request, :floor), pool, config, contracts),
          do: {:ok, build(kind, pool, config, contracts, wallet, amount)}
@@ -170,6 +150,58 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   # Wallet reads
 
+  # What the wallet holds, has staked, has let the splitter take and can claim
+  # now, at the pool's block: everything a review reads of it.
+  defp holding(pool, holder, config) do
+    splitter = pool.fees.splitter.address
+    dollar = pool.fees.splitter.dollar
+    venue = venue(pool)
+    rpc = venue.lab.rpc_opts(config)
+    abi = venue.lab.abi!(config, :splitter)
+
+    with {:ok, balance} <- erc20(pool.token.address, "balance_of", [holder], pool.block, rpc),
+         {:ok, allowance} <-
+           erc20(pool.token.address, "allowance", [holder, splitter], pool.block, rpc),
+         {:ok, staked} <-
+           splitter_uint(splitter, abi, "stakedOf(address)", [holder], pool.block, rpc),
+         {:ok, dollar_owed} <- claimable(splitter, abi, dollar.address, holder, pool, rpc),
+         {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
+         {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc) do
+      {:ok,
+       %{
+         balance: amount(balance, @token_decimals),
+         staked: amount(staked, @token_decimals),
+         allowance: allowance,
+         claimable: %{
+           dollar: amount(dollar_owed, dollar.decimals),
+           token: amount(token, @token_decimals),
+           stock: amount(stock, pool.currency.decimals)
+         }
+       }}
+    end
+  end
+
+  # What the wallet has claimed of each asset since the pool opened, from the
+  # splitter's claim records: a scan from the pool's first block, which only
+  # the position's own readers show.
+  defp claimed_so_far(pool, holder, config) do
+    splitter = pool.fees.splitter.address
+    dollar = pool.fees.splitter.dollar
+    rpc = venue(pool).lab.rpc_opts(config)
+
+    with {:ok, claimed} <-
+           chain(WalletHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
+      claimed_of = &Map.get(claimed, String.downcase(&1), 0)
+
+      {:ok,
+       %{
+         dollar: amount(claimed_of.(dollar.address), dollar.decimals),
+         token: amount(claimed_of.(pool.token.address), @token_decimals),
+         stock: amount(claimed_of.(pool.currency.address), pool.currency.decimals)
+       }}
+    end
+  end
+
   defp erc20(token, function, arguments, block, rpc),
     do: chain(Rpc.call_uint(token, Abi.encode_erc20(function, arguments), block, rpc))
 
@@ -183,15 +215,23 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp amount(atomic, decimals),
     do: %{atomic: atomic, decimals: decimals, shown: Rpc.format_units(atomic, decimals)}
 
+  # An unstake's typed amount in the token's smallest units, refused for its
+  # own form (not a decimal, zero, finer than the token's 18 places or more
+  # than the splitter moves at once) before any chain is read. A conversion's
+  # amount is in the stock's decimals, which only the pool names, and no other
+  # action takes one.
+  defp typed(:unstake, value), do: parsed(value)
+  defp typed(_kind, value), do: {:ok, value}
+
   # The amount an action moves, refused before any review exists when the
   # splitter would refuse it too. A stake is the wallet's whole balance.
   defp amount(:stake, _value, %{balance: %{atomic: 0}}), do: unavailable(:nothing_to_stake)
   defp amount(:stake, _value, wallet), do: {:ok, wallet.balance.atomic}
 
-  defp amount(:unstake, value, wallet) do
-    with {:ok, amount} <- parsed(value),
-         true <- amount <= wallet.staked.atomic || unavailable(:amount_above_stake),
-         do: {:ok, amount}
+  defp amount(:unstake, amount, wallet) do
+    if amount <= wallet.staked.atomic,
+      do: {:ok, amount},
+      else: unavailable(:amount_above_stake)
   end
 
   defp amount(:convert, value, _wallet), do: {:ok, value}
@@ -301,7 +341,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     do: auction |> RobinhoodPool.read() |> pooled()
 
   defp pooled({:ok, pool}), do: {:ok, pool}
-  defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp pooled({:error, reason}) when reason in @unreadable, do: unavailable(:chain_unavailable)
   defp pooled({:error, _reason}), do: unavailable(:stake_unavailable)
 
   defp venue(%{chain: chain, kind: kind}), do: Map.fetch!(@venues, {chain, kind})
