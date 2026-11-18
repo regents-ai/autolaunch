@@ -76,10 +76,9 @@ defmodule Autolaunch.LabBidChainClient do
          {:ok, spacing} <- call_uint(config, auction, "tickSpacing()", [], block, opts),
          {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
          {:ok, start_block} <- call_uint(config, auction, "startBlock()", [], block, opts),
-         :ok <- started(block, start_block),
+         :ok <- in_time(block, start_block),
          {:ok, end_block} <- call_uint(config, auction, "endBlock()", [], block, opts),
-         {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
-           call_words(config, auction, "checkpoint()", [], 6, block, opts),
+         {:ok, clearing} <- clearing_price(config, auction, start_block, block, opts),
          {:ok, cap} <- call_uint(config, auction, "MAX_BID_PRICE()", [], block, opts),
          limits <- %{
            tick_spacing_q96: spacing,
@@ -217,10 +216,25 @@ defmodule Autolaunch.LabBidChainClient do
     end
   end
 
-  # The auction refuses `checkpoint()` before its start block, so an auction
-  # that has not opened is told apart from a chain that could not be read.
-  defp started(%{number: number}, start_block) when number >= start_block, do: :ok
-  defp started(_block, _start_block), do: {:error, :bid_preparation_unavailable}
+  # The auction takes a bid from its start block on, and a step prepared at the
+  # latest block lands in the next one at the earliest, so a bid is open from
+  # the block before the start. Earlier, it is told apart from a chain that
+  # could not be read.
+  defp in_time(%{number: number}, start_block) when number + 1 >= start_block, do: :ok
+  defp in_time(_block, _start_block), do: {:error, :bid_preparation_unavailable}
+
+  # The auction refuses `checkpoint()` before its start block. The block before
+  # it, the stored clearing price is the floor the auction was created with,
+  # which no bid can have moved yet.
+  defp clearing_price(config, auction, start_block, %{number: number} = block, opts)
+       when number < start_block,
+       do: call_uint(config, auction, "clearingPrice()", [], block, opts)
+
+  defp clearing_price(config, auction, _start_block, block, opts) do
+    with {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
+           call_words(config, auction, "checkpoint()", [], 6, block, opts),
+         do: {:ok, clearing}
+  end
 
   defp usdc_balance(false, _signer, _block, _opts), do: {:ok, nil}
 

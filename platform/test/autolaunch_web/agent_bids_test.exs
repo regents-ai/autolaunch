@@ -241,20 +241,24 @@ defmodule AutolaunchWeb.AgentBidsTest do
     end
   end
 
-  test "a bid is refused from the auction's end block on, as the auction reads it at the latest block, while its record still says active and the page still reviews it",
+  test "a bid is refused once the block it can land in is the auction's end block or later, as the auction reads it, while its record still says active and the page still reviews it",
        %{agent: agent, report: report, wallet: wallet} do
     # A Base auction's record holds no end block, and says active until the
-    # market reader next reads it; the chain's latest block is 30_000_000.
+    # market reader next reads it; the chain's latest block is 30_000_000. A
+    # step prepared at it lands in block 30_000_001 at the earliest.
     auction = base_auction!(%{state: :active}, report)
     input = %{auction_id: auction.id, amount: "1", max_price: "3"}
 
-    # One block before the end, the bid's steps come back.
-    install(@permitted ++ [end_block: 30_000_001])
+    # Two blocks before the end, the bid can land the block before it, and its
+    # steps come back.
+    install(@permitted ++ [end_block: 30_000_002])
     assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
     assert {:ok, %{blocked: nil}} = BidActions.review(input, wallet)
 
-    # At the end block and past it, the auction refuses a bid, and so does the agent's.
-    for end_block <- [30_000_000, 29_999_999] do
+    # One block before the end, the bid lands in the end block at the earliest,
+    # which the auction refuses, and so does the agent's; at the end block and
+    # past it too.
+    for end_block <- [30_000_001, 30_000_000, 29_999_999] do
       install(@permitted ++ [end_block: end_block])
       route = http(:post, @bid_path, input, agent)
 

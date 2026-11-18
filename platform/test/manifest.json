@@ -1,5 +1,5 @@
 {
-  "total": 480,
+  "total": 483,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2478,26 +2478,26 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/lab_bid_chain_client_test.exs",
-      "line": 144,
+      "line": 135,
       "test_name": "a bid in a busy auction names the tick just below its price, however many lie below",
       "keep_because": "Audit finding A2 against the Base bid reader: an auction holding hundreds of ticks below a bid's price refused the bid before; now the bid names the tick just below its price. It fails if the 256-step limit comes back.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "08a30b9894d19c8ce7d85805574d418e6c8260bb9b251176e689f8f34b570c97"
+      "source_sha256": "c002965d0ae64d0ab926fd2870a9d7fd90b3d12c16df73764deae684f33c0a9a"
     },
     {
       "id": 236,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/lab_bid_chain_client_test.exs",
-      "line": 158,
+      "line": 149,
       "test_name": "a bid further up than one walk reaches names the highest tick the walk reached",
       "keep_because": "A bid whose price lies beyond one walk's reads still gets a tick the auction holds below its price, the highest the walk reached, which the auction accepts and walks on from. It fails if such a bid is refused.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "08a30b9894d19c8ce7d85805574d418e6c8260bb9b251176e689f8f34b570c97"
+      "source_sha256": "c002965d0ae64d0ab926fd2870a9d7fd90b3d12c16df73764deae684f33c0a9a"
     },
     {
       "id": 237,
@@ -4954,7 +4954,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 501,
@@ -4967,7 +4967,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 502,
@@ -4975,116 +4975,116 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
       "line": 244,
-      "test_name": "a bid is refused from the auction's end block on, as the auction reads it at the latest block, while its record still says active and the page still reviews it",
-      "keep_because": "The auction refuses a bid once the block reaches its end block (AuctionIsOver), and a Base auction's record holds no end block and says active until the market reader next reads it. An agent's bid is refused bidding_ended with no steps on both ways in at the end block and past it, read from the auction at the latest block while the record still says active, and the auction page still shows its review; one block before the end the steps come back. It fails if an agent is handed steps the auction would refuse.",
+      "test_name": "a bid is refused once the block it can land in is the auction's end block or later, as the auction reads it, while its record still says active and the page still reviews it",
+      "keep_because": "The auction refuses a bid in its end block or after (AuctionIsOver), a step prepared at the latest block lands in the next one at the earliest, and a Base auction's record holds no end block and says active until the market reader next reads it. Since 18 Nov 2026 the review decides on that next block: an agent's bid is refused bidding_ended with no steps on both ways in one block before the end, at it and past it, read from the auction at the latest block while the record still says active, and the auction page still shows its review; two blocks before the end the steps come back. It fails if an agent is handed steps that can only land when the auction refuses them, or is refused a bid that can still land in time.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 503,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 275,
+      "line": 279,
       "test_name": "a bid's return and claim are the bid card's steps, alike on both ways in",
       "keep_because": "A paired agent's return and claim steps, on its route and its hosted tool alike, are exactly the bid card's steps and facts for every stage the auction allows.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 504,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 316,
+      "line": 320,
       "test_name": "only the person's own wallets are prepared for, and only their own bids are seen",
       "keep_because": "An agent is never given steps for a wallet its person does not hold, nor for a bid another person holds; another person's agent cannot reach a bid that is not its person's.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 505,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 345,
+      "line": 349,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "Both actions run for the agent paired with the person, or a connected app calling as that agent, and for no one else: not the person signed in, a connected app as itself, the site or nobody.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 506,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 362,
+      "line": 366,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent bid contract lists is reached, with the same code and words on the route and the hosted tool, and each at a status the contract documents for it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 507,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 475,
+      "line": 479,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "An agent whose person's account cannot be read is refused authentication_required and prepares nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 508,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 679,
+      "line": 683,
       "test_name": "any amount, price and slippage is answered or refused alike on both ways in, and figures the page refuses never reach the treasury or the chain",
       "keep_because": "Any amount, price or slippage, of any JSON type, is answered or refused with a documented code alike on both ways in, never raises, and figures the page's own parsers refuse are refused before the treasury or the chain is read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 509,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 748,
+      "line": 752,
       "test_name": "in prelaunch read-only mode neither tool is listed or run, and both routes wait",
       "keep_because": "Before the site opens, neither agent bid tool is listed or run and both routes answer prelaunch_read_only.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 510,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 770,
+      "line": 774,
       "test_name": "switched on a paired agent lists both tools; off, neither is listed, and a call to either is answered as one to no tool",
       "keep_because": "The agent bid tools are listed to a paired agent, as read-only, only while agent bids are on; off, neither is listed, and a call to either, well formed or not, is answered byte for byte as a call to a tool that does not exist, in no words of agent bids.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 511,
@@ -5130,39 +5130,39 @@
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 497,
+      "line": 501,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both actions, never not_your_bid for their own bid",
       "keep_because": "A person whose verified wallets were withdrawn, or whose primary wallet is not among them, is refused wallet_required on both actions and both ways in, with or without a named signer, as autolaunch_my_positions answers; their own bid is never called not_your_bid and no steps are prepared.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 515,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 530,
+      "line": 534,
       "test_name": "a read that fails, or a chain error nobody named, is logged by kind alone and refused as bid_unavailable alike on both ways in",
       "keep_because": "A lost auction read on either action, a chain error that is not a named reason, and a policy refusal or raw Ash error reaching the routes are each logged by kind, with no wallet in the line, and answered 503 bid_unavailable alike on both ways in; none crashes the answer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 516,
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 608,
+      "line": 612,
       "test_name": "each reason the reviews, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is bid_unavailable",
       "keep_because": "Pins the whole mapping from every reason the bid and settlement reviews, the wallet and the account can give to the one code an agent is answered with, each answered with its own words at a status the contract documents; an unknown reason or any other term is bid_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 517,
@@ -5949,13 +5949,13 @@
       "group": "Agent bids",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_bids_test.exs",
-      "line": 581,
+      "line": 585,
       "test_name": "a raise in either operation is logged by kind alone and refused as bid_unavailable alike on both ways in",
       "keep_because": "A raise anywhere in preparing a bid or its settlement is answered bid_unavailable on the route and the hosted tool alike, logged by its kind alone, never what it said.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b2fb42b97068303b2a584acb1ed65e9bb6cb15ffb10150b46f9b7b409bf5990b"
+      "source_sha256": "60f59ec38ba8ffe48d2f588de489a0a99f67d4cd93e85145cb7cf1c4389cf2ee"
     },
     {
       "id": 578,
@@ -6242,6 +6242,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "91874b513caadb0f6df0dcb2dfe75effa1fd0e6634f1bffbc4bdcf6e852e8987"
+    },
+    {
+      "id": 600,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_chain_client_test.exs",
+      "line": 111,
+      "test_name": "two blocks before a Base auction's start a bid is not open, not unreadable: it cannot land in time",
+      "keep_because": "Bid follow-ups (18 Nov 2026): the auction takes a bid from its start block on (AuctionNotStarted before it), and a step prepared at block N lands at N + 1 at the earliest. Two blocks before the start no bid can land in time, and the snapshot says the auction is not open (bid_preparation_unavailable), never that Base could not be read. It fails if such a bid is read as open or as an unreadable chain.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c002965d0ae64d0ab926fd2870a9d7fd90b3d12c16df73764deae684f33c0a9a"
+    },
+    {
+      "id": 601,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_chain_client_test.exs",
+      "line": 122,
+      "test_name": "the block before a Base auction's start a bid is read at the floor, since it lands in the start block at the earliest",
+      "keep_because": "Bid follow-ups (18 Nov 2026): a bid prepared the block before an auction's start lands in the start block at the earliest, which the auction accepts, yet it was refused as not open. The snapshot now reads it, and as the auction refuses checkpoint() before its start, its clearing price is the stored one, the floor the auction was created with. It fails if that bid is refused or the snapshot asks for a checkpoint the auction would refuse.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c002965d0ae64d0ab926fd2870a9d7fd90b3d12c16df73764deae684f33c0a9a"
+    },
+    {
+      "id": 602,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_opening_test.exs",
+      "line": 128,
+      "test_name": "two blocks before the start the button counts down to the next block; the block before the start it places the bid, which lands in the start block",
+      "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: the Base bid button is held only while a bid is certain to fail. A bid sent at the latest block lands in the next one at the earliest, so the countdown runs to the block before the start, and from that block the bid can be placed. It fails if the button is still held the block before the start.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c09e0156f0ade63b8e443ee1365871ca4ebdf858c6eb1b8db99c23b8031110a2"
     }
   ],
   "legacy_folders_to_remove": [

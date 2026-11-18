@@ -18,9 +18,9 @@ defmodule Autolaunch.AgentBid do
   they signed in with (`Autolaunch.CoveredCalls.Signer.verified/1` and
   `wallet/2`, from one read of the account), and a bid
   settled is one a wallet of theirs holds (`Autolaunch.Bid`'s `:agent_by_bid_id`).
-  Once the latest block has reached the auction's end block, as the auction
-  itself reads it, a bid is refused as `bidding_ended`: the auction would
-  refuse it.
+  Once the block after the latest, the earliest a step can land in, has
+  reached the auction's end block, as the auction itself reads it, a bid is
+  refused as `bidding_ended`: the auction would refuse it.
 
   A refusal is an `Autolaunch.AgentBid.Refused` holding one of the codes the
   agent bid contract documents (`code/1`). Anything the review returns or

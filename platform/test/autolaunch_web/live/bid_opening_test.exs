@@ -123,6 +123,52 @@ defmodule AutolaunchWeb.BidOpeningTest do
     assert has_element?(view, "#bid .token-swap__wallet-step[data-onchain-step]:not([disabled])")
   end
 
+  # A bid sent at the latest block lands in the next one at the earliest, and
+  # the auction takes bids from its start block on.
+  test "two blocks before the start the button counts down to the next block; the block before the start it places the bid, which lands in the start block",
+       %{conn: conn, account: account, wallet: wallet} do
+    install()
+    start = LabAbi.selector("startBlock()")
+
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn
+      %{data: ^start}, _state -> BaseRpcStub.uint(@start_block)
+      _call, _state -> "0x"
+    end)
+
+    latest(@start_block - 2)
+
+    auction =
+      Autolaunch.TestSupport.project_auction(
+        address: @not_open_address,
+        title: "Not open yet",
+        featured: false,
+        state: :created
+      )
+      |> Autolaunch.set_auction_bid_terms!(@not_open_address, regent(), "REGENT", 18, "2.5",
+        actor: system()
+      )
+
+    view = panel(conn, account, auction, wallet)
+
+    # One block of 0.2 seconds to go.
+    [opens_at] =
+      view
+      |> element("#bid-opens[disabled]")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("data-opens-at")
+
+    assert_in_delta String.to_integer(opens_at), System.os_time(:millisecond) + 200, 1_500
+    refute has_element?(view, "#bid .token-swap__wallet-step")
+
+    latest(@start_block - 1)
+    render_hook(with_target(view, "#bid"), "opening_due", %{})
+    render_async(view)
+
+    refute has_element?(view, "#bid-opens")
+    assert has_element?(view, "#bid .token-swap__wallet-step[data-onchain-step]:not([disabled])")
+  end
+
   test "an open auction's refusal leaves the button pressable",
        %{conn: conn, account: account, auction: auction, wallet: wallet} do
     # No treasury report is recorded, so the bid is refused.

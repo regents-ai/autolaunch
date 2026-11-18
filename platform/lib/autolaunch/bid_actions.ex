@@ -167,9 +167,9 @@ defmodule Autolaunch.BidActions do
   @doc """
   The review `prepare/3` makes once `signer` is proved to be one of the acting
   account's own wallets, with the latest block it read (`block`) and
-  `blocked: :bidding_ended` once that block has reached the auction's end block,
-  read from the auction at that same block, when the page no longer offers its
-  bid form; otherwise `nil`.
+  `blocked: :bidding_ended` once the block after it, the earliest a step can
+  land in, has reached the auction's end block, read from the auction at that
+  same block; otherwise `nil`.
 
   What was typed is read before anything is asked of Base, so input this refuses
   never reaches the chain.
@@ -230,9 +230,10 @@ defmodule Autolaunch.BidActions do
   defp review_bid(bid, {:currency, amount}), do: currency_bid(bid, amount)
   defp review_bid(bid, {:usdc, usdc_amount, bps}), do: usdc_bid(bid, usdc_amount, bps)
 
-  # The auction's own rule: it refuses a bid at its end block or after.
+  # The auction's own rule: it refuses a bid at its end block or after, and a
+  # step prepared at the latest block lands in the next one at the earliest.
   defp bidding_ended?(%{block: %{number: number}, end_block: end_block}),
-    do: number >= end_block
+    do: number + 1 >= end_block
 
   @doc """
   What a confirmed step of a bid placed, read from its receipt's logs: the
