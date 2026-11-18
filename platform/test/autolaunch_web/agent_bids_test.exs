@@ -29,11 +29,12 @@ defmodule AutolaunchWeb.AgentBidsTest do
   import Plug.Test, only: [conn: 3]
 
   alias Autolaunch.Actors.{Agent, ConnectedApp, Human}
-  alias Autolaunch.{Accounts, AgentBid}
   alias Autolaunch.AgentBid.Refused
   alias AutolaunchWeb.AgentBidAnswer
 
   alias Autolaunch.{
+    Accounts,
+    AgentBid,
     BidActions,
     BidSettlementActions,
     LabAbi,
