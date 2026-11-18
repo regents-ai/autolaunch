@@ -370,14 +370,18 @@ defmodule Autolaunch.Auction do
 
     # Takes an auction off every public list and page, or puts it back; an
     # operator's switch for test launches and unlawful or abusive text. Its
-    # bidders' records, activity and portfolio rows go on as before.
+    # bidders' records, activity and portfolio rows go on as before. Either
+    # writes the row through `:market`, which reads auctions on both chains;
+    # the primary read keeps only Base ones.
     update :hide do
       accept []
+      atomic_upgrade_with :market
       change set_attribute(:hidden, true)
     end
 
     update :show do
       accept []
+      atomic_upgrade_with :market
       change set_attribute(:hidden, false)
     end
 

@@ -370,11 +370,7 @@ defmodule AutolaunchWeb.AgentRobinhoodBidsTest do
 
   test "a hidden auction takes no bid, known before Robinhood Chain is read, while a bid on it stays the person's to settle",
        %{agent: agent, listed: listed, mine: mine} do
-    # Hidden in the row itself: `Autolaunch.hide_auction/2` reads through the
-    # primary read, which leaves out Robinhood Chain auctions.
-    Autolaunch.Repo.query!("UPDATE autolaunch_app.auctions SET hidden = true WHERE id = $1", [
-      Ecto.UUID.dump!(listed.id)
-    ])
+    {:ok, _hidden} = Autolaunch.hide_auction(listed, actor: system())
 
     input = %{auction_id: listed.id, usdg_amount: "1", max_price: "3"}
     flush_reads()
