@@ -83,6 +83,13 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       default: [],
       constraints: [max_length: 3, items: [max_length: 256]]
 
+    attribute :prepared_by, :atom,
+      allow_nil?: false,
+      default: :person,
+      constraints: [one_of: [:person, :agent]]
+
+    attribute :adopted_at, :utc_datetime_usec
+
     create_timestamp :inserted_at
   end
 end

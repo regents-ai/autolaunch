@@ -107,6 +107,11 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
+    attribute :prepared_by, :atom,
+      allow_nil?: false,
+      default: :person,
+      constraints: [one_of: [:person, :agent]]
+
     # Adopted from the verified `StockLaunchCreated`, never guessed before mining.
     attribute :result, :map, default: %{}
 
