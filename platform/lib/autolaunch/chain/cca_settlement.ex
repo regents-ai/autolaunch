@@ -82,12 +82,17 @@ defmodule Autolaunch.Chain.CcaSettlement do
 
   @doc """
   `bids(bidId)` at the venue's block: startBlock, startCumulativeMps,
-  exitedBlock, maxPrice, owner, amountQ96, tokensFilled. An unknown id answers
-  with a zero owner and is refused as `:bid_not_found`.
+  exitedBlock, maxPrice, owner, amountQ96, tokensFilled. An id the auction has
+  not issued, at or above its `nextBidId()`, is refused as `:bid_not_found`
+  before its record is asked for: `bids` reverts `BidIdDoesNotExist` for it
+  (`BidStorage._getBid`), which a read takes for an unavailable chain.
   """
   @spec bid(venue(), String.t(), non_neg_integer()) :: {:ok, bid()} | {:error, atom()}
   def bid(venue, auction, bid_id) do
-    with {:ok, [start_block, _start_mps, exited_block, max_price, owner_word, amount_q96, filled]} <-
+    with {:ok, next_bid_id} <-
+           Rpc.call_uint(auction, LabAbi.selector("nextBidId()"), venue.block, venue.opts),
+         :ok <- issued(bid_id, next_bid_id),
+         {:ok, [start_block, _start_mps, exited_block, max_price, owner_word, amount_q96, filled]} <-
            call_words(venue, auction, "bids(uint256)", [bid_id], @bid_record_words),
          {:ok, owner} <- Abi.word_address(owner_word) do
       {:ok,
@@ -101,10 +106,13 @@ defmodule Autolaunch.Chain.CcaSettlement do
          tokens_filled: filled
        }}
     else
-      :error -> {:error, :bid_not_found}
+      :error -> {:error, :invalid_chain_response}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp issued(bid_id, next_bid_id) when bid_id < next_bid_id, do: :ok
+  defp issued(_bid_id, _next_bid_id), do: {:error, :bid_not_found}
 
   @doc """
   Whether the auction has graduated as its next checkpoint settles it: its

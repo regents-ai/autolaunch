@@ -1,5 +1,5 @@
 {
-  "total": 466,
+  "total": 467,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2504,26 +2504,26 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
-      "line": 155,
+      "line": 173,
       "test_name": "a partly filled bid hundreds of checkpoints from its crossing is settled with the exact hints",
       "keep_because": "Audit finding A1 against the Base settlement reader: a partly filled bid hundreds of checkpoints from its crossing could not be withdrawn or claimed before; now its settlement carries the exact hints. It fails if the 256-step limit comes back.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
+      "source_sha256": "1a75f84a3c00721ae52fbb8558661123763a8ee85f153f15922b71cb800369c5"
     },
     {
       "id": 238,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
-      "line": 167,
+      "line": 185,
       "test_name": "a stretch longer than one request's reads is read across requests, and the outbid walk goes on from the filled one",
       "keep_because": "Audit finding A1 and its review (12 Nov 2026): a crossing further than one request's reads is reached over several requests through the kept walk, then the outbid walk goes on from the last fully filled checkpoint instead of reading the stretch again, so the review settles on the second request. It fails if the reader starts over, never settles, or walks the stretch twice.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "71ce1c0762daffbbe3d6d87e7c61df0e1ee9867fb4cbecdf16d4fec284358212"
+      "source_sha256": "1a75f84a3c00721ae52fbb8558661123763a8ee85f153f15922b71cb800369c5"
     },
     {
       "id": 239,
@@ -6060,6 +6060,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "5892df4103f7a9c93b3b59045b5c14564e0c1a5dd0f1b89936ed13abf9eded2e"
+    },
+    {
+      "id": 586,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/lab_bid_settlement_chain_client_test.exs",
+      "line": 199,
+      "test_name": "a bid id the auction has not issued is no bid, not Base being unreachable",
+      "keep_because": "Review of the agent Robinhood bids fixes (18 Nov 2026): a Base bid the site holds whose id the auction has not issued, after a chain reorganisation or a lab chain reset, was read for its record, which the auction refuses (BidIdDoesNotExist), and the refusal was taken for Base being unreachable, so the bid's card and the agent's settle route said to try again in a moment, forever. The auction's next id is read first and such an id is bid_not_found; the last id it issued is still read. It fails if an unissued id is asked for its record or answered as an unavailable chain.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1a75f84a3c00721ae52fbb8558661123763a8ee85f153f15922b71cb800369c5"
     }
   ],
   "legacy_folders_to_remove": [

@@ -22,8 +22,9 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
   @doc """
   Everything the review states about one bid, read and simulated at one block.
   An id the auction has not issued is refused as `:bid_not_found` before its
-  record is asked for, and a bid none of `owners` placed, by the auction's own
-  record, as `:not_your_bid` before anything is simulated for it.
+  record is asked for (`CcaSettlement.bid/3`), and a bid none of `owners`
+  placed, by the auction's own record, as `:not_your_bid` before anything is
+  simulated for it.
   """
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, bid_id: bid_id, signer: signer, owners: owners}) do
@@ -38,8 +39,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
            Rpc.call_address(auction, LabAbi.encode(venue.abi, "currency()", []), block, opts),
          {:ok, contracts} <- launchpad(config, auction, block, opts),
          {:ok, decimals} <- stock_decimals(contracts, stock, block, opts),
-         {:ok, next_bid_id} <- call_uint(venue, auction, "nextBidId()"),
-         :ok <- issued(bid_id, next_bid_id),
          {:ok, bid} <- CcaSettlement.bid(venue, auction, bid_id),
          :ok <- owned(bid, owners),
          {:ok, simulated} <- CcaSettlement.simulate(venue, auction, bid, end_block) do
@@ -60,11 +59,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
       _other -> {:error, :invalid_chain_response}
     end
   end
-
-  # The auction's `bids(bidId)` reverts `BidIdDoesNotExist` for an id it has
-  # not issued yet (`BidStorage._getBid`).
-  defp issued(bid_id, next_bid_id) when bid_id < next_bid_id, do: :ok
-  defp issued(_bid_id, _next_bid_id), do: {:error, :bid_not_found}
 
   defp owned(%{owner: owner}, owners) do
     if Enum.any?(owners, &Address.equal?(&1, owner)),

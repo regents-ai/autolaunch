@@ -3,8 +3,9 @@ defmodule Autolaunch.LabBidSettlementChainClient do
   The one fork boundary a Base bid settlement has: one snapshot before review.
 
   `snapshot/1` pins one block on the Base fork, reads the auction's schedule,
-  currency and the bid's own record, and asks the auction what settling would
-  do through `Autolaunch.Chain.CcaSettlement`, which simulates the auction's
+  currency and the bid's own record once the auction has issued its id, and
+  asks the auction what settling would do through
+  `Autolaunch.Chain.CcaSettlement`, which simulates the auction's
   own `checkpoint()`, `isGraduated()`, `clearingPrice()`, then the exit and
   the claim from the bid's owner, deriving `exitPartiallyFilledBid` hints when
   the bid needs them.
@@ -20,7 +21,11 @@ defmodule Autolaunch.LabBidSettlementChainClient do
 
   @binding_keys [:regent]
 
-  @doc "Everything the review states about one bid position, read and simulated at one block."
+  @doc """
+  Everything the review states about one bid position, read and simulated at
+  one block. An id the auction has not issued is refused as `:bid_not_found`
+  before its record is asked for (`CcaSettlement.bid/3`).
+  """
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, bid_id: bid_id, signer: signer})
       when is_integer(bid_id) and bid_id >= 0 do

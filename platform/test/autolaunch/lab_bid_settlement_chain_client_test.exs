@@ -43,24 +43,42 @@ defmodule Autolaunch.LabBidSettlementChainClientTest do
 
     def post(_url, options) do
       %{method: method, params: params} = options[:json]
-      {:ok, %{status: 200, body: %{"result" => answer(method, params)}}}
+      {:ok, %{status: 200, body: body(method, params)}}
     end
+
+    # A call the auction reverts is answered with its error, as a Base node
+    # answers it.
+    defp body("eth_call", [%{to: auction, data: data}, _block]) do
+      {selector, arguments} = split(data)
+
+      case read(selector, arguments, auction) do
+        {:reverted, error} ->
+          %{"error" => %{"code" => 3, "message" => "execution reverted", "data" => error}}
+
+        words ->
+          %{"result" => "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)}
+      end
+    end
+
+    defp body(method, params), do: %{"result" => answer(method, params)}
 
     defp answer("eth_chainId", _params), do: "0x2105"
     defp answer("eth_getBlockByNumber", _params), do: @block
     defp answer("eth_getCode", _params), do: "0x6080"
 
-    defp answer("eth_call", [%{to: auction, data: data}, _block]) do
-      {selector, arguments} = split(data)
-      "0x" <> Enum.map_join(read(selector, arguments, auction), &BaseRpcStub.hex_word/1)
-    end
-
     defp answer("eth_simulateV1", [%{blockStateCalls: [%{calls: calls}]}, _block]),
       do: [%{"calls" => Enum.map(calls, &simulated/1)}]
 
+    # `bids` reverts `BidIdDoesNotExist` for an id the auction has not issued
+    # (`BidStorage._getBid`).
     defp read("bids(uint256)", [id], _auction) do
-      start = Enum.at(bids(), id)
-      [start, 0, 0, price(10), @owner, 10 ** 18 * @spacing, 0]
+      case Enum.at(bids(), id) do
+        nil ->
+          {:reverted, LabAbi.selector("BidIdDoesNotExist(uint256)") <> BaseRpcStub.hex_word(id)}
+
+        start ->
+          [start, 0, 0, price(10), @owner, 10 ** 18 * @spacing, 0]
+      end
     end
 
     defp read("checkpoints(uint64)", [block], _auction) when block in 100..700 do
@@ -174,6 +192,18 @@ defmodule Autolaunch.LabBidSettlementChainClientTest do
              snapshot(auction)
   end
 
-  defp snapshot(auction),
-    do: LabBidSettlementChainClient.snapshot(%{auction: auction, bid_id: 0, signer: @signer})
+  # A bid the site holds can be one the auction has not issued, after a chain
+  # reorganisation or a lab chain reset. The auction refuses to read it, and
+  # that refusal read as Base being unreachable, whenever it was asked
+  # (review of the agent Robinhood bids fixes, 18 Nov 2026).
+  test "a bid id the auction has not issued is no bid, not Base being unreachable" do
+    HistoryStub.install([100])
+    auction = "0x" <> String.duplicate("a3", 20)
+
+    assert {:error, :bid_not_found} = snapshot(auction, 1)
+    assert {:ok, %{bid: %{id: 0, start_block: 100}}} = snapshot(auction, 0)
+  end
+
+  defp snapshot(auction, bid_id \\ 0),
+    do: LabBidSettlementChainClient.snapshot(%{auction: auction, bid_id: bid_id, signer: @signer})
 end
