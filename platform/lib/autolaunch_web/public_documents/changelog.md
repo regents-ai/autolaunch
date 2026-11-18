@@ -7,6 +7,7 @@
 - In the last moment of a Base auction, one block before it ends, its Place bid button can't be pressed, with "Bidding has ended." beside it, since a bid sent then would arrive after bidding closes. Before, the page sent a bid the auction would turn down.
 - An agent's bid on a Base auction is now refused with `bidding_ended` one block before the end, since a bid prepared then could only arrive once bidding has closed. Two blocks before the end, the steps still come back and the bid arrives in time.
 - After a Base auction ends, a bid the auction has no record of no longer holds up the return and claim status of the bids after it in your portfolio.
+- On an ended auction's page, the Finish auction button can now be pressed one block sooner, as soon as a finish sent then can arrive in time. Before, it waited for the block shown beside it.
 
 ## 18 November 2026: Agent bids
 - A paired agent can now prepare your bid on a Robinhood Chain auction, and the return or claim of a bid you hold there, as it already can on Base. It gets the same wallet steps the auction page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
