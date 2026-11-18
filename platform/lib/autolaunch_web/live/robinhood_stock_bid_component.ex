@@ -138,11 +138,23 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   # Robinhood's clock moved: a bid the auction would refuse as not started yet
-  # is reviewed again, and once the clock lets it land the review is open.
+  # is reviewed again, and once the clock lets it land the review is open. The
+  # held review stays on the page, its summary shown, until the new one
+  # replaces it; while the form has moved on from it, or a step sent from it
+  # is on its way, it is built again as any other (`rebuilt/2`).
   defp opening(%{assigns: %{observed: seen}} = socket, seen), do: socket
 
-  defp opening(%{assigns: %{prepared: %{blocked: :auction_not_started}}} = socket, _seen),
-    do: rebuilt(socket, nil)
+  defp opening(
+         %{assigns: %{prepared: %{blocked: :auction_not_started}} = assigns} = socket,
+         _seen
+       ) do
+    key = bid_key(assigns)
+
+    if assigns.prepared_for == key and is_nil(assigns.preparing) and
+         not OnchainSteps.pending?(assigns.presses, assigns.review),
+       do: start_prepare(socket, key),
+       else: rebuilt(socket, nil)
+  end
 
   defp opening(socket, _seen), do: socket
 

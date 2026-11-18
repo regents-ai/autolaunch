@@ -152,6 +152,54 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
     refute has_element?(view, "#bid-sender-blocked:not([hidden])")
   end
 
+  # Robinhood Chain as `RobinhoodBidChain` answers it, except that while
+  # `:gated_robinhood_chain` names a process, each request first tells that
+  # process and waits for its `:go`.
+  defmodule GatedChain do
+    def post(url, options) do
+      case Application.get_env(:autolaunch, :gated_robinhood_chain) do
+        nil ->
+          :ok
+
+        gate ->
+          send(gate, {:gated, self()})
+
+          receive do
+            :go -> :ok
+          end
+      end
+
+      RobinhoodBidChain.post(url, options)
+    end
+  end
+
+  # The held review is built again at each new reading of the clock, so its
+  # summary blanked on every reading until the new review came back.
+  test "while a held bid is reviewed again at a new clock reading, its summary stays on the page",
+       %{conn: conn, account: account, wallet: wallet} do
+    RobinhoodBidChain.put(%{clock: 57, start_block: 60, usdg_allowance: 100 * 10 ** 6})
+    {view, _panel, _inputs} = filled_panel(conn, account, wallet, ["usdg_bid"])
+    assert has_element?(view, "#bid .bid-form__summary:not([hidden])")
+
+    Application.put_env(:autolaunch, :autolaunch_lab_http_client, __MODULE__.GatedChain)
+    Application.put_env(:autolaunch, :gated_robinhood_chain, self())
+    on_exit(fn -> Application.delete_env(:autolaunch, :gated_robinhood_chain) end)
+    RobinhoodBidChain.put(%{clock: 58, start_block: 60, usdg_allowance: 100 * 10 ** 6})
+    send(view.pid, {:observed, 58})
+
+    # The new review is on its way, and the held one is still on the page.
+    assert_receive {:gated, preparing}
+    assert has_element?(view, "#bid .bid-form__summary:not([hidden])")
+    assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding opens at block 60.")
+
+    Application.delete_env(:autolaunch, :gated_robinhood_chain)
+    send(preparing, :go)
+    render_async(view)
+
+    assert has_element?(view, "#bid .bid-form__summary:not([hidden])")
+    assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding opens at block 60.")
+  end
+
   # An approval succeeds whatever the auction's clock, so it is never held.
   test "before the auction starts its USDG approval is still sent, and only the bid is held",
        %{conn: conn, account: account, wallet: wallet} do

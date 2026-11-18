@@ -1,5 +1,5 @@
 {
-  "total": 491,
+  "total": 492,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6046,7 +6046,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
+      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
     },
     {
       "id": 585,
@@ -6202,33 +6202,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
+      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
     },
     {
       "id": 597,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 156,
+      "line": 204,
       "test_name": "before the auction starts its USDG approval is still sent, and only the bid is held",
       "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: only the press certain to fail is held. A USDG approval to the bid adapter succeeds whatever the auction's clock, so before the start the approval is still offered and a press sends it, while the words say when bidding opens. It fails if the approval is held or a press does not send it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
+      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
     },
     {
       "id": 598,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 175,
+      "line": 223,
       "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
       "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "451bb733bc04efdd9138acd56d7cb5fd3dc1a382dc2b51696445ba5bb8e061bf"
+      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
     },
     {
       "id": 599,
@@ -6385,6 +6385,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "cce2542fce0bda2ad7716316d7508c13c6147de0e3f17d7fe54101858c84750b"
+    },
+    {
+      "id": 611,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 178,
+      "test_name": "while a held bid is reviewed again at a new clock reading, its summary stays on the page",
+      "keep_because": "Bid follow-ups review (18 Nov 2026): a Robinhood bid held as not started is reviewed again at each new reading of the auction's clock, and its summary blanked on every reading until the new review came back, so it flickered with the clock. It fails if the held review's summary leaves the page while the new one is on its way.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
     }
   ],
   "legacy_folders_to_remove": [
