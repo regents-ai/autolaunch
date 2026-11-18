@@ -74,7 +74,7 @@ defmodule Autolaunch.FinishActions do
   defp undescribed(%{chain_id: chain_id, kind: kind, contracts_version: version}, reason) do
     key = {__MODULE__, :undescribed, chain_id, kind, version, reason}
 
-    unless :persistent_term.get(key, false) do
+    if not :persistent_term.get(key, false) do
       Logger.error(
         "auction finish: no launchpad is described for #{kind} #{version} auctions on chain #{chain_id}: #{inspect(reason)}"
       )

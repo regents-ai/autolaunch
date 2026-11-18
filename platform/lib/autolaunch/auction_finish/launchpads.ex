@@ -63,7 +63,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
       RobinhoodLab.chain?(chain_id) ->
         robinhood(RobinhoodLab.current(), version)
 
-      is_nil(chain_id) or chain_id != Lab.chain_id() ->
+      chain_id != Lab.chain_id() ->
         {:error, :chain_not_described}
 
       kind == :agent ->
