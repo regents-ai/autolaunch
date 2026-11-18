@@ -122,7 +122,7 @@ raw amount", › "the largest uint256 amounts are shown digit for digit". What e
 | Sell fee shares on `/convert` | **Gap** |
 | Lab line, header, account menu and phone menu in order on a lab site; the page stays put as they open and close; a jump to a heading stops under the header | `browser/layout.spec.ts` › "on a lab site the header, account menu and phone menu open under the lab line" (320, 390, 1280) |
 | Phone navigation menu covers the bottom bar and makes the page and the bar inert until it closes | `browser/layout.spec.ts` › "on a phone, the open menu covers the bottom bar and makes it and the page inert" (320, 390) |
-| Each bid and trade in the bottom bar is a press as tall as the bar's Pause, 44 px, with its 32 px pill drawn at the middle as before | `browser/layout.spec.ts` › "each bid and trade in the bottom bar is a 44px press, its pill as before" (390, 1280) |
+| Each bid and trade in the bottom bar is a press as tall as the bar's Pause, 44 px, with its 32 px pill drawn at the middle as before; the bar holds the whole press, the Pause and the pill's focus ring under its 1 px top line | `browser/layout.spec.ts` › "each bid and trade in the bottom bar is a 44px press the bar holds whole, its pill as before" (390, 1280) |
 | Lab test funds (lab sites only) | `autolaunch/stocks/faucet_test.exs` (refused on a Base mainnet site and on a lab until it is open). Sending on a lab: **gap** |
 
 Covered calls (`AutolaunchWeb.CoveredCallComponent`, steps built by `Autolaunch.CoveredCalls.Steps`):

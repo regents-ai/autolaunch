@@ -54,38 +54,62 @@ test("on a phone, the open menu covers the bottom bar and makes it and the page 
 // Found by the agent Robinhood bids journey on 18 Nov: the bottom bar's bids and trades were
 // 32px pills, short of the 44px press a phone needs. Each is now a press as tall as the bar's
 // Pause, at 390 and at 1280, and its pill is drawn as before: 32px tall with round ends, its
-// text where it was. The walk's database has none, so the bar is added here as the page draws it.
-test("each bid and trade in the bottom bar is a 44px press, its pill as before", async ({page}) => {
+// text where it was. The bar holds the whole press, its Pause and the pill's focus ring under
+// its 1px top line; at 44px tall it clipped them. The walk's database has none, so the bar is
+// added here as the page draws it.
+test("each bid and trade in the bottom bar is a 44px press the bar holds whole, its pill as before", async ({page}) => {
   await page.goto("/auctions")
   await ready(page)
-  const entries = await page.evaluate(() => {
+  const measured = await page.evaluate(() => {
     const bar = document.createElement("div")
     bar.className = "market-ticker market-ticker--paused"
     bar.innerHTML = `<button type="button" class="market-ticker__pause">Pause</button>
       <div class="market-ticker__window"><div class="market-ticker__track"><div class="market-ticker__group"></div></div></div>`
     document.body.append(bar)
     const group = bar.querySelector(".market-ticker__group")!
+    const inside = (inner: {top: number; bottom: number; left: number; right: number}, outer: DOMRect) =>
+      inner.top >= outer.top && inner.bottom <= outer.bottom && inner.left >= outer.left && inner.right <= outer.right
+    // Under the bar's top line: its box less that line.
+    const barBox = bar.getBoundingClientRect()
+    const line = parseFloat(getComputedStyle(bar).borderTopWidth)
+    const underLine = new DOMRect(barBox.x, barBox.y + line, barBox.width, barBox.height - line)
+    const pauseInBar = inside(bar.querySelector(".market-ticker__pause")!.getBoundingClientRect(), underLine)
     // A bid, a buy and a sell, each alone in the bar so it is on a phone's screen.
-    return ["bid", "buy", "sell"].map(side => {
+    const entries = ["bid", "buy", "sell"].map(side => {
       group.innerHTML = `<a href="/auctions" class="market-ticker__entry market-ticker__entry--${side}"><strong>2.00 USDG</strong><span>AR4FA7</span></a>`
       const link = group.querySelector("a")!
       const box = link.getBoundingClientRect()
+      // The window that clips the moving entries, as wide as what it holds.
+      const strip = bar.querySelector(".market-ticker__window")!.getBoundingClientRect()
       const pill = getComputedStyle(link, "::before")
       // Four pixels above the pill, still inside the press.
       const above = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2 - 20)
+      link.focus()
+      const ring = getComputedStyle(link, "::before")
+      // The pill spans the press's width at its middle; the ring lies its offset and width outside it.
+      const out = parseFloat(ring.outlineOffset) + parseFloat(ring.outlineWidth)
+      const pillTop = box.top + (box.height - parseFloat(pill.height)) / 2
+      const ringBox = {top: pillTop - out, bottom: pillTop + parseFloat(pill.height) + out, left: box.left - out, right: box.right + out}
       return {
         height: link.offsetHeight,
         pill: [pill.height, pill.borderTopLeftRadius, pill.borderTopWidth],
         textFromEdge: link.querySelector("strong")!.getBoundingClientRect().x - box.x,
         pressedAbovePill: above !== null && link.contains(above),
+        pressInBar: inside(box, strip),
+        ring: [link.matches(":focus-visible"), getComputedStyle(link).outlineStyle, ring.outlineStyle, inside(ringBox, strip)],
       }
     })
+    return {pauseInBar, entries}
   })
-  expect(entries).toEqual([
-    {height: 44, pill: ["32px", "16px", "0px"], textFromEdge: 14, pressedAbovePill: true},
-    {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, pressedAbovePill: true},
-    {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, pressedAbovePill: true},
-  ])
+  const whole = {pressedAbovePill: true, pressInBar: true, ring: [true, "none", "solid", true]}
+  expect(measured).toEqual({
+    pauseInBar: true,
+    entries: [
+      {height: 44, pill: ["32px", "16px", "0px"], textFromEdge: 14, ...whole},
+      {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, ...whole},
+      {height: 44, pill: ["32px", "16px", "1px"], textFromEdge: 15, ...whole},
+    ],
+  })
 })
 
 // Found on Autolaunch on 19 Oct: while a sign-in can't be read the top bar shows
