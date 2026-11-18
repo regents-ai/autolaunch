@@ -6040,13 +6040,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 68,
-      "test_name": "a bid's review on the auction page is for the person's open wallet",
-      "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing. The review is for the person's open wallet, with the steps the bid action prepares for it. It fails if the review names any other signer.",
+      "line": 71,
+      "test_name": "a bid's review on the auction page is for the person's open wallet, in any letter case: the same wallet again keeps it, and another of theirs gets its own",
+      "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing; the panel also withdrew that review at its next wallet report, since its signer was never the open wallet. The review is for the person's open wallet, reported checksummed and kept lowercase, with the steps the bid action prepares for it; the same wallet reported again keeps it, and another wallet the account links gets its own. It fails if the review names any other signer, or is withdrawn or built again for the same wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4730eb19c0d375b014c3e09b7974d4b390ccd43ff53d50d63c284b8ca7ef6993"
+      "source_sha256": "e618c3075e9962bd336c66a6580a571055171d5e59d8fe837a9d6a19aade9491"
     },
     {
       "id": 585,
