@@ -1,5 +1,9 @@
 # Changelog
 
+## 18 November 2026: Agents
+- A paired agent can now prepare your bid on a Base auction, and the return or claim of a bid you hold. It gets the same wallet steps the auction page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
+- Once an auction's bidding has ended, a bid is refused with `bidding_ended` and no steps, so your wallet is never asked to send a bid the auction would turn down.
+
 ## 17 November 2026: Wallets
 - When your wallet is on another network, pressing a button now asks your wallet to switch to the right one, Base or Robinhood Chain, and then carries on. Before, some wallets were never asked and the page only told you to switch.
 - If you decline the switch, or it doesn't work, nothing is sent, and pressing again asks your wallet to switch again.
