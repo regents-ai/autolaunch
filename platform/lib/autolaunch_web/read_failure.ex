@@ -46,13 +46,14 @@ defmodule AutolaunchWeb.ReadFailure do
   @doc """
   The kind and module of each error in `error`, with a `Postgrex.Error`'s
   code; none of an error's text. An atom is a reason named by the site, such
-  as `:invalid_query`, and is its own name.
+  as `:invalid_query`, and is its own name; any other term is `unnamed`.
   """
   @spec named(term()) :: String.t()
   def named(%Postgrex.Error{postgres: %{pg_code: code}}), do: "Postgrex.Error #{code}"
   def named(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, ", ", &named/1)
   def named(%struct{}), do: inspect(struct)
   def named(reason) when is_atom(reason), do: Atom.to_string(reason)
+  def named(_other), do: "unnamed"
 
   # A lost connection: the connection's own error, or a Postgres error whose
   # code is a connection exception (class 08) or a server shutting down or

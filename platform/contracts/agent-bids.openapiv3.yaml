@@ -10,8 +10,12 @@ paths:
         block as the auction page builds them, for one of the person's own wallets (`signer`, or the
         wallet they signed in with). The site only prepares; the wallet's own key signs and sends each
         step, and each step's data ends with the site's Builder Code. Once bidding has ended by the
-        auction's record or that block, the answer is 200 with `blocked` and its steps. Changes nothing;
-        the bid joins the person's positions once the auction's reader records it.
+        auction's record or that block, the answer is 409 bidding_ended with no steps. Send the steps
+        promptly, and prepare them again once ten minutes have passed, as the auction page builds its
+        own again. A Permit2 allowance an answer grants lasts 30 minutes, one the wallet already holds
+        is relied on only with at least 10 minutes left, and a USDC bid is refused 15 minutes after it
+        was prepared. Changes nothing; the bid joins the person's positions once the auction's reader
+        records it.
       security:
       - SiwaProof: []
       requestBody:
@@ -22,8 +26,7 @@ paths:
               $ref: '#/components/schemas/AgentBidRequest'
       responses:
         '200':
-          description: The steps, whether every approval is already in place, and any reason they are
-            certain to fail
+          description: The steps, and whether every approval is already in place
           content:
             application/json:
               schema:
@@ -49,11 +52,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentBidError'
         '409':
-          description: The person's account has no wallet to act with (wallet_required), or the auction
-            or the wallet stands so that the auction would refuse the bid now (bid_preparation_unavailable,
-            treasury_report_missing, treasury_security_changed, treasury_configuration_drift,
-            auction_currency_changed, amount_above_balance, usdc_bids_unavailable, stock_not_admitted,
-            usdc_route_unavailable)
+          description: The person's account has no verified wallet to act with (wallet_required),
+            bidding has ended on the auction (bidding_ended), or the auction or the wallet stands so that
+            the auction would refuse the bid now (bid_preparation_unavailable, treasury_report_missing,
+            treasury_security_changed, treasury_configuration_drift, auction_currency_changed,
+            amount_above_balance, usdc_bids_unavailable, stock_not_admitted, usdc_route_unavailable)
           content:
             application/json:
               schema:
@@ -69,8 +72,8 @@ paths:
                 $ref: '#/components/schemas/AgentBidError'
         '503':
           description: The chain or the auction's records could not be read just now (chain_unavailable,
-            price_history_long, bid_unavailable, account_unavailable), or the site is not open yet
-            (prelaunch_read_only)
+            price_history_long, account_unavailable), the site could not prepare it just now
+            (bid_unavailable), or the site is not open yet (prelaunch_read_only)
           content:
             application/json:
               schema:
@@ -123,8 +126,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentBidError'
         '409':
-          description: The person's account has no wallet to act with (wallet_required), or the auction
-            accepts nothing for this bid now (position_not_on_chain, bid_not_found, auction_not_started,
+          description: The person's account has no verified wallet to act with (wallet_required), or the
+            auction accepts nothing for this bid now (position_not_on_chain, bid_not_found, auction_not_started,
             auction_not_ended, already_exited, claim_not_open, nothing_to_claim, bid_not_exited,
             settlement_reverted)
           content:
@@ -140,8 +143,9 @@ paths:
                 $ref: '#/components/schemas/AgentBidError'
         '503':
           description: The chain or the auction's records could not be read just now (chain_unavailable,
-            bid_needs_partial_exit_hints_unavailable, bid_unavailable, account_unavailable), or the site
-            is not open yet (prelaunch_read_only)
+            price_history_long, bid_needs_partial_exit_hints_unavailable, account_unavailable), the site
+            could not prepare it just now (bid_unavailable), or the site is not open yet
+            (prelaunch_read_only)
           content:
             application/json:
               schema:
@@ -266,7 +270,6 @@ components:
       - block
       - steps
       - approved
-      - blocked
       - facts
       properties:
         kind:
@@ -289,19 +292,6 @@ components:
         approved:
           type: boolean
           description: True when no approval step is needed.
-        blocked:
-          type: object
-          nullable: true
-          required:
-          - code
-          - message
-          properties:
-            code:
-              type: string
-              enum:
-              - bidding_ended
-            message:
-              type: string
         facts:
           type: object
           required:
@@ -348,8 +338,6 @@ components:
       - chain
       - block
       - steps
-      - approved
-      - blocked
       - facts
       properties:
         kind:
@@ -371,13 +359,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AgentBidStep'
-        approved:
-          type: boolean
-          description: Always true; settling needs no approval.
-        blocked:
-          type: object
-          nullable: true
-          description: Always null; a step the auction would refuse is never prepared.
         facts:
           type: object
           required:
@@ -440,6 +421,7 @@ components:
               - auction_not_found
               - not_your_bid
               - wallet_required
+              - bidding_ended
               - bid_preparation_unavailable
               - treasury_report_missing
               - treasury_security_changed

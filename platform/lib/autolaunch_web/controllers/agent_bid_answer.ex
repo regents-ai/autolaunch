@@ -5,15 +5,14 @@ defmodule AutolaunchWeb.AgentBidAnswer do
   refusal with its status and words. The hosted MCP tools give the same
   refusals in the same words (`body/1`, through `AutolaunchWeb.ToolErrors`).
 
-  A refusal the auction page names keeps its name here, in words for an agent.
-  Any other reason the review gives, which the page answers with its general
-  "try again" words, is `bid_unavailable`.
+  Every refusal is one of the codes `Autolaunch.AgentBid.code/1` gives, each
+  with its own status and words for an agent here.
   """
 
   import Phoenix.Controller, only: [json: 2]
 
   alias Autolaunch.AgentBid.Refused
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{ApiError, ReadFailure}
 
   @treasury_checked {:conflict,
                      "Bidding is paused on this auction while its treasury is checked."}
@@ -27,7 +26,7 @@ defmodule AutolaunchWeb.AgentBidAnswer do
     wrong_signer: {:forbidden, "That wallet is not one of your person's own wallets."},
     wallet_required:
       {:conflict,
-       "Your person's account has no wallet to act with, or signer is not a wallet address."},
+       "Your person's Regent account has no verified wallet to act with, or signer is not a wallet address."},
     auction_not_found: {:not_found, "There is no Base auction listed here with that id."},
     invalid_amount:
       {:unprocessable_entity,
@@ -41,6 +40,8 @@ defmodule AutolaunchWeb.AgentBidAnswer do
     price_below_admissible_tick:
       {:unprocessable_entity,
        "That max_price does not reach an allowed price above the auction's clearing price."},
+    bidding_ended:
+      {:conflict, "Bidding has ended on this auction, so the auction would refuse this bid."},
     bid_preparation_unavailable: {:conflict, "Bidding is not open on this auction yet."},
     treasury_report_missing: {:conflict, "Bidding is not open on this auction yet."},
     treasury_security_changed: @treasury_checked,
@@ -104,19 +105,23 @@ defmodule AutolaunchWeb.AgentBidAnswer do
       else: :error
   end
 
-  # The refusal an operation answered with: the reason it named, or
-  # `:invalid_request` for input the action itself does not take. A policy never
-  # refuses here: every caller of the routes is a paired agent, the routes are
+  # The refusal an operation answered with: the code it named, or
+  # `:invalid_request` for input the action itself does not take. A policy does
+  # not refuse here: every caller of the routes is a paired agent, the routes are
   # not there while agent bids are off (`AutolaunchWeb.Router.admit_agent_bids/2`),
   # and both are refused before the router in prelaunch read-only mode
-  # (`AutolaunchWeb.Prelaunch`).
+  # (`AutolaunchWeb.Prelaunch`). Anything else is logged by kind alone and
+  # answered `bid_unavailable`.
   defp reason(%Ash.Error.Unknown{errors: [%Refused{reason: reason}]}), do: reason
   defp reason(%Ash.Error.Invalid{}), do: :invalid_request
 
-  defp refusal(reason) when is_map_key(@refusals, reason) do
+  defp reason(unexpected) do
+    ReadFailure.log("agent bid", unexpected)
+    :bid_unavailable
+  end
+
+  defp refusal(reason) do
     {status, message} = Map.fetch!(@refusals, reason)
     {status, Atom.to_string(reason), message}
   end
-
-  defp refusal(_unnamed), do: refusal(:bid_unavailable)
 end

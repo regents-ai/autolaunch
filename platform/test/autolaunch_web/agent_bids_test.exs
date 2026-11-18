@@ -6,10 +6,14 @@ defmodule AutolaunchWeb.AgentBidsTest do
 
   A bid's steps are the auction page's for the same inputs and wallet, and a
   return and claim's are the bid card's. Only the person's own wallets and
-  bids are prepared for, and only for the agent paired with them. Every refusal is reached and named, with a status and
-  code the contract documents. Figures the page would refuse are refused before
-  any treasury or chain read. Bidding that has ended is answered beside the
-  steps. Off, or in prelaunch read-only mode, neither tool is listed or run.
+  bids are prepared for, and only for the agent paired with them, while the
+  person has a verified wallet. Every refusal is reached and named, with a
+  status and code the contract documents, and every reason the reviews give has
+  one code. Figures the page would refuse are refused before any treasury or
+  chain read. A bid on an auction whose bidding has ended is refused. A read
+  that fails, or a chain error nobody named, is refused as `bid_unavailable`.
+  Off, or in prelaunch read-only mode, neither tool is listed or run, and off a
+  call to either is answered as one to a tool that does not exist.
 
   The chains are the bid and settlement doubles, and the sign-in service is
   stubbed: it vouches for the wallet a request names.
@@ -20,10 +24,14 @@ defmodule AutolaunchWeb.AgentBidsTest do
   import Autolaunch.BidFixture,
     only: [auction_address: 0, bidder: 1, install: 1, regent: 0, system: 0, wallet: 0]
 
+  import Autolaunch.DatabaseFaults, only: [lose_reads_of: 1, restore_reads_of: 1]
+  import ExUnit.CaptureLog, only: [with_log: 1]
   import Plug.Test, only: [conn: 3]
 
   alias Autolaunch.Actors.{Agent, ConnectedApp, Human}
+  alias Autolaunch.{Accounts, AgentBid}
   alias Autolaunch.AgentBid.Refused
+  alias AutolaunchWeb.AgentBidAnswer
 
   alias Autolaunch.{
     BidActions,
@@ -42,6 +50,7 @@ defmodule AutolaunchWeb.AgentBidsTest do
            @contract,
            ~w(components schemas AgentBidError properties error properties code enum)
          )
+  @schemas @contract["components"]["schemas"]
   @tools ~w(prepare_bid prepare_bid_settlement)
   @bid_path "/api/agent/v1/bids/steps"
   @settle_path "/api/agent/v1/bids/{bid}/steps"
@@ -174,10 +183,10 @@ defmodule AutolaunchWeb.AgentBidsTest do
       assert data["facts"] == plain(page.facts)
       assert data["chain"] == plain(page.chain)
 
-      assert %{"kind" => "bid", "signer" => ^wallet, "block" => 30_000_000, "blocked" => nil} =
-               data
-
+      assert %{"kind" => "bid", "signer" => ^wallet, "block" => 30_000_000} = data
+      assert Enum.sort(Map.keys(data)) == Enum.sort(@schemas["AgentBidSteps"]["required"])
       assert data["auction"] == %{"id" => auction.id, "address" => auction_address()}
+      # False while the steps still hold an approval, true once only the bid is left.
       assert data["approved"] == (named == ["bid"])
     end
   end
@@ -217,24 +226,37 @@ defmodule AutolaunchWeb.AgentBidsTest do
     end
   end
 
-  test "bidding that has ended is answered beside the steps, by the auction's record or the block",
-       %{agent: agent, report: report} do
+  test "a bid on an auction whose bidding has ended is refused, by the auction's record or the block, while the page still reviews it",
+       %{agent: agent, report: report, wallet: wallet} do
     install(@permitted)
 
-    for fields <- [%{state: :ended}, %{state: :active, end_block: 30_000_000}] do
+    for fields <- [
+          %{state: :ended},
+          %{state: :graduated},
+          %{state: :failed},
+          # The latest block, 30_000_000, at the end block and past it.
+          %{state: :active, end_block: 30_000_000},
+          %{state: :active, end_block: 29_999_999}
+        ] do
       auction = base_auction!(fields, report)
       input = %{auction_id: auction.id, amount: "1", max_price: "3"}
-      {:ok, data} = answer(http(:post, @bid_path, input, agent))
+      route = http(:post, @bid_path, input, agent)
 
-      assert tool(agent, "prepare_bid", input) == {:ok, data}
-      assert data["blocked"]["code"] == "bidding_ended"
-      assert data["blocked"]["message"] =~ "ended"
-      assert [_ | _] = data["steps"]
+      assert route.status == 409 and route.body["error"]["code"] == "bidding_ended",
+             "#{inspect(fields)} answered #{inspect(route.body)}"
+
+      refute Map.has_key?(route.body, "data")
+      assert tool(agent, "prepare_bid", input) == {:error, route.body}
+      assert documented?(@bid_path, 409, "bidding_ended")
+
+      # The auction page still shows its review, with why it no longer bids.
+      assert {:ok, %{blocked: :bidding_ended, steps: [_ | _]}} =
+               BidActions.review(input, wallet)
     end
 
     open = base_auction!(%{state: :active, end_block: 30_000_001}, report)
     input = %{auction_id: open.id, amount: "1", max_price: "3"}
-    assert {:ok, %{"blocked" => nil}} = answer(http(:post, @bid_path, input, agent))
+    assert {:ok, %{"steps" => [_ | _]}} = answer(http(:post, @bid_path, input, agent))
   end
 
   test "a bid's return and claim are the bid card's steps, alike on both ways in", context do
@@ -271,8 +293,8 @@ defmodule AutolaunchWeb.AgentBidsTest do
       assert data["steps"] == plain(page.steps)
       assert data["facts"] == plain(page.facts)
 
-      assert %{"kind" => "settle", "signer" => ^wallet, "block" => 100, "approved" => true} = data
-      assert %{"blocked" => nil, "bid" => bid} = data
+      assert %{"kind" => "settle", "signer" => ^wallet, "block" => 100, "bid" => bid} = data
+      assert Enum.sort(Map.keys(data)) == Enum.sort(@schemas["AgentBidSettlement"]["required"])
       assert bid == position.bid_id
       assert data["auction"] == %{"id" => auction.id, "address" => auction_address()}
     end
@@ -340,6 +362,7 @@ defmodule AutolaunchWeb.AgentBidsTest do
     ]
 
     no_report = base_auction!(%{state: :active}, nil)
+    ended = base_auction!(%{state: :ended}, context.report)
     memestock = memestock_auction!()
     stock = %{usdc | auction_id: memestock.id}
     unread = position!(auction, wallet, nil)
@@ -363,6 +386,7 @@ defmodule AutolaunchWeb.AgentBidsTest do
         {[], %{bid | auction_id: Ecto.UUID.generate()}, "auction_not_found"},
         {[], Map.put(bid, :signer, @other), "wrong_signer"},
         {[], Map.put(bid, :signer, "nope"), "wallet_required"},
+        {[], %{bid | auction_id: ended.id}, "bidding_ended"},
         {[predecessor_source: ""], bid, "bid_preparation_unavailable"},
         {[], %{bid | auction_id: no_report.id}, "treasury_report_missing"},
         {{:treasury, threshold: 1}, bid, "treasury_security_changed"},
@@ -374,8 +398,10 @@ defmodule AutolaunchWeb.AgentBidsTest do
         {{:stock, "quoteExactIn(address,address,uint256)", [0]}, stock, "usdc_route_unavailable"},
         {[unavailable: :chain_unavailable], bid, "chain_unavailable"},
         {[unavailable: :price_history_long], bid, "price_history_long"},
-        # A reason the page answers with its general words.
-        {{:treasury, canonical?: false}, bid, "bid_unavailable"}
+        # A treasury whose verified source block is no longer Base's.
+        {{:treasury, canonical?: false}, bid, "treasury_security_changed"},
+        # A chain error nobody named.
+        {[unavailable: {:closed, :econnreset}], bid, "bid_unavailable"}
       ]
       |> Enum.map(fn {chain, input, code} -> {chain, @bid_path, @bid_path, input, code} end)
 
@@ -453,6 +479,161 @@ defmodule AutolaunchWeb.AgentBidsTest do
              Autolaunch.prepare_bid_settlement(%{bid: "lab:any"}, actor: unread)
 
     assert documented?(@bid_path, 401, "authentication_required")
+  end
+
+  test "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both actions, never not_your_bid for their own bid",
+       %{account: account, agent: agent, auction: auction, wallet: wallet} do
+    install(@permitted)
+    settle(graduated?: false, exit: exit_bid(1, 0), claim: {:refused, :nothing_to_claim})
+    mine = position!(auction, wallet)
+    bid = %{auction_id: auction.id, amount: "1", max_price: "3"}
+
+    # Lapsed: no primary wallet and none listed, as a sign-in that finds no
+    # linked wallet leaves it. Not holding together: wallets listed but no
+    # primary among them.
+    for {primary, addresses} <- [{nil, []}, {nil, [wallet]}, {@other, [wallet]}] do
+      {:ok, _account} = Accounts.refresh_verified(account, primary, addresses, actor: system())
+
+      for {path, documented, input} <- [
+            {@bid_path, @bid_path, bid},
+            {@bid_path, @bid_path, Map.put(bid, :signer, wallet)},
+            {settle_path(mine.bid_id), @settle_path, %{}},
+            {settle_path(mine.bid_id), @settle_path, %{signer: wallet}}
+          ] do
+        named = "#{inspect({primary, addresses})} #{path} #{inspect(input)}"
+        route = http(:post, path, input, agent)
+
+        assert route.status == 409 and route.body["error"]["code"] == "wallet_required",
+               "#{named} answered #{inspect(route.body)}"
+
+        assert tool(agent, tool(documented), tool_input(path, input)) == {:error, route.body},
+               named
+
+        assert documented?(documented, 409, "wallet_required")
+      end
+    end
+  end
+
+  test "a read that fails, or a chain error nobody named, is logged by kind alone and refused as bid_unavailable alike on both ways in",
+       %{agent: agent, auction: auction, wallet: wallet} do
+    mine = position!(auction, wallet)
+    bid = %{auction_id: auction.id, amount: "1", max_price: "3"}
+
+    refused = fn path, documented, input ->
+      {route, log} = with_log(fn -> http(:post, path, input, agent) end)
+
+      assert route.status == 503 and route.body["error"]["code"] == "bid_unavailable",
+             "#{path} answered #{inspect(route.body)}"
+
+      assert documented?(documented, 503, "bid_unavailable")
+      assert tool(agent, tool(documented), tool_input(path, input)) == {:error, route.body}
+      refute log =~ wallet
+      log
+    end
+
+    install(@permitted ++ [unavailable: {:closed, :econnreset}])
+    assert refused.(@bid_path, @bid_path, bid) =~ "agent bid failed: unnamed"
+
+    install(@permitted)
+    settle(graduated?: false, exit: exit_bid(1, 0), claim: {:refused, :nothing_to_claim})
+    lose_reads_of("auctions")
+
+    for {path, documented, input} <- [
+          {@bid_path, @bid_path, bid},
+          {settle_path(mine.bid_id), @settle_path, %{}}
+        ] do
+      assert refused.(path, documented, input) =~ "agent bid connection_lost"
+    end
+
+    restore_reads_of("auctions")
+
+    # Whatever else an operation hands the routes, a policy's refusal or a
+    # raw Ash error, is answered the same way.
+    for error <- [
+          Ash.Error.Forbidden.exception([]),
+          Ash.Error.Unknown.exception(
+            errors: [Ash.Error.Unknown.UnknownError.exception(error: "x")]
+          ),
+          :unexpected
+        ] do
+      {answered, log} =
+        with_log(fn -> AgentBidAnswer.send(conn(:post, "/", ""), {:error, error}) end)
+
+      assert answered.status == 503
+      assert Jason.decode!(answered.resp_body)["error"]["code"] == "bid_unavailable"
+      assert log =~ "agent bid failed"
+    end
+  end
+
+  test "each reason the reviews, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is bid_unavailable" do
+    codes = %{
+      authentication_required: :authentication_required,
+      wallet_required: :wallet_required,
+      wrong_signer: :wrong_signer,
+      auction_not_found: :auction_not_found,
+      invalid_amount: :invalid_amount,
+      invalid_decimal: :invalid_decimal,
+      invalid_price: :invalid_price,
+      invalid_slippage: :invalid_slippage,
+      price_below_admissible_tick: :price_below_admissible_tick,
+      bidding_ended: :bidding_ended,
+      bid_preparation_unavailable: :bid_preparation_unavailable,
+      auction_currency_changed: :auction_currency_changed,
+      amount_above_balance: :amount_above_balance,
+      usdc_bids_unavailable: :usdc_bids_unavailable,
+      stock_not_admitted: :stock_not_admitted,
+      usdc_route_unavailable: :usdc_route_unavailable,
+      not_your_bid: :not_your_bid,
+      position_not_on_chain: :position_not_on_chain,
+      bid_not_found: :bid_not_found,
+      auction_not_started: :auction_not_started,
+      auction_not_ended: :auction_not_ended,
+      already_exited: :already_exited,
+      claim_not_open: :claim_not_open,
+      nothing_to_claim: :nothing_to_claim,
+      bid_not_exited: :bid_not_exited,
+      settlement_reverted: :settlement_reverted,
+      bid_needs_partial_exit: :settlement_reverted,
+      bid_needs_partial_exit_hints_unavailable: :bid_needs_partial_exit_hints_unavailable,
+      price_history_long: :price_history_long,
+      treasury_report_missing: :treasury_report_missing,
+      treasury_not_verified: :treasury_report_missing,
+      treasury_security_changed: :treasury_security_changed,
+      treasury_source_reorged: :treasury_security_changed,
+      treasury_safe_evidence_mismatch: :treasury_security_changed,
+      treasury_evidence_invalid: :treasury_security_changed,
+      treasury_evidence_hash_invalid: :treasury_security_changed,
+      treasury_transfer_evidence_invalid: :treasury_security_changed,
+      treasury_execution_evidence_invalid: :treasury_security_changed,
+      treasury_execution_input_invalid: :treasury_security_changed,
+      treasury_module_pagination_cycle: :treasury_security_changed,
+      treasury_configuration_drift: :treasury_configuration_drift,
+      chain_unavailable: :chain_unavailable,
+      invalid_chain_response: :chain_unavailable,
+      invalid_block_header: :chain_unavailable,
+      transaction_missing: :chain_unavailable,
+      wrong_chain: :chain_unavailable,
+      treasury_observation_incomplete: :chain_unavailable,
+      treasury_module_pagination_incomplete: :chain_unavailable,
+      invalid_address: :bid_unavailable,
+      lab_contract_missing: :bid_unavailable
+    }
+
+    assert Map.new(codes, fn {reason, _code} -> {reason, AgentBid.code(reason)} end) == codes
+
+    for unexpected <- [:unnamed_reason, {:closed, :econnreset}, "text", nil, %{reason: :x}],
+        do: assert(AgentBid.code(unexpected) == :bid_unavailable)
+
+    for code <- Enum.uniq([:bid_unavailable | Map.values(codes)]) do
+      answered = AgentBidAnswer.refuse(conn(:post, "/", ""), code)
+      body = Jason.decode!(answered.resp_body)
+      assert body == AgentBidAnswer.body(code) |> plain(), "#{code}"
+      assert body["error"]["code"] == Atom.to_string(code)
+
+      assert documented?(@bid_path, answered.status, body["error"]["code"]) or
+               documented?(@settle_path, answered.status, body["error"]["code"]),
+             "#{code} at #{answered.status}"
+    end
   end
 
   property "any amount, price and slippage is answered or refused alike on both ways in, and figures the page refuses never reach the treasury or the chain",
@@ -546,7 +727,7 @@ defmodule AutolaunchWeb.AgentBidsTest do
     end
   end
 
-  test "switched on a paired agent lists both tools; off, neither is listed or run",
+  test "switched on a paired agent lists both tools; off, neither is listed, and a call to either is answered as one to no tool",
        %{agent: agent, auction: auction, wallet: wallet} do
     install(@permitted)
     mine = position!(auction, wallet)
@@ -560,11 +741,30 @@ defmodule AutolaunchWeb.AgentBidsTest do
     Application.put_env(:autolaunch, :agent_bids, :off)
     refute Enum.any?(@tools, &(&1 in tool_names(agent)))
 
-    for {name, input} <- [
-          {"prepare_bid", %{auction_id: auction.id, amount: "1", max_price: "3"}},
-          {"prepare_bid_settlement", %{bid: mine.bid_id}}
+    # Off, a call to either, well formed or not, is answered exactly as one to
+    # a tool that does not exist, in no words of agent bids.
+    for name <- @tools,
+        arguments <- [
+          %{"input" => %{auction_id: auction.id, amount: "1", max_price: "3"}},
+          %{"input" => %{bid: mine.bid_id}},
+          %{"input" => "not an object"},
+          %{"input" => %{bogus: "x"}},
+          %{"input" => %{auction_id: 1, amount: 1, max_price: [3], signer: false}},
+          %{"input" => %{}},
+          %{},
+          "not an object"
         ] do
-      assert %{"error" => _} = json(mcp(agent, call(name, input)))
+      called = mcp(agent, rpc("tools/call", %{"name" => name, "arguments" => arguments}))
+
+      nothing =
+        mcp(agent, rpc("tools/call", %{"name" => "no_such_tool", "arguments" => arguments}))
+
+      said = called.resp_body |> IO.iodata_to_binary() |> String.replace(name, "no_such_tool")
+
+      assert {called.status, said} == {nothing.status, IO.iodata_to_binary(nothing.resp_body)},
+             "#{name} #{inspect(arguments)}"
+
+      refute said =~ ~r/bid|auction|signer|wallet|steps/i
     end
   end
 
