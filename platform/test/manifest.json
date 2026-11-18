@@ -2250,7 +2250,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1aac044539cae2547e9287ddc2fb8c8e2a0279bc8f67bce1b9a018024c709161"
+      "source_sha256": "4d5e82c7df305ad678939b897c508881f158eb7704bb9e3195c879f890c89516"
     },
     {
       "id": 218,
@@ -2263,7 +2263,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1aac044539cae2547e9287ddc2fb8c8e2a0279bc8f67bce1b9a018024c709161"
+      "source_sha256": "4d5e82c7df305ad678939b897c508881f158eb7704bb9e3195c879f890c89516"
     },
     {
       "id": 219,
@@ -2276,7 +2276,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1aac044539cae2547e9287ddc2fb8c8e2a0279bc8f67bce1b9a018024c709161"
+      "source_sha256": "4d5e82c7df305ad678939b897c508881f158eb7704bb9e3195c879f890c89516"
     },
     {
       "id": 220,
@@ -6287,13 +6287,13 @@
       "group": "Chain projections",
       "framework": "exunit",
       "file": "test/autolaunch/lab_positions_test.exs",
-      "line": 61,
-      "test_name": "a stored bid the auction has not issued is skipped in one line, from one read of its next bid id, and the bids after it are still read",
-      "keep_because": "Bid follow-ups (18 Nov 2026): the auction's bids(bidId) reverts BidIdDoesNotExist for an id it has not issued, which a read takes for a node that stopped answering, so one stored bid the auction no longer has halted the Base positions pass and the bids after it never moved. The pass now reads nextBidId() once at its block and skips such a bid with one warning line. It fails if that bid halts the pass, is asked for, or the next bid id is read more than once.",
+      "line": 62,
+      "test_name": "stored bids the auction has not issued are skipped in one line naming the auction and their ids, from one read of its next bid id, and the bids after them are still read",
+      "keep_because": "Bid follow-ups (18 Nov 2026), and its review: the auction's bids(bidId) reverts BidIdDoesNotExist for an id it has not issued, which a read takes for a node that stopped answering, so one stored bid the auction no longer has halted the Base positions pass and the bids after it never moved. The pass now reads nextBidId() once at its block and skips every such bid in one warning line naming the auction and their ids, since the reading job passes again every five to twenty minutes for as long as those positions stay unfinished. It fails if such a bid halts the pass or is asked for, the next bid id is read more than once, or the pass warns more than once.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1aac044539cae2547e9287ddc2fb8c8e2a0279bc8f67bce1b9a018024c709161"
+      "source_sha256": "4d5e82c7df305ad678939b897c508881f158eb7704bb9e3195c879f890c89516"
     },
     {
       "id": 604,

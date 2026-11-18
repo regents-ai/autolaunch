@@ -42,8 +42,8 @@ defmodule Autolaunch.LabPositions do
   # never holds back the bids after it. `bids(bidId)` reverts for an id the
   # auction has not issued (`BidStorage._getBid`), which a read takes for a
   # node that stopped answering, so the pass reads `nextBidId()` once, at its
-  # block, and skips a stored id at or above it. None of these holds back the
-  # auction's own figures.
+  # block, and skips every stored id at or above it in one warning line. None
+  # of these holds back the auction's own figures.
   defp readings(_abi, [], _auction_address, _market, _block, _opts), do: {:ok, []}
 
   defp readings(abi, positions, auction_address, market, block, opts) do
@@ -62,26 +62,23 @@ defmodule Autolaunch.LabPositions do
   end
 
   defp issued_readings(abi, positions, auction_address, market, block, next_bid_id, opts) do
-    Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
-      case issued_bid(abi, auction_address, position, block, next_bid_id, opts) do
+    {issued, unissued} =
+      Enum.split_with(positions, &(String.to_integer(&1.onchain_bid_id) < next_bid_id))
+
+    skipped(unissued, auction_address, next_bid_id)
+
+    Enum.reduce_while(issued, {:ok, []}, fn position, {:ok, readings} ->
+      case chain_bid(abi, auction_address, position, block, opts) do
         {:ok, bid} ->
           {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
 
         {:error, :chain_unavailable} ->
           Logger.warning(
             "Bid #{position.bid_id} not read (chain_unavailable); " <>
-              "#{length(positions) - length(readings)} bids wait for the next pass"
+              "#{length(issued) - length(readings)} bids wait for the next pass"
           )
 
           {:halt, {:ok, readings}}
-
-        {:error, :bid_not_found} ->
-          Logger.warning(
-            "Bid #{position.bid_id} is not one the auction has issued " <>
-              "(its next bid id is #{next_bid_id}); skipped"
-          )
-
-          {:cont, {:ok, readings}}
 
         {:error, reason} ->
           Logger.warning(
@@ -194,11 +191,16 @@ defmodule Autolaunch.LabPositions do
 
   defp tokens_filled(position, _reading), do: position.tokens_filled
 
-  defp issued_bid(abi, auction_address, position, block, next_bid_id, opts) do
-    if String.to_integer(position.onchain_bid_id) < next_bid_id,
-      do: chain_bid(abi, auction_address, position, block, opts),
-      else: {:error, :bid_not_found}
-  end
+  # The stored bids the auction has not issued: one line a pass, however many.
+  defp skipped([], _auction_address, _next_bid_id), do: :ok
+
+  defp skipped(unissued, auction_address, next_bid_id),
+    do:
+      Logger.warning(
+        "Auction #{auction_address} has not issued the stored bids " <>
+          "#{Enum.map_join(unissued, ", ", & &1.onchain_bid_id)} " <>
+          "(its next bid id is #{next_bid_id}); skipped"
+      )
 
   defp chain_bid(abi, auction_address, position, block, opts) do
     with {:ok, [_start, _mps, exited_block, _max_price, owner_word, amount_q96, filled]} <-

@@ -56,21 +56,24 @@ defmodule Autolaunch.LabPositionsTest do
     refute bid_id_asked?("3")
   end
 
-  # `bids(3)` would revert `BidIdDoesNotExist`, which a read takes for a node
-  # that stopped answering.
-  test "a stored bid the auction has not issued is skipped in one line, from one read of its next bid id, and the bids after it are still read" do
+  # `bids(2)` and `bids(3)` would revert `BidIdDoesNotExist`, which a read
+  # takes for a node that stopped answering. The job passes again every few
+  # minutes while those positions stay unfinished, so they are one line a pass.
+  test "stored bids the auction has not issued are skipped in one line naming the auction and their ids, from one read of its next bid id, and the bids after them are still read" do
     {abi, [one, two, three]} = ended_auction_positions()
-    install(%{"3" => :unavailable}, 3)
+    install(%{"2" => :unavailable, "3" => :unavailable}, 2)
 
     {{:ok, readings}, log} =
-      with_log(fn -> LabPositions.read(abi, [one, three, two], @auction, @market, @block, []) end)
+      with_log(fn -> LabPositions.read(abi, [three, two, one], @auction, @market, @block, []) end)
 
-    assert read_ids(readings) == ["1", "2"]
+    assert read_ids(readings) == ["1"]
     asked = calls()
-    refute bids_call(abi, "3") in asked
+    refute bids_call(abi, "2") in asked or bids_call(abi, "3") in asked
     assert Enum.count(asked, &(&1 == LabAbi.selector("nextBidId()"))) == 1
     assert [line] = log |> String.split("\n") |> Enum.filter(&(&1 =~ "[warning]"))
-    assert line =~ "Bid #{three.bid_id} is not one the auction has issued"
+
+    assert line =~
+             "Auction #{@auction} has not issued the stored bids 3, 2 (its next bid id is 2); skipped"
   end
 
   defp ended_auction_positions do
