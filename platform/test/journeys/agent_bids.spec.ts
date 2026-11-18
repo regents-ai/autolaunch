@@ -149,7 +149,10 @@ test("agent bids: an agent prepares its person's bids, return and claim, and the
     const outside = await holdWallet(other, process.env.AUTOLAUNCH_URL!, people.b.wallet, bSent)
     const b = await other.newPage()
     await mintStock(AAPLC, people.b.wallet, 10n ** 8n)
-    await mintStock(AAPLC, wallet, 10n ** 8n)
+    // A's own AAPLc pays for every AAPLc bid A's wallet sends here and covers the one the agent
+    // is prepared at the end block, so the run never leans on stock an earlier run left: 0.5 and
+    // 0.1 sent and 0.5 prepared on the desktop, 1.1 in all; 0.25 on the phone.
+    await mintStock(AAPLC, wallet, 2n * 10n ** 8n)
     // A's AAPLc starts with no allowance to Permit2, whatever an earlier run left, so the first
     // bid needs every approval.
     const permit2 = memestock().addresses.permit2
