@@ -59,6 +59,9 @@ defmodule AutolaunchWeb.AgentLaunchAnswer do
     stocks_unavailable: {:conflict, "Memestock launches on Base are not open on this site."},
     robinhood_unavailable:
       {:conflict, "Memestock launches on Robinhood Chain are not open on this site."},
+    too_many_preparations:
+      {:too_many_requests,
+       "You already have 20 unused launch steps from the last 24 hours, and each stays good for 24 hours. Prepare a different one once the oldest is a day old."},
     chain_unavailable:
       {:service_unavailable, "The chain could not be read just now. Try again in a moment."},
     launch_unavailable: {:service_unavailable, "That did not go through. Try again in a moment."}

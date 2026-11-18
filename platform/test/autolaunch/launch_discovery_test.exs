@@ -202,7 +202,9 @@ defmodule Autolaunch.LaunchDiscoveryTest do
        %{account: account, draft: draft, operation: operation} do
     # For the same wallet and launch, with other links.
     agents =
-      agent_review!(account, draft, LaunchFixture.wallet(), ["https://example.test/agent"])
+      account
+      |> paired_agent!()
+      |> agent_review!(draft, LaunchFixture.wallet(), ["https://example.test/agent"])
 
     record_launch(LaunchFixture.wallet())
     run_triggers()
@@ -215,16 +217,12 @@ defmodule Autolaunch.LaunchDiscoveryTest do
 
   test "a launch only a paired agent's review carried out is listed from that review, for its person",
        %{operation: operation} do
-    other =
-      Accounts.register_verified!(
-        "did:privy:other-#{Elixir.System.unique_integer([:positive])}",
-        @other_wallet,
-        [@other_wallet],
-        actor: @actor
-      )
+    {other, other_draft} = other!()
 
-    other_draft = LaunchFixture.draft!(%Autolaunch.Actors.Human{human_account_id: other.id})
-    agents = agent_review!(other, other_draft, @other_wallet, ["https://example.test/agent"])
+    agents =
+      other
+      |> paired_agent!()
+      |> agent_review!(other_draft, @other_wallet, ["https://example.test/agent"])
 
     record_launch(@other_wallet)
     run_triggers()
@@ -237,6 +235,36 @@ defmodule Autolaunch.LaunchDiscoveryTest do
 
     assert %{state: :chain_verified} = reload(agents)
     assert %{state: :prepared} = reload(operation)
+  end
+
+  test "the agent's latest preparation is the one listed, the same as an older one included" do
+    {other, other_draft} = other!()
+    agent = paired_agent!(other)
+    first = agent_review!(agent, other_draft, @other_wallet, ["https://example.test/a"])
+    second = agent_review!(agent, other_draft, @other_wallet, ["https://example.test/b"])
+    latest = agent_review!(agent, other_draft, @other_wallet, ["https://example.test/a"])
+    refute latest.id in [first.id, second.id]
+
+    record_launch(@other_wallet)
+    run_triggers()
+
+    assert [%{links: ["https://example.test/a"]}] = auctions()
+    assert %{state: :chain_verified} = reload(latest)
+    assert %{state: :prepared} = reload(first)
+    assert %{state: :prepared} = reload(second)
+  end
+
+  # Another person, signed in with `@other_wallet`, and their saved draft.
+  defp other! do
+    other =
+      Accounts.register_verified!(
+        "did:privy:other-#{Elixir.System.unique_integer([:positive])}",
+        @other_wallet,
+        [@other_wallet],
+        actor: @actor
+      )
+
+    {other, LaunchFixture.draft!(%Autolaunch.Actors.Human{human_account_id: other.id})}
   end
 
   # The page sees its own press confirmed and lists the launch at once.
@@ -273,9 +301,9 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     |> Ash.create!(actor: @actor)
   end
 
-  # The same review with `links`, as a paired agent of `account`'s person
+  # The same review with `links`, as `agent`, paired with the draft's person,
   # keeps it (`Autolaunch.AgentLaunch`).
-  defp agent_review!(account, draft, signer, links) do
+  defp agent_review!(agent, draft, signer, links) do
     LaunchOperation
     |> Ash.Changeset.for_create(
       :agent_prepare,
@@ -286,7 +314,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         step: :launch,
         launch_draft_id: draft.id
       },
-      actor: paired_agent!(account)
+      actor: agent
     )
     |> Ash.create!()
   end

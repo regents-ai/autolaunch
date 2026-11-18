@@ -1,5 +1,5 @@
 {
-  "total": 459,
+  "total": 464,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1912,7 +1912,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b306719d4eb8a62bd641a321027f7bda9626c9997aaa8c1c31bbfc28cd815375"
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
     },
     {
       "id": 192,
@@ -1925,7 +1925,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b306719d4eb8a62bd641a321027f7bda9626c9997aaa8c1c31bbfc28cd815375"
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
     },
     {
       "id": 193,
@@ -1938,7 +1938,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b306719d4eb8a62bd641a321027f7bda9626c9997aaa8c1c31bbfc28cd815375"
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
     },
     {
       "id": 194,
@@ -5533,221 +5533,221 @@
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 215,
+      "line": 217,
       "test_name": "a Revstake draft's launch step is the create page's for the same draft and wallet, alike on both ways in, and kept for the person",
       "keep_because": "A paired agent's launch step for its person's Revstake draft, on its route and its hosted tool alike, is exactly the create page's step, facts and chain for the same draft and wallet, and its review is kept for the person as the page keeps it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 546,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 257,
+      "line": 259,
       "test_name": "a Memestock draft's launch step on Base is the create page's for the same draft and wallet, alike on both ways in, and kept for the person",
       "keep_because": "A paired agent's launch step for its person's Memestock draft on Base, on its route and its hosted tool alike, is exactly the create page's step, facts and chain, and its review is kept for the person as the page keeps it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 547,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 287,
+      "line": 289,
       "test_name": "a Memestock draft's launch step on Robinhood Chain is the create page's for the same draft and wallet, alike on both ways in, and kept for the person",
       "keep_because": "A paired agent's launch step for its person's Memestock draft on Robinhood Chain, on its route and its hosted tool alike, is exactly the create page's step, facts and chain, and the launch is kept for the person so Robinhood discovery lists it as theirs.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 548,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 332,
+      "line": 334,
       "test_name": "another person's draft and a draft that does not exist are answered alike, before any chain is read",
       "keep_because": "An agent asking for another person's draft gets exactly the answer a draft that does not exist gets, launch_draft_not_found, and no chain is read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 549,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 361,
+      "line": 363,
       "test_name": "only the person's own wallets are prepared for: another is wrong_signer, before any chain is read",
       "keep_because": "A signer that is not one of the person's own wallets is refused wrong_signer before any chain is read, while another of their own wallets is prepared for.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 550,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 386,
+      "line": 388,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required, before any chain is read",
       "keep_because": "A person whose verified wallet has lapsed, or whose wallet evidence no longer holds together, is refused wallet_required before any chain is read, never launch_draft_not_found for their own draft.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 551,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 411,
+      "line": 413,
       "test_name": "what only the person can give stays on the create page: a treasury the agent chose, a private key's acknowledgement, and the treasury check",
       "keep_because": "What only the person can give is refused to the agent: its own choice of a Safe or contract treasury is agent_treasury_unconfirmed, a private-key treasury without the acknowledgement is launch_treasury_invalid, and a treasury with no check is treasury_report_missing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 552,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 438,
+      "line": 440,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "The launch step is prepared only for the paired agent or a connected app calling as it, never the person signed in, a connected app as itself, the site or nobody.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 553,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 542,
+      "line": 639,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal code is reached on Base and Robinhood Chain, and the route and the hosted tool name it alike, in the status and code the agent launch contract documents.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 554,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 625,
+      "line": 729,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "A paired agent whose person's account cannot be read prepares nothing on either way in.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 555,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 639,
+      "line": 743,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable",
       "keep_because": "A paired agent whose person's account cannot be read as the request arrives is refused account_unavailable on the route.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 556,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 651,
+      "line": 755,
       "test_name": "the route spends the person's one budget of 120 signed requests a minute",
       "keep_because": "The agent launch route draws on the person's one budget of 120 signed agent requests a minute.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 557,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 665,
+      "line": 769,
       "test_name": "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as launch_unavailable alike on both ways in",
       "keep_because": "A read that fails, or a reason nobody named, is logged by its kind alone and refused as launch_unavailable alike on the route and the hosted tool, while a chain that cannot be read is chain_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 558,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 780,
+      "line": 887,
       "test_name": "each reason the reviews, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is launch_unavailable",
       "keep_because": "Each reason the three launch reviews, the wallet and the account give has exactly one code, answered on both ways in with a status the contract documents; any other reason is launch_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 559,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 838,
+      "line": 946,
       "test_name": "any draft id and signer is answered or refused alike on both ways in, and only the person's own draft for their own wallet reaches a chain",
       "keep_because": "For any draft id and signer, the route and the hosted tool answer alike, and only the person's own draft for their own wallet is read from a chain.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 560,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 879,
+      "line": 987,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "Before Autolaunch opens, prepare_launch is neither listed nor run and the route answers prelaunch_read_only.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 561,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 890,
+      "line": 998,
       "test_name": "switched on a paired agent lists the tool; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent lists prepare_launch as a tool that writes and destroys nothing; off, it is not listed, and a call to it, well formed or not, is answered exactly as one to a tool that does not exist.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 562,
@@ -5806,39 +5806,39 @@
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 725,
+      "line": 832,
       "test_name": "a pairing that ends while the request runs is refused agent_not_paired alike on both ways in, and nothing is kept",
       "keep_because": "Second review (18 Nov 2026): a pairing that ends while a launch is prepared, as the draft is read, as the review is about to be kept, or inside the write before its lock, answers the shared agent_not_paired on the route and the hosted tool in the same words, logs nothing and keeps no review.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 567,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 464,
-      "test_name": "an agent's preparations of one Base draft are kept to the latest 20, the same one again is the one kept, and the person's own and a launched one are never removed or reused",
-      "keep_because": "Security review S2 (18 Nov 2026): an agent's reviews of one Base draft are bounded in the write: the same preparation again is the one kept, the latest 20 are kept, and the person's own review and one the chain has shown are never removed or reused.",
+      "line": 466,
+      "test_name": "an agent's preparation of a Base draft stays good for 24 hours: past 20 unused ones, a different one waits for the oldest to be 24 hours old, and the person's own and a launched one are never removed or reused",
+      "keep_because": "Security review 2, SF2 (18 Nov 2026): an agent's preparation of one Base draft stays good for 24 hours so its step can still be signed; past 20 unused ones a different one is refused too_many_preparations with nothing removed until the oldest is 24 hours old, then exactly the oldest goes and the new one is kept; the same as the newest is that one, and the person's own review and a launched one are never removed or reused.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 568,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 767,
+      "line": 874,
       "test_name": "on the create page, a review whose draft no longer names a treasury is one to build again",
       "keep_because": "Second review (18 Nov 2026): a treasury report that could not be read is now that failure, not a treasury never checked; the create page still treats a review whose draft no longer names a treasury as one to build again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 569,
@@ -5851,20 +5851,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5f214cad20a191bf2f0ceadb56f834bb28c64a2a1aedd39d748eefa96da9b2a9"
+      "source_sha256": "481b448e4849e645ab40199c7d2782308487aec1e15b84d9e9ba755827a3aad6"
     },
     {
       "id": 570,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch/launch_discovery_test.exs",
-      "line": 216,
+      "line": 218,
       "test_name": "a launch only a paired agent's review carried out is listed from that review, for its person",
       "keep_because": "With no review of the person's, a launch a paired agent's review carried out is still listed as this site's, for the agent's person, with that review's links.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5f214cad20a191bf2f0ceadb56f834bb28c64a2a1aedd39d748eefa96da9b2a9"
+      "source_sha256": "481b448e4849e645ab40199c7d2782308487aec1e15b84d9e9ba755827a3aad6"
     },
     {
       "id": 571,
@@ -5877,20 +5877,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b306719d4eb8a62bd641a321027f7bda9626c9997aaa8c1c31bbfc28cd815375"
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
     },
     {
       "id": 572,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 485,
+      "line": 488,
       "test_name": "a launch only a paired agent's review carried out is listed from that review, for its person",
       "keep_because": "With no review of the person's, a launch a paired agent's review carried out is still listed as this site's, for the agent's person, with that review's links.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b306719d4eb8a62bd641a321027f7bda9626c9997aaa8c1c31bbfc28cd815375"
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
     },
     {
       "id": 573,
@@ -5903,20 +5903,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fd79ce2d772fffc22e326b6be4a5e8b6263caf852e175da69317fe97fc034e63"
+      "source_sha256": "f7a4ddf0d369768f0f1cb63f2de47dba7fea774094a590b0adafa1070059d5aa"
     },
     {
       "id": 574,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch/robinhood_discovery_test.exs",
-      "line": 499,
+      "line": 501,
       "test_name": "a launch only a paired agent's review carried out is listed from that review, for its person",
       "keep_because": "With no review of the person's, a launch a paired agent's review carried out is still listed as this site's, for the agent's person, with that review's links.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fd79ce2d772fffc22e326b6be4a5e8b6263caf852e175da69317fe97fc034e63"
+      "source_sha256": "f7a4ddf0d369768f0f1cb63f2de47dba7fea774094a590b0adafa1070059d5aa"
     },
     {
       "id": 575,
@@ -5929,20 +5929,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "fd79ce2d772fffc22e326b6be4a5e8b6263caf852e175da69317fe97fc034e63"
+      "source_sha256": "f7a4ddf0d369768f0f1cb63f2de47dba7fea774094a590b0adafa1070059d5aa"
     },
     {
       "id": 576,
       "group": "Agent launches",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_launches_test.exs",
-      "line": 504,
-      "test_name": "an agent's Robinhood preparations for its person are kept to the latest 20, the same one again is the one kept, and the person's own and an adopted one are never removed or reused",
-      "keep_because": "Security review S2 (18 Nov 2026): an agent's Robinhood reviews for one person on one chain are bounded in the write: the same preparation again is the one kept, the latest 20 are kept, and the person's own review and one a launch was listed from are never removed or reused.",
+      "line": 524,
+      "test_name": "an agent's Robinhood preparation stays good for 24 hours: past 20 unused ones of its person on that chain, a different one waits for the oldest to be 24 hours old, and the person's own and an adopted one are never removed or reused",
+      "keep_because": "Security review 2, SF2 (18 Nov 2026): an agent's Robinhood preparation for one person on one chain stays good for 24 hours; past 20 unused ones a different one is refused too_many_preparations with nothing removed until the oldest is 24 hours old, then exactly the oldest goes and the new one is kept; the same as the newest is that one, and the person's own review and one a launch was listed from are never removed or reused.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2eb83c4585fc378355a2ef871216c1eed2cb561052aed4a703ad72dcdb8b80fc"
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
     },
     {
       "id": 577,
@@ -5969,6 +5969,71 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "d992f1841719b316cff0fe06a10e12ab1c6f602a684d12d5f4221b0e3f1c3ac5"
+    },
+    {
+      "id": 579,
+      "group": "Agent launches",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_launches_test.exs",
+      "line": 575,
+      "test_name": "an agent's review names only its person's own draft: another person's is refused and nothing is kept",
+      "keep_because": "Security review 2 (18 Nov 2026): the agent's own write of a Base review, called directly, refuses a draft that is not its person's own and keeps nothing, on Revstake and Memestock drafts alike.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
+    },
+    {
+      "id": 580,
+      "group": "Agent launches",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_launches_test.exs",
+      "line": 589,
+      "test_name": "only the pairing's own refusal is agent_not_paired: one in the steps the site runs itself is launch_unavailable",
+      "keep_because": "Security review 2, Q6 (18 Nov 2026): only a refusal by the agent's pairing answers agent_not_paired; a refusal in a step the site runs for itself (reading the open reviews, removing one, marking a Robinhood review as listed) is the site's fault and answers launch_unavailable.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5f8226ff3a7bddd69a11b290a7592252d84b889dcb089863713ce814d6350eca"
+    },
+    {
+      "id": 581,
+      "group": "Agent launches",
+      "framework": "exunit",
+      "file": "test/autolaunch/launch_discovery_test.exs",
+      "line": 240,
+      "test_name": "the agent's latest preparation is the one listed, the same as an older one included",
+      "keep_because": "Security review 2, SF1 (18 Nov 2026): preparing A, then B, then A again lists the Revstake launch with A's content, from the third review, since only the newest preparation is ever reused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "481b448e4849e645ab40199c7d2782308487aec1e15b84d9e9ba755827a3aad6"
+    },
+    {
+      "id": 582,
+      "group": "Agent launches",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 513,
+      "test_name": "the agent's latest preparation is the one listed, the same as an older one included",
+      "keep_because": "Security review 2, SF1 (18 Nov 2026): preparing A, then B, then A again lists the Memestock launch with A's content, from the third review, since only the newest preparation is ever reused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b9ece6e572c0a08a993b53c4c22bbb2b7991ec4ec1ec9be8669226b436193d46"
+    },
+    {
+      "id": 583,
+      "group": "Agent launches",
+      "framework": "exunit",
+      "file": "test/autolaunch/robinhood_discovery_test.exs",
+      "line": 520,
+      "test_name": "the agent's latest preparation is the one listed, the same as an older one included",
+      "keep_because": "Security review 2, SF1 (18 Nov 2026): preparing A, then B, then A again lists the Robinhood launch with A's content, from the third review, since only the newest preparation is ever reused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f7a4ddf0d369768f0f1cb63f2de47dba7fea774094a590b0adafa1070059d5aa"
     }
   ],
   "legacy_folders_to_remove": [

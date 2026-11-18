@@ -27,6 +27,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
   use ExUnitProperties
 
   import Autolaunch.DatabaseFaults, only: [lose_reads_of: 1, restore_reads_of: 1]
+  import Ecto.Query, only: [from: 2]
   import ExUnit.CaptureLog, only: [with_log: 1]
   import Plug.Test, only: [conn: 3]
 
@@ -50,6 +51,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     LaunchActions,
     LaunchFixture,
     LaunchOperation,
+    Repo,
     RobinhoodBidChain,
     TestAutolaunchLaunchChainClient,
     TestAutolaunchTreasuryChainClient
@@ -461,7 +463,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     end
   end
 
-  test "an agent's preparations of one Base draft are kept to the latest 20, the same one again is the one kept, and the person's own and a launched one are never removed or reused",
+  test "an agent's preparation of a Base draft stays good for 24 hours: past 20 unused ones, a different one waits for the oldest to be 24 hours old, and the person's own and a launched one are never removed or reused",
        %{agent: signing, account: account, draft: draft, wallet: wallet, opts: opts} do
     {:ok, agent} = Autolaunch.Agents.resolve(signing)
     meme = memestock!(signing, %{"stock_address" => @aapl})
@@ -478,30 +480,48 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       launched = prepare!(resource, draft, agent, 0)
       {:ok, _launched} = verify.(launched, %{result: %{}}, actor: %System{})
 
-      prepared = for n <- 1..21, do: prepare!(resource, draft, agent, n)
-      newest = Enum.drop(prepared, 1)
-      assert kept.() == MapSet.new([own.id, launched.id | Enum.map(newest, & &1.id)])
+      # Twenty unused ones, none 24 hours old: a different one is refused and
+      # nothing changes.
+      [first, second, third, fourth | rest] =
+        prepared = for n <- 1..20, do: prepare!(resource, draft, agent, n)
 
-      # The newest again, read at another block, is the one kept already.
-      assert prepare!(resource, draft, agent, 21, 31).id == List.last(prepared).id
-      assert kept.() == MapSet.new([own.id, launched.id | Enum.map(newest, & &1.id)])
+      all = MapSet.new([own.id, launched.id | Enum.map(prepared, & &1.id)])
+      assert kept.() == all
+      assert too_many?(prepare(resource, draft, agent, 21))
+      assert kept.() == all
 
-      # The same as the launched one, or as the person's own, is a new one.
-      again = prepare!(resource, draft, agent, 0)
+      # With the four oldest past 24 hours, a different one takes the place of
+      # the oldest of them alone, and is kept.
+      age!(resource, [first, second, third, fourth])
+      newest = prepare!(resource, draft, agent, 21)
+      assert kept.() == all |> MapSet.delete(first.id) |> MapSet.put(newest.id)
+
+      # The newest again, read at another block, is the newest itself.
+      assert prepare!(resource, draft, agent, 21, 31).id == newest.id
+
+      # The same as an older one, as the launched one, or as the person's own,
+      # is a new one, each in the place of the oldest past 24 hours.
+      again = prepare!(resource, draft, agent, 20)
+      relaunched = prepare!(resource, draft, agent, 0)
       theirs = prepare!(resource, draft, agent, own.review)
-      refute again.id == launched.id or theirs.id == own.id
+      refute again.id == List.last(rest).id or relaunched.id == launched.id or theirs.id == own.id
 
       assert kept.() ==
                MapSet.new([
                  own.id,
                  launched.id,
+                 newest.id,
                  again.id,
-                 theirs.id | Enum.map(Enum.drop(newest, 2), & &1.id)
+                 relaunched.id,
+                 theirs.id | Enum.map(rest, & &1.id)
                ])
+
+      # None past 24 hours is left, so the next different one waits again.
+      assert too_many?(prepare(resource, draft, agent, 22))
     end
   end
 
-  test "an agent's Robinhood preparations for its person are kept to the latest 20, the same one again is the one kept, and the person's own and an adopted one are never removed or reused",
+  test "an agent's Robinhood preparation stays good for 24 hours: past 20 unused ones of its person on that chain, a different one waits for the oldest to be 24 hours old, and the person's own and an adopted one are never removed or reused",
        %{agent: signing, account: account} do
     {:ok, agent} = Autolaunch.Agents.resolve(signing)
     kept = fn -> LaunchReview |> kept(account) |> MapSet.new(& &1.id) end
@@ -517,26 +537,103 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       |> record!(robinhood_review(1))
       |> Autolaunch.adopt_robinhood_launch_review!(actor: %System{})
 
-    prepared = for n <- 2..22, do: record!(agent, robinhood_review(n))
-    newest = Enum.drop(prepared, 1)
-    assert kept.() == MapSet.new([own.id, adopted.id | Enum.map(newest, & &1.id)])
+    [first, second, third, fourth | rest] =
+      prepared = for n <- 2..21, do: record!(agent, robinhood_review(n))
 
-    # The newest again is the one kept already.
-    assert record!(agent, robinhood_review(22)).id == List.last(prepared).id
-    assert kept.() == MapSet.new([own.id, adopted.id | Enum.map(newest, & &1.id)])
+    all = MapSet.new([own.id, adopted.id | Enum.map(prepared, & &1.id)])
+    assert kept.() == all
+    assert too_many?(record(agent, robinhood_review(22)))
+    assert kept.() == all
 
-    # The same as the adopted one, or as the person's own, is a new one.
-    again = record!(agent, robinhood_review(1))
+    age!(LaunchReview, [first, second, third, fourth])
+    newest = record!(agent, robinhood_review(22))
+    assert kept.() == all |> MapSet.delete(first.id) |> MapSet.put(newest.id)
+
+    # The newest again is the newest itself.
+    assert record!(agent, robinhood_review(22)).id == newest.id
+
+    # The same as an older one, as the adopted one, or as the person's own, is
+    # a new one.
+    again = record!(agent, robinhood_review(21))
+    readopted = record!(agent, robinhood_review(1))
     theirs = record!(agent, robinhood_review(0))
-    refute again.id == adopted.id or theirs.id == own.id
+    refute again.id == List.last(rest).id or readopted.id == adopted.id or theirs.id == own.id
 
     assert kept.() ==
              MapSet.new([
                own.id,
                adopted.id,
+               newest.id,
                again.id,
-               theirs.id | Enum.map(Enum.drop(newest, 2), & &1.id)
+               readopted.id,
+               theirs.id | Enum.map(rest, & &1.id)
              ])
+
+    assert too_many?(record(agent, robinhood_review(23)))
+  end
+
+  test "an agent's review names only its person's own draft: another person's is refused and nothing is kept",
+       %{agent: signing, account: account} do
+    {:ok, agent} = Autolaunch.Agents.resolve(signing)
+    stranger = person!()
+    theirs = memestock!(stranger.agent, %{"stock_address" => @aapl})
+
+    for {resource, draft} <- [{LaunchOperation, stranger.draft}, {StocksLaunchOperation, theirs}] do
+      assert {:error, %Ash.Error.Invalid{errors: [%{field: :launch_draft_id}]}} =
+               prepare(resource, draft, agent, 1)
+
+      assert kept(resource, account) == [] and kept(resource, stranger.account) == []
+    end
+  end
+
+  test "only the pairing's own refusal is agent_not_paired: one in the steps the site runs itself is launch_unavailable",
+       %{agent: signing, account: account, draft: draft} do
+    {:ok, agent} = Autolaunch.Agents.resolve(signing)
+    meme = memestock!(signing, %{"stock_address" => @aapl})
+    operation = prepare!(LaunchOperation, draft, agent, 1)
+    review = record!(agent, robinhood_review(1))
+
+    # The steps the site runs itself, reading the open ones, removing one and
+    # marking one as listed, refused to the agent.
+    site_steps = [
+      LaunchOperation |> Ash.Query.for_read(:agent_preparations, %{}, actor: agent) |> Ash.read(),
+      StocksLaunchOperation
+      |> Ash.Query.for_read(:agent_preparations, %{}, actor: agent)
+      |> Ash.read(),
+      LaunchReview |> Ash.Query.for_read(:agent_preparations, %{}, actor: agent) |> Ash.read(),
+      Ash.destroy(operation, action: :trim, actor: agent),
+      Ash.destroy(review, action: :trim, actor: agent),
+      Autolaunch.adopt_robinhood_launch_review(review, actor: agent)
+    ]
+
+    for answer <- site_steps do
+      assert {:error, %Ash.Error.Forbidden{} = refusal} = answer
+      assert AgentLaunch.code(refusal) == :launch_unavailable
+    end
+
+    # The agent's own reads and writes, refused by its pairing once it ends.
+    person = %RegentAgents.Person{privy_user_id: account.privy_user_id}
+    [paired] = RegentAgents.list_my_agents!(actor: person)
+    :ok = RegentAgents.unpair_agent!(paired, actor: person)
+
+    own_steps = [
+      Autolaunch.LaunchDraft
+      |> Ash.Query.for_read(:agent_read, %{}, actor: agent)
+      |> Ash.Query.filter(id == ^draft.id)
+      |> Ash.read_one(),
+      Autolaunch.Stocks.LaunchDraft
+      |> Ash.Query.for_read(:agent_read, %{}, actor: agent)
+      |> Ash.Query.filter(id == ^meme.id)
+      |> Ash.read_one(),
+      prepare(LaunchOperation, draft, agent, 2),
+      prepare(StocksLaunchOperation, meme, agent, 2),
+      record(agent, robinhood_review(2))
+    ]
+
+    for answer <- own_steps do
+      assert {:error, %Ash.Error.Forbidden{} = refusal} = answer
+      assert AgentLaunch.code(refusal) == :agent_not_paired
+    end
   end
 
   test "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
@@ -548,6 +645,12 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
         "chain" => "robinhood",
         "stock_address" => RobinhoodBidChain.stock()
       })
+
+    # A person whose agent already holds 20 unused preparations of the draft,
+    # none 24 hours old.
+    crowded = person!()
+    {:ok, crowding} = Autolaunch.Agents.resolve(crowded.agent)
+    for n <- 1..20, do: prepare!(LaunchOperation, crowded.draft, crowding, n)
 
     cases = [
       {asking(person, "nope"), [], %{}, "invalid_request"},
@@ -588,7 +691,8 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       {robinhood, [robinhood: [chain_id: "0x2105"]], %{}, "chain_unavailable"},
       # The site's own fault: its launchpad holds no contract.
       {robinhood, [robinhood: [code: "0x"]], %{}, "launch_unavailable"},
-      {robinhood, [unloadable: :autolaunch_robinhood_deployment], %{}, "robinhood_unavailable"}
+      {robinhood, [unloadable: :autolaunch_robinhood_deployment], %{}, "robinhood_unavailable"},
+      {crowded, [], %{}, "too_many_preparations"}
     ]
 
     reached =
@@ -810,6 +914,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       stock_not_admitted: :stock_not_admitted,
       stocks_unavailable: :stocks_unavailable,
       robinhood_unavailable: :robinhood_unavailable,
+      too_many_preparations: :too_many_preparations,
       chain_unavailable: :chain_unavailable,
       invalid_chain_response: :chain_unavailable,
       invalid_block_header: :chain_unavailable,
@@ -1035,19 +1140,24 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
 
   # The agent's own preparation of `draft`, as `resource` keeps it: the review
   # `n` names, read at `block`, or `review` itself.
-  defp prepare!(resource, draft, agent, n, block \\ 30)
+  defp prepare!(resource, draft, agent, n, block \\ 30) do
+    {:ok, kept} = prepare(resource, draft, agent, n, block)
+    kept
+  end
 
-  defp prepare!(resource, draft, agent, n, block) when is_integer(n) do
+  defp prepare(resource, draft, agent, n, block \\ 30)
+
+  defp prepare(resource, draft, agent, n, block) when is_integer(n) do
     review = %{
       "chain" => %{"chain_id" => 8453},
       "step" => %{"step" => "launch", "data" => "0x0#{n}"},
       "facts" => %{"n" => n, "block_number" => block, "block_hash" => "0x0#{block}"}
     }
 
-    prepare!(resource, draft, agent, review, block)
+    prepare(resource, draft, agent, review, block)
   end
 
-  defp prepare!(resource, draft, agent, review, _block) do
+  defp prepare(resource, draft, agent, review, _block) do
     resource
     |> Ash.Changeset.for_create(
       :agent_prepare,
@@ -1060,7 +1170,31 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
       },
       actor: agent
     )
-    |> Ash.create!()
+    |> Ash.create()
+  end
+
+  # Whether a preparation was refused for want of room.
+  defp too_many?(answer),
+    do:
+      match?(
+        {:error,
+         %Ash.Error.Invalid{
+           errors: [%Ash.Error.Invalid.Unavailable{reason: :too_many_preparations}]
+         }},
+        answer
+      )
+
+  # `rows` of `resource` as if written more than 24 hours ago, oldest first,
+  # one hour apart. No action writes inserted_at, so the test sets it itself.
+  defp age!(resource, rows) do
+    rows
+    |> Enum.with_index()
+    |> Enum.each(fn {row, n} ->
+      at = DateTime.add(DateTime.utc_now(), n - 24 - length(rows), :hour)
+
+      {1, _rows} =
+        Repo.update_all(from(r in resource, where: r.id == ^row.id), set: [inserted_at: at])
+    end)
   end
 
   # The Robinhood launch `n` names, for the launch fixture's wallet.
@@ -1076,9 +1210,14 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
 
   # The agent's own Robinhood review of `fields`, as `LaunchReview` keeps it.
   defp record!(agent, fields) do
+    {:ok, kept} = record(agent, fields)
+    kept
+  end
+
+  defp record(agent, fields) do
     LaunchReview
     |> Ash.Changeset.for_create(:agent_record, fields, actor: agent)
-    |> Ash.create!()
+    |> Ash.create()
   end
 
   # Whether the contract documents `code` for the route answering `status`.

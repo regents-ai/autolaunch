@@ -15,9 +15,9 @@ defmodule Autolaunch.Robinhood.LaunchReview do
 
   A paired agent's review of the person's draft (`prepared_by: :agent`,
   `Autolaunch.AgentLaunch`) is matched only when none of the person's is, so it
-  never takes the place of one the person saw. Preparing again for a changed
-  draft keeps the latest 20 preparations of the person on that chain
-  (`Autolaunch.AgentLaunch.Preparations`).
+  never takes the place of one the person saw. Each of the agent's
+  preparations of the person on that chain stays good for 24 hours, and at
+  most 20 unused ones are kept (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -67,10 +67,10 @@ defmodule Autolaunch.Robinhood.LaunchReview do
     # (`Autolaunch.AgentLaunch.Preparations`).
     read :agent_preparations do
       filter expr(prepared_by == :agent and is_nil(adopted_at))
-      prepare build(sort: [inserted_at: :desc])
+      prepare build(sort: [inserted_at: :desc, id: :desc])
     end
 
-    # An agent's review that its latest ones replaced.
+    # An agent's review past its 24 hours, removed to make room for a new one.
     destroy :trim do
       validate attribute_equals(:prepared_by, :agent)
       validate absent(:adopted_at)

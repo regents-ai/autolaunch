@@ -15,7 +15,9 @@ paths:
         the site's Builder Code. A draft whose treasury still needs the person on the create page - the
         acknowledgement a treasury held by a private key takes, the confirmation of a treasury the agent
         chose, or the treasury check - is refused with that reason and no step. The site keeps the
-        review, so the launch is listed as the person's once the chain shows it.
+        review, so the launch is listed as the person's once the chain shows it. A preparation stays
+        good for 24 hours, and at most 20 unused ones are kept, for each Base draft and for the person
+        on Robinhood Chain; the same step as the newest one is that one again.
       security:
       - SiwaProof: []
       parameters:
@@ -69,6 +71,14 @@ paths:
         '422':
           description: An unknown field, a field that is not text, or a draft id that is not one
             (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLaunchError'
+        '429':
+          description: Twenty preparations are kept unused already, for this draft on Base or for the
+            person on Robinhood Chain, and none is 24 hours old yet; each stays good for 24 hours, so a
+            different one waits until the oldest is (too_many_preparations)
           content:
             application/json:
               schema:
@@ -284,6 +294,7 @@ components:
               - strategy_not_bound
               - stocks_unavailable
               - robinhood_unavailable
+              - too_many_preparations
               - chain_unavailable
               - launch_unavailable
               - account_unavailable

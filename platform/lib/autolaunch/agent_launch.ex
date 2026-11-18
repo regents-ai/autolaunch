@@ -30,16 +30,18 @@ defmodule Autolaunch.AgentLaunch do
   A refusal is an `Autolaunch.AgentLaunch.Refused` holding one of the codes the
   agent launch contract documents (`code/1`). A pairing that ended or changed
   hands while the request ran is `agent_not_paired`, as on every signed route.
-  Anything else the review returns or raises that is not a reason it names is
-  logged by kind alone and answered `launch_unavailable`.
+  Anything else the review returns or raises that is not a reason it names,
+  any other refusal included, is logged by kind alone and answered
+  `launch_unavailable`.
 
   The site only prepares: the wallet's own key signs and sends the step. The
   review is kept as the create page keeps its own (`Autolaunch.LaunchOperation`,
   `Autolaunch.Stocks.LaunchOperation`, `Autolaunch.Robinhood.LaunchReview`), for
   the person the pairing names and marked as the agent's (`prepared_by`), so the
   launch is listed as this site's once the chain shows it, from the person's own
-  review when there is one. Preparing again for a changed draft keeps the
-  latest 20 preparations (`Autolaunch.AgentLaunch.Preparations`).
+  review when there is one. Each preparation stays good for 24 hours, and at
+  most 20 unused ones are kept; past that, a different one waits for the
+  oldest to turn 24 hours old (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -50,6 +52,7 @@ defmodule Autolaunch.AgentLaunch do
   require Ash.Query
 
   alias Ash.Error.Changes.InvalidChanges
+  alias Ash.Error.Invalid.Unavailable
   alias Autolaunch.AgentLaunch.Refused
   alias Autolaunch.CoveredCalls.Signer
   alias Autolaunch.{LaunchActions, LaunchDraft, LaunchOperation}
@@ -66,9 +69,11 @@ defmodule Autolaunch.AgentLaunch do
   # no report yet; one whose verified state or evidence no longer holds was
   # changed. A stock the draft names that the chain does not list is not one a
   # launch can pair with. A chain answering what is not a block of it, part of
-  # an answer, or nothing, could not be read just now. A deployment description
-  # that does not load or no longer matches the chain, and a draft or review
-  # the site could not read or keep, are the site's own fault.
+  # an answer, or nothing, could not be read just now. Twenty unused
+  # preparations none of which is 24 hours old leave no room for another
+  # (`Autolaunch.AgentLaunch.Preparations`). A deployment description that does
+  # not load or no longer matches the chain, and a draft or review the site
+  # could not read or keep, are the site's own fault.
   @codes %{
     authentication_required: :authentication_required,
     agent_not_paired: :agent_not_paired,
@@ -106,7 +111,8 @@ defmodule Autolaunch.AgentLaunch do
     wrong_chain: :chain_unavailable,
     launch_snapshot_incomplete: :chain_unavailable,
     treasury_observation_incomplete: :chain_unavailable,
-    treasury_module_pagination_incomplete: :chain_unavailable
+    treasury_module_pagination_incomplete: :chain_unavailable,
+    too_many_preparations: :too_many_preparations
   }
 
   # What each input of the hosted tool is, in the browser tool's words
@@ -119,14 +125,30 @@ defmodule Autolaunch.AgentLaunch do
 
   @doc """
   The code an agent is answered with for `reason`, a reason any of the three
-  reviews, the wallet, the person's account or the agent's pairing names. Any
-  other reason, and anything that is not a reason, is `:launch_unavailable`: a
+  reviews, the wallet, the person's account or the agent's pairing names. The
+  pairing names two: the agent's own read or write refused by its pairing check
+  (`RegentAgents.Checks.Paired`), and the write finding the pairing gone as it
+  locks it (`RegentAgents.RequirePairing`), each `:agent_not_paired`. Any other
+  reason, and anything that is not a reason, is `:launch_unavailable`: a
   deployment description that does not load or no longer matches the chain, a
-  draft that could not be read, a review that could not be kept, or a failure
-  nobody expected.
+  draft that could not be read, a review that could not be kept, a refusal that
+  is not the pairing's, such as one in the steps the site runs itself, or a
+  failure nobody expected.
   """
   def code(reason) when is_map_key(@codes, reason), do: Map.fetch!(@codes, reason)
+
+  def code(%Ash.Error.Forbidden{errors: [_ | _] = errors}),
+    do: if(Enum.all?(errors, &unpaired?/1), do: :agent_not_paired, else: :launch_unavailable)
+
+  def code(%Ash.Error.Invalid{errors: [%InvalidChanges{message: "active pairing required"}]}),
+    do: :agent_not_paired
+
   def code(_unexpected), do: :launch_unavailable
+
+  defp unpaired?(%Ash.Error.Forbidden.Policy{facts: facts}),
+    do: Enum.any?(facts, &match?({{RegentAgents.Checks.Paired, _opts}, false}, &1))
+
+  defp unpaired?(_refusal), do: false
 
   actions do
     action :prepare, :map do
@@ -175,7 +197,6 @@ defmodule Autolaunch.AgentLaunch do
     |> Ash.Query.filter(id == ^id)
     |> Ash.Query.load(image)
     |> Ash.read_one()
-    |> paired()
   end
 
   # The create page's own review of the draft, kept as the page keeps it.
@@ -214,31 +235,19 @@ defmodule Autolaunch.AgentLaunch do
     resource
     |> Ash.Changeset.for_create(action, input, actor: actor)
     |> Ash.create()
-    |> paired()
   end
-
-  # A pairing that ended or changed hands while the request ran: the agent's
-  # own read or write is forbidden, or the write's lock on the pairing finds
-  # it gone (`RegentAgents.RequirePairing`).
-  defp paired({:error, %Ash.Error.Forbidden{}}), do: {:error, :agent_not_paired}
-
-  defp paired(
-         {:error,
-          %Ash.Error.Invalid{errors: [%InvalidChanges{message: "active pairing required"}]}}
-       ),
-       do: {:error, :agent_not_paired}
-
-  defp paired(answer), do: answer
 
   defp kind(%LaunchDraft{}), do: "revstake"
   defp kind(%StocksDraft{}), do: "memestock"
 
   # A refusal holds the code of the reason it names (`code/1`), which Ash would
-  # otherwise turn into text (`AutolaunchWeb.AgentLaunchAnswer`). One nobody
-  # named, or a raise, is logged by kind alone (`AutolaunchWeb.ReadFailure`).
+  # otherwise turn into text (`AutolaunchWeb.AgentLaunchAnswer`), as a write
+  # does with the reason its own change named. One nobody named, or a raise, is
+  # logged by kind alone (`AutolaunchWeb.ReadFailure`).
   defp refused({:ok, _answer} = answered), do: answered
+  defp refused({:error, %Unavailable{reason: reason}}), do: refused({:error, reason})
 
-  defp refused({:error, %Ash.Error.Invalid.Unavailable{reason: reason}}),
+  defp refused({:error, %Ash.Error.Invalid{errors: [%Unavailable{reason: reason}]}}),
     do: refused({:error, reason})
 
   defp refused({:error, reason}) do

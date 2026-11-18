@@ -482,7 +482,9 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
   test "a review a paired agent prepared later never takes the place of the person's own",
        %{creator: creator} do
     # For the same wallet, name, symbol and stock, with other links.
-    agent_review(creator, "Launch 1", "L1", ["https://example.test/agent"])
+    creator
+    |> paired_agent!()
+    |> agent_review(creator, "Launch 1", "L1", ["https://example.test/agent"])
 
     assert {:snooze, 300} = discover()
 
@@ -498,7 +500,11 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
 
   test "a launch only a paired agent's review carried out is listed from that review, for its person" do
     other = TestSupport.register_creator!()
-    agent_review(other, "Launch 3", "L3", ["https://example.test/agent"])
+
+    other
+    |> paired_agent!()
+    |> agent_review(other, "Launch 3", "L3", ["https://example.test/agent"])
+
     launched = launch(3, @graduated_auction, other.wallet_address, 1, false)
     Chain.update(&%{&1 | launches: &1.launches ++ [launched]})
 
@@ -509,6 +515,23 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
 
     assert id == other.id
     assert [%{prepared_by: :agent, adopted_at: %DateTime{}}] = reviews(other)
+  end
+
+  test "the agent's latest preparation is the one listed, the same as an older one included" do
+    other = TestSupport.register_creator!()
+    agent = paired_agent!(other)
+    first = agent_review(agent, other, "Launch 3", "L3", ["https://example.test/a"])
+    second = agent_review(agent, other, "Launch 3", "L3", ["https://example.test/b"])
+    latest = agent_review(agent, other, "Launch 3", "L3", ["https://example.test/a"])
+    refute latest.id in [first.id, second.id]
+    launched = launch(3, @graduated_auction, other.wallet_address, 1, false)
+    Chain.update(&%{&1 | launches: &1.launches ++ [launched]})
+
+    assert {:snooze, 300} = discover()
+
+    assert %{links: ["https://example.test/a"]} = row(@graduated_auction)
+    assert [%{id: adopted}] = Enum.filter(reviews(other), & &1.adopted_at)
+    assert adopted == latest.id
   end
 
   # The Robinhood deployment fixture, answering at a loopback door this test
@@ -599,9 +622,9 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     )
   end
 
-  # The same review with `links`, as a paired agent of `creator`'s person
+  # The same review with `links`, as `agent`, paired with `creator`'s person,
   # keeps it (`Autolaunch.AgentLaunch`).
-  defp agent_review(creator, name, symbol, links) do
+  defp agent_review(agent, creator, name, symbol, links) do
     LaunchReview
     |> Ash.Changeset.for_create(
       :agent_record,
@@ -613,7 +636,7 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
         stock: @stock.address,
         links: links
       },
-      actor: paired_agent!(creator)
+      actor: agent
     )
     |> Ash.create!()
   end

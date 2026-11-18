@@ -470,7 +470,10 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   test "a review a paired agent prepared later never takes the place of the person's own",
        %{account: account, config: config, operation: operation, launchpad: launchpad} do
     # For the same wallet and launch, with other links.
-    agents = agent_review!(account, config, @launcher, ["https://example.test/agent"])
+    agents =
+      account
+      |> paired_agent!()
+      |> agent_review!(draft!(account), config, @launcher, ["https://example.test/agent"])
 
     mined(launchpad)
     discover()
@@ -484,15 +487,13 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
   test "a launch only a paired agent's review carried out is listed from that review, for its person",
        %{config: config, operation: operation, launchpad: launchpad} do
-    other =
-      Accounts.register_verified!(
-        "did:privy:memestock-#{Elixir.System.unique_integer([:positive])}",
-        @agent_launcher,
-        [@agent_launcher],
-        actor: @actor
-      )
+    other = other!()
 
-    agents = agent_review!(other, config, @agent_launcher, ["https://example.test/agent"])
+    agents =
+      other
+      |> paired_agent!()
+      |> agent_review!(draft!(other), config, @agent_launcher, ["https://example.test/agent"])
+
     BaseRpcStub.put(%{launcher: @agent_launcher})
 
     mined(launchpad)
@@ -508,6 +509,37 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert %{state: :chain_verified} = reload(agents)
     assert %{state: :prepared} = reload(operation)
   end
+
+  test "the agent's latest preparation is the one listed, the same as an older one included",
+       %{config: config, launchpad: launchpad} do
+    other = other!()
+    agent = paired_agent!(other)
+    draft = draft!(other)
+    first = agent_review!(agent, draft, config, @agent_launcher, ["https://example.test/a"])
+    second = agent_review!(agent, draft, config, @agent_launcher, ["https://example.test/b"])
+    latest = agent_review!(agent, draft, config, @agent_launcher, ["https://example.test/a"])
+    refute latest.id in [first.id, second.id]
+    BaseRpcStub.put(%{launcher: @agent_launcher})
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{links: ["https://example.test/a"]}] = auctions()
+    assert %{state: :chain_verified} = reload(latest)
+    assert %{state: :prepared} = reload(first)
+    assert %{state: :prepared} = reload(second)
+  end
+
+  # Another person, signed in with `@agent_launcher`.
+  defp other!,
+    do:
+      Accounts.register_verified!(
+        "did:privy:memestock-#{Elixir.System.unique_integer([:positive])}",
+        @agent_launcher,
+        [@agent_launcher],
+        actor: @actor
+      )
 
   # The page sees its own press confirmed and lists the launch at once.
   defp confirm_in_browser(operation),
@@ -529,11 +561,9 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     operation
   end
 
-  # The same launch from `signer` with `links`, as a paired agent of
-  # `account`'s person keeps it (`Autolaunch.AgentLaunch`).
-  defp agent_review!(account, config, signer, links) do
-    draft = draft!(account)
-
+  # The same launch of `draft` from `signer` with `links`, as `agent`, paired
+  # with the draft's person, keeps it (`Autolaunch.AgentLaunch`).
+  defp agent_review!(agent, draft, config, signer, links) do
     LaunchOperation
     |> Ash.Changeset.for_create(
       :agent_prepare,
@@ -544,7 +574,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
         signer: signer,
         step: :launch
       },
-      actor: paired_agent!(account)
+      actor: agent
     )
     |> Ash.create!()
   end

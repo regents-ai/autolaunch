@@ -16,8 +16,8 @@ defmodule Autolaunch.LaunchOperation do
   A paired agent's review of the person's draft (`prepared_by: :agent`,
   `Autolaunch.AgentLaunch`) is tried only after every review of the person's
   when a launch is listed, so it never takes the place of one the person saw.
-  Preparing again for a changed draft keeps the latest 20 preparations
-  (`Autolaunch.AgentLaunch.Preparations`).
+  Each of the agent's preparations of a draft stays good for 24 hours, and at
+  most 20 unused ones are kept (`Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -107,6 +107,10 @@ defmodule Autolaunch.LaunchOperation do
       argument :launch_draft_id, :uuid, allow_nil?: false
       change set_attribute(:human_account_id, actor(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
+
+      validate {Autolaunch.AgentLaunch.PersonsDraft, draft: Autolaunch.LaunchDraft},
+        only_when_valid?: true
+
       change set_attribute(:prepared_by, :agent)
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       change {Autolaunch.AgentLaunch.Preparations, of: [:launch_draft_id], same: [:review]}
@@ -116,10 +120,10 @@ defmodule Autolaunch.LaunchOperation do
     # (`Autolaunch.AgentLaunch.Preparations`).
     read :agent_preparations do
       filter expr(prepared_by == :agent and state == :prepared)
-      prepare build(sort: [inserted_at: :desc])
+      prepare build(sort: [inserted_at: :desc, id: :desc])
     end
 
-    # An agent's review of a draft that its latest ones replaced.
+    # An agent's review past its 24 hours, removed to make room for a new one.
     destroy :trim do
       validate attribute_equals(:prepared_by, :agent)
       validate attribute_equals(:state, :prepared)
