@@ -548,8 +548,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   # A review prepared again after a step did not go through carries the words
   # about that step beside its button.
-  defp reviewed(socket, key, {:ok, prepared}) do
-    review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps)
+  defp reviewed(socket, {signer, _bid_id, _exited, _filled} = key, {:ok, prepared}) do
+    review = Review.new(socket.assigns.id, signer, prepared.chain, prepared.steps)
 
     socket
     |> assign(prepared_for: key, notice: nil, press_note: socket.assigns.carried_note)
