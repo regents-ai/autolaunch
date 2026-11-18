@@ -3,11 +3,11 @@ defmodule Autolaunch.BaseRpcStub do
   One JSON-RPC transport double for the Base reads a chain test makes.
 
   Chain identity, the `safe` header, headers by number, receipts and transactions
-  have exactly one shape for every surface. Only the block-pinned `eth_call`
-  answers differ, so a test supplies those as the `:calls` function it installs,
-  which is given the call (`to` and `data`) and the stub's state. Reads sent
-  together through Multicall3's `aggregate3` are each answered by that same
-  function (`aggregate/2`).
+  have exactly one shape for every surface, and every address holds code. Only
+  the block-pinned `eth_call` answers differ, so a test supplies those as the
+  `:calls` function it installs, which is given the call (`to` and `data`) and
+  the stub's state. Reads sent together through Multicall3's `aggregate3` are
+  each answered by that same function (`aggregate/2`).
   """
 
   @safe_hash "0x" <> String.duplicate("5a", 32)
@@ -161,6 +161,8 @@ defmodule Autolaunch.BaseRpcStub do
 
   defp result("eth_getTransactionByHash", [hash], state),
     do: state |> Map.get(:transactions, %{}) |> Map.get(hash)
+
+  defp result("eth_getCode", [_address, _block], _state), do: "0x6080"
 
   defp result("eth_call", [call, _block], state) do
     if call.to == Autolaunch.Chain.Multicall.address(),

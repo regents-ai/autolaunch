@@ -498,7 +498,21 @@ defmodule AutolaunchWeb.SwapComponent do
   defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
     do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
-  defp confirmed(socket, _earlier_review), do: socket
+  # An approval pressed while the review was being built again reached the
+  # server after it, against the review the wallet sent it from. Once it lands,
+  # a review on the page that still asks the same wallet for it is built again
+  # from the chain, which now holds it, so the button moves on.
+  defp confirmed(
+         %{assigns: %{review: %{signer: signer} = review}} = socket,
+         %{name: name, review: %{signer: signer}}
+       ) do
+    asked_again? =
+      Review.find(review, name) != nil and not OnchainSteps.approved?(socket.assigns, name)
+
+    if asked_again?, do: rebuilt(socket, nil), else: socket
+  end
+
+  defp confirmed(socket, _another_wallets_or_no_review), do: socket
 
   defp step_reverted(%{assigns: %{review: %{id: id}}} = socket, %{name: name, review: %{id: id}}),
     do: rebuilt(socket, rebuilt_copy(name))
