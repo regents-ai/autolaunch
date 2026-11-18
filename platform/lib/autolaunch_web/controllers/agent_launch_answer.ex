@@ -99,7 +99,7 @@ defmodule AutolaunchWeb.AgentLaunchAnswer do
   # `:invalid_request` for input the action itself does not take, such as a
   # draft id that is not one. A policy does not refuse here: every caller of
   # the route is a paired agent, the route is not there while agent launches
-  # are off (`AutolaunchWeb.Router.admit_agent_launches/2`), and it is refused
+  # are off (`AutolaunchWeb.Router.admit_offered/2`), and it is refused
   # before the router in prelaunch read-only mode (`AutolaunchWeb.Prelaunch`);
   # a pairing that ends while the request runs is the operation's own
   # `agent_not_paired`. Anything else is logged by kind alone and answered

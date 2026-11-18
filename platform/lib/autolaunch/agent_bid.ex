@@ -257,7 +257,7 @@ defmodule Autolaunch.AgentBid do
     # offers agent bids: off, the hosted MCP server neither lists nor runs
     # either tool, as the routes and browser tools are not there either.
     policy always() do
-      forbid_unless Autolaunch.AgentBid.Checks.Offered
+      forbid_unless {Autolaunch.Checks.Offered, feature: __MODULE__}
       authorize_if actor_attribute_equals(:role, :agent)
     end
 

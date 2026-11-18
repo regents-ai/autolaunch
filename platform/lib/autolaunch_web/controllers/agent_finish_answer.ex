@@ -68,7 +68,7 @@ defmodule AutolaunchWeb.AgentFinishAnswer do
   # action itself does not take, such as an auction id that is not one. A
   # policy does not refuse here: every caller of the route is a paired agent,
   # the route is not there while agent finishes are off
-  # (`AutolaunchWeb.Router.admit_agent_finish/2`), and it is refused before the
+  # (`AutolaunchWeb.Router.admit_offered/2`), and it is refused before the
   # router in prelaunch read-only mode (`AutolaunchWeb.Prelaunch`). Anything
   # else is logged by kind alone and answered `finish_unavailable`.
   defp refused(%Ash.Error.Unknown{errors: [%Refused{} = refused]}), do: refused

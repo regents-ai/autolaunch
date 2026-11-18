@@ -108,7 +108,7 @@ defmodule AutolaunchWeb.AgentBidAnswer do
   # The refusal an operation answered with: the code it named, or
   # `:invalid_request` for input the action itself does not take. A policy does
   # not refuse here: every caller of the routes is a paired agent, the routes are
-  # not there while agent bids are off (`AutolaunchWeb.Router.admit_agent_bids/2`),
+  # not there while agent bids are off (`AutolaunchWeb.Router.admit_offered/2`),
   # and both are refused before the router in prelaunch read-only mode
   # (`AutolaunchWeb.Prelaunch`). Anything else is logged by kind alone and
   # answered `bid_unavailable`.

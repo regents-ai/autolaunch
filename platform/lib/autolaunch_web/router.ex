@@ -127,54 +127,28 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
-  # Agent bids' routes exist only while the site offers them; off, each answers
-  # as an address with nothing at it.
+  # Each agent feature's routes exist only while the site offers it; off, each
+  # answers as an address with nothing at it.
   pipeline :agent_bids do
-    plug :admit_agent_bids
+    plug :admit_offered, Autolaunch.AgentBid
   end
 
-  def admit_agent_bids(conn, _opts) do
-    Autolaunch.AgentBid.enabled?() or
-      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
-
-    conn
-  end
-
-  # Agent Robinhood bids' routes exist only while the site offers them; off,
-  # each answers as an address with nothing at it.
   pipeline :agent_robinhood_bids do
-    plug :admit_agent_robinhood_bids
+    plug :admit_offered, Autolaunch.AgentRobinhoodBid
   end
 
-  def admit_agent_robinhood_bids(conn, _opts) do
-    Autolaunch.AgentRobinhoodBid.enabled?() or
-      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
-
-    conn
-  end
-
-  # Agent launches' route exists only while the site offers them; off, it
-  # answers as an address with nothing at it.
   pipeline :agent_launches do
-    plug :admit_agent_launches
+    plug :admit_offered, Autolaunch.AgentLaunch
   end
 
-  def admit_agent_launches(conn, _opts) do
-    Autolaunch.AgentLaunch.enabled?() or
-      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
-
-    conn
-  end
-
-  # Agent finishes' route exists only while the site offers them; off, it
-  # answers as an address with nothing at it.
   pipeline :agent_finish do
-    plug :admit_agent_finish
+    plug :admit_offered, Autolaunch.AgentFinish
   end
 
-  def admit_agent_finish(conn, _opts) do
-    Autolaunch.AgentFinish.enabled?() or
-      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+  # A request to `feature`'s routes, admitted by the feature's own switch
+  # (`enabled?/0`), as its tools are (`Autolaunch.Checks.Offered`).
+  def admit_offered(conn, feature) do
+    feature.enabled?() or raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
 
     conn
   end

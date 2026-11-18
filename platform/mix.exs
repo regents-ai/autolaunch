@@ -233,10 +233,12 @@ defmodule Autolaunch.MixProject do
         # (AshAi takes it only as a function). Nothing else is permitted. The
         # ceiling is forty-three domain-to-resource edges (Accounts six,
         # Autolaunch thirty, CoveredCalls three, Agents, Earn, Exposure and
-        # Points one each), fifty-five resource-to-check edges, the one endpoint
-        # edge, those four actions and those two router edges, and it is
-        # re-based per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 105",
+        # Points one each), fifty-one resource-to-check edges (the agent
+        # features' one switch check names no module, so it connects nothing),
+        # the one endpoint edge, those four actions and those two router edges,
+        # and it is re-based per unit when a domain, resource or check module
+        # lands.
+        "xref graph --label compile-connected --fail-above 101",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

@@ -160,7 +160,7 @@ defmodule Autolaunch.AgentFinish do
     # offers agent finishes: off, the hosted MCP server neither lists nor runs
     # the tool, as the route and browser tool are not there either.
     policy always() do
-      forbid_unless Autolaunch.AgentFinish.Checks.Offered
+      forbid_unless {Autolaunch.Checks.Offered, feature: __MODULE__}
       authorize_if actor_attribute_equals(:role, :agent)
     end
 
