@@ -95,6 +95,15 @@ defmodule Autolaunch.Bid do
       prepare build(load: [:auction, :token])
     end
 
+    # One of the paired agent's person's own bids, by its id, for its return
+    # and claim (`Autolaunch.AgentBid`).
+    read :agent_by_bid_id do
+      get? true
+      argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
+      filter expr(bid_id == ^arg(:bid_id))
+      prepare build(load: [:auction])
+    end
+
     # A saved position by its row id, for the site's own checks of it
     # (`Autolaunch.Points.Bid`).
     read :by_id do
@@ -192,11 +201,11 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
-    policy action(:agent_mine_by_wallet) do
+    policy action([:agent_mine_by_wallet, :agent_by_bid_id]) do
       authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
     end
 
-    policy action(:agent_mine_by_wallet) do
+    policy action([:agent_mine_by_wallet, :agent_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 

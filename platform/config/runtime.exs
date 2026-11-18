@@ -243,6 +243,25 @@ if earn_on do
   config :autolaunch, earn: :on
 end
 
+# A paired agent prepares wallet steps for its person's bids on Base auctions,
+# and for their return and claim, only on a site switched on with
+# AUTOLAUNCH_AGENT_BIDS=true; it reads Base through the Base description. Off,
+# no tool or route offers them (`Autolaunch.AgentBid`).
+agent_bids_on =
+  case System.get_env("AUTOLAUNCH_AGENT_BIDS") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_BIDS must be true or unset"
+  end
+
+if agent_bids_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_BIDS=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_bids: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

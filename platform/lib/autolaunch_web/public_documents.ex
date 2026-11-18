@@ -64,6 +64,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @earn_guide_path
   @earn_guide File.read!(@earn_guide_path)
 
+  # Agent bids' routes and their components, and their section of the agent
+  # guides, added only while the site offers them.
+  @agent_bids_contract_path Path.expand("../../contracts/agent-bids.openapiv3.yaml", __DIR__)
+  @external_resource @agent_bids_contract_path
+  @agent_bids_contract YamlElixir.read_from_file!(@agent_bids_contract_path)
+  @agent_bids_guide_path Path.join(@directory, "agent_bids.md")
+  @external_resource @agent_bids_guide_path
+  @agent_bids_guide File.read!(@agent_bids_guide_path)
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -597,6 +606,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
     |> String.replace("{{earn}}\n", earn())
+    |> String.replace("{{agent_bids}}\n", agent_bids())
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -670,6 +680,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
 
   defp earn, do: if("earn" in ToolManifest.features(), do: @earn_guide, else: "")
+
+  defp agent_bids,
+    do: if("agent_bids" in ToolManifest.features(), do: @agent_bids_guide, else: "")
 
   # The fixed pages the sitemaps list, with covered calls and Earn while the site
   # offers them.
@@ -849,7 +862,8 @@ defmodule AutolaunchWeb.PublicDocuments do
     [
       {"covered_calls", @covered_calls_contract},
       {"exposure", @exposure_contract},
-      {"earn", @earn_contract}
+      {"earn", @earn_contract},
+      {"agent_bids", @agent_bids_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->

@@ -1,0 +1,108 @@
+{
+  "_comment": "Agent bids' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json only while the site offers agent bids (AUTOLAUNCH_AGENT_BIDS=true). The hosted MCP tools prepare_bid and prepare_bid_settlement take each tool's title and words from here, less how a browser host signs (Autolaunch).",
+  "tools": [
+    {
+      "name": "autolaunch_bid_prepare",
+      "title": "Bid steps",
+      "description": "Prepare the wallet steps for one bid on a Base auction, for one of my person's own wallets, built from the chain at the latest block as the auction page builds them. Paying in the auction's own currency: an exact approval to Permit2 (token_approval) and an exact Permit2 allowance for the auction (permit2_approval), each only while the wallet still needs it, then bid. With pay_with USDC on a Memestock auction that takes it: an exact USDC approval to the bid adapter (usdc_approval) while needed, then usdc_bid, which buys the stock and places the bid, and reverts if the USDC buys less than min_stock_out. Each step is to, data and value for the wallet to send in turn, its data ending with the site's Builder Code. approved is true when no approval step is needed; blocked is bidding_ended, beside the steps, once the auction has ended bidding by its record or the block. facts give what the bid pays, the most per token after it is lowered to the auction's price grid, and for USDC the least stock and the slippage. Built from block N, a step may be stale by the time it is sent. The site only prepares: the wallet's own key signs and sends each step, and money moves only then; the bid joins autolaunch_my_positions once the auction's reader records it. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "auction_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The auction's id exactly as autolaunch_auctions lists it, for a Base auction."
+          },
+          "amount": {
+            "type": "string",
+            "description": "The total to bid, as a decimal in the currency paid: the auction's own (18 decimals) or, with pay_with USDC, USDC (6 decimals)."
+          },
+          "max_price": {
+            "type": "string",
+            "description": "The most to pay per token, as a decimal in the auction's own currency. It is lowered to the auction's price grid."
+          },
+          "pay_with": {
+            "type": "string",
+            "enum": [
+              "USDC"
+            ],
+            "description": "USDC to pay in USDC on a Memestock auction that takes it; leave it out to pay in the auction's own currency."
+          },
+          "slippage_percent": {
+            "type": "string",
+            "description": "For a USDC bid, the most the stock bought may fall short of the route's estimate, in percent from 0 to 99.99 with at most two decimal places. 5 when left out."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "auction_id",
+          "amount",
+          "max_price"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/bids/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_bid_prepare",
+        "http": "POST /api/agent/v1/bids/steps"
+      },
+      "effect": "prepare"
+    },
+    {
+      "name": "autolaunch_bid_settlement_prepare",
+      "title": "Settlement steps",
+      "description": "Prepare the wallet steps that settle one of my person's own bids on a Base auction, by its bid id from autolaunch_my_positions, built from the chain at the latest block as the bid's card builds them: exit, which returns the unspent money and records what the bid bought, then claim, which delivers the tokens once the auction graduated and claims are open; claim alone for a bid already returned; or, while bidding is open and the price has passed the bid's maximum but is not recorded yet, record, after which the return is prepared again. Only steps the auction would accept now come back; when there are none, the answer is a refusal naming the auction's reason. Each step is to, data and value for the wallet to send in turn, its data ending with the site's Builder Code. facts give the money returned, the tokens bought and the tokens claimed. The auction pays the wallet that placed the bid, whichever of my person's wallets sends the step. The site only prepares: the wallet's own key signs and sends each step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "bid": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+            "description": "The bid's id exactly as autolaunch_my_positions gives it (bid), for a bid on Base."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "bid"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/bids/{bid}/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_bid_settlement_prepare",
+        "http": "POST /api/agent/v1/bids/{bid}/steps"
+      },
+      "effect": "prepare"
+    }
+  ]
+}

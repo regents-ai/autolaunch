@@ -127,6 +127,19 @@ defmodule AutolaunchWeb.Router do
     conn
   end
 
+  # Agent bids' routes exist only while the site offers them; off, each answers
+  # as an address with nothing at it.
+  pipeline :agent_bids do
+    plug :admit_agent_bids
+  end
+
+  def admit_agent_bids(conn, _opts) do
+    Autolaunch.AgentBid.enabled?() or
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+
+    conn
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -279,6 +292,12 @@ defmodule AutolaunchWeb.Router do
     post "/earn/quote", EarnAgentController, :quote
     get "/earn/positions", EarnAgentController, :positions
     post "/earn/steps", EarnAgentController, :prepare
+  end
+
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :agent_bids]
+    post "/bids/steps", AgentBidController, :prepare
+    post "/bids/:bid/steps", AgentBidController, :settle
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.

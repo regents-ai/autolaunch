@@ -7,19 +7,24 @@ defmodule Autolaunch do
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
 
-  # The hosted MCP tools: each gives the answer its HTTP route gives and is the
-  # browser tool of the same name, with that tool's title and words from
-  # priv/tool_manifest.json, less how a browser host signs
+  # The hosted MCP tools: each gives the answer its HTTP route gives and has the
+  # title and words of its browser tool, from priv/tool_manifest.json or, for
+  # agent bids, priv/agent_bids_tools.json, less how a browser host signs
   # (`AutolaunchWeb.Capabilities` checks their inputs). Each reads, or saves the
-  # person's launch draft; none prepares a wallet step.
-  @manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
-  @external_resource @manifest_path
+  # person's launch draft, except agent bids' two, which prepare the wallet
+  # steps of a bid or of its return and claim for the person's wallet to sign.
+  @tool_paths [
+    Application.app_dir(:autolaunch, "priv/tool_manifest.json"),
+    Application.app_dir(:autolaunch, "priv/agent_bids_tools.json")
+  ]
+  for path <- @tool_paths, do: @external_resource(path)
+
   @browser_signing [
     " Signed: your browser host signs it with your own agent key, as regents browser does.",
     " Browser sign-in is not agent authority."
   ]
-  @browser_tools (for tool <-
-                        @manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools"),
+  @browser_tools (for path <- @tool_paths,
+                      tool <- path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools"),
                       into: %{} do
                     words = String.replace(tool["description"], @browser_signing, "")
                     {tool["name"], %{tool | "description" => words}}
@@ -114,6 +119,20 @@ defmodule Autolaunch do
       title(@browser_tools["account_points"]["title"])
       description @browser_tools["account_points"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    # Listed and run only while the site offers agent bids
+    # (`Autolaunch.AgentBid`'s policies).
+    tool :prepare_bid, Autolaunch.AgentBid, :prepare do
+      title(@browser_tools["autolaunch_bid_prepare"]["title"])
+      description @browser_tools["autolaunch_bid_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :prepare_bid_settlement, Autolaunch.AgentBid, :settle do
+      title(@browser_tools["autolaunch_bid_settlement_prepare"]["title"])
+      description @browser_tools["autolaunch_bid_settlement_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
   end
 
@@ -515,6 +534,7 @@ defmodule Autolaunch do
       define :list_wallet_bid_positions, action: :mine_by_wallets, args: [:wallet_addresses]
       define :list_wallet_bids_to_settle, action: :to_settle_by_wallets, args: [:wallet_addresses]
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
+      define :get_agent_bid_position, action: :agent_by_bid_id, args: [:bid_id]
       define :get_bid_position, action: :by_id, args: [:id], not_found_error?: false
     end
 
@@ -528,6 +548,11 @@ defmodule Autolaunch do
     end
 
     resource Autolaunch.AgentAccount
+
+    resource Autolaunch.AgentBid do
+      define :prepare_bid, action: :prepare
+      define :prepare_bid_settlement, action: :settle
+    end
 
     resource Autolaunch.Robinhood.LaunchReview do
       define :record_robinhood_launch_review, action: :record

@@ -97,6 +97,7 @@ WebMCP exposes public reads and signed, paired private operations through the [t
 {{covered_calls}}
 {{exposure}}
 {{earn}}
+{{agent_bids}}
 ## Hosted MCP
 
 {{hosted_mcp}}

@@ -1,0 +1,470 @@
+# Agent bids, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_BIDS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
+# is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/bids/steps:
+    post:
+      operationId: autolaunch_bid_prepare
+      summary: Prepare a bid
+      description: The wallet steps for one bid on a Base auction, built from the chain at the latest
+        block as the auction page builds them, for one of the person's own wallets (`signer`, or the
+        wallet they signed in with). The site only prepares; the wallet's own key signs and sends each
+        step, and each step's data ends with the site's Builder Code. Once bidding has ended by the
+        auction's record or that block, the answer is 200 with `blocked` and its steps. Changes nothing;
+        the bid joins the person's positions once the auction's reader records it.
+      security:
+      - SiwaProof: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentBidRequest'
+      responses:
+        '200':
+          description: The steps, whether every approval is already in place, and any reason they are
+            certain to fail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '404':
+          description: No Base auction listed here with that id (auction_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '409':
+          description: The person's account has no wallet to act with (wallet_required), or the auction
+            or the wallet stands so that the auction would refuse the bid now (bid_preparation_unavailable,
+            treasury_report_missing, treasury_security_changed, treasury_configuration_drift,
+            auction_currency_changed, amount_above_balance, usdc_bids_unavailable, stock_not_admitted,
+            usdc_route_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '422':
+          description: An unknown field or a field that is not text, an auction id that is not one, an
+            amount, price or slippage the page would refuse, or a price below the auction's next allowed
+            price (invalid_request, invalid_amount, invalid_decimal, invalid_price, invalid_slippage,
+            price_below_admissible_tick)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '503':
+          description: The chain or the auction's records could not be read just now (chain_unavailable,
+            price_history_long, bid_unavailable, account_unavailable), or the site is not open yet
+            (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+  /api/agent/v1/bids/{bid}/steps:
+    post:
+      operationId: autolaunch_bid_settlement_prepare
+      summary: Prepare a settlement
+      description: The wallet steps that settle one of the person's own bids on a Base auction, built
+        from the chain at the latest block as the bid's card builds them, for one of the person's own
+        wallets (`signer`, or the wallet they signed in with). Only steps the auction would accept now
+        come back - exit then claim, claim alone, or record - and when there are none the answer is a
+        refusal naming the auction's reason. The site only prepares; the wallet's own key signs and
+        sends each step. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentBidId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentBidSettlementRequest'
+      responses:
+        '200':
+          description: The steps the auction would accept now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidSettlementEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '404':
+          description: None of the person's wallets holds a bid on Base with that id (not_your_bid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '409':
+          description: The person's account has no wallet to act with (wallet_required), or the auction
+            accepts nothing for this bid now (position_not_on_chain, bid_not_found, auction_not_started,
+            auction_not_ended, already_exited, claim_not_open, nothing_to_claim, bid_not_exited,
+            settlement_reverted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '422':
+          description: An unknown field, a field that is not text, or a bid id that is not one
+            (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+        '503':
+          description: The chain or the auction's records could not be read just now (chain_unavailable,
+            bid_needs_partial_exit_hints_unavailable, bid_unavailable, account_unavailable), or the site
+            is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentBidError'
+components:
+  parameters:
+    AgentBidId:
+      name: bid
+      in: path
+      required: true
+      description: The bid's id exactly as autolaunch_my_positions gives it (bid), for a bid on Base.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$'
+  schemas:
+    AgentBidRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - auction_id
+      - amount
+      - max_price
+      properties:
+        auction_id:
+          type: string
+          format: uuid
+          description: The auction's id exactly as autolaunch_auctions lists it, for a Base auction.
+        amount:
+          type: string
+          description: The total to bid, as a decimal in the currency paid - the auction's own or, with
+            pay_with USDC, USDC (6 decimals).
+        max_price:
+          type: string
+          description: The most to pay per token, as a decimal in the auction's own currency. It is
+            lowered to the auction's price grid.
+        pay_with:
+          type: string
+          enum:
+          - USDC
+          description: USDC to pay in USDC on a Memestock auction that takes it; leave it out to pay in
+            the auction's own currency.
+        slippage_percent:
+          type: string
+          description: For a USDC bid, the most the stock bought may fall short of the route's estimate,
+            in percent from 0 to 99.99 with at most two decimal places. 5 when left out.
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentBidSettlementRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signer:
+          type: string
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentBidChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentBidAuction:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentBidStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          enum:
+          - token_approval
+          - permit2_approval
+          - bid
+          - usdc_approval
+          - usdc_bid
+          - record
+          - exit
+          - claim
+        to:
+          type: string
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentBidSteps:
+      type: object
+      required:
+      - kind
+      - signer
+      - auction
+      - chain
+      - block
+      - steps
+      - approved
+      - blocked
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - bid
+        signer:
+          type: string
+        auction:
+          $ref: '#/components/schemas/AgentBidAuction'
+        chain:
+          $ref: '#/components/schemas/AgentBidChain'
+        block:
+          type: integer
+          description: The latest block the steps were built from.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentBidStep'
+        approved:
+          type: boolean
+          description: True when no approval step is needed.
+        blocked:
+          type: object
+          nullable: true
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              enum:
+              - bidding_ended
+            message:
+              type: string
+        facts:
+          type: object
+          required:
+          - pay
+          - pay_symbol
+          - max_price
+          - currency_symbol
+          - token_symbol
+          - min_stock_out
+          properties:
+            pay:
+              type: string
+              description: What the bid spends, as a decimal in pay_symbol.
+            pay_symbol:
+              type: string
+            max_price:
+              type: string
+              description: The most per token after it is lowered to the auction's price grid.
+            currency_symbol:
+              type: string
+            token_symbol:
+              type: string
+            min_stock_out:
+              type: string
+              nullable: true
+              description: For a USDC bid, the least stock the USDC must buy; null otherwise.
+            slippage_percent:
+              type: string
+              description: For a USDC bid only.
+    AgentBidStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentBidSteps'
+    AgentBidSettlement:
+      type: object
+      required:
+      - kind
+      - signer
+      - bid
+      - auction
+      - chain
+      - block
+      - steps
+      - approved
+      - blocked
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - settle
+        signer:
+          type: string
+        bid:
+          type: string
+        auction:
+          $ref: '#/components/schemas/AgentBidAuction'
+        chain:
+          $ref: '#/components/schemas/AgentBidChain'
+        block:
+          type: integer
+          description: The latest block the steps were built from.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentBidStep'
+        approved:
+          type: boolean
+          description: Always true; settling needs no approval.
+        blocked:
+          type: object
+          nullable: true
+          description: Always null; a step the auction would refuse is never prepared.
+        facts:
+          type: object
+          required:
+          - currency_symbol
+          - token_symbol
+          - graduated
+          - currency_refunded
+          - tokens_filled
+          - tokens_claimed
+          properties:
+            currency_symbol:
+              type: string
+            token_symbol:
+              type: string
+            graduated:
+              type: boolean
+            currency_refunded:
+              type: string
+              nullable: true
+              description: The money exit returns, as a decimal; null without an exit step.
+            tokens_filled:
+              type: string
+              nullable: true
+              description: The tokens the bid bought, as a decimal; null without an exit step.
+            tokens_claimed:
+              type: string
+              nullable: true
+              description: The tokens claim delivers, as a decimal; null without a claim step.
+    AgentBidSettlementEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentBidSettlement'
+    AgentBidError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - invalid_amount
+              - invalid_decimal
+              - invalid_price
+              - invalid_slippage
+              - price_below_admissible_tick
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - auction_not_found
+              - not_your_bid
+              - wallet_required
+              - bid_preparation_unavailable
+              - treasury_report_missing
+              - treasury_security_changed
+              - treasury_configuration_drift
+              - auction_currency_changed
+              - amount_above_balance
+              - usdc_bids_unavailable
+              - stock_not_admitted
+              - usdc_route_unavailable
+              - position_not_on_chain
+              - bid_not_found
+              - auction_not_started
+              - auction_not_ended
+              - already_exited
+              - claim_not_open
+              - nothing_to_claim
+              - bid_not_exited
+              - settlement_reverted
+              - chain_unavailable
+              - price_history_long
+              - bid_needs_partial_exit_hints_unavailable
+              - bid_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string
