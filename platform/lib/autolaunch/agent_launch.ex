@@ -129,7 +129,7 @@ defmodule Autolaunch.AgentLaunch do
   @no_connections %{
     code: "no_connections",
     message:
-      "This Revstake auction may not appear in the gallery or list, because its creator, your person, has linked no X, GitHub or ENS account; they can link one under Socials on the create page."
+      "Your person hasn't connected X, GitHub or ENS, so this Revstake auction may not appear in the gallery or list. They can connect one under Socials on the create page, or launch without them."
   }
 
   @doc "Whether the site offers agent launches (`AUTOLAUNCH_AGENT_LAUNCHES=true`, config/runtime.exs)."

@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.CreateReviewTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{Accounts, LaunchFixture, TestAutolaunchTreasuryChainClient}
+  alias Autolaunch.{Accounts, LaunchFixture, TestAutolaunchTreasuryChainClient, TestSupport}
   alias Autolaunch.Actors.{Human, System}
 
   @aapl "0xb200000000000000000000c2e324d24d7eecd1fb"
@@ -243,34 +243,17 @@ defmodule AutolaunchWeb.CreateReviewTest do
     assert has_element?(view, "#launch-token-details-symbol-error")
   end
 
-  test "a Revstake creator with no X, GitHub or ENS account on show types a warning before Review launch; one with any of them is not asked",
-       %{conn: conn} do
-    LaunchFixture.install()
-    TestAutolaunchTreasuryChainClient.seed_verified!(LaunchFixture.treasury())
-
-    linked = fn provider ->
-      fn account ->
-        Accounts.upsert_linked_identity!(
-          provider,
-          "#{provider}-#{account.id}",
-          "#{provider}-#{account.id}",
-          "#{provider}-#{account.id}",
-          DateTime.utc_now(),
-          %{},
-          account.id,
-          actor: %System{}
-        )
-      end
-    end
-
-    for {connect, asked?} <- [
-          {fn _account -> :none end, true},
-          {&Autolaunch.TestSupport.verify_x!(&1, :profile, username: "creator#{&1.id}"), false},
-          {linked.(:github), false},
-          {linked.(:ens), false}
-        ] do
+  for {said, providers, asked?} <- [
+        {"no X, GitHub or ENS account on show types a warning before Review launch", [], true},
+        {"a checked X account on show is not asked for the warning", [:x], false},
+        {"GitHub on show is not asked for the warning", [:github], false},
+        {"ENS on show is not asked for the warning", [:ens], false}
+      ] do
+    test "a Revstake creator with #{said}", %{conn: conn} do
+      LaunchFixture.install()
+      TestAutolaunchTreasuryChainClient.seed_verified!(LaunchFixture.treasury())
       setup = LaunchFixture.actor()
-      connect.(setup[:account])
+      for provider <- unquote(providers), do: TestSupport.connect!(setup[:account], provider)
       session = signed_in_session(setup[:account].id)
 
       {:ok, view, _html} =
@@ -280,7 +263,7 @@ defmodule AutolaunchWeb.CreateReviewTest do
         |> live("/agent-business")
 
       render_async(view)
-      assert has_element?(view, "#launch-no-connections") == asked?
+      assert has_element?(view, "#launch-no-connections") == unquote(asked?)
     end
   end
 

@@ -56,7 +56,8 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     Repo,
     RobinhoodBidChain,
     TestAutolaunchLaunchChainClient,
-    TestAutolaunchTreasuryChainClient
+    TestAutolaunchTreasuryChainClient,
+    TestSupport
   }
 
   @moduletag :capture_log
@@ -334,21 +335,7 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
   end
 
   test "a Revstake draft whose person has no X, GitHub or ENS account on show is given its step with the no_connections warning, alike on both ways in",
-       %{agent: agent, account: account, draft: draft} do
-    # An X connection begun and never checked is none on show.
-    Accounts.begin_x_connection_attempt!(
-      %{
-        role: :profile,
-        attempt_state: "state-#{Ash.UUID.generate()}",
-        attempt_verifier: "verifier-#{Ash.UUID.generate()}",
-        attempt_generation: Ash.UUID.generate(),
-        attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second),
-        intent_sequence: 1,
-        intent_generation: Ash.UUID.generate()
-      },
-      actor: %Human{human_account_id: account.id}
-    )
-
+       %{agent: agent, draft: draft} do
     {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
 
     assert [%{"code" => "no_connections", "message" => message}] = data["warnings"]
@@ -357,29 +344,10 @@ defmodule AutolaunchWeb.AgentLaunchesTest do
     assert tool(agent, "prepare_launch", %{draft: draft.id}) == {:ok, data}
   end
 
-  test "a Revstake draft whose person has a checked X account, GitHub or ENS is given no warning, alike on both ways in" do
-    linked = fn provider ->
-      fn account ->
-        Accounts.upsert_linked_identity!(
-          provider,
-          "#{provider}-#{account.id}",
-          "#{provider}-#{account.id}",
-          "#{provider}-#{account.id}",
-          DateTime.utc_now(),
-          %{},
-          account.id,
-          actor: %System{}
-        )
-      end
-    end
-
-    for connect <- [
-          &Autolaunch.TestSupport.verify_x!(&1, :profile, username: "creator#{&1.id}"),
-          linked.(:github),
-          linked.(:ens)
-        ] do
-      %{agent: agent, account: account, draft: draft} = person!()
-      connect.(account)
+  for {label, provider} <- [{"a checked X account", :x}, {"GitHub", :github}, {"ENS", :ens}] do
+    test "a Revstake draft whose person has #{label} on show is given no warning, alike on both ways in",
+         %{agent: agent, account: account, draft: draft} do
+      TestSupport.connect!(account, unquote(provider))
 
       {:ok, data} = answer(http(:post, launch_path(draft.id), %{}, agent))
 
