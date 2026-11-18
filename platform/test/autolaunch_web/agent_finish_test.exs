@@ -14,10 +14,14 @@ defmodule AutolaunchWeb.AgentFinishTest do
   a verified wallet; an auction the site does not list or show is answered as
   no auction, before any chain is read. Every refusal is reached and named,
   with a status and code the contract documents, and every reason has one
-  code. A read that raises, or a reason nobody named, is refused as
-  `finish_unavailable`. Off, or in prelaunch read-only mode, the tool is not
-  listed or run, and off a call to it is answered as one to a tool that does
-  not exist.
+  code. A launchpad that holds no launch for a listed auction, a read that
+  raises, or a reason nobody named, is refused as `finish_unavailable`; an
+  auction on a chain no deployment description names, as `chain_unavailable`
+  with nothing read, logged once. The signed route refuses an unsigned or
+  unpaired request, another's wallet and an id that is none in their own
+  words, and answers a hidden auction byte for byte as a missing one. Off, or
+  in prelaunch read-only mode, the tool is not listed or run, and off a call
+  to it is answered as one to a tool that does not exist.
 
   Base is `Autolaunch.BaseRpcStub` answering the launch's record as each case
   names it, and Robinhood Chain is `Autolaunch.RobinhoodBidChain`; the two
@@ -121,7 +125,9 @@ defmodule AutolaunchWeb.AgentFinishTest do
        %{agent: agent, robinhood: robinhood, wallet: wallet} do
     base_cases =
       for kind <- [:agent, :stocks], version <- [:v2, :v3] do
-        {auction!(kind: kind, contracts_version: version), fn -> base(version: version) end, 8453,
+        auction = auction!(kind: kind, contracts_version: version)
+
+        {auction, fn -> base(version: version, auction: auction.auction_address) end, 8453,
          @migration_block - 1, @migration_block}
       end
 
@@ -342,6 +348,137 @@ defmodule AutolaunchWeb.AgentFinishTest do
              )
   end
 
+  # A listed auction whose launchpad holds no launch can only come of the
+  # site's own records or descriptions, which no agent can mend.
+  test "a launchpad holding no launch for a listed auction is refused as finish_unavailable alike on both ways in, logged as launch_not_found, as the page reads no launch",
+       %{agent: agent, listed: listed, robinhood: robinhood, wallet: wallet} do
+    stocks = auction!(kind: :stocks)
+
+    cases = [
+      # Revstake's strategy answers an all-zero distribution for an address
+      # that is no auction of its own, and no lifecycle names 7.
+      {"Revstake lifecycle 0", listed, fn -> base(lifecycle: 0) end},
+      {"Revstake lifecycle 7", listed, fn -> base(lifecycle: 7) end},
+      # A Memestock launchpad numbers its launches from 1 and answers 0 for an
+      # address that is no auction of its own.
+      {"Memestock launch id 0", stocks,
+       fn -> base(launch_id: 0, auction: stocks.auction_address) end},
+      {"Memestock record of another auction", stocks, fn -> base(auction: @other) end},
+      {"Memestock lifecycle 0", stocks,
+       fn -> base(lifecycle: 0, auction: stocks.auction_address) end},
+      {"Memestock lifecycle 7", stocks,
+       fn -> base(lifecycle: 7, auction: stocks.auction_address) end},
+      {"Robinhood launch id 0", robinhood, fn -> robinhood(launch_id: 0) end},
+      {"Robinhood lifecycle 0", robinhood, fn -> robinhood(lifecycle: 0) end},
+      {"Robinhood lifecycle 7", robinhood, fn -> robinhood(lifecycle: 7) end}
+    ]
+
+    for {named, auction, arrange} <- cases do
+      arrange.()
+      assert FinishActions.read(auction) == {:error, :launch_not_found}, named
+
+      {{route, tool}, log} =
+        with_log(fn ->
+          {http(:post, path(auction.id), %{}, agent),
+           tool(agent, "prepare_finish", %{auction_id: auction.id})}
+        end)
+
+      assert route.status == 503 and route.body["error"]["code"] == "finish_unavailable",
+             "#{named} answered #{inspect(route.body)}"
+
+      assert tool == {:error, route.body}, named
+      assert log =~ "agent finish failed: launch_not_found", named
+      refute log =~ wallet
+    end
+  end
+
+  # The deployment descriptions are loaded as the site starts and hold while it
+  # runs, so an auction on a chain none of them names stays undescribed.
+  test "a listed auction on a chain no deployment description names is refused as chain_unavailable alike on both ways in, nothing read from any chain, the site's fault logged once",
+       %{agent: agent} do
+    undescribed = auction!(chain_id: 1, kind: :agent)
+    logged = {FinishActions, :undescribed, 1, :agent, :v2, :chain_not_described}
+    :persistent_term.erase(logged)
+    on_exit(fn -> :persistent_term.erase(logged) end)
+    chain_reads()
+
+    {answers, log} =
+      with_log(fn ->
+        for _read <- 1..2 do
+          {http(:post, path(undescribed.id), %{}, agent),
+           tool(agent, "prepare_finish", %{auction_id: undescribed.id}),
+           FinishActions.read(undescribed)}
+        end
+      end)
+
+    for {route, tool, read} <- answers do
+      assert route.status == 503 and route.body["error"]["code"] == "chain_unavailable",
+             inspect(route.body)
+
+      assert tool == {:error, route.body}
+      assert read == {:error, :chain_unavailable}
+    end
+
+    assert chain_reads() == []
+
+    assert [_once] =
+             Regex.scan(~r/no launchpad is described for agent v2 auctions on chain 1\b/, log)
+  end
+
+  test "switched on, the signed route refuses an unsigned request, an agent nobody paired, another's wallet and an id that is none, each in its own words, and answers a hidden auction byte for byte as a missing one",
+       %{agent: agent, listed: listed} do
+    chain_reads()
+
+    unsigned =
+      conn(:post, path(listed.id), Jason.encode!(%{}))
+      |> Map.put(:remote_ip, from())
+      |> put_req_header("content-type", "application/json")
+      |> @endpoint.call([])
+
+    # Refused before the route, in the sign-in's own words, nothing prepared.
+    assert unsigned.status == 401
+    assert %{"error" => %{"code" => "verification_failed"}} = body = json(unsigned)
+    refute Map.has_key?(body, "data")
+    assert chain_reads() == []
+
+    unpaired = http(:post, path(listed.id), %{}, random_wallet())
+    assert unpaired.status == 403 and unpaired.body["error"]["code"] == "agent_not_paired"
+
+    stranger = http(:post, path(listed.id), %{signer: @other}, agent)
+
+    assert stranger.status == 403 and
+             Map.take(stranger.body["error"], ~w(code message)) == %{
+               "code" => "wrong_signer",
+               "message" => "That wallet is not one of your person's own wallets."
+             }
+
+    for id <- ["nope", "1", Ecto.UUID.generate() <> "0"] do
+      malformed = http(:post, path(id), %{}, agent)
+
+      assert malformed.status == 422 and
+               Map.take(malformed.body["error"], ~w(code message)) == %{
+                 "code" => "invalid_request",
+                 "message" =>
+                   "Send the auction's id as autolaunch_auctions lists it, and only signer in the body, as text."
+               },
+             "#{id} answered #{inspect(malformed.body)}"
+    end
+
+    hidden = auction!(kind: :agent)
+    {:ok, _hidden} = Autolaunch.hide_auction(hidden, actor: system())
+
+    [hidden_answer, missing_answer] =
+      for id <- [hidden.id, Ecto.UUID.generate()], do: signed(:post, path(id), %{}, agent)
+
+    assert hidden_answer.status == 404 and missing_answer.status == 404
+
+    assert IO.iodata_to_binary(hidden_answer.resp_body) ==
+             IO.iodata_to_binary(missing_answer.resp_body)
+
+    assert get_resp_header(hidden_answer, "content-type") ==
+             get_resp_header(missing_answer, "content-type")
+  end
+
   test "a paired agent whose person's account cannot be read prepares nothing",
        %{listed: listed} do
     unread = %Agent{
@@ -422,10 +559,6 @@ defmodule AutolaunchWeb.AgentFinishTest do
       log
     end
 
-    # The launch record of a launch the launchpad does not hold.
-    base(lifecycle: 0)
-    assert refused.(listed) =~ "agent finish failed: CaseClauseError"
-
     # The site's Robinhood deployment description as it is held, naming none of
     # its contracts: a fault nobody named, which raises where the read reads one.
     robinhood([])
@@ -436,9 +569,14 @@ defmodule AutolaunchWeb.AgentFinishTest do
     assert refused.(robinhood) =~ "agent finish failed: KeyError"
     :persistent_term.erase(held)
 
-    # The auction's listing cannot be read.
+    # The auction's listing cannot be read: Ash's own error, which names the
+    # lost connection.
     base([])
     lose_reads_of("auctions")
+
+    assert {:error, %Ash.Error.Unknown{errors: [%Ash.Error.Unknown.UnknownError{}]}} =
+             Autolaunch.get_listed_auction(listed.id, actor: nil)
+
     assert refused.(listed) =~ "agent finish connection_lost"
     restore_reads_of("auctions")
 
@@ -467,7 +605,8 @@ defmodule AutolaunchWeb.AgentFinishTest do
       wrong_signer: :wrong_signer,
       auction_not_listed: :auction_not_found,
       auction_finished: :auction_finished,
-      chain_unavailable: :chain_unavailable
+      chain_unavailable: :chain_unavailable,
+      launch_not_found: :finish_unavailable
     }
 
     assert Map.new(codes, fn {reason, _code} -> {reason, AgentFinish.code(reason)} end) == codes
@@ -559,13 +698,21 @@ defmodule AutolaunchWeb.AgentFinishTest do
 
   # Base from now on, `changes` over the defaults: a launch of `version` still
   # running (`lifecycle`), read at the latest block `latest`, one block before
-  # its migration block.
+  # its migration block, the Memestock launchpad's `launch_id` for the auction
+  # and its record naming the auction at `auction`.
   defp base(changes) do
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, BaseRpcStub)
 
     state =
       Map.merge(
-        %{latest: @migration_block - 1, lifecycle: @running, version: :v2, answers?: true},
+        %{
+          latest: @migration_block - 1,
+          lifecycle: @running,
+          version: :v2,
+          answers?: true,
+          launch_id: @launch_id,
+          auction: "0x0"
+        },
         Map.new(changes)
       )
 
@@ -591,7 +738,13 @@ defmodule AutolaunchWeb.AgentFinishTest do
   defp base_answer(_call, %{answers?: false}), do: :unavailable
 
   defp base_answer(%{data: data}, state) do
-    held = %{lifecycle: state.lifecycle, migration_block: @migration_block}
+    "0x" <> auction = state.auction
+
+    held = %{
+      lifecycle: state.lifecycle,
+      migration_block: @migration_block,
+      auction: String.to_integer(auction, 16)
+    }
 
     cond do
       called?(data, "distribution(address)") ->
@@ -601,7 +754,7 @@ defmodule AutolaunchWeb.AgentFinishTest do
         |> words()
 
       called?(data, "launchIdOfAuction(address)") ->
-        BaseRpcStub.uint(@launch_id)
+        BaseRpcStub.uint(state.launch_id)
 
       called?(data, "launches(uint256)") ->
         StocksLabAbi.shape(state.version).record_fields

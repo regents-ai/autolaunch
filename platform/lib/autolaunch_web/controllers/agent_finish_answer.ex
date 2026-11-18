@@ -7,8 +7,9 @@ defmodule AutolaunchWeb.AgentFinishAnswer do
   (`body/1`, through `AutolaunchWeb.ToolErrors`).
 
   Every refusal is an `Autolaunch.AgentFinish.Refused` holding one of the codes
-  `Autolaunch.AgentFinish.code/1` gives, each with its own status and words for
-  an agent here; a finish not open yet names the block it opens at.
+  the agent finish contract documents (`Autolaunch.AgentFinish.Refused`), each
+  with its own status and words for an agent here; a finish not open yet names
+  the block it opens at.
   """
 
   import Phoenix.Controller, only: [json: 2]

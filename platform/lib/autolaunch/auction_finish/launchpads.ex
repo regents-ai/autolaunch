@@ -13,6 +13,13 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   - Base Memestock and Robinhood Memestock: the launchpad numbers the launches,
     holds them and finishes one with `migrate(uint256 launchId)`.
 
+  A launch the launchpad holds no record of is `:launch_not_found`: a record
+  whose lifecycle is 0 (no launch, as the strategy's all-zero distribution of an
+  address that is no auction of its own reads) or a number the lifecycle does
+  not name; on a Memestock launchpad also launch id 0, which `launchIdOfAuction`
+  answers for an address that is no auction of its own (the launchpads number
+  their launches from 1), and a launch whose record names another auction.
+
   Every record read here is a fixed tuple of words; the positions below are
   the deployed contracts' field order.
   """
@@ -26,6 +33,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias RegentChain.Address
 
   @scope "auction finisher"
 
@@ -45,20 +53,25 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @doc """
   The launchpad a listed auction runs on: the Robinhood one on Robinhood's
-  chain, otherwise Revstake for an agent auction and Memestock for a stocks
-  one, each of the auction's own contracts version.
+  chain, and on Base's, Revstake for an agent auction and Memestock for a
+  stocks one, each of the auction's own contracts version. An auction on any
+  other chain runs on no launchpad this site describes
+  (`:chain_not_described`).
   """
   def for_auction(%{chain_id: chain_id, kind: kind, contracts_version: version}) do
     cond do
       RobinhoodLab.chain?(chain_id) ->
         robinhood(RobinhoodLab.current(), version)
 
+      is_nil(chain_id) or chain_id != Lab.chain_id() ->
+        {:error, :chain_not_described}
+
       kind == :agent ->
         with {:ok, config} <- Lab.current(),
              {:ok, launch} <- Lab.contracts(config, version),
              do: {:ok, revstake(launch)}
 
-      true ->
+      kind == :stocks ->
         with {:ok, config} <- StocksLab.current(), do: memestock(config, version)
     end
   end
@@ -121,35 +134,49 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   def launch(pad, launch_id, block) do
     with {:ok, words} <-
-           words(pad, :contract, "launches(uint256)", [launch_id], pad.shape.record_words, block) do
-      launch = pad.records.record(pad.shape, words)
-
+           words(pad, :contract, "launches(uint256)", [launch_id], pad.shape.record_words, block),
+         launch = pad.records.record(pad.shape, words),
+         {:ok, state} <- finish_state(launch.lifecycle) do
       {:ok,
        %{
          auction: address(launch.auction),
          migration_block: launch.migration_block,
-         state: finish_state(launch.lifecycle)
+         state: state
        }}
     end
   end
 
   @doc """
   The launch of the auction at `auction`, as `launch/3` reads it, with the
-  launch id `migrate_call/2` names on a Memestock launchpad.
+  launch id `migrate_call/2` names on a Memestock launchpad, or
+  `:launch_not_found` when the launchpad holds none for that auction.
   """
   def launch_of_auction(%{launchpad: :base_revstake} = pad, auction, block),
     do: distribution(pad, auction, block)
 
   def launch_of_auction(pad, auction, block) do
-    with {:ok, launch_id} <-
-           Rpc.call_uint(
-             pad.contract,
-             LabAbi.encode(pad.abi, "launchIdOfAuction(address)", [auction]),
-             block,
-             pad.opts
-           ),
+    with {:ok, launch_id} <- launch_id_of_auction(pad, auction, block),
          {:ok, launch} <- launch(pad, launch_id, block),
+         :ok <- same_auction(launch, auction),
          do: {:ok, Map.put(launch, :launch_id, launch_id)}
+  end
+
+  # The launchpad numbers its launches from 1 and answers 0 for an address
+  # that is no auction of its own.
+  defp launch_id_of_auction(pad, auction, block) do
+    case Rpc.call_uint(
+           pad.contract,
+           LabAbi.encode(pad.abi, "launchIdOfAuction(address)", [auction]),
+           block,
+           pad.opts
+         ) do
+      {:ok, 0} -> {:error, :launch_not_found}
+      answered -> answered
+    end
+  end
+
+  defp same_auction(%{auction: recorded}, auction) do
+    if Address.equal?(recorded, auction), do: :ok, else: {:error, :launch_not_found}
   end
 
   # The strategy holds each Revstake auction's lifecycle and migration block.
@@ -162,14 +189,14 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
              [auction],
              LabAbi.distribution_words(),
              block
-           ) do
-      distribution = LabAbi.distribution(distribution)
-
+           ),
+         distribution = LabAbi.distribution(distribution),
+         {:ok, state} <- finish_state(distribution.lifecycle) do
       {:ok,
        %{
          auction: auction,
          migration_block: distribution.migration_block,
-         state: finish_state(distribution.lifecycle)
+         state: state
        }}
     end
   end
@@ -249,11 +276,14 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   defp address(word),
     do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(word, 16)), 40, "0")
 
-  # A recorded launch as the finisher keeps it: still running, or finished.
+  # A recorded launch as the finisher keeps it: still running, or finished. A
+  # lifecycle of no launch, or a number it does not name, is no launch here.
   defp finish_state(lifecycle) do
     case Lifecycle.fetch(lifecycle) do
-      {:ok, :active} -> :running
-      {:ok, finished} when finished in [:graduated, :failed] -> finished
+      {:ok, :active} -> {:ok, :running}
+      {:ok, finished} when finished in [:graduated, :failed] -> {:ok, finished}
+      {:ok, :none} -> {:error, :launch_not_found}
+      :error -> {:error, :launch_not_found}
     end
   end
 end

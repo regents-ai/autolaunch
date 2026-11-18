@@ -273,6 +273,51 @@ defmodule Autolaunch.AuctionFinishTest do
     assert [%{nonce: 0}, %{nonce: 1}] = transactions()
   end
 
+  # A recorded launch whose launchpad holds no record of it (lifecycle 0, or a
+  # number the lifecycle does not name) can only come of a deployment
+  # description naming another contract: the site's own fault, which no retry
+  # mends. The finisher sends nothing and names the reason; its job is tried
+  # once and discarded, and the row stays running for the next scheduled run.
+  test "a recorded launch the launchpad holds no record of is sent nothing and named; its job is tried once and discarded, the row kept running",
+       %{config: config} do
+    start_supervised!(
+      {Oban,
+       AshOban.config(
+         Application.fetch_env!(:autolaunch, :ash_domains),
+         Application.fetch_env!(:autolaunch, Oban)
+       )}
+    )
+
+    finish = running_launch(config, 1)
+
+    for lifecycle <- [0, 7] do
+      Chain.put(:lifecycle, lifecycle)
+      assert {:error, error} = finish!(finish)
+
+      assert Exception.message(error) =~
+               "could not finish base_memestock launch 1: :launch_not_found"
+    end
+
+    Chain.put(:lifecycle, 0)
+
+    # The scheduler's run succeeds; the one finish it queued is discarded.
+    assert %{success: 1, failure: 0, discard: 1} =
+             AshOban.Test.schedule_and_run_triggers({Autolaunch.AuctionFinish, :finish},
+               actor: @actor
+             )
+
+    assert [%{state: "discarded", attempt: 1, max_attempts: 1}] =
+             Repo.all(
+               from(job in Oban.Job,
+                 where: job.worker == "Autolaunch.AuctionFinish.Workers.Finish"
+               )
+             )
+
+    assert [] = transactions()
+    assert Chain.get(:broadcasts) == []
+    assert {:ok, %{state: :running}} = Ash.get(Autolaunch.AuctionFinish, finish.id, actor: @actor)
+  end
+
   defp running_launch(config, launch_id) do
     Autolaunch.record_auction_finish!(
       %{

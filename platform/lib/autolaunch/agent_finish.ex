@@ -18,15 +18,21 @@ defmodule Autolaunch.AgentFinish do
   may send it; the network fee is all it costs.
 
   The auction is one the site lists and shows, as its page reads it, known
-  before any chain is read. The page and the agent follow one rule for when a
-  finish is certain to revert (`FinishActions.read/1`'s `blocked`): while even
-  the launchpad clock's next step is before the launch's migration block it is
-  refused as `finish_not_open`, naming the block finishing opens at, and once
-  the launch is finished as `auction_finished`.
+  before any chain is read. The page and the agent follow one rule
+  (`FinishActions.read/1`'s `blocked`): read at the latest block, a finish that
+  would revert if sent at the launchpad clock's next step is refused, as
+  `finish_not_open`, naming the block finishing opens at, while that step is
+  before the launch's migration block, and as `auction_finished` once the
+  launch is finished.
 
   A refusal is an `Autolaunch.AgentFinish.Refused` holding one of the codes the
-  agent finish contract documents (`code/1`). Anything the read returns or
-  raises that is not a reason it names is logged by kind alone and answered
+  agent finish contract documents: the code `code/1` gives for a reason the
+  read, the listing, the wallet or the account names; `finish_not_open`, with
+  the block finishing opens at, for a launch whose migration block is still
+  ahead; or `invalid_request` for input the action does not take, which the
+  route and the hosted MCP server refuse before it runs
+  (`AutolaunchWeb.AgentFinishAnswer`, `AutolaunchWeb.ToolErrors`). Anything
+  else the read returns or raises is logged by kind alone and answered
   `finish_unavailable`.
 
   The site only prepares: the wallet's own key signs and sends the step, and
@@ -38,7 +44,6 @@ defmodule Autolaunch.AgentFinish do
     domain: Autolaunch,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Ash.Error.Invalid.Unavailable
   alias Autolaunch.AgentFinish.Refused
   alias Autolaunch.CoveredCalls.Signer
   alias Autolaunch.FinishActions
@@ -49,15 +54,18 @@ defmodule Autolaunch.AgentFinish do
   # auction the site lists and shows names no auction here. A finish on a
   # launch already finished is `auction_finished`; one while its migration
   # block is still ahead is refused with that block (`open/1`). A chain the
-  # read could not read, or a deployment description it could not load, is
-  # `chain_unavailable`, as on the auction page.
+  # read could not read, or a launchpad no deployment description names, is
+  # `chain_unavailable`, as on the auction page. A launchpad that holds no
+  # launch for an auction the site lists is the site's own fault, which the
+  # agent cannot mend: `finish_unavailable`, logged by kind alone.
   @codes %{
     authentication_required: :authentication_required,
     wallet_required: :wallet_required,
     wrong_signer: :wrong_signer,
     auction_not_listed: :auction_not_found,
     auction_finished: :auction_finished,
-    chain_unavailable: :chain_unavailable
+    chain_unavailable: :chain_unavailable,
+    launch_not_found: :finish_unavailable
   }
 
   # What each input of the hosted tool is, in the browser tool's words
@@ -121,9 +129,9 @@ defmodule Autolaunch.AgentFinish do
     end
   end
 
-  # The launch as the read finds it: one whose finish is not certain to revert
-  # is prepared. Before its migration block, the refusal names the block
-  # finishing opens at.
+  # The launch as the read finds it: one whose finish would not revert if sent
+  # at the clock's next step is prepared. Before its migration block, the
+  # refusal names the block finishing opens at.
   defp open(%{blocked: nil}), do: :ok
 
   defp open(%{blocked: :finish_not_open, migration_block: opens_at}),
@@ -132,11 +140,14 @@ defmodule Autolaunch.AgentFinish do
   defp open(%{blocked: :auction_finished}), do: {:error, :auction_finished}
 
   # A refusal holds the code of the reason it names (`code/1`), which Ash would
-  # otherwise turn into text (`AutolaunchWeb.AgentFinishAnswer`). One nobody
-  # named, or a raise, is logged by kind alone (`AutolaunchWeb.ReadFailure`).
+  # otherwise turn into text (`AutolaunchWeb.AgentFinishAnswer`). Every step
+  # but the listing names its reason as an atom; the listing's failed read is
+  # Ash's own error. One nobody named, or a raise, which the function's rescue
+  # catches as the backstop it is, is logged by kind alone
+  # (`AutolaunchWeb.ReadFailure`) and answered `finish_unavailable`, as a
+  # reason that maps there is (`code/1`).
   defp refused({:ok, _answer} = answered), do: answered
   defp refused({:error, %Refused{}} = refusal), do: refusal
-  defp refused({:error, %Unavailable{reason: reason}}), do: refused({:error, reason})
 
   defp refused({:error, reason}) do
     code = code(reason)
