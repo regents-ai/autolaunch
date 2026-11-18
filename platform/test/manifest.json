@@ -1,5 +1,5 @@
 {
-  "total": 539,
+  "total": 547,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6764,199 +6764,251 @@
       "source_sha256": "13364532a4e36a4810ccf4d3cde90276242247e13929aca09190af8fc8956f69"
     },
     {
+      "id": 671,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stake_actions_test.exs",
+      "line": 58,
+      "test_name": "a review binds to one of the signed-in account's own wallets: any other, or no session lease, is refused before any chain is read",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): the token page's staking review is made only for a wallet the signed-in account links, read inside its session lease. Another wallet is refused wrong_signer and a call with no lease session_lease_required, each before any chain is read, while the account's own wallet is reviewed from the chain.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "19ed5128a51ca16c810ef381aa8a9eda9e1ef6c558ba882b20c70691a84e609a"
+    },
+    {
+      "id": 672,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stake_actions_test.exs",
+      "line": 78,
+      "test_name": "a review reads what the wallet holds but not what it has claimed so far, which only the page's position shows",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): every stake, unstake, claim and settle review scanned the staking contract's whole claim history, which no review uses. Now no review asks for the staking contract's logs or carries what was claimed, while the page's position panel still reads and shows it. It fails if a review scans the history again or the position stops reading it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "19ed5128a51ca16c810ef381aa8a9eda9e1ef6c558ba882b20c70691a84e609a"
+    },
+    {
+      "id": 673,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stake_actions_test.exs",
+      "line": 99,
+      "test_name": "an action no staking contract offers, or one the launch's does not, is refused",
+      "keep_because": "A staking review for an action no staking contract offers, or for a convert or a release on a Base Revstake launch, whose staking contract offers neither, is refused unknown_action.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "19ed5128a51ca16c810ef381aa8a9eda9e1ef6c558ba882b20c70691a84e609a"
+    },
+    {
+      "id": 674,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stake_actions_test.exs",
+      "line": 116,
+      "test_name": "converting the Memestock launch's REGENT lane settles for 95% of the route's quote with the floor, and for any price without it, unasked",
+      "keep_because": "Converting a Base Memestock hook's REGENT lane, by the wallet the hook names: with the floor, the stock's route is asked for the amount's worth and the step accepts no less than 95% of it; without the floor the route is not asked and the step names no minimum; with no floor or one that is not true or false, nothing is reviewed. Each step's exact calldata on the hook.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "19ed5128a51ca16c810ef381aa8a9eda9e1ef6c558ba882b20c70691a84e609a"
+    },
+    {
       "id": 648,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 106,
+      "line": 114,
       "test_name": "each kind's steps are the token page's for the same wallet and Base Revstake token, alike on both ways in",
       "keep_because": "A paired agent's stake, unstake and claim steps, on its route and its hosted tool alike, are exactly the token page's steps and chain from the same read for the same wallet on a Base Revstake token: the token approval before a stake only when the allowance is short of the whole balance, the amount named unstaked, the locked position's collect before the claim, each step's exact calldata, with the block read at and the wallet's balance, stake and claimable amounts.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 649,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 187,
+      "line": 202,
       "test_name": "a claim with nothing waiting is still the page's steps, the claim paying nothing",
       "keep_because": "A claim with nothing waiting is prepared as the page prepares it, its collect and then its claim, with every claimable amount zero.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 650,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 198,
+      "line": 213,
       "test_name": "a Base Memestock token and a Robinhood Chain token are each read from their own chain, answered as the page is",
       "keep_because": "A Base Memestock token is read from its own launchpad on Base and a Robinhood Chain token from Robinhood Chain alone; when that chain cannot be read, both ways in answer chain_unavailable after the same reads the page's review makes.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 651,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 246,
+      "line": 429,
       "test_name": "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
       "keep_because": "A hidden token on Base or Robinhood Chain, a token the site does not list and an id naming none are answered alike as token_not_found, on both ways in and for every kind, before any chain is read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 652,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 277,
+      "line": 467,
       "test_name": "only the person's own wallets are prepared for: another of theirs is, any other is refused, as is another person's agent naming theirs",
       "keep_because": "Steps are prepared only for the person's own wallets: another of theirs, named in its checksummed letter case, is answered with its own figures; any other wallet is wrong_signer, as is another person's agent naming this person's wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 653,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 307,
+      "line": 497,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "Only the paired agent, or a connected app calling as it, may run the staking action; the person signed in, a connected app as itself, the site and nobody may not.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 654,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 325,
+      "line": 515,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent staking contract lists is reached on the route and the hosted tool alike, in a status and code the contract documents, among them the page's other staking actions, which are not offered here, and an amount sent with a stake or a claim or left out of an unstake; the account read and prelaunch refusals in their own cases.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 655,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 405,
+      "line": 597,
       "test_name": "switched on, the signed route refuses an unsigned request, an agent nobody paired, another's wallet and an id that is none, each in its own words, and answers a hidden token byte for byte as a missing one",
       "keep_because": "Switched on, the signed route refuses an unsigned request in the sign-in's own words with no chain read, and an agent nobody paired, another's wallet and an id that is none each in its own words; a hidden token is answered byte for byte as a missing one.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 656,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 460,
+      "line": 652,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "An agent whose person's account cannot be read is refused authentication_required and prepares nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 657,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 475,
+      "line": 667,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable",
       "keep_because": "A person's account the database cannot read as the request arrives is answered account_unavailable, as the contract documents.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 658,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 487,
+      "line": 679,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required",
       "keep_because": "A person whose wallet evidence has lapsed, or lists wallets with no primary among them, is refused wallet_required on both ways in, with or without a signer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 659,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 506,
+      "line": 698,
       "test_name": "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as stake_unavailable alike on both ways in",
       "keep_because": "A deployment description naming none of its contracts, which raises, a listing read that fails (Ash's own error, which names the lost connection) and any other error are logged by kind alone, never with the wallet, and answered stake_unavailable on both ways in.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 660,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 561,
+      "line": 753,
       "test_name": "each reason the review, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is stake_unavailable",
       "keep_because": "Each reason the staking review, the listing, the wallet and the account name has one code, each code one status and the same words on both ways in, documented by the contract; any other reason is stake_unavailable.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 661,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 602,
+      "line": 794,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "Before the site opens, the route answers prelaunch_read_only and the hosted tool is neither listed nor run.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 662,
       "group": "Agent staking",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_stake_test.exs",
-      "line": 616,
+      "line": 808,
       "test_name": "switched on a paired agent lists the tool as read-only; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent is listed prepare_stake as read-only; off, it is not listed and any call to it, well formed or not, is answered exactly as one to a tool that does not exist.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "867aa932e2aa6a77d9f21f70f63c99932a28413e57c590297181fa2235c48097"
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     },
     {
       "id": 663,
@@ -7009,6 +7061,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "91590db33dee492a064184a46a15bfb78b33fe1c4bf66166013446c02da3fd59"
+    },
+    {
+      "id": 667,
+      "group": "Agent staking",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_stake_test.exs",
+      "line": 255,
+      "test_name": "a Base Memestock claim with fees waiting for the stakers settles them, collects both locked positions, then claims, as the page's does",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): only Base Revstake staking was proved. A paired agent's claim on a Base Memestock token with fees waiting in the hook's staker lane is, on its route and hosted tool alike, exactly the token page's steps from the same read: the staker lane settled, the full-range and token-only positions collected, then the claim, each step's exact calldata, on chain 8453, with USDC, the token and the stock to claim.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
+    },
+    {
+      "id": 668,
+      "group": "Agent staking",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_stake_test.exs",
+      "line": 308,
+      "test_name": "a Robinhood Chain stake approves the whole balance and stakes it, as the page's does",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): only Base Revstake staking was proved. A paired agent's stake on a graduated Robinhood Chain token is, on its route and hosted tool alike, exactly the token page's steps from the same read: the exact token approval to the staking contract, then the stake of the whole balance, each step's exact calldata, on chain 4663, with USDG, the token and the stock to claim.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
+    },
+    {
+      "id": 669,
+      "group": "Agent staking",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_stake_test.exs",
+      "line": 355,
+      "test_name": "a node answering as another chain, or with a block header it cannot vouch for, is chain_unavailable on both ways in, as on the page",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): a node answering as another chain or with a block header the site cannot vouch for was answered stake_unavailable, the site's own fault. Now, on Base and Robinhood Chain, the page, the route and the hosted tool each answer chain_unavailable, as the agent bid tools do, the pool read itself naming the fault. It fails if either fault is answered as anything else.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
+    },
+    {
+      "id": 670,
+      "group": "Agent staking",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_stake_test.exs",
+      "line": 392,
+      "test_name": "an unstake amount that is no amount is refused before any chain is read, on the page and on both ways in; only one above the stake asks the chain",
+      "keep_because": "Review of the agent staking build (18 Nov 2026): an unstake amount that is not a decimal, is zero, is finer than 18 places or is more than the staking contract moves at once was refused only after the chain was read. Now the page, the route and the hosted tool refuse it reading no chain at all; only an amount above the stake asks the chain. It fails if any of them reads the chain first.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fb41abfa8e38b96969a7c79e867b2214ebddcc59b0f165d50208ea4448346627"
     }
   ],
   "legacy_folders_to_remove": [
