@@ -9,7 +9,7 @@ Every amount is a whole number: stock and tokens in raw token units (the stock's
 | List every series | `autolaunch_after_hour_stocks_list` | `autolaunch_after_hour_stocks_list` | `GET {{origin}}/api/v1/after-hour-stocks` |
 | Read one series | `autolaunch_after_hour_stocks_series` | `autolaunch_after_hour_stocks_series` | `GET {{origin}}/api/v1/after-hour-stocks/{series}` |
 | Read your person's holding (signed, paired) | `autolaunch_my_after_hour_stocks` | `autolaunch_my_after_hour_stocks` | `GET {{origin}}/api/agent/v1/after-hour-stocks/{series}/holdings` |
-| Prepare a step: mint, redeem, update or end (signed, paired) | `autolaunch_after_hour_stocks_prepare` | None | `POST {{origin}}/api/agent/v1/after-hour-stocks/{series}/steps` |
+| Prepare buy, sell, mint, redeem, update or end (signed, paired) | `autolaunch_after_hour_stocks_prepare` | `autolaunch_after_hour_stocks_prepare` | `POST {{origin}}/api/agent/v1/after-hour-stocks/{series}/steps` |
 
 The hosted MCP tools at `{{origin}}/mcp` take the same inputs, each under `input`, and give the HTTP answer's `data` as their result; a refusal is their error, with the same code and words.
 

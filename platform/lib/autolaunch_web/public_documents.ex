@@ -872,13 +872,14 @@ defmodule AutolaunchWeb.PublicDocuments do
     end)
   end
 
-  # The fixed pages the sitemaps list, with covered calls and Earn while the site
+  # The fixed pages the sitemaps list, with covered calls, Exposure and Earn while the site
   # offers them.
   defp sitemap_pages do
     on = ToolManifest.features()
 
     @sitemap_pages ++
       if("covered_calls" in on, do: ["/stock/covered-call"], else: []) ++
+      if("exposure" in on, do: ["/stock/isolated-afters"], else: []) ++
       if("earn" in on, do: ["/earn"], else: []) ++ AgentGuides.paths()
   end
 

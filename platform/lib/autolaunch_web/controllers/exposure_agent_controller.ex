@@ -11,6 +11,7 @@ defmodule AutolaunchWeb.ExposureAgentController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Exposure
+  alias AutolaunchWeb.{ApiError, Refusal}
   alias AutolaunchWeb.ExposureAnswer, as: Answer
 
   plug AutolaunchWeb.Plugs.AgentAccess
@@ -24,11 +25,26 @@ defmodule AutolaunchWeb.ExposureAgentController do
     case Answer.prepare_input(conn.body_params) do
       {:ok, input} ->
         kind = conn.body_params["kind"]
-        result = Exposure.prepare_exposure(series, kind, input, actor: conn.assigns.actor)
-        Answer.send(conn, result, :prepare)
+
+        series
+        |> Exposure.prepare_exposure_answer(kind, input, actor: conn.assigns.actor)
+        |> send_preparation(conn)
 
       :error ->
         Answer.refuse(conn, :invalid_request)
     end
   end
+
+  defp send_preparation({:ok, data}, conn), do: ApiError.answer(conn, {:ok, %{data: data}})
+
+  defp send_preparation({:error, %{errors: [%Refusal{} = refusal]}}, conn),
+    do: ApiError.answer(conn, {:error, refusal})
+
+  defp send_preparation({:error, %Ash.Error.Forbidden{}}, conn),
+    do: ApiError.answer(conn, {:error, AutolaunchWeb.Prelaunch.refusal()})
+
+  defp send_preparation({:error, %Ash.Error.Invalid{}}, conn),
+    do: Answer.refuse(conn, :invalid_request)
+
+  defp send_preparation({:error, error}, conn), do: Answer.send(conn, {:error, error}, :prepare)
 end

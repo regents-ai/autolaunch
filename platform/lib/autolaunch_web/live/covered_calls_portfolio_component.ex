@@ -34,7 +34,12 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   alias RegentChain.Address
 
   # Refusals that mean the chain could not be read just now.
-  @chain_unreadable [:chain_unavailable, :invalid_chain_response, :invalid_block_header]
+  @chain_unreadable [
+    :chain_unavailable,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :wrong_chain
+  ]
 
   @impl true
   def mount(socket),

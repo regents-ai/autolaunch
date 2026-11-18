@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.StockLive do
 
   alias Autolaunch.Stocks.UpcomingCatalog
   alias AutolaunchWeb.{NotFoundError, PublicDocuments, UsdValue}
+  alias RegentChain.Address
 
   def mount(%{"symbol" => symbol}, _session, socket) do
     case UpcomingCatalog.stock(symbol) do
@@ -24,7 +25,7 @@ defmodule AutolaunchWeb.StockLive do
         {:ok,
          socket
          |> assign(PublicDocuments.market_page(:stock, stock["name"], stock["symbol"]))
-         |> assign(stock: stock, chain: chain, covered_calls?: covered_calls?(stock))}
+         |> assign(stock: stock, chain: chain, covered_calls?: covered_calls?(stock, chain))}
     end
   end
 
@@ -44,8 +45,8 @@ defmodule AutolaunchWeb.StockLive do
       <p :if={@stock["status"]} class="upcoming-details__status">{@stock["status"]}</p>
       <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
       <p :if={@covered_calls?} class="upcoming-details__action">
-        <.link navigate={~p"/stock/covered-call"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
-        <span>Sell calls on your {@stock["symbol"]} for a premium, or buy them.</span>
+        <.link id="stock-covered-calls" navigate={~p"/stock/covered-call"} class="rg-button">Covered Calls</.link>
+        <span>Buy calls or list your {@stock["symbol"]}. Sellers receive the premium when a buyer fills the listing.</span>
       </p>
       <dl class="upcoming-details__facts">
         <dt>Token</dt>
@@ -58,7 +59,12 @@ defmodule AutolaunchWeb.StockLive do
           />
           <span :if={!@stock["token_address"]}>Not verified</span>
         </dd>
-        <.address label="Chainlink feed address" value={@stock["feed_address"]} id="feed" />
+        <.address
+          label="Chainlink feed address"
+          value={@stock["feed_address"]}
+          id="feed"
+          chain={@chain.chain}
+        />
         <dt>Feed verification</dt><dd>{feed_note(@stock)}</dd>
         <dt>Company URL</dt>
         <dd>
@@ -75,7 +81,12 @@ defmodule AutolaunchWeb.StockLive do
           }>Not available</span>
         </dd>
       </dl>
-      <.pool :for={{pool, index} <- Enum.with_index(@stock["pools"], 1)} pool={pool} index={index} />
+      <.pool
+        :for={{pool, index} <- Enum.with_index(@stock["pools"], 1)}
+        pool={pool}
+        index={index}
+        chain={@chain.chain}
+      />
       <p :if={@stock["pools"] == []} class="upcoming-details__note">
         Pool 1: address and liquidity not available.
       </p>
@@ -83,15 +94,20 @@ defmodule AutolaunchWeb.StockLive do
     """
   end
 
-  # Covered calls are offered for a stock only while they are switched on and
-  # its market is described.
-  defp covered_calls?(stock),
-    do:
-      Autolaunch.CoveredCalls.Deployment.enabled?() and
-        match?({:ok, _}, Autolaunch.CoveredCalls.Deployment.market(stock["symbol"]))
+  # The covered-calls page opens the deployment's first market.
+  defp covered_calls?(%{"symbol" => symbol, "token_address" => address}, %{chain: :base})
+       when is_binary(address) do
+    case Autolaunch.CoveredCalls.Deployment.current() do
+      {:ok, %{markets: [%{symbol: ^symbol, stock: token} | _]}} -> Address.equal?(address, token)
+      _unavailable -> false
+    end
+  end
+
+  defp covered_calls?(_stock, _chain), do: false
 
   attr :pool, :map, required: true
   attr :index, :integer, required: true
+  attr :chain, :atom, required: true
 
   defp pool(assigns) do
     ~H"""
@@ -109,14 +125,17 @@ defmodule AutolaunchWeb.StockLive do
           label={if @pool["kind"] == "v4", do: "Onchain pool ID", else: "Onchain pool address"}
           value={@pool["identifier"]}
           id={"pool-#{@index}"}
+          chain={@chain}
+          kind={if @pool["kind"] == "v4", do: "id", else: "address"}
         />
         <.address
           :if={@pool["kind"] == "v4"}
           label="PoolManager address"
           value={@pool["manager"]}
           id={"manager-#{@index}"}
+          chain={@chain}
         />
-        <dt>Liquidity depth</dt><dd>{liquidity(@pool["liquidity_usd"])}</dd>
+        <dt>Observed liquidity</dt><dd>{liquidity(@pool["liquidity_usd"])}</dd>
         <dt>Observed</dt><dd>
           {@pool["observed_at"] || "Date not available"}<span :if={@pool["historical"]}> · Historical; current depth unknown</span>
         </dd>
@@ -128,19 +147,21 @@ defmodule AutolaunchWeb.StockLive do
   attr :label, :string, required: true
   attr :value, :string, default: nil
   attr :id, :string, required: true
+  attr :chain, :atom, required: true
+  attr :kind, :string, default: "address"
 
   defp address(assigns) do
     ~H"""
     <dt>{@label}</dt>
     <dd class="upcoming-details__address">
-      <code :if={@value}>{@value}</code>
-      <Regent.Primitives.copy_button
+      <Regent.Primitives.address
         :if={@value}
-        id={"copy-#{@id}"}
-        text={@value}
-        variant="quiet"
-        aria-label={"Copy #{@label}"}
-      >Copy</Regent.Primitives.copy_button>
+        id={"stock-#{@id}"}
+        address={@value}
+        chain={Atom.to_string(@chain)}
+        kind={@kind}
+        variant="full"
+      />
       <span :if={!@value}>Not verified</span>
     </dd>
     """

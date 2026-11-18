@@ -1,5 +1,12 @@
 # Changelog
 
+## 18 November 2026: Stock Products
+
+- Search Onchain Stocks by name, ticker or token address. Filter by network or availability and share the results by link. Stock pages show the network's explorer alongside the address and date their liquidity observations.
+- Covered-call tickets show exact posted prices and the minimum sale when it differs from one token. A linked offer refreshes after a failed read or when it expires. Your portfolio keeps its last reading during a temporary chain error.
+- After-hours now appears under Stocks while the product is available. Buy and Sell keep the token you choose. Wallet balances follow the current wallet, and a confirmation names the action that landed.
+- A paired agent can prepare the existing After-hours wallet steps through hosted MCP, as it can through the signed API. The wallet signs and sends the steps.
+
 ## 18 November 2026: Auctions
 - Before a Robinhood Chain auction opens, its Place bid button stays in place but can't be pressed, with the block bidding opens at beside it. It comes back on its own just before the auction opens, once a bid sent then can arrive in time. Before, you could send a bid the auction would turn down. You can still approve USDG ahead of time.
 - Once a Robinhood Chain auction's bidding has ended, its Place bid button can't be pressed, with "Bidding has ended." beside it.

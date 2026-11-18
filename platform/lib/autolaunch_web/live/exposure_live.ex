@@ -826,7 +826,10 @@ defmodule AutolaunchWeb.ExposureLive do
       [
         series: if(series.address != List.last(all), do: series.address),
         tab: value,
-        leg: if(tab in [:buy, :sell] and leg == :session, do: "market-hours")
+        leg:
+          if(tab in [:buy, :sell],
+            do: %{overnight: "after-hours", session: "market-hours"}[leg]
+          )
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 

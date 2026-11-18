@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "switched off, the page is not found and the stock page offers no covered calls",
        %{conn: conn} do
     {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/stock/covered-call") end)
-    refute conn |> get("/stocks/AMZNc") |> html_response(200) =~ "Covered calls on"
+    refute conn |> get("/stocks/AMZNc") |> html_response(200) =~ ~s(id="stock-covered-calls")
   end
 
   test "the Buy tab lists only calls still for sale, with the amount left", %{conn: conn} do
@@ -48,13 +48,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert html =~ "$260.00"
     assert html =~ "6 AMZNc"
 
-    assert conn |> get("/stocks/AMZNc") |> html_response(200) =~ "Covered calls on AMZNc"
+    assert conn |> get("/stocks/AMZNc") |> html_response(200) =~ ~s(id="stock-covered-calls")
   end
 
   test "the stock page's link loads the page fresh at its own address", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/stocks/AMZNc")
-    assert has_element?(view, "a[href='/stock/covered-call']", "Covered calls on AMZNc")
+    assert has_element?(view, "#stock-covered-calls[href='/stock/covered-call']")
 
     # A page in another live session is loaded fresh, not swapped in over the socket.
     assert {:error, {:redirect, %{to: "http://www.example.com/stock/covered-call"}}} =
@@ -852,6 +852,33 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       assert has_element?(view, "#covered-calls-listing-note")
       refute has_element?(view, "[id^=covered-call-buy-]")
     end
+  end
+
+  test "a linked listing outside the book closes at its own expiry", %{conn: conn} do
+    expiry = CoveredCallsChain.now() + 60
+    listing = CoveredCallsChain.listing(%{expiry: expiry, filled: 10 * @unit - 40_000_000})
+    CoveredCallsChain.install(%{listings: [listing]})
+
+    {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
+    settled(view)
+    assert has_element?(view, "#covered-call-buy-1-unlisted")
+
+    Autolaunch.BaseRpcStub.put(%{
+      blocks: %{
+        "latest" => %{
+          "number" => "0x21",
+          "hash" => Autolaunch.BaseRpcStub.safe_hash(),
+          "timestamp" => "0x" <> Integer.to_string(expiry, 16)
+        }
+      }
+    })
+
+    due = :sys.get_state(view.pid).socket.assigns.due
+    assert is_reference(due)
+    send(view.pid, {:timeout, due, :covered_calls_due})
+    settled(view)
+    refute has_element?(view, "#covered-call-buy-1-unlisted")
+    assert has_element?(view, "#covered-calls-listing-note")
   end
 
   test "the Sell tab lists the open bids under the ticket, with what each still wants",

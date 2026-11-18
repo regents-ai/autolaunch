@@ -9,7 +9,7 @@ defmodule Autolaunch.Exposure do
 
   use Ash.Domain, otp_app: :autolaunch, extensions: [AshAi]
 
-  # The hosted MCP tools: the three reads, each the browser tool of the same
+  # The hosted MCP tools, each the browser tool of the same
   # name, with that tool's title and words from priv/exposure_tools.json, less
   # how a browser host signs (`AutolaunchWeb.Capabilities` checks their inputs).
   @tools_path Application.app_dir(:autolaunch, "priv/exposure_tools.json")
@@ -48,6 +48,14 @@ defmodule Autolaunch.Exposure do
       description @browser_tools["autolaunch_my_after_hour_stocks"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
+
+    tool :autolaunch_after_hour_stocks_prepare,
+         Autolaunch.Exposure.Series,
+         :prepare_exposure_answer do
+      title(@browser_tools["autolaunch_after_hour_stocks_prepare"]["title"])
+      description @browser_tools["autolaunch_after_hour_stocks_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
   end
 
   resources do
@@ -56,6 +64,7 @@ defmodule Autolaunch.Exposure do
       define :exposure_series, action: :series, args: [:series]
       define :exposure_holdings, action: :holdings, args: [:series]
       define :prepare_exposure, action: :prepare, args: [:series, :kind]
+      define :prepare_exposure_answer, args: [:series, :kind]
     end
   end
 end

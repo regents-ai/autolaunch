@@ -8,6 +8,8 @@ The exercise window runs from the Friday expiry at 21:00:00 UTC up to, and not i
 
 Every answer names the stock in `market`: its `symbol`, `issuer`, `chain` and `chain_id`, the `stock` token's address and the covered-calls `contract`'s address.
 
+Sellers with stock on the first AMZNc market can claim it on the [original Base contract](https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E#writeContract). Under **Write Contract**, select **claim**, enter the original listing number and use the wallet that made the listing.
+
 Every amount is a whole number: stock in raw token units (the book's `unit` is one whole token), prices and USDC in micro-USDC (6 decimals), times in Unix seconds.
 
 A quote gives the reference price, the next four expiries with their exercise windows, and three suggested strikes above the reference price, each with a suggested premium. For the strike and premium you choose (the middle suggestion and its premium when you leave them out) and an `amount`, its `receipt` says what the listing pays if all of it is bought at once and all of it exercised: the premium, the 1% fee, what the seller keeps and the strike, each exactly what the contract counts, so it matches the steps you prepare for the same listing. Beside them, `net_premium_yield` is what the seller keeps as a share of the stock's worth for the term, and `term_days` is that term: the whole days to the expiry.

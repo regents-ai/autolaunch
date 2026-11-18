@@ -14,15 +14,44 @@ defmodule AutolaunchWeb.UpcomingLive do
   import AutolaunchWeb.Components.StockIdentity, only: [stock_identity: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
+  alias Autolaunch.Search
   alias Autolaunch.Stocks.UpcomingCatalog
 
+  @impl true
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/stocks"))
-     |> assign(chains: UpcomingCatalog.chains())}
+    {:ok, assign(socket, AutolaunchWeb.PublicDocuments.page("/stocks"))}
   end
 
+  @impl true
+  def handle_params(params, _uri, socket) do
+    filters = filters(params)
+    chains = UpcomingCatalog.search(filters.q, filters.chain, filters.availability)
+
+    count =
+      Enum.sum_by(chains, fn chain ->
+        length(chain.available) + length(chain.eligible) + length(chain.feed_required)
+      end)
+
+    {:noreply, assign(socket, filters: filters, chains: chains, count: count)}
+  end
+
+  @impl true
+  def handle_event("filter", params, socket) do
+    query = params |> filters() |> Enum.reject(fn {_name, value} -> value == "" end)
+    {:noreply, push_patch(socket, to: ~p"/stocks?#{query}")}
+  end
+
+  defp filters(params) do
+    %{
+      q: Search.normalize(params["q"]),
+      chain: choice(params["chain"], ~w(base robinhood)),
+      availability: choice(params["availability"], ~w(available soon feed_required))
+    }
+  end
+
+  defp choice(value, allowed), do: if(value in allowed, do: value, else: "")
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="fact-page upcoming">
@@ -35,7 +64,55 @@ defmodule AutolaunchWeb.UpcomingLive do
         only={~w(memestock calls)}
       />
 
-      <section class="fact-page__section" aria-labelledby="upcoming-eligible">
+      <form
+        id="stock-directory-filters"
+        class="upcoming__filters"
+        phx-submit="filter"
+        action={~p"/stocks"}
+        method="get"
+      >
+        <label>
+          <span>Search stocks</span>
+          <input type="search" name="q" value={@filters.q} placeholder="Name, ticker or address" />
+        </label>
+        <label>
+          <span>Network</span>
+          <select name="chain">
+            <option value="" selected={@filters.chain == ""}>All networks</option>
+            <option value="base" selected={@filters.chain == "base"}>Base</option>
+            <option value="robinhood" selected={@filters.chain == "robinhood"}>Robinhood</option>
+          </select>
+        </label>
+        <label>
+          <span>Availability</span>
+          <select name="availability">
+            <option value="" selected={@filters.availability == ""}>All stocks</option>
+            <option value="available" selected={@filters.availability == "available"}>
+              Available to Pair
+            </option>
+            <option value="soon" selected={@filters.availability == "soon"}>Soon Available</option>
+            <option value="feed_required" selected={@filters.availability == "feed_required"}>
+              Feed Required
+            </option>
+          </select>
+        </label>
+        <button class="rg-button" type="submit">Apply</button>
+        <.link
+          :if={@filters.q != "" or @filters.chain != "" or @filters.availability != ""}
+          patch={~p"/stocks"}
+        >Reset</.link>
+      </form>
+      <p id="stock-directory-count" role="status">
+        {if @count == 0,
+          do: "No stocks match these filters.",
+          else: "#{@count} #{if @count == 1, do: "stock", else: "stocks"}"}
+      </p>
+
+      <section
+        :if={@count > 0 and @filters.availability in ["", "soon"]}
+        class="fact-page__section"
+        aria-labelledby="upcoming-eligible"
+      >
         <h2 id="upcoming-eligible">Soon Available</h2>
         <div class="upcoming__columns">
           <.column
@@ -47,7 +124,11 @@ defmodule AutolaunchWeb.UpcomingLive do
         </div>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="upcoming-available">
+      <section
+        :if={@count > 0 and @filters.availability in ["", "available"]}
+        class="fact-page__section"
+        aria-labelledby="upcoming-available"
+      >
         <h2 id="upcoming-available" class="upcoming__pairing">
           <span>Available to Pair:</span>
           <a href="/create" class="standalone-link">Memestock</a>
@@ -69,7 +150,11 @@ defmodule AutolaunchWeb.UpcomingLive do
         </div>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="upcoming-feed-required">
+      <section
+        :if={@count > 0 and @filters.availability in ["", "feed_required"]}
+        class="fact-page__section"
+        aria-labelledby="upcoming-feed-required"
+      >
         <h2 id="upcoming-feed-required">Feed Required</h2>
         <div class="upcoming__columns">
           <.column

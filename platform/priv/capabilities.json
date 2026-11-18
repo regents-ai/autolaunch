@@ -267,9 +267,10 @@
       "operation": "autolaunch_after_hour_stocks_prepare",
       "authority": "paired_agent",
       "switch": "exposure",
+      "hosted_tool": "autolaunch_after_hour_stocks_prepare",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }

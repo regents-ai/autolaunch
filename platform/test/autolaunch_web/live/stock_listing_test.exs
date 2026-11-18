@@ -68,4 +68,52 @@ defmodule AutolaunchWeb.StockListingTest do
     {404, _headers, _body} =
       assert_error_sent(404, fn -> get(conn, "/stocks/NOTASTOCK") end)
   end
+
+  test "stock filters are shareable and retain the published availability groups", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/stocks")
+
+    view |> form("#stock-directory-filters", %{"q" => "apple"}) |> render_submit()
+    assert_patch(view, "/stocks?q=apple")
+    assert has_element?(view, "[aria-labelledby=upcoming-available-base] a[href='/stocks/AAPLc']")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-robinhood] a[href='/stocks/AAPL']"
+           )
+
+    render_patch(view, "/stocks?q=apple&chain=base&availability=available")
+    assert has_element?(view, "[aria-labelledby=upcoming-available-base] a[href='/stocks/AAPLc']")
+    refute has_element?(view, "a[href='/stocks/AAPL']")
+    refute has_element?(view, "#upcoming-feed-required")
+
+    render_patch(view, "/stocks?q=ASML&chain=robinhood")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-eligible-robinhood] a[href='/stocks/ASML']"
+           )
+
+    refute has_element?(view, "#upcoming-available a[href='/stocks/ASML']")
+
+    render_patch(view, "/stocks?q=unlisted-example")
+    assert has_element?(view, "#stock-directory-count", "No stocks match")
+    view |> element("#stock-directory-filters a", "Reset") |> render_click()
+    assert_patch(view, "/stocks")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-robinhood] a[href='/stocks/AAPL']"
+           )
+
+    assert has_element?(view, "#upcoming-feed-required")
+  end
+
+  test "a token address finds the stock detail without changing its network", %{conn: conn} do
+    {stock, _chain} = UpcomingCatalog.stock("AAPLc")
+    {:ok, view, _html} = live(conn, "/stocks?q=#{stock["token_address"]}")
+
+    assert has_element?(view, "#stock-directory-count", "1 stock")
+    assert has_element?(view, "[aria-labelledby=upcoming-available-base] a[href='/stocks/AAPLc']")
+    refute has_element?(view, "a[href='/stocks/AAPL']")
+  end
 end

@@ -58,6 +58,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # suggested premium.
   @ticket %{"amount" => "", "expiry" => nil, "strike" => "1", "custom" => "", "premium" => nil}
   @presets ~w(0 1 2)
+  @max_offer_id 2 ** 256 - 1
 
   def mount(_params, _session, socket) do
     with true <- Deployment.enabled?(),
@@ -117,6 +118,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # shared book is taken anew unless it was taken in the last ten seconds.
   def handle_event("refresh", _params, socket) do
     Autolaunch.ChainRefresh.request(socket.assigns.chain_id)
+
+    socket =
+      case socket.assigns.linked do
+        %{result: {:error, reason}}
+        when reason in [
+               :chain_unavailable,
+               :invalid_chain_response,
+               :invalid_block_header,
+               :wrong_chain
+             ] ->
+          assign(socket, linked: nil)
+
+        _linked ->
+          socket
+      end
+
     {:noreply, read_book(socket)}
   end
 
@@ -167,10 +184,19 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # A listing's or bid's expiry or a scheduled multiplier change came: the shared book
   # is taken anew unless it was taken in the last ten seconds, and the page
   # and its panels read it, so a button the chain held back comes back.
-  def handle_info(:covered_calls_due, socket) do
+  def handle_info({:timeout, ref, :covered_calls_due}, %{assigns: %{due: ref}} = socket) do
     Book.refresh(socket.assigns.chain_id)
-    {:noreply, read_book(socket)}
+
+    socket =
+      case socket.assigns.linked do
+        %{result: {:ok, _offer}} = linked -> assign(socket, linked: %{linked | read_at: nil})
+        _linked -> socket
+      end
+
+    {:noreply, read_book(assign(socket, due: nil))}
   end
+
+  def handle_info({:timeout, _old_ref, :covered_calls_due}, socket), do: {:noreply, socket}
 
   # A panel's last step landed; the page says what moved, and a listing or bid
   # made leaves its ticket ready for the next one on the same terms.
@@ -188,19 +214,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_async(:book, {:ok, {:ok, book}}, socket) do
-    if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
-
-    open = Enum.map(book.listings ++ book.bids, & &1.expiry)
-    wait = Terms.next_wait([book.effective_at | open], book.now)
-
     {:noreply,
      socket
-     |> assign(
-       book: AsyncResult.ok(socket.assigns.book, book),
-       due: wait && Process.send_after(self(), :covered_calls_due, (wait + 5) * 1_000)
-     )
+     |> assign(book: AsyncResult.ok(socket.assigns.book, book))
      |> read_quote()
-     |> read_linked()}
+     |> read_linked()
+     |> schedule_due()}
   end
 
   def handle_async(:book, {:ok, {:error, error}}, socket),
@@ -220,7 +239,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         {:error, error} -> {:error, CoveredCalls.reason(error)}
       end
 
-    {:noreply, linked(socket, kind, id, answer)}
+    {:noreply, socket |> linked(kind, id, answer) |> schedule_due()}
   end
 
   def handle_async(:linked, {:exit, _reason}, %{assigns: %{linked: linked}} = socket)
@@ -281,9 +300,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # `:unknown` for one that isn't a number the contract can have.
   defp chosen(nil), do: nil
 
-  defp chosen(text) when is_binary(text) do
+  defp chosen(text) when is_binary(text) and byte_size(text) <= 79 do
     case Integer.parse(text) do
-      {id, ""} when id > 0 -> id
+      {id, ""} when id in 1..@max_offer_id -> id
       _not_a_number -> :unknown
     end
   end
@@ -360,6 +379,45 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   defp read_linked(socket), do: socket
+
+  defp schedule_due(%{assigns: %{book: %AsyncResult{ok?: true, result: book}}} = socket) do
+    if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
+
+    deadlines = [
+      deadline([book.effective_at | Enum.map(book.listings ++ book.bids, & &1.expiry)], book)
+    ]
+
+    deadlines =
+      case socket.assigns.linked do
+        %{kind: kind, result: {:ok, %{record: record, now: now} = reading}} ->
+          if open?(kind, record, now),
+            do: [deadline([record.expiry], reading) | deadlines],
+            else: deadlines
+
+        _linked ->
+          deadlines
+      end
+
+    next = deadlines |> Enum.reject(&is_nil/1) |> Enum.min(fn -> nil end)
+
+    assign(socket,
+      due:
+        next &&
+          :erlang.start_timer(
+            max(1_000, next - System.os_time(:millisecond)),
+            self(),
+            :covered_calls_due
+          )
+    )
+  end
+
+  defp schedule_due(socket), do: socket
+
+  # A kept reading keeps its original deadline, even when refreshed by the page.
+  defp deadline(times, %{now: now, read_at: read_at}) do
+    if wait = Terms.next_wait(times, now),
+      do: DateTime.to_unix(read_at, :millisecond) + (wait + 5) * 1_000
+  end
 
   defp unlisted_link(%{tab: :sell, bid: id}, book) when is_integer(id),
     do: unlisted_link(:bid, id, book.bids)
@@ -643,9 +701,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </thead>
             <tbody :for={listing <- @open} id={"covered-call-#{listing.id}"}>
               <tr class={@selected == listing.id && "covered-calls__chosen"}>
-                <td data-label="Strike">{F.usd(listing.strike_per_token)}</td>
+                <td data-label="Strike">{F.unit_price(listing.strike_per_token)}</td>
                 <td data-label="Premium">
-                  {F.usd(listing.premium_per_token)} <small>per {@market.symbol}</small>
+                  {F.unit_price(listing.premium_per_token)} <small>per {@market.symbol}</small>
                 </td>
                 <td data-label="Exercise window">{F.window(listing.expiry)}</td>
                 <td data-label="Available">
@@ -771,14 +829,17 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </thead>
             <tbody :for={bid <- @bids} id={"covered-call-bids-#{bid.id}"}>
               <tr class={@bid == bid.id && "covered-calls__chosen"}>
-                <td data-label="Strike">{F.usd(bid.strike_per_token)}</td>
+                <td data-label="Strike">{F.unit_price(bid.strike_per_token)}</td>
                 <td data-label="Premium">
-                  {F.usd(bid.premium_per_token)} <small>per {@market.symbol}</small>
+                  {F.unit_price(bid.premium_per_token)} <small>per {@market.symbol}</small>
                 </td>
                 <td data-label="Exercise window">{F.window(bid.expiry)}</td>
                 <td data-label="Wanted">
                   {F.tokens(Terms.available(bid), @reading.unit)} {@market.symbol}
                   <small>{shares(Terms.available(bid), @reading)}</small>
+                  <small :if={Terms.least_sale(bid) != @reading.unit}>
+                    Min {F.tokens(Terms.least_sale(bid), @reading.unit)} {@market.symbol}
+                  </small>
                 </td>
                 <td class="covered-calls__row-action">
                   <.link
@@ -1398,7 +1459,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             disabled={is_nil(preset)}
             strike={preset && F.plain_usd(preset.strike_per_token)}
           >
-            <span>{F.usd(preset && preset.strike_per_token)}</span>
+            <span>{F.unit_price(preset && preset.strike_per_token)}</span>
             <small>{above(preset)}</small>
           </:pill>
           <:pill value="custom" event={"#{@name}_strike"} name="strike" strike="custom">
@@ -1680,7 +1741,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             <div>
               <dt>Strike</dt>
               <dd id={"#{@id}-strike"}>
-                {F.usd(@listing.strike_per_token)} <small>per {@symbol}</small>
+                {F.unit_price(@listing.strike_per_token)} <small>per {@symbol}</small>
               </dd>
             </div>
             <div>
@@ -1801,21 +1862,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp quote_refusal(:price_unavailable), do: "No reference price right now"
   defp quote_refusal(_unavailable), do: "The price couldn't be read"
 
-  # A sale of `amount` into `bid` when its strike plus its premium is under
+  # A sale of `amount` into `bid` when the strike plus its net premium is under
   # the reference price: what the seller ends with if it is exercised (the
   # premium less the fee, and the strike), and what that stock is priced at.
   # Nil when the bid is at or over the price, or there is no reference price.
   defp under_price(bid, amount, reading) do
     spot = spot(reading)
 
-    if spot && bid.strike_per_token + bid.premium_per_token < spot do
-      %{
-        tokens: F.tokens(amount, reading.unit),
-        receive:
-          Terms.usdc_for(amount, bid.strike_per_token, reading.unit) +
-            Terms.sale(bid, amount, reading.unit).receive,
-        worth: div(amount * spot, reading.unit)
-      }
+    if spot do
+      receive =
+        Terms.usdc_for(amount, bid.strike_per_token, reading.unit) +
+          Terms.sale(bid, amount, reading.unit).receive
+
+      worth = div(amount * spot, reading.unit)
+
+      if receive < worth,
+        do: %{tokens: F.tokens(amount, reading.unit), receive: receive, worth: worth}
     end
   end
 
@@ -1959,7 +2021,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   defp live_words(offer, name, reading, symbol),
     do:
-      "#{name} #{F.usd(offer.premium_per_token)} · #{F.tokens(Terms.available(offer), reading.unit)} #{symbol}"
+      "#{name} #{F.unit_price(offer.premium_per_token)} · #{F.tokens(Terms.available(offer), reading.unit)} #{symbol}"
 
   defp age(seconds) when seconds >= 2 * 86_400, do: "updated #{div(seconds, 86_400)} days ago"
   defp age(seconds) when seconds >= 2 * 3_600, do: "updated #{div(seconds, 3_600)} hours ago"

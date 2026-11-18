@@ -33,6 +33,37 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
     end)
   end
 
+  @doc "Filters the published directory without changing its groups or their order."
+  def search(query, network, availability) do
+    terms = query |> String.downcase() |> String.split()
+
+    for %{chain: chain} = column <- chains(), network in ["", Atom.to_string(chain)] do
+      %{
+        column
+        | available: matching(column.available, terms, availability in ["", "available"]),
+          eligible: matching(column.eligible, terms, availability in ["", "soon"]),
+          feed_required:
+            matching(column.feed_required, terms, availability in ["", "feed_required"])
+      }
+    end
+  end
+
+  defp matching(stocks, terms, true), do: Enum.filter(stocks, &matches?(&1, terms))
+  defp matching(_stocks, _terms, false), do: []
+
+  defp matches?(_stock, []), do: true
+
+  defp matches?(stock, terms) do
+    fields =
+      stock
+      |> Map.take(~w(name symbol ticker chain token_address))
+      |> Map.values()
+      |> Enum.filter(&is_binary/1)
+      |> Enum.map(&String.downcase/1)
+
+    Enum.all?(terms, fn term -> Enum.any?(fields, &String.contains?(&1, term)) end)
+  end
+
   @doc """
   One stock by its symbol, in any case, with where it stands and its chain's
   name and key, as `chains/0` gives them; nil for a symbol the catalog does
