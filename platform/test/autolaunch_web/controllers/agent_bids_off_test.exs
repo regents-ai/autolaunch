@@ -2,11 +2,12 @@ defmodule AutolaunchWeb.AgentBidsOffTest do
   @moduledoc """
   With agent bids switched off, as every environment starts, the site is what
   it was before them: each agent bid address answers as an address with
-  nothing at it, `/openapi.json` carries none of their contract, and no agent
-  document or page names them. Switched on, the agent documents name them,
-  every page registers their browser tools, the site map and API catalog are
-  unchanged, and the contract gains their own paths and components and nothing
-  else.
+  nothing at it, `/openapi.json` carries none of their contract, no agent
+  document or page names them, and every guide says bidding and settlement stay
+  with the person. Switched on, the agent documents name them, every page
+  registers their browser tools, no guide says an agent cannot prepare a bid or
+  its settlement, the site map and API catalog are unchanged, and the contract
+  gains their own paths and components and nothing else.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -17,6 +18,18 @@ defmodule AutolaunchWeb.AgentBidsOffTest do
   @named ~r{\bprepare_bid(_settlement)?\b|\bautolaunch_bid_(settlement_)?prepare\b|/api/agent/v1/bids\b|\bAgent bids\b}
   @documents ~w(/llms.txt /llms-full.txt /agents.md /skill.md /openapi.json /capabilities.json /.well-known/api-catalog /sitemap.xml /sitemap.md)
   @pages ~w(/ /auctions /tokens /stocks /how-it-works /regent /docs /about)
+  # Each guide's Markdown, and the ways a guide says that bidding or settling
+  # is not for agents.
+  @guides ~w(/ /docs /llms.txt /llms-full.txt /agents.md /skill.md)
+  @not_for_agents [
+    ~r/\b(bidding|settlement)\b[^.]*\bremain person-controlled/i,
+    ~r/no agent tool or command\s+does them/i,
+    ~r/no agent command claims, withdraws or\s+bids\./i,
+    ~r/\b(wallet|financial) and launch controls\b[^.;]*\bnot registered as agent tools/i,
+    ~r/\bbidding\b[^.]*\bthrough the person-controlled interface/i,
+    ~r/\bbidding\b[^.;]*\bhappen on the website/i,
+    ~r/these happen on the website/i
+  ]
 
   setup do
     previous = Application.fetch_env(:autolaunch, :agent_bids)
@@ -64,6 +77,32 @@ defmodule AutolaunchWeb.AgentBidsOffTest do
         do: assert(on[path] =~ @named, "#{path} does not name agent bids")
 
     for path <- @documents -- named, do: refute(on[path] =~ @named, path)
+  end
+
+  test "AGENT_BIDS_GUIDES: off, every guide says bidding stays with the person; switched on, none says an agent cannot prepare a bid or its settlement" do
+    read = fn ->
+      Map.new(@guides, fn path ->
+        {path,
+         build_conn() |> put_req_header("accept", "text/markdown") |> get(path) |> response(200)}
+      end)
+    end
+
+    for {path, guide} <- read.() do
+      assert Enum.any?(@not_for_agents, &(guide =~ &1)), path
+      refute guide =~ "{{bidding", path
+    end
+
+    Application.put_env(:autolaunch, :agent_bids, :on)
+
+    for {path, guide} <- read.() do
+      for words <- @not_for_agents, do: refute(guide =~ words, "#{path}: #{inspect(words)}")
+
+      assert guide =~
+               ~r/bid on a Base auction\b[^.]*\bprepare|\bprepare[^.]*\bbid on a Base auction/,
+             path
+
+      refute guide =~ "{{bidding", path
+    end
   end
 
   test "AGENT_BIDS_OFF_OPENAPI: /openapi.json carries agent bids' paths and components only while they are on" do

@@ -64,7 +64,7 @@ Your person's own profile is shared by every Regent site and made when they sign
 
 Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`, `entries`, `period_bonuses` and `more`: the same figures the Points page shows. `to_do` lists every action under the site it belongs to, whichever site earns it: an action earned on any site is `done`, and `left` is true only for one you or your person can still earn here. Points amounts are decimal strings truncated to at most two decimal places, and a whole number has no ".00"; `activity_being_verified` counts actions still being checked. `leaderboard` is the ten highest totals, each row by name, or by `wallet` under its `ens_name` when the person chose no name, with `you` marking your person's row. A `note` explains when earning Points is off.
 
-Wallet signing, launch submission, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. The signed interface does not expose these operations. `/api/v1/me/positions` uses the person's session and is not agent authority.
+{{bidding_agents}} `/api/v1/me/positions` uses the person's session and is not agent authority.
 
 {{covered_calls}}
 {{exposure}}

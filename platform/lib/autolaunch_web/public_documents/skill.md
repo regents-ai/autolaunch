@@ -22,9 +22,7 @@ they bid on and what may be claimable. For your person, this means fewer missed 
 account facts kept apart from promotion. Explain price units, launch state and how fresh each
 figure is. No auction, treasury report or staking guarantees a return.
 
-Use this skill for research, bid estimates, launch drafts and watching. Bidding, trading,
-claiming, staking and settlement stay with your person's own wallet; no agent tool or command
-does them.
+Use this skill for research, bid estimates, launch drafts and watching. {{bidding_skill}}
 
 ## Access and tool selection
 
@@ -94,8 +92,7 @@ yourself, from your own wallet, follow Your own Memestock launch in /agents.md.
    of `claim_ready` or `withdraw_ready`, or a `can` value, says what the bid's card offers
    now; it is not permission, and it does not mean any money moved.
 6. When a bid needs your person, give them its `bid_page`: it shows what is theirs, the one
-   button for what comes next and each transaction. No agent command claims, withdraws or
-   bids. After your person reports a confirmed transaction, read the position again. Never
+   button for what comes next and each transaction. {{bidding_card}} After your person reports a confirmed transaction, read the position again. Never
    report completion from a sent or pending transaction, and never resend one.
 
 Draft edits are separate from this read-only loop. Only on an explicit request: read the

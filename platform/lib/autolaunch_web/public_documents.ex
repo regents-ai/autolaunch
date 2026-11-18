@@ -73,6 +73,39 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_bids_guide_path
   @agent_bids_guide File.read!(@agent_bids_guide_path)
 
+  # The guides' sentences that say who bids, each as it reads without agent
+  # bids, as before them, and as it reads while the site offers them: a paired
+  # agent prepares the steps of a bid on a Base auction, and of its return and
+  # claim, and the person's own wallet signs each one (`bidding/1`).
+  @bidding [
+    {"{{bidding_agents}}",
+     "Wallet signing, launch submission, bidding, settlement, trading, staking, claims and treasury verification remain person-controlled. The signed interface does not expose these operations.",
+     "Wallet signing, launch submission, trading, staking, claims and treasury verification remain person-controlled. For a bid on a Base auction, and its return and claim, a paired agent prepares the steps through the signed interface, and the person's own wallet signs and sends each one (see Agent bids); Robinhood Chain bids and the person's launches stay on the site's pages."},
+    {"{{bidding_skill}}",
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; no agent tool or command\ndoes them.",
+     "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, which signs every step.\nFor a bid on a Base auction, and its return and claim, you can prepare the steps\n(see Agent bids); Robinhood Chain bids and your person's launches stay on the site's pages."},
+    {"{{bidding_card}}", "No agent command claims, withdraws or\n   bids.",
+     "For a bid on a Base auction you can\n   prepare its return and claim for your person's wallet to sign (see Agent bids); no agent\n   command claims, withdraws or bids by itself."},
+    {"{{bidding_tools}}",
+     "Wallet and launch controls remain person-controlled and are not registered as agent tools;",
+     "Wallet and launch controls remain person-controlled; for a bid on a Base auction, and its return and claim, a paired agent prepares the steps, which the person's own wallet signs (see Agent bids);"},
+    {"{{bidding_controls}}",
+     "These financial and launch controls are not registered as agent tools.",
+     "For a bid on a Base auction, and its return and claim, a paired agent can also prepare the steps for the person's own wallet to sign and send ([agents.md]({{origin}}/agents.md)); Robinhood Chain bids stay on the auction's page."},
+    {"{{bidding_wallet}}",
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.",
+     "Reads are public; bidding, launching, trading and staking need the person's own wallet, which signs every step. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim, for that wallet; Robinhood Chain bids and the person's launches go through the person-controlled interface."},
+    {"{{bidding_docs}}",
+     "Bidding, claiming, launching, trading and staking happen on the website with the person's own wallet, and every step asks the wallet holder to confirm, through the person-controlled interface.",
+     "Bidding, claiming, launching, trading and staking happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim (see Agent bids); Robinhood Chain bids and the person's launches happen on the website, through the person-controlled interface."},
+    {"{{bidding_website}}",
+     "These happen on the website with the person's own wallet: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake. Every step asks the wallet holder to confirm.",
+     "These happen with the person's own wallet, and every step asks the wallet holder to confirm. A paired agent can prepare the steps of a bid on a Base auction, and of its return and claim (see Agent bids); everything else here happens on the website: auctions and launches on https://autolaunch.sh, and REGENT staking on https://regents.sh/stake."},
+    {"{{bidding_home}}",
+     "Bidding, launching and staking happen on the website with the person's own wallet; every step asks the wallet holder to sign.",
+     "Bidding, launching and staking happen with the person's own wallet; every step asks the wallet holder to sign. A paired agent can prepare the steps of a bid on a Base auction ([agents.md]({{origin}}/agents.md)); the rest happens on the website."}
+  ]
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -607,6 +640,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{exposure}}\n", exposure())
     |> String.replace("{{earn}}\n", earn())
     |> String.replace("{{agent_bids}}\n", agent_bids())
+    |> bidding()
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -683,6 +717,14 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp agent_bids,
     do: if("agent_bids" in ToolManifest.features(), do: @agent_bids_guide, else: "")
+
+  defp bidding(markdown) do
+    on? = "agent_bids" in ToolManifest.features()
+
+    Enum.reduce(@bidding, markdown, fn {mark, off, on}, text ->
+      String.replace(text, mark, if(on?, do: on, else: off))
+    end)
+  end
 
   # The fixed pages the sitemaps list, with covered calls and Earn while the site
   # offers them.
