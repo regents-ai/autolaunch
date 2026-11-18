@@ -1,0 +1,59 @@
+{
+  "_comment": "Agent staking's browser tool. AutolaunchWeb.ToolManifest adds it to tool_manifest.json only while the site offers agent staking (AUTOLAUNCH_AGENT_STAKING=true). The hosted MCP tool prepare_stake takes its title and words from here, less how a browser host signs (Autolaunch).",
+  "tools": [
+    {
+      "name": "autolaunch_stake_prepare",
+      "title": "Stake",
+      "description": "Prepare the wallet steps of one staking action on a token listed here, by its id from autolaunch_tokens, for one of my person's own wallets, read from the token's chain at the latest block exactly as the token page's Stake and Claim views read them: stake stakes the wallet's whole balance of the token, with a token approval first when the wallet has not approved enough; unstake unstakes amount; claim moves the trading fees waiting for stakers to the staking contract, then claims everything the wallet has waiting. Each step gives its to, data and value for the wallet to send in order on the network chain names, Base or Robinhood Chain, its data ending with the site's Builder Code: the wallet must be on that network to send them. facts give the wallet's balance, stake and what it can claim, read at block. A wallet that holds none of the token is refused nothing_to_stake; more than its stake, amount_above_stake. The site only prepares: my person's wallet signs and sends each step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "token_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The token's id exactly as autolaunch_tokens lists it."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "stake",
+              "unstake",
+              "claim"
+            ],
+            "description": "stake to stake this wallet's whole balance of the token, unstake to unstake the amount named, or claim to claim everything this wallet has waiting."
+          },
+          "amount": {
+            "type": "string",
+            "description": "For unstake only, and needed there: how much of the token to unstake, as a decimal with at most 18 decimal places. Leave it out for stake and claim."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "token_id",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/tokens/{token_id}/stake/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_stake_prepare",
+        "http": "POST /api/agent/v1/tokens/{token_id}/stake/steps"
+      },
+      "effect": "prepare"
+    }
+  ]
+}

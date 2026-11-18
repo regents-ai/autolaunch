@@ -11,9 +11,10 @@ defmodule AutolaunchWeb.ToolErrors do
   agent bid routes' (`AutolaunchWeb.AgentBidAnswer.body/1`), an agent
   Robinhood bid's the agent Robinhood bid routes'
   (`AutolaunchWeb.AgentRobinhoodBidAnswer.body/1`), an agent launch's the
-  agent launch route's (`AutolaunchWeb.AgentLaunchAnswer.body/1`), and an
-  agent finish's the agent finish route's
-  (`AutolaunchWeb.AgentFinishAnswer.body/1`). Every other tool's
+  agent launch route's (`AutolaunchWeb.AgentLaunchAnswer.body/1`), an agent
+  finish's the agent finish route's (`AutolaunchWeb.AgentFinishAnswer.body/1`),
+  and an agent staking action's the agent staking route's
+  (`AutolaunchWeb.AgentStakeAnswer.body/1`). Every other tool's
   refusal is its route's own (`AutolaunchWeb.Refusal`). A failure nobody expected answers
   `internal_error`, as the API does, and is logged by kind alone
   (`AutolaunchWeb.ReadFailure`).
@@ -23,8 +24,9 @@ defmodule AutolaunchWeb.ToolErrors do
   same input gets over HTTP: a bid estimate's own route's answer to the same
   body (`invalid_amount` for an amount that is not text, as there), the other
   market reads', the covered calls', Exposure's, Earn's, agent bids', agent
-  Robinhood bids', agent launches' and agent finishes' `invalid_request`, each
-  in its own route's words, a draft save's `invalid_draft`, a pairing's
+  Robinhood bids', agent launches', agent finishes' and agent staking's
+  `invalid_request`, each in its own route's words, a draft save's
+  `invalid_draft`, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
@@ -102,6 +104,9 @@ defmodule AutolaunchWeb.ToolErrors do
           Autolaunch.AgentFinish.Refused.exception(reason: :invalid_request)
         )
       )
+
+  defp refused(Autolaunch.AgentStake, _stake),
+    do: Jason.encode!(AutolaunchWeb.AgentStakeAnswer.body(:invalid_request))
 
   defp refused(_resource, covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
@@ -195,6 +200,11 @@ end
 
 defimpl AshAi.ToToolError, for: Autolaunch.AgentFinish.Refused do
   def to_tool_error(refused), do: Jason.encode!(AutolaunchWeb.AgentFinishAnswer.body(refused))
+end
+
+defimpl AshAi.ToToolError, for: Autolaunch.AgentStake.Refused do
+  def to_tool_error(%{reason: reason}),
+    do: Jason.encode!(AutolaunchWeb.AgentStakeAnswer.body(reason))
 end
 
 defimpl AshAi.ToToolError, for: Ash.Error.Unknown.UnknownError do

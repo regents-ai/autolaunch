@@ -3,11 +3,12 @@ defmodule AutolaunchWeb.ToolManifest do
   The WebMCP tools this site offers right now. `priv/tool_manifest.json` is the
   site's own set, the one the pages' script is built with
   (`assets/js/public_tools.ts`). While covered calls, Exposure, Earn, agent
-  bids, agent Robinhood bids, agent launches or agent finishes are on, the
-  tools in `priv/covered_calls_tools.json`, `priv/exposure_tools.json`,
-  `priv/earn_tools.json`, `priv/agent_bids_tools.json`,
-  `priv/agent_robinhood_bids_tools.json`, `priv/agent_launches_tools.json` or
-  `priv/agent_finish_tools.json` join it, and the root layout hands the page
+  bids, agent Robinhood bids, agent launches, agent finishes or agent staking
+  are on, the tools in `priv/covered_calls_tools.json`,
+  `priv/exposure_tools.json`, `priv/earn_tools.json`,
+  `priv/agent_bids_tools.json`, `priv/agent_robinhood_bids_tools.json`,
+  `priv/agent_launches_tools.json`, `priv/agent_finish_tools.json` or
+  `priv/agent_stake_tools.json` join it, and the root layout hands the page
   those tools (`page_tools/0`), so the page registers exactly the tools
   `/capabilities.json`, the agent guides and the tools dialog list. Off, nothing
   about them reaches a page, the script or any document.
@@ -51,6 +52,10 @@ defmodule AutolaunchWeb.ToolManifest do
   @external_resource @agent_finish_path
   @agent_finish @agent_finish_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
 
+  @agent_stake_path Application.app_dir(:autolaunch, "priv/agent_stake_tools.json")
+  @external_resource @agent_stake_path
+  @agent_stake @agent_stake_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
   @doc "The features that are on, by name."
   def features do
     [
@@ -60,7 +65,8 @@ defmodule AutolaunchWeb.ToolManifest do
       {"agent_bids", Autolaunch.AgentBid.enabled?()},
       {"agent_robinhood_bids", Autolaunch.AgentRobinhoodBid.enabled?()},
       {"agent_launches", Autolaunch.AgentLaunch.enabled?()},
-      {"agent_finish", Autolaunch.AgentFinish.enabled?()}
+      {"agent_finish", Autolaunch.AgentFinish.enabled?()},
+      {"agent_staking", Autolaunch.AgentStake.enabled?()}
     ]
     |> Enum.filter(&elem(&1, 1))
     |> Enum.map(&elem(&1, 0))
@@ -90,6 +96,7 @@ defmodule AutolaunchWeb.ToolManifest do
       if("agent_bids" in on, do: @agent_bids, else: []) ++
       if("agent_robinhood_bids" in on, do: @agent_robinhood_bids, else: []) ++
       if("agent_launches" in on, do: @agent_launches, else: []) ++
-      if("agent_finish" in on, do: @agent_finish, else: [])
+      if("agent_finish" in on, do: @agent_finish, else: []) ++
+      if("agent_staking" in on, do: @agent_stake, else: [])
   end
 end

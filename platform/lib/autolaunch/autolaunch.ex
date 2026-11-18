@@ -9,21 +9,23 @@ defmodule Autolaunch do
 
   # The hosted MCP tools: each gives the answer its HTTP route gives and has the
   # title and words of its browser tool, from priv/tool_manifest.json or, for
-  # agent bids, launches and finishes, priv/agent_bids_tools.json,
-  # priv/agent_robinhood_bids_tools.json, priv/agent_launches_tools.json and
-  # priv/agent_finish_tools.json, less how a browser host signs
-  # (`AutolaunchWeb.Capabilities` checks their inputs). Each reads, or saves the
-  # person's launch draft, except agent bids' four, which prepare the wallet
-  # steps of a bid or of its return and claim, agent launches' one, which
-  # prepares and keeps the launch step of the person's draft, and agent
-  # finishes' one, which prepares the finish step of an ended auction, each for
-  # the person's wallet to sign.
+  # agent bids, launches, finishes and staking, priv/agent_bids_tools.json,
+  # priv/agent_robinhood_bids_tools.json, priv/agent_launches_tools.json,
+  # priv/agent_finish_tools.json and priv/agent_stake_tools.json, less how a
+  # browser host signs (`AutolaunchWeb.Capabilities` checks their inputs). Each
+  # reads, or saves the person's launch draft, except agent bids' four, which
+  # prepare the wallet steps of a bid or of its return and claim, agent
+  # launches' one, which prepares and keeps the launch step of the person's
+  # draft, agent finishes' one, which prepares the finish step of an ended
+  # auction, and agent staking's one, which prepares the steps of a stake, an
+  # unstake or a claim, each for the person's wallet to sign.
   @tool_paths [
     Application.app_dir(:autolaunch, "priv/tool_manifest.json"),
     Application.app_dir(:autolaunch, "priv/agent_bids_tools.json"),
     Application.app_dir(:autolaunch, "priv/agent_robinhood_bids_tools.json"),
     Application.app_dir(:autolaunch, "priv/agent_launches_tools.json"),
-    Application.app_dir(:autolaunch, "priv/agent_finish_tools.json")
+    Application.app_dir(:autolaunch, "priv/agent_finish_tools.json"),
+    Application.app_dir(:autolaunch, "priv/agent_stake_tools.json")
   ]
   for path <- @tool_paths, do: @external_resource(path)
 
@@ -176,6 +178,12 @@ defmodule Autolaunch do
     tool :prepare_finish, Autolaunch.AgentFinish, :prepare do
       title(@browser_tools["autolaunch_finish_prepare"]["title"])
       description @browser_tools["autolaunch_finish_prepare"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :prepare_stake, Autolaunch.AgentStake, :prepare do
+      title(@browser_tools["autolaunch_stake_prepare"]["title"])
+      description @browser_tools["autolaunch_stake_prepare"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
   end
@@ -609,6 +617,10 @@ defmodule Autolaunch do
 
     resource Autolaunch.AgentFinish do
       define :prepare_finish, action: :prepare
+    end
+
+    resource Autolaunch.AgentStake do
+      define :prepare_stake, action: :prepare
     end
 
     resource Autolaunch.Robinhood.LaunchReview do

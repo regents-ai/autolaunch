@@ -322,6 +322,26 @@ if agent_finish_on do
   config :autolaunch, agent_finish: :on
 end
 
+# A paired agent prepares its person's stake, unstake or claim on a token the
+# site lists only on a site switched on with AUTOLAUNCH_AGENT_STAKING=true; it
+# reads the token's own chain through its description, Base or Robinhood
+# Chain, as the token page's Stake and Claim views do. Off, no tool or route
+# offers it (`Autolaunch.AgentStake`).
+agent_staking_on =
+  case System.get_env("AUTOLAUNCH_AGENT_STAKING") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_STAKING must be true or unset"
+  end
+
+if agent_staking_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_STAKING=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_staking: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs
