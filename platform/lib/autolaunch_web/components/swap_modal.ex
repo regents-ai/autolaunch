@@ -113,6 +113,11 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :session_lease, :map, default: nil
   attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
 
+  attr :observed, :integer,
+    default: nil,
+    doc:
+      "Robinhood's clock as the page last read it, on a page that offers auctions before they open"
+
   def robinhood_bid_modal(assigns) do
     ~H"""
     <.window id={@id} record_id={@auction.id} close_label="Close bid form">
@@ -130,6 +135,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
         stake_path={@stake_path}
         token_symbol={@auction.token_symbol}
         page={@page}
+        observed={@observed}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}

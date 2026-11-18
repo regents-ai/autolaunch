@@ -76,7 +76,8 @@ defmodule AutolaunchWeb.HomeLive do
        statuses: @statuses,
        unfiltered: @unfiltered,
        no_connection: @no_connection,
-       values: values()
+       values: values(),
+       robinhood_clock: robinhood_clock()
      )
      |> LiveListings.subscribe()
      |> LiveSettle.watch()
@@ -286,9 +287,12 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
-  # The Robinhood notice follows whether the site could read Robinhood.
+  # The Robinhood notice follows whether the site could read Robinhood, and a
+  # bid dialog open on an auction not started yet follows its clock.
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
-    do: {:noreply, LabMarket.robinhood_stale(socket)}
+    do:
+      {:noreply,
+       socket |> LabMarket.robinhood_stale() |> assign(:robinhood_clock, robinhood_clock())}
 
   # The catching-up notice follows whether the lists hold every Base launch.
   def handle_info({:shared_reading, {:launch_count, _launchpad}}, socket),
@@ -302,6 +306,9 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread_market()}
+
+  # Robinhood's clock, nil before the site first read it.
+  defp robinhood_clock, do: Autolaunch.ChainHead.fetch("robinhood")[:block]
 
   # The cards already shown stay until the new listing arrives and replaces
   # them, so changing a setting never blanks the gallery.
@@ -922,6 +929,7 @@ defmodule AutolaunchWeb.HomeLive do
         :if={match?(%{record: %Autolaunch.Auction{}}, @trade) && robinhood?(@trade.record)}
         id={"home-robinhood-bid-#{@trade.record.id}"}
         auction={@trade.record}
+        observed={@robinhood_clock}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}

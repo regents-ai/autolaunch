@@ -340,6 +340,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       stake_path={if @launch.state == :graduated, do: Paths.token_stake(@launch)}
       book={@book}
       supply={AsyncResult.ok(@launch.token_supply)}
+      observed={@observed}
       authenticated={@account_control.kind == :signed_in}
       current_human_id={current_human_id(@access_context)}
       session_lease={@session_lease}

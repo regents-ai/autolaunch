@@ -51,12 +51,12 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   @doc """
   The review `prepare/3` makes once `signer` is proved to be one of the acting
-  account's own wallets, with the latest block it read (`block`) and why the
-  auction would refuse the bid at that block's clock (`blocked`):
-  `:auction_not_started` before its start block, `:bidding_ended` from its end
-  block on, otherwise `nil`. Every figure's own text is checked before
-  Robinhood Chain is read; which price the maximum names on the auction's grid
-  waits for the stock's decimals.
+  account's own wallets, with the latest block it read (`block`), the
+  auction's start block (`start_block`) and why the auction would refuse the
+  bid at that block's clock (`blocked`): `:auction_not_started` before its
+  start block, `:bidding_ended` from its end block on, otherwise `nil`. Every
+  figure's own text is checked before Robinhood Chain is read; which price the
+  maximum names on the auction's grid waits for the stock's decimals.
   """
   @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def review(
@@ -83,6 +83,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
       {:ok,
        Map.merge(build(executable, asset, snapshot, config), %{
          block: snapshot.block.number,
+         start_block: snapshot.auction.start_block,
          blocked: blocked(snapshot)
        })}
     end

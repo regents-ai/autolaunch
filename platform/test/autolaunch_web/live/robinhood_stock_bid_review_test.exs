@@ -23,19 +23,26 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
   end
 
   # The bid panel as the auction page holds it while bidding is open, for the
-  # signed-in person.
+  # signed-in person, with Robinhood's clock as the page last read it, which a
+  # test moves with `{:observed, clock}`.
   defmodule Panel do
     use Phoenix.LiveView
 
     alias Phoenix.LiveView.AsyncResult
 
-    def mount(_params, %{"account_id" => account_id}, socket) do
+    def mount(_params, %{"account_id" => account_id} = session, socket) do
       {:ok,
        assign(socket,
          account_id: account_id,
+         observed: session["observed"],
          lease: AutolaunchWeb.SessionAuthorityHelpers.current_lease(account_id)
        )}
     end
+
+    def handle_info({:observed, clock}, socket), do: {:noreply, assign(socket, observed: clock)}
+
+    # Robinhood Chain tells whoever reads it what was read; the page ignores it.
+    def handle_info({:robinhood_read, _method}, socket), do: {:noreply, socket}
 
     def render(assigns) do
       ~H"""
@@ -58,6 +65,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
         book={AsyncResult.ok(%{clearing_q96: 1, clearing: "1", price_to_beat: nil, block: 100})}
         supply={AsyncResult.ok(nil)}
         usd_prices={AsyncResult.ok(:test_network)}
+        observed={@observed}
         authenticated
         current_human_id={@account_id}
         session_lease={@lease}
@@ -103,6 +111,101 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
     render_hook(panel, "onchain_active_wallet", %{"address" => wallet})
     render_async(view)
     assert_reviewed(view, wallet, opts)
+  end
+
+  # Robinhood's clock reads 5 and the auction opens at block 60: the auction
+  # would refuse the bid (`AuctionNotStarted`), so its button stays, disabled,
+  # saying when bidding opens, and a press hands nothing out to send. Once the
+  # page reads the clock at the start, the review is built again and the bid
+  # can be sent.
+  test "before the auction starts the bid is held on its button, saying when bidding opens, and comes back once Robinhood's clock reaches the start",
+       %{conn: conn, account: account, wallet: wallet} do
+    allowed = 100 * 10 ** 6
+    RobinhoodBidChain.put(%{clock: 5, start_block: 60, usdg_allowance: allowed})
+    {view, panel, inputs} = filled_panel(conn, account, wallet, ["usdg_bid"])
+
+    assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding opens at block 60.")
+
+    assert has_element?(
+             view,
+             ~s|#bid button[disabled][aria-describedby="bid-sender-blocked"]|,
+             "Place bid"
+           )
+
+    refute has_element?(view, ~s|#bid [data-onchain-step="usdg_bid"]|)
+
+    render_hook(panel, "prepare_and_send", %{"form" => inputs})
+    assert_reply(view, reply)
+    assert reply == %{}
+
+    RobinhoodBidChain.put(%{clock: 60, start_block: 60, usdg_allowance: allowed})
+    send(view.pid, {:observed, 60})
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s|#bid [data-onchain-step="usdg_bid"]:not([disabled])|,
+             "Place bid"
+           )
+
+    refute has_element?(view, "#bid-sender-blocked:not([hidden])")
+  end
+
+  # An approval succeeds whatever the auction's clock, so it is never held.
+  test "before the auction starts its USDG approval is still sent, and only the bid is held",
+       %{conn: conn, account: account, wallet: wallet} do
+    RobinhoodBidChain.put(%{clock: 5, start_block: 60})
+    {view, panel, inputs} = filled_panel(conn, account, wallet, ["usdg_approval", "usdg_bid"])
+
+    assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding opens at block 60.")
+
+    assert has_element?(
+             view,
+             ~s|#bid [data-onchain-step="usdg_approval"]:not([disabled])|,
+             "Approve USDG"
+           )
+
+    render_hook(panel, "prepare_and_send", %{"form" => inputs})
+    assert_reply(view, %{send: "usdg_approval"})
+  end
+
+  # From its end block on, by its clock, the auction refuses a bid
+  # (`AuctionIsOver`), and the clock never runs back.
+  test "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
+       %{conn: conn, account: account, wallet: wallet} do
+    RobinhoodBidChain.put(%{clock: 90, end_block: 90, usdg_allowance: 100 * 10 ** 6})
+    {view, _panel, _inputs} = filled_panel(conn, account, wallet, ["usdg_bid"])
+
+    assert has_element?(view, "#bid-sender-blocked:not([hidden])", "Bidding has ended.")
+    assert has_element?(view, ~s|#bid button[disabled]|, "Place bid")
+    refute has_element?(view, ~s|#bid [data-onchain-step="usdg_bid"]|)
+  end
+
+  # The panel for the person's wallet with a 12.5 USDG bid at most 3 per token
+  # typed, once its review with `steps` reached the page, and that review's
+  # inputs, as a press sends them.
+  defp filled_panel(conn, account, wallet, steps) do
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live_isolated(__MODULE__.Panel, session: %{"account_id" => account.id, "observed" => 5})
+
+    panel = with_target(view, "#bid")
+    render_hook(panel, "onchain_active_wallet", %{"address" => wallet})
+
+    render_hook(panel, "bid_form_changed", %{
+      "amount" => "12.5",
+      "basis" => "price",
+      "price" => "3"
+    })
+
+    render_async(view)
+    assert_push_event(view, "onchain-steps:review", %{review: %{steps: built, inputs: inputs}})
+    assert Enum.map(built, & &1.step) == steps
+    {view, panel, inputs}
   end
 
   # The review the page was handed is `signer`'s, with the steps the bid action

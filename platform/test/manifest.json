@@ -1,5 +1,5 @@
 {
-  "total": 476,
+  "total": 479,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -6040,13 +6040,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 71,
+      "line": 79,
       "test_name": "a bid's review on the auction page is for the person's open wallet, in any letter case: the same wallet again keeps it, and another of theirs gets its own",
       "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing; the panel also withdrew that review at its next wallet report, since its signer was never the open wallet. The review is for the person's open wallet, reported checksummed and kept lowercase, with the steps the bid action prepares for it; the same wallet reported again keeps it, and another wallet the account links gets its own. It fails if the review names any other signer, or is withdrawn or built again for the same wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e618c3075e9962bd336c66a6580a571055171d5e59d8fe837a9d6a19aade9491"
+      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
     },
     {
       "id": 585,
@@ -6190,6 +6190,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "3f51c3212b57f6aa1e78d84067ec4fd63804f9ab9e340b6e66dc6fcf9f3eacfd"
+    },
+    {
+      "id": 596,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 121,
+      "test_name": "before the auction starts the bid is held on its button, saying when bidding opens, and comes back once Robinhood's clock reaches the start",
+      "keep_because": "Bid follow-ups (18 Nov 2026): before a Robinhood auction's start the page offered an enabled Place bid, which the auction refuses (AuctionNotStarted). With Robinhood's clock below the start block the bid stays on its button, disabled, with \"Bidding opens at block N.\" above it, and a press that builds the review again hands nothing out to send; once the page reads the clock at the start, the review is built again and the bid can be sent. It fails if the bid is pressable before the start, a press hands it out, or it stays held once the clock reaches the start.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+    },
+    {
+      "id": 597,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 155,
+      "test_name": "before the auction starts its USDG approval is still sent, and only the bid is held",
+      "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: only the press certain to fail is held. A USDG approval to the bid adapter succeeds whatever the auction's clock, so before the start the approval is still offered and a press sends it, while the words say when bidding opens. It fails if the approval is held or a press does not send it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
+    },
+    {
+      "id": 598,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 174,
+      "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
+      "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8090f0d3c425648700f85a688314bf583707b922f91275d5b22339b6a2739828"
     }
   ],
   "legacy_folders_to_remove": [

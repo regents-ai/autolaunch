@@ -23,6 +23,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   `outbid_banner`, the page is told whenever a bid is outbid, so it can say so
   at the top. With `draft_marker`, the page hears `{:bid_draft_price, price}`
   whenever the form's maximum price changes, so it can mark it on the chart.
+
+  A bid the auction would refuse by its own clock at the latest block (the
+  review's `blocked`) stays on its button, disabled, with the reason above it;
+  its USDG approval is never held back, since the approval succeeds whatever
+  the auction's clock. Before the start, the page passes Robinhood's clock as
+  it last read it (`Autolaunch.ChainHead`) as `observed`, and each new reading
+  builds the review again, so the bid comes back as soon as it can land.
   """
 
   use AutolaunchWeb, :live_component
@@ -111,19 +118,32 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   def update(assigns, socket) do
+    seen = socket.assigns[:observed]
+
     {:ok,
      socket
      |> assign(assigns)
      |> assign_new(:outbid_banner, fn -> false end)
      |> assign_new(:draft_marker, fn -> false end)
+     |> assign_new(:observed, fn -> nil end)
      |> assign_new(:form, &blank/0)
      |> assign_book_and_supply()
      |> assign_usd_prices()
      |> OnchainSteps.adopt()
      |> followed()
+     |> opening(seen)
      |> prepare_when_ready()
      |> told_outbid()}
   end
+
+  # Robinhood's clock moved: a bid the auction would refuse as not started yet
+  # is reviewed again, and once the clock lets it land the review is open.
+  defp opening(%{assigns: %{observed: seen}} = socket, seen), do: socket
+
+  defp opening(%{assigns: %{prepared: %{blocked: :auction_not_started}}} = socket, _seen),
+    do: rebuilt(socket, nil)
+
+  defp opening(socket, _seen), do: socket
 
   @doc """
   What an auction's end means for its bidders, from its listing, passed as
@@ -193,7 +213,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         next_step: next_step(assigns, steps),
         progress: progress_copy(steps),
         pending_hash: pending_hash(steps),
-        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
+        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared),
+        blocked: blocked(assigns)
       )
 
     ~H"""
@@ -317,6 +338,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               mismatch={@mismatch}
               check_event="check_again"
               target={@myself}
+              blocked={@blocked}
             />
           </div>
         </div>
@@ -485,13 +507,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
-  # pressed and the first step it built handed back to send.
+  # pressed and the first step it built handed back to send, unless that is a
+  # bid the auction would refuse by its clock now.
   def handle_event("prepare_and_send", %{"form" => inputs}, socket) when is_map(inputs) do
     socket = assign(socket, form: pressed_form(socket.assigns, inputs), notice: nil)
 
     case prepared_now(socket) do
       {:ok, %{assigns: %{review: %{} = review} = assigns} = socket} ->
-        {:reply, %{review: review, send: OnchainSteps.first_built(assigns, review)}, socket}
+        {:reply, to_send(assigns, review), socket}
 
       {:error, socket} ->
         {:reply, %{}, socket}
@@ -780,6 +803,23 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp step_label("usdg_approval"), do: "Approve USDG"
   defp step_label(_bid), do: "Place bid"
+
+  # Why the auction would refuse the bid on the page by its clock at the
+  # latest block the review read, or nil while it would take it.
+  defp blocked(%{review: %{}, prepared: %{blocked: :auction_not_started, start_block: start}}),
+    do: "Bidding opens at block #{start}."
+
+  defp blocked(%{review: %{}, prepared: %{blocked: :bidding_ended}}), do: "Bidding has ended."
+  defp blocked(_assigns), do: nil
+
+  # The step a press that built the review sends: its first, unless that is a
+  # bid the auction would refuse now, when nothing is sent.
+  defp to_send(assigns, review) do
+    case OnchainSteps.first_built(assigns, review) do
+      "usdg_bid" = step -> if blocked(assigns), do: %{}, else: %{review: review, send: step}
+      step -> %{review: review, send: step}
+    end
+  end
 
   # How many times the wallet still asks, counting the step on the button.
   defp signatures_left(_steps, nil), do: 0

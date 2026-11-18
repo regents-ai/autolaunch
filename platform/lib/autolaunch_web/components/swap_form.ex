@@ -470,6 +470,11 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :check_event, :string, required: true
   attr :target, :any, default: nil
 
+  attr :blocked, :string,
+    default: nil,
+    doc:
+      "why the chain's own state at the latest block makes the step on the button certain to fail; an approval is never blocked"
+
   @doc """
   The wallet button of a review panel, with the lines above it and "Check
   again" for a transaction the page stopped reading. The lines stay in the
@@ -482,12 +487,20 @@ defmodule AutolaunchWeb.Components.SwapForm do
   An approval the button has moved on from stays on the page under it, the
   same size, and a press on it sends that approval again. Once the approval is
   confirmed it is grey with a green border, and still takes presses.
+
+  With `blocked`, those words stand above the button, and a step on it that is
+  not an approval stays in place, disabled, sending nothing, until the panel
+  passes `blocked` no more.
   """
   def wallet_step(assigns) do
     shown = pressable(assigns.next_step, assigns.steps)
 
     assigns =
-      assign(assigns, shown: shown, approvals: moved_on(assigns.steps, shown, assigns.bundle))
+      assign(assigns,
+        shown: shown,
+        held: !!(assigns.blocked && shown && !approval?(shown)),
+        approvals: moved_on(assigns.steps, shown, assigns.bundle)
+      )
 
     ~H"""
     <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
@@ -497,12 +510,17 @@ defmodule AutolaunchWeb.Components.SwapForm do
       on {@chain_name}
     </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
+    <p id={@id <> "-blocked"} class="onchain-note" role="status" hidden={!@blocked}>
+      {@blocked}
+    </p>
     <Regent.Primitives.button
       type="button"
       class="token-swap__submit token-swap__wallet-step"
-      data-onchain-step={!@bundle && @shown && @shown.name}
+      data-onchain-step={!@bundle && !@held && @shown && @shown.name}
       data-onchain-bundle={@bundle && !!@shown}
       data-state={@shown && Map.get(@shown, :state)}
+      disabled={@held}
+      aria-describedby={@held && @id <> "-blocked"}
       hidden={!@shown}
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
     >
