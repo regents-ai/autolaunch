@@ -113,7 +113,7 @@ defmodule Autolaunch.CoveredCalls.Market do
       argument :expiry, :integer, constraints: @expiry
 
       run fn input, %{actor: actor} ->
-        with {:ok, signer} <- Signer.wallet(actor, input.arguments[:signer]) do
+        with {:ok, signer} <- Signer.step_wallet(actor, input.arguments[:signer]) do
           input.arguments
           |> Map.drop([:signer])
           |> Steps.prepare(signer)

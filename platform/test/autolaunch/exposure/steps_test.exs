@@ -7,6 +7,7 @@ defmodule Autolaunch.Exposure.StepsTest do
   acting account.
   """
   use AutolaunchWeb.ConnCase, async: false
+  use ExUnitProperties
 
   import Autolaunch.BidFixture, only: [bidder: 1]
 
@@ -120,6 +121,95 @@ defmodule Autolaunch.Exposure.StepsTest do
 
     assert {:error, error} = prepare(context, :buy, %{amount: 1})
     assert Exposure.reason(error) == :leg_required
+  end
+
+  # A node whose pools, holding what the chain double gives them, quote
+  # `:exposure_quote` for any amount.
+  defmodule Quoting do
+    alias Autolaunch.{BaseRpcStub, ExposureChain}
+
+    @amount_out RegentChain.Call.selector("getAmountOut(uint256,address)")
+
+    def post(url, options) do
+      case options[:json] do
+        %{method: "eth_call", params: [%{data: @amount_out <> _args}, _block]} ->
+          quote = Application.fetch_env!(:autolaunch, :exposure_quote)
+          {:ok, %{status: 200, body: %{"result" => "0x" <> BaseRpcStub.hex_word(quote)}}}
+
+        _other ->
+          ExposureChain.post(url, options)
+      end
+    end
+  end
+
+  defp quoting(quote) do
+    Application.put_env(:autolaunch, :autolaunch_lab_http_client, Quoting)
+    Application.put_env(:autolaunch, :exposure_quote, quote)
+    on_exit(fn -> Application.delete_env(:autolaunch, :exposure_quote) end)
+  end
+
+  # The least a swap takes: its calldata's second word, after the selector and the amount.
+  defp least(%{data: "0x" <> data}), do: data |> String.slice(72, 64) |> String.to_integer(16)
+
+  test "a trade with no pool, or a pool with an empty side, prepares no step at all and says why",
+       context do
+    empty = %{
+      ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", nil},
+      ExposureChain.session() => {"0x4444444444444444444444444444444444444444", nil}
+    }
+
+    for pools <- [%{}, empty], kind <- [:buy, :sell], leg <- [:overnight, :session] do
+      ExposureChain.put(%{
+        pools: pools,
+        wallet: %{usdc: 5_000_000, usdc_allowance: 5_000_000, session: 5_000_000}
+      })
+
+      assert {:ok, prepared} = prepare(context, kind, %{leg: leg, amount: 5_000_000})
+
+      assert {prepared.steps, prepared.blocked, prepared.facts.minimum} ==
+               {[], :no_liquidity, nil},
+             "#{kind} #{leg} with #{inspect(pools)}"
+    end
+  end
+
+  test "a quote of nothing, or one that leaves nothing once 2% is allowed, prepares no step at all and is too small",
+       context do
+    for quote <- [0, 1], kind <- [:buy, :sell] do
+      quoting(quote)
+      assert {:ok, prepared} = prepare(context, kind, %{leg: :overnight, amount: 5_000_000})
+      assert {prepared.steps, prepared.blocked, prepared.facts.minimum} == {[], :too_small, nil}
+      assert prepared.facts.expected == quote
+    end
+
+    # Two units leave one once 2% is allowed: the swap takes at least that.
+    quoting(2)
+    assert {:ok, prepared} = prepare(context, :buy, %{leg: :overnight, amount: 5_000_000})
+    assert [%{step: "usdc_approval"}, %{step: "buy"} = buy] = prepared.steps
+    assert least(buy) == 1 and prepared.facts.minimum == 1
+  end
+
+  property "a swap is only ever prepared to take more than nothing: its quote less 2%, or no step at all",
+           context do
+    quoting(0)
+
+    check all(
+            kind <- member_of([:buy, :sell]),
+            amount <- integer(1..Integer.pow(10, 30)),
+            quote <- one_of([integer(0..3), integer(0..Integer.pow(10, 30))]),
+            max_runs: 60
+          ) do
+      Application.put_env(:autolaunch, :exposure_quote, quote)
+      assert {:ok, prepared} = prepare(context, kind, %{leg: :overnight, amount: amount})
+
+      case prepared.steps do
+        [] ->
+          assert prepared.blocked == :too_small and quote <= 1
+
+        [_approval, swap] ->
+          assert least(swap) > 0
+          assert least(swap) == div(quote * 9_800, 10_000)
+      end
+    end
   end
 
   test "minting is an exact stock approval then mint, blocked until the approval is on the chain",

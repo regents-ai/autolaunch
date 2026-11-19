@@ -9,7 +9,9 @@ defmodule AutolaunchWeb.ExposureAnswer do
   quotes in micro-USDC (6 decimals), times in Unix seconds.
 
   A step the chain's own state makes certain to fail is not a refusal: it is
-  answered 200 with `blocked` naming the reason, beside the steps themselves.
+  answered 200 with `blocked` naming the reason, beside the steps themselves,
+  or with no steps for a buy or sell with nothing to swap (`no_liquidity`,
+  `too_small`).
   """
 
   alias Autolaunch.Exposure

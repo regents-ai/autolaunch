@@ -6,12 +6,16 @@ defmodule AutolaunchWeb.ExposureAgentController do
   a signer named in the body is used only when it is one of that account's own
   wallets, and with none named the account's signed-in wallet is used. The
   site only prepares the steps: the wallet's own key signs and sends each one.
+
+  Both routes answer as the hosted tools do (`AutolaunchWeb.ExposureAnswer`).
+  Before Autolaunch opens, the steps route is refused by `AutolaunchWeb.Prelaunch`
+  and, while Exposure is off, both are unknown addresses (the router), before
+  either reaches here.
   """
 
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Exposure
-  alias AutolaunchWeb.{ApiError, Refusal}
   alias AutolaunchWeb.ExposureAnswer, as: Answer
 
   plug AutolaunchWeb.Plugs.AgentAccess
@@ -25,26 +29,11 @@ defmodule AutolaunchWeb.ExposureAgentController do
     case Answer.prepare_input(conn.body_params) do
       {:ok, input} ->
         kind = conn.body_params["kind"]
-
-        series
-        |> Exposure.prepare_exposure_answer(kind, input, actor: conn.assigns.actor)
-        |> send_preparation(conn)
+        prepared = Exposure.prepare_exposure(series, kind, input, actor: conn.assigns.actor)
+        Answer.send(conn, prepared, :prepare)
 
       :error ->
         Answer.refuse(conn, :invalid_request)
     end
   end
-
-  defp send_preparation({:ok, data}, conn), do: ApiError.answer(conn, {:ok, %{data: data}})
-
-  defp send_preparation({:error, %{errors: [%Refusal{} = refusal]}}, conn),
-    do: ApiError.answer(conn, {:error, refusal})
-
-  defp send_preparation({:error, %Ash.Error.Forbidden{}}, conn),
-    do: ApiError.answer(conn, {:error, AutolaunchWeb.Prelaunch.refusal()})
-
-  defp send_preparation({:error, %Ash.Error.Invalid{}}, conn),
-    do: Answer.refuse(conn, :invalid_request)
-
-  defp send_preparation({:error, error}, conn), do: Answer.send(conn, {:error, error}, :prepare)
 end
