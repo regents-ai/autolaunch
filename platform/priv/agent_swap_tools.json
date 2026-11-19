@@ -1,0 +1,66 @@
+{
+  "_comment": "Agent swaps' browser tool. AutolaunchWeb.ToolManifest adds it to tool_manifest.json only while the site offers agent swaps (AUTOLAUNCH_AGENT_SWAPS=true). The hosted MCP tool prepare_swap takes its title and words from here, less how a browser host signs (Autolaunch).",
+  "tools": [
+    {
+      "name": "autolaunch_swap_prepare",
+      "title": "Swap",
+      "description": "Prepare the wallet steps of one buy or sell of a token listed here, by its id from autolaunch_tokens, for one of my person's own wallets, read from the token's pool at the latest block exactly as the token page's swap panel reads it: buy spends amount of the pool's currency on the token; sell spends amount of the token for the pool's currency. A token approval to Permit2 and a Permit2 allowance for the router come first when the wallet lacks them, then the swap. protection is how far below today's quote the trade may settle, from 1 to 10 percent, 6 when left out. Each step gives its to, data and value for the wallet to send in order on the network chain names, Base or Robinhood Chain, its data ending with the site's Builder Code: the wallet must be on that network to send them, before expires_at. facts give what the wallet pays, what today's quote says it receives, the least the trade accepts, the protection and the fees inside the quote, read at block. A wallet holding less than amount is refused amount_above_balance; an amount the pool cannot fill now, quote_unavailable. The site only prepares: my person's wallet signs and sends each step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "token_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The token's id exactly as autolaunch_tokens lists it."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "description": "buy to spend the pool's currency on the token, or sell to spend the token for the pool's currency."
+          },
+          "amount": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "How much this wallet spends, as a decimal: of the pool's currency for buy, of the token for sell."
+          },
+          "protection": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Price protection in percent, a number from 1 to 10: how far below today's quote the trade may settle. Omit it for 6."
+          },
+          "signer": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "token_id",
+          "direction",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/tokens/{token_id}/swap/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_swap_prepare",
+        "http": "POST /api/agent/v1/tokens/{token_id}/swap/steps"
+      },
+      "effect": "prepare"
+    }
+  ]
+}

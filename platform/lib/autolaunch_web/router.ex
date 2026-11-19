@@ -149,6 +149,10 @@ defmodule AutolaunchWeb.Router do
     plug :admit_offered, Autolaunch.AgentStake
   end
 
+  pipeline :agent_swaps do
+    plug :admit_offered, Autolaunch.AgentSwap
+  end
+
   # A request to `feature`'s routes, admitted by the feature's own switch
   # (`enabled?/0`), as its tools are (`Autolaunch.Checks.Offered`).
   def admit_offered(conn, feature) do
@@ -336,6 +340,11 @@ defmodule AutolaunchWeb.Router do
   scope "/api/agent/v1", AutolaunchWeb do
     pipe_through [:api, :agent_staking]
     post "/tokens/:token_id/stake/steps", AgentStakeController, :prepare
+  end
+
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :agent_swaps]
+    post "/tokens/:token_id/swap/steps", AgentSwapController, :prepare
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.

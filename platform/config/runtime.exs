@@ -342,6 +342,26 @@ if agent_staking_on do
   config :autolaunch, agent_staking: :on
 end
 
+# A paired agent prepares its person's buy or sell of a token the site lists
+# only on a site switched on with AUTOLAUNCH_AGENT_SWAPS=true; it reads the
+# token's pool through its chain's description, Base or Robinhood Chain, as
+# the token page's swap panel does. Off, no tool or route offers it
+# (`Autolaunch.AgentSwap`).
+agent_swaps_on =
+  case System.get_env("AUTOLAUNCH_AGENT_SWAPS") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_SWAPS must be true or unset"
+  end
+
+if agent_swaps_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_SWAPS=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_swaps: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs
