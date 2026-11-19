@@ -7359,7 +7359,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 743,
@@ -7372,7 +7372,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 744,
@@ -7385,7 +7385,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 745,
@@ -7398,7 +7398,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 746,
@@ -7407,11 +7407,11 @@
       "file": "test/autolaunch/points_account_awards_test.exs",
       "line": 161,
       "test_name": "the start run records what Points has not: from before the start at the start, from after it at its own time, once",
-      "keep_because": "An account, a GitHub link, a profile X connection and a pairing made before Points started, while nothing was approved, offer nothing then, and neither does a GitHub link made after the start while no rule was approved; once the rules are approved the start run records each, the earlier ones dated at the start and the later link dated when it was linked, and leaves out a company X and an account another site already recorded for the rule. A second run before the first run's offers are checked queues them all again, yet each account ends with one event and one entry for each rule and nothing refused; a later run offers nothing.",
+      "keep_because": "An account, a GitHub link, a profile X connection and a pairing made before Points started, while nothing was approved, offer nothing then, and neither does a GitHub link made after the start while no rule was approved; once the rules are approved the start run records each, the earlier ones dated at the start and the later link dated when it was linked, and leaves out a company X and an account another site already recorded for the rule. A second run before the first run's offers are checked queues nothing more, each offer still waiting being the same job, and each account ends with one event and one entry for each rule and nothing refused; a later run offers nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 747,
@@ -7424,7 +7424,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 748,
@@ -7437,7 +7437,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+      "source_sha256": "2e4a33dc35ebedd6156f17e48888b0c96d8810d0408c784955def85d28296185"
     },
     {
       "id": 749,

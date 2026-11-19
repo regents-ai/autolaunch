@@ -193,11 +193,11 @@ defmodule Autolaunch.PointsAccountAwardsTest do
     elsewhere = "github:" <> Ecto.UUID.generate()
     rewarded_elsewhere(recorded.id, "social.github", elsewhere)
 
-    # A second run before the first one's offers are checked offers them all again.
+    # A second run before the first one's offers are checked queues nothing more.
     assert :ok = StartAwards.perform(%Oban.Job{})
-    first_run = length(intake())
+    assert [_ | _] = first_run = intake()
     assert :ok = StartAwards.perform(%Oban.Job{})
-    assert length(intake()) == 2 * first_run
+    assert intake() == first_run
     drain()
 
     assert awards(early.id) == [
@@ -232,7 +232,7 @@ defmodule Autolaunch.PointsAccountAwardsTest do
            ]
 
     # Each account has one event and one entry for each rule, however many runs
-    # offered it, and no offer was refused.
+    # there were, and no offer was refused.
     assert length(events()) == length(Enum.uniq_by(events(), &{&1.account_id, &1.rule_id}))
     assert RegentPoints.read_rejections!(actor: Store.system()) == []
 
