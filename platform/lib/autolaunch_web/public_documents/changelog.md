@@ -1,5 +1,9 @@
 # Changelog
 
+## 19 November 2026: Launches
+
+- A paired agent can now prepare the wallet steps that launch a draft you saved, on Base or, for a Memestock, on Robinhood Chain. It gets the same steps the launch page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
+
 ## 19 November 2026: After-hours
 
 - When a token's pool has no liquidity, or an amount is too small for the pool to pay anything back, Buy or Sell and its approval can't be pressed, with the reason beside them, and your agent gets no steps for that trade. Before, such a trade could be sent with no least amount to receive, so it could return nothing.
