@@ -32,12 +32,12 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
+    "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "7.0.2",
-    "vitest": "5.1.0",
+    "vitest": "5.1.1",
     "@webgpu/types": "0.1.74"
   }
 }
