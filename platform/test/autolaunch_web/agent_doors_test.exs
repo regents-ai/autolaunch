@@ -75,6 +75,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
                      |> Path.expand(__DIR__)
                      |> YamlElixir.read_from_file!()
   @safe "0x9999999999999999999999999999999999999999"
+  @other "0x2222222222222222222222222222222222222222"
   @site_key String.duplicate("k", 32)
   @signed %{
     "x-siwa-signature" => "sig1=:c2lnbmVk:",
@@ -833,6 +834,61 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     assert http(:post, path, input, agent).status == 404
     refute name in tool_names(agent)
     assert %{"error" => _} = json(mcp(agent, call(name, Map.put(input, :series, series))))
+  end
+
+  # Found in the After-hours review: the three products' steps took the wallet
+  # without asking whether the person's wallet proof still held.
+  test "a person whose wallet proof has lapsed, or no longer holds together, gets no After-hours, covered-call or Earn steps for their agent, refused as a bid is" do
+    switch(~w(covered_calls exposure earn agent_bids), false)
+    account = TestSupport.register_creator!()
+    agent = paired_agent(account)
+    wallet = account.wallet_address
+    series = ExposureChain.series()
+    bid = %{auction_id: Ecto.UUID.generate(), amount: "1", max_price: "3"}
+    deposit = %{product: "aave-usdc", kind: "deposit", amount: 10 * EarnChain.unit()}
+
+    # Each product's route and tool, read from its own chain double; Earn's
+    # preview is its steps without their calls.
+    preparations = [
+      {"exposure", "/api/agent/v1/after-hour-stocks/#{series}/steps",
+       "autolaunch_after_hour_stocks_prepare", %{kind: "mint", amount: 1}, %{series: series}},
+      {"covered_calls", "/api/agent/v1/covered-calls/AMZNc/steps", "prepare_covered_call",
+       %{kind: "claim", listing_id: 1}, %{symbol: "AMZNc"}},
+      {"earn", "/api/agent/v1/earn/steps", "prepare_earn", deposit, %{}},
+      {"earn", "/api/agent/v1/earn/quote", "earn_quote", deposit, %{}}
+    ]
+
+    # Each prepares while the proof holds.
+    for {feature, path, _name, body, _where} <- preparations do
+      chain(feature)
+      assert http(:post, path, body, agent).status == 200, path
+    end
+
+    # Lapsed: no primary wallet and none listed, as a sign-in that finds no
+    # linked wallet leaves it. Not holding together: wallets listed but no
+    # primary among them. The account is read afresh for each, since an update
+    # from the first record would leave out any field that record already held.
+    for {primary, addresses} <- [{nil, []}, {nil, [wallet]}, {@other, [wallet]}] do
+      system = %Autolaunch.Actors.System{}
+      {:ok, current} = Accounts.points_account(account.id, actor: system)
+      {:ok, _account} = Accounts.refresh_verified(current, primary, addresses, actor: system)
+
+      bid_refusal = http(:post, "/api/agent/v1/bids/steps", bid, agent)
+      assert bid_refusal.status == 409 and bid_refusal.body["error"]["code"] == "wallet_required"
+
+      for {feature, path, name, body, where} <- preparations,
+          body <- [body, Map.put(body, :signer, wallet)] do
+        named = "#{inspect({primary, addresses})} #{path} #{inspect(body)}"
+        chain(feature)
+        route = http(:post, path, body, agent)
+
+        assert {route.status, Map.take(route.body["error"] || %{}, ["code", "hint"])} ==
+                 {409, Map.take(bid_refusal.body["error"], ["code", "hint"])},
+               "#{named} answered #{inspect(route.body)}"
+
+        assert tool(agent, name, Map.merge(body, where)) == {:error, route.body}, named
+      end
+    end
   end
 
   test "with Exposure on its three reads answer as their routes do; off, none is listed or run" do

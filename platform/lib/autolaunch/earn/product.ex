@@ -87,7 +87,7 @@ defmodule Autolaunch.Earn.Product do
       argument :everything, :boolean
 
       run fn %{arguments: arguments}, %{actor: actor} ->
-        with {:ok, signer} <- Signer.wallet(actor, arguments[:signer]),
+        with {:ok, signer} <- Signer.step_wallet(actor, arguments[:signer]),
              {:ok, prepared} <- Steps.prepare(Map.delete(arguments, :signer), signer) do
           {:ok, Map.put(prepared, :signer, signer)}
         end
