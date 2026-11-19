@@ -1,5 +1,5 @@
 {
-  "total": 553,
+  "total": 557,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -7191,6 +7191,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c3b7e9473b20fda1d7af486792b6f422a0b6eb47faee1459ac5d863334ddb60b"
+    },
+    {
+      "id": 733,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 24,
+      "test_name": "a job with tries left is saved from its second failed attempt, not its first",
+      "keep_because": "Sentinel, 19 Nov 2026: the stock admissions job's first attempt failed on one chain read during a deploy, Oban tried it again seconds later and it ran cleanly, yet the failed attempt was saved as a crash and raised an alert. A real job run through Oban's executor with three attempts allowed saves nothing after its first failed attempt and one crash, marked attempt 2, after its second. It fails if a first failed attempt that will be tried again is saved, or if a second failed attempt is not.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 734,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 37,
+      "test_name": "a job whose only attempt failed is saved",
+      "keep_because": "Sentinel, 19 Nov 2026: the stock admissions job's first attempt failed on one chain read during a deploy, Oban tried it again seconds later and it ran cleanly, yet the failed attempt was saved as a crash and raised an alert. A job with no try left is still saved on its one failed attempt. It fails if the rule that hides a retried first attempt also hides a job whose only or last attempt failed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 735,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 49,
+      "test_name": "a server fault is saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the saved-errors rule changed for jobs only. A server fault in a request, reported the way a crash in a matched route is, is still saved with its path. It fails if a request's server fault stops being saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 736,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 59,
+      "test_name": "an address nobody serves is not saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the saved-errors rule changed for jobs only. A visit to an address the site does not serve, which anyone can make, is still not saved, so nobody can fill the table. It fails if a below-500 visitor error is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
     }
   ],
   "legacy_folders_to_remove": [

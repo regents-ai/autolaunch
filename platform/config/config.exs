@@ -333,7 +333,8 @@ config :logger, :default_formatter,
   metadata: [:request_id, :visit, :actor, :surface, :event]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
-# to the site's admins at /admin/errors. Only server faults are saved
+# to the site's admins at /admin/errors. Only server faults are saved, and
+# not a job's first failed attempt that Oban will try again
 # (Autolaunch.ErrorIgnorer), only where each one happened is kept
 # (Autolaunch.ErrorFilter), and Autolaunch.ErrorPruner clears each one a week
 # after it was last seen.
