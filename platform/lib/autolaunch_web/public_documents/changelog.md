@@ -1,5 +1,9 @@
 # Changelog
 
+## 19 November 2026: Libraries
+
+- Nothing changes on the pages or for your agent. The site moves to newer releases of the libraries it keeps its records and rules with.
+
 ## 19 November 2026: Launches
 
 - A paired agent can now prepare the wallet steps that launch a draft you saved, on Base or, for a Memestock, on Robinhood Chain. It gets the same steps the launch page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
