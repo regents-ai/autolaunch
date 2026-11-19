@@ -61,11 +61,6 @@ defmodule Autolaunch.Subject do
         :creator_address
       ]
     end
-
-    update :set_canonical_receiver do
-      require_atomic? false
-      accept [:canonical_receiver_address]
-    end
   end
 
   policies do
@@ -73,7 +68,7 @@ defmodule Autolaunch.Subject do
       authorize_if always()
     end
 
-    policy action([:project_lab, :set_canonical_receiver]) do
+    policy action(:project_lab) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
