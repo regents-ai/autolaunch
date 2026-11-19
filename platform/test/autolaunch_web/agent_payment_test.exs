@@ -743,6 +743,31 @@ defmodule AutolaunchWeb.AgentPaymentTest do
     end
   end
 
+  test "a launch on another network than the site's Base deployment is the site's own fault: payment_unavailable, logged by kind alone, as the page refuses it",
+       %{agent: agent, opts: opts, wallet: wallet} do
+    elsewhere = token!(kind: :agent, chain_id: 84_532)
+
+    assert {:error, %Ash.Error.Invalid.Unavailable{reason: :review_network_mismatch}} =
+             SubjectWalletActions.prepare(
+               elsewhere.auction.id,
+               wallet,
+               :pay,
+               page_params(@pay),
+               opts
+             )
+
+    {route, log} = with_log(fn -> http(:post, path(elsewhere.id), @pay, agent) end)
+
+    assert route.status == 503 and route.body["error"]["code"] == "payment_unavailable",
+           inspect(route.body)
+
+    assert log =~ "agent payment failed: review_network_mismatch"
+    refute log =~ wallet
+
+    assert tool(agent, "prepare_payment", Map.put(@pay, :token_id, elsewhere.id)) ==
+             {:error, route.body}
+  end
+
   test "each reason the review, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is payment_unavailable" do
     mismatches =
       ~w(splitter_subject_mismatch splitter_usdc_mismatch splitter_regent_mismatch splitter_treasury_mismatch receiver_splitter_mismatch receiver_subject_mismatch receiver_usdc_mismatch receiver_regent_mismatch receiver_treasury_mismatch receiver_not_canonical)a
@@ -758,7 +783,6 @@ defmodule AutolaunchWeb.AgentPaymentTest do
           test_chain: :payment_not_offered,
           subject_not_found: :payment_not_offered,
           subject_not_on_base: :payment_not_offered,
-          review_network_mismatch: :payment_not_offered,
           subject_token_unavailable: :payment_not_open,
           subject_splitter_unavailable: :payment_not_open,
           subject_treasury_unavailable: :payment_not_open,
@@ -772,11 +796,13 @@ defmodule AutolaunchWeb.AgentPaymentTest do
 
     assert Map.new(codes, fn {reason, _code} -> {reason, AgentPayment.code(reason)} end) == codes
 
-    # A launch the site cannot read, and every reason the card names that no
-    # paired agent's payment reaches, are the site's.
+    # A launch the site cannot read, a Base deployment on another network than
+    # the launch's, and every reason the card names that no paired agent's
+    # payment reaches, are the site's.
     for unexpected <- [
           :payment_unavailable,
           :subject_unavailable,
+          :review_network_mismatch,
           :unsupported_asset,
           :unknown_action,
           :invalid_address,

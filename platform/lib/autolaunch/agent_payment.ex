@@ -56,8 +56,9 @@ defmodule Autolaunch.AgentPayment do
   # named yet takes none yet. A revenue split or payment address the chain
   # says is not the launch's own is refused, as on the page, before anything
   # could reach it. A chain the review could not read is `chain_unavailable`;
-  # a launch the site cannot read is the site's own fault, which the agent
-  # cannot mend: `payment_unavailable`, logged by kind alone.
+  # a launch the site cannot read, or a Base deployment on another network
+  # than the launch's (`review_network_mismatch`), is the site's own fault,
+  # which the agent cannot mend: `payment_unavailable`, logged by kind alone.
   @codes %{
     authentication_required: :authentication_required,
     wallet_required: :wallet_required,
@@ -67,7 +68,6 @@ defmodule Autolaunch.AgentPayment do
     test_chain: :payment_not_offered,
     subject_not_found: :payment_not_offered,
     subject_not_on_base: :payment_not_offered,
-    review_network_mismatch: :payment_not_offered,
     subject_token_unavailable: :payment_not_open,
     subject_splitter_unavailable: :payment_not_open,
     subject_treasury_unavailable: :payment_not_open,

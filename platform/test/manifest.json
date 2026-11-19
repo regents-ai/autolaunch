@@ -1,5 +1,5 @@
 {
-  "total": 592,
+  "total": 593,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -7424,7 +7424,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 699,
@@ -7437,7 +7437,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 700,
@@ -7450,7 +7450,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 701,
@@ -7463,7 +7463,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 702,
@@ -7476,7 +7476,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 703,
@@ -7489,7 +7489,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 704,
@@ -7502,7 +7502,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 705,
@@ -7515,7 +7515,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 706,
@@ -7528,7 +7528,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 707,
@@ -7541,7 +7541,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 708,
@@ -7554,7 +7554,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 709,
@@ -7567,7 +7567,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 710,
@@ -7580,7 +7580,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 711,
@@ -7593,7 +7593,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 712,
@@ -7606,46 +7606,46 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 713,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 746,
+      "line": 771,
       "test_name": "each reason the review, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is payment_unavailable",
       "keep_because": "Each reason the payment review, the listing, the wallet and the account name has one code, each code one status and the same words on both ways in, documented by the contract; any other reason is payment_unavailable. It fails if a reason maps to another code or a code is undocumented.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 714,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 801,
+      "line": 827,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "In prelaunch read-only mode the payment tool is not listed or run and the route answers prelaunch_read_only. It fails if steps can be prepared before the site opens.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 715,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 815,
+      "line": 841,
       "test_name": "switched on a paired agent lists the tool as read-only and not idempotent; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent is listed prepare_payment as read-only; off, it is not listed and any call to it, well formed or not, is answered exactly as one to a tool that does not exist. It fails if the tool shows or answers in its own words while off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d7a536a4ba91d5f460cb271a4a5c9f37451f47b9de9ebcba845da3f5d36248e"
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     },
     {
       "id": 716,
@@ -7698,6 +7698,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "0d322f155f4266d19f5a1e909af98a7f232613842fa847da0878104799ab8961"
+    },
+    {
+      "id": 720,
+      "group": "Agent payments",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_payment_test.exs",
+      "line": 746,
+      "test_name": "a launch on another network than the site's Base deployment is the site's own fault: payment_unavailable, logged by kind alone, as the page refuses it",
+      "keep_because": "A Revstake launch on another network than the site's Base deployment is refused by the payment card's review as a network mismatch, and on both ways in as payment_unavailable, logged by kind alone. It fails if the mismatch is answered as a refusal the agent could act on, or goes unlogged.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
     }
   ],
   "legacy_folders_to_remove": [
