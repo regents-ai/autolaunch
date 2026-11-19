@@ -1,8 +1,8 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
   `/stock/isolated-afters`: Isolated Exposure to After-hours Stocks on a Base stock.
-  One series at a time, the newest unless `?series=<address>` names another the
-  site offers, picked by name at the top: its two tokens with their recorded
+  One series at a time, the newest by default. A series the site offers can
+  be selected by name or through `?series=<address>`: its two tokens with their recorded
   ledger, stock claim and leverage, panels to split the stock and redeem tokens,
   the prices it has applied, and, under Series details, its addresses and the
   panels anyone may use to record and apply prices or end it after a missing
@@ -24,17 +24,15 @@ defmodule AutolaunchWeb.ExposureLive do
   alias AutolaunchWeb.ShareCard
   alias Phoenix.LiveView.AsyncResult
   alias Regent.Primitives, as: P
+  alias RegentChain.Address
 
-  @long_wait 10 * 60_000
   @tabs %{"buy" => :buy, "sell" => :sell, "split" => :mint, "redeem" => :redeem}
 
   def mount(params, _session, socket) do
     with true <- Deployment.enabled?(),
          {:ok, config} <- Deployment.current() do
-      share =
-        if connected?(socket),
-          do: nil,
-          else: ShareCard.market_meta(:exposure, shown(params, config.series))
+      address = shown(params, config.series)
+      share = if address && !connected?(socket), do: ShareCard.market_meta(:exposure, address)
 
       {:ok,
        socket
@@ -61,13 +59,8 @@ defmodule AutolaunchWeb.ExposureLive do
       else: {:noreply, follow(socket, address)}
   end
 
-  # The series `?series=` names when the site offers it, else the newest.
-  defp shown(params, all) do
-    case Deployment.series(params["series"]) do
-      {:ok, address} -> address
-      {:error, _unknown} -> List.last(all)
-    end
-  end
+  defp shown(%{"series" => address}, all), do: Enum.find(all, &Address.equal?(&1, address))
+  defp shown(_params, all), do: List.last(all)
 
   # Another series: the page hears its changes instead of the last one's, and reads it.
   defp follow(socket, address) do
@@ -75,10 +68,11 @@ defmodule AutolaunchWeb.ExposureLive do
       if socket.assigns.address,
         do: Phoenix.PubSub.unsubscribe(Autolaunch.PubSub, topic(socket.assigns.address))
 
-      Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(address))
+      if address, do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(address))
     end
 
     socket
+    |> cancel_due_read()
     |> assign(address: address, reading: AsyncResult.loading())
     |> read_series()
   end
@@ -87,12 +81,14 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  def handle_event("tab", %{"tab" => tab}, socket) when is_map_key(@tabs, tab) do
+  def handle_event("tab", %{"tab" => tab}, %{assigns: %{address: address}} = socket)
+      when is_binary(address) and is_map_key(@tabs, tab) do
     %{reading: reading, leg: leg, all: all} = socket.assigns
     {:noreply, push_patch(socket, to: tab_path(reading.result, Map.fetch!(@tabs, tab), leg, all))}
   end
 
-  def handle_event("leg", %{"leg" => leg}, socket) when leg in ["after-hours", "market-hours"] do
+  def handle_event("leg", %{"leg" => leg}, %{assigns: %{address: address}} = socket)
+      when is_binary(address) and leg in ["after-hours", "market-hours"] do
     %{reading: reading, tab: tab, all: all} = socket.assigns
     leg = if leg == "market-hours", do: :session, else: :overnight
     tab = tab || default_tab(reading.result)
@@ -109,10 +105,10 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_info({:exposure_done, done}, socket), do: {:noreply, assign(socket, done: done)}
 
-  def handle_info({:read_when_due, ref}, %{assigns: %{next_read: ref}} = socket),
-    do: {:noreply, read_series(socket)}
+  def handle_info({:timeout, ref, :read_when_due}, %{assigns: %{next_read: {ref, _at}}} = socket),
+    do: {:noreply, socket |> assign(next_read: nil) |> read_series()}
 
-  def handle_info({:read_when_due, _older}, socket), do: {:noreply, socket}
+  def handle_info({:timeout, _older, :read_when_due}, socket), do: {:noreply, socket}
 
   def handle_async(:series, {:ok, {address, {:ok, series}}}, socket) do
     if address == socket.assigns.address,
@@ -134,6 +130,9 @@ defmodule AutolaunchWeb.ExposureLive do
       else: {:noreply, socket}
   end
 
+  def handle_async(:series, {:exit, _reason}, %{assigns: %{address: nil}} = socket),
+    do: {:noreply, socket}
+
   def handle_async(:series, {:exit, reason}, socket),
     do: {:noreply, assign(socket, reading: AsyncResult.failed(socket.assigns.reading, reason))}
 
@@ -143,6 +142,8 @@ defmodule AutolaunchWeb.ExposureLive do
     do: {:noreply, assign(socket, catalog: Map.new(all, &{&1.address, name(&1)}))}
 
   def handle_async(:catalog, _unread, socket), do: {:noreply, socket}
+
+  defp read_series(%{assigns: %{address: nil}} = socket), do: socket
 
   defp read_series(socket) do
     address = socket.assigns.address
@@ -160,20 +161,34 @@ defmodule AutolaunchWeb.ExposureLive do
 
   defp read_catalog(socket), do: socket
 
-  # The page reads the series again when its next price becomes recordable,
-  # when that price's deadline passes, and at each open and close, so the
-  # summary and each token's light never go stale while it is open. Only the
-  # newest timer counts.
-  defp read_when_due(socket, %{now: now} = series) do
-    case series |> due() |> Enum.filter(&(&1 > now)) |> Enum.min(fn -> nil end) do
+  # Keep one read for the next market boundary or reporting deadline. A
+  # refresh that still has that boundary ahead keeps the scheduled time.
+  defp read_when_due(socket, %{now: now, read_at: read_at} = series) do
+    next = series |> due() |> Enum.filter(&(&1 > now)) |> Enum.min(fn -> nil end)
+
+    case {next, socket.assigns.next_read} do
+      {nil, _scheduled} ->
+        cancel_due_read(socket)
+
+      {at, {_ref, at}} ->
+        socket
+
+      {at, _scheduled} ->
+        deadline = DateTime.to_unix(read_at, :millisecond) + (at - now) * 1_000 + 2_000
+        wait = max(1_000, deadline - System.os_time(:millisecond))
+        socket = cancel_due_read(socket)
+        assign(socket, next_read: {:erlang.start_timer(wait, self(), :read_when_due), at})
+    end
+  end
+
+  defp cancel_due_read(socket) do
+    case socket.assigns.next_read do
       nil ->
         socket
 
-      at ->
-        ref = make_ref()
-        wait = min((at - now) * 1_000 + 2_000, @long_wait)
-        Process.send_after(self(), {:read_when_due, ref}, wait)
-        assign(socket, next_read: ref)
+      {ref, _at} ->
+        Process.cancel_timer(ref)
+        assign(socket, next_read: nil)
     end
   end
 
@@ -225,6 +240,7 @@ defmodule AutolaunchWeb.ExposureLive do
           account_control={@account_control}
         />
         <P.last_read
+          :if={@address}
           id="exposure-read"
           at={@series && @series.read_at}
           phx-click="refresh"
@@ -232,10 +248,16 @@ defmodule AutolaunchWeb.ExposureLive do
         />
       </header>
 
-      <p :if={@reading.failed} class="exposure__muted" role="alert">
+      <p :if={!@address} id="exposure-series-unavailable" class="exposure__muted" role="status">
+        This series is unavailable.
+        <.link :if={@all != []} patch={~p"/stock/isolated-afters"}>
+          Open the latest series
+        </.link>
+      </p>
+      <p :if={@address && @reading.failed} class="exposure__muted" role="alert">
         The series couldn't be read just now. Try again in a moment.
       </p>
-      <div :if={!@series && !@reading.failed} class="exposure__loading" aria-busy="true">
+      <div :if={@address && !@series && !@reading.failed} class="exposure__loading" aria-busy="true">
         <span class="loading-block"></span>
       </div>
 
@@ -826,7 +848,10 @@ defmodule AutolaunchWeb.ExposureLive do
       [
         series: if(series.address != List.last(all), do: series.address),
         tab: value,
-        leg: if(tab in [:buy, :sell] and leg == :session, do: "market-hours")
+        leg:
+          if(tab in [:buy, :sell],
+            do: %{overnight: "after-hours", session: "market-hours"}[leg]
+          )
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 

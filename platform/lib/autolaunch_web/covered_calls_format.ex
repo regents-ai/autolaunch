@@ -21,6 +21,21 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def usd(nil), do: "—"
   def usd(micro) when is_integer(micro), do: "$" <> RegentFormat.token_amount(micro, 6)
 
+  @doc "The exact USDC price per token, including all posted digits below a cent."
+  def unit_price(nil), do: usd(nil)
+  def unit_price(micro) when rem(micro, 10_000) == 0, do: usd(micro)
+  def unit_price(micro), do: "$" <> tokens(micro, @usdc_unit)
+
+  @doc "An offer's action, identity and distinct premium and strike for assistive technology."
+  def offer_label("Buy", symbol, listing),
+    do: describe_offer("Buy #{symbol} calls", "listing", listing)
+
+  def offer_label("Sell", symbol, bid), do: describe_offer("Sell #{symbol} calls", "bid", bid)
+
+  defp describe_offer(action, kind, offer),
+    do:
+      "#{action}, #{kind} #{offer.id}. Premium #{unit_price(offer.premium_per_token)} per token, strike #{unit_price(offer.strike_per_token)} per token."
+
   @doc """
   USDC a person pays, rounded up to the cent before it is shown, so a review
   never shows less than the wallet will be asked for; and a break-even, the

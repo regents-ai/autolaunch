@@ -531,22 +531,22 @@ components:
           enum:
           - overnight
           - session
-          description: For buy and sell, overnight for the After-hours token or session for the Market-hours token.
+          description: For buy and sell, overnight selects after_hours from the series read and session selects market_hours.
         signer:
           type: string
           description: One of the person's own wallets; omit it for the wallet they signed in with.
         amount:
           type: integer
           minimum: 1
-          description: For buy, USDC micro-units to spend; for sell, raw token units; for mint, raw stock units.
+          description: For buy, USDC micro-units to spend; for sell, raw token units; for mint, raw stock units. Must fit uint256.
         overnight:
           type: integer
           minimum: 0
-          description: For redeem, raw After-hours units; equal to session before the series ends.
+          description: For redeem, raw After-hours units; equal to session before the series ends. Must fit uint256.
         session:
           type: integer
           minimum: 0
-          description: For redeem, raw Market-hours units; equal to overnight before the series ends.
+          description: For redeem, raw Market-hours units; equal to overnight before the series ends. Must fit uint256.
     ExposureStepsEnvelope:
       type: object
       required:

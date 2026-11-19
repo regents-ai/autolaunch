@@ -10,7 +10,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.{Auction, ChainHead, Repo, SharedReading, TestSupport}
+  alias Autolaunch.Actors.System
+  alias Autolaunch.{Auction, ChainHead, LabProjection, Repo, SharedReading, TestSupport}
   alias AutolaunchWeb.Paths
 
   @moduletag :capture_log
@@ -62,6 +63,56 @@ defmodule AutolaunchWeb.RobinhoodAuctionRetryTest do
 
     assert has_element?(view, "article#autolaunch-robinhood-auction h1", "NOWIN")
     refute has_element?(view, "#robinhood-auction-activity")
+  end
+
+  test "a graduated auction links its token without a new Robinhood clock reading",
+       %{conn: conn} do
+    key = ChainHead.key("robinhood")
+    :ok = SharedReading.put(key, 1_000)
+    on_exit(fn -> SharedReading.delete(key) end)
+
+    stored =
+      TestSupport.project_auction(
+        chain_id: @chain_id,
+        kind: :stocks,
+        symbol: "GRADRH",
+        state: :ended,
+        token_address: "0x4444444444444444444444444444444444444444"
+      )
+
+    {:ok, auction} = Paths.find_auction("GRADRH", String.slice(stored.auction_address, -5, 5))
+    {:ok, view, _html} = live(conn, Paths.auction(auction))
+    refute has_element?(view, "#auction-finished")
+
+    test = self()
+    page = view.pid
+    ref = make_ref()
+
+    :ok =
+      :telemetry.attach(
+        ref,
+        [:autolaunch, :pages, :reread],
+        fn _event, _measurements, _metadata, _config ->
+          if self() == page, do: send(test, {ref, :reread})
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    assert {:ok, :ok} =
+             Ash.transaction(Auction, fn ->
+               graduated =
+                 Autolaunch.refresh_lab_market_auction!(stored, :graduated, "1", %{},
+                   actor: %System{}
+                 )
+
+               LabProjection.project_graduated_token(graduated)
+             end)
+
+    assert_receive {^ref, :reread}, 5_000
+    assert has_element?(view, "#auction-finished a[href='#{Paths.token(auction)}']")
+    assert ChainHead.block("robinhood") == 1_000
   end
 
   # The page's own read of its auction, the first after the address was found,

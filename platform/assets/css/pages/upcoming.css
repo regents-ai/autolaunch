@@ -47,3 +47,7 @@
   .upcoming-details__address .rg-copy { min-height: 2.75rem; min-width: 2.75rem; }
   .upcoming-details a { display: inline-block; min-height: 2.75rem; padding-block: .5rem; box-sizing: border-box; }
 }
+.upcoming__filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
+.upcoming__filters label { display: grid; min-width: 0; gap: var(--space-1); }
+.upcoming__filters label:first-child { flex: 1 1 16rem; }
+.upcoming__filters :is(input, select) { min-height: 2.75rem; min-width: 0; }

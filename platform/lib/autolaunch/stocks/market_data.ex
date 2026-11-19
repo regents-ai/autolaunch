@@ -37,6 +37,7 @@ defmodule Autolaunch.Stocks.MarketData do
   # Every stock's Chainlink feed, which its route names, answers in USD with
   # eight decimals.
   @feed_decimals 8
+  @feed_max_age_seconds 7 * 24 * 60 * 60
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
   @dexscreener_pages "https://dexscreener.com"
@@ -152,18 +153,23 @@ defmodule Autolaunch.Stocks.MarketData do
   end
 
   defp read_price(chain, feed) do
-    case Rpc.request("eth_call", [%{to: feed, data: @latest_round_data}, "latest"],
-           rpc_url: rpc_url(chain),
-           client_key: :autolaunch_market_http_client,
-           log_scope: "stocks market"
-         ) do
-      # roundId, answer, startedAt, updatedAt, answeredInRound
-      {:ok, "0x" <> hex} when byte_size(hex) == 320 ->
-        answer = hex |> binary_part(64, 64) |> String.to_integer(16)
-        {:ok, Decimal.div(Decimal.new(answer), Integer.pow(10, @feed_decimals))}
+    now = System.os_time(:second)
 
-      _unavailable ->
-        :error
+    # roundId, signed answer, startedAt, updatedAt, answeredInRound
+    with {:ok, "0x" <> hex} when byte_size(hex) == 320 <-
+           Rpc.request("eth_call", [%{to: feed, data: @latest_round_data}, "latest"],
+             rpc_url: rpc_url(chain),
+             client_key: :autolaunch_market_http_client,
+             log_scope: "stocks market"
+           ),
+         {:ok, <<_round::256, answer::signed-256, _started::256, updated::256, _answered::256>>} <-
+           Base.decode16(hex, case: :mixed),
+         true <-
+           answer > 0 and updated > 0 and updated <= now and
+             now - updated <= @feed_max_age_seconds do
+      {:ok, Decimal.div(Decimal.new(answer), Integer.pow(10, @feed_decimals))}
+    else
+      _unavailable -> :error
     end
   end
 

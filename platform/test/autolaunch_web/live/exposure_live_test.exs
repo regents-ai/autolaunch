@@ -78,6 +78,21 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "#exposure-share")
   end
 
+  test "an unknown series link never opens an order for the latest series", %{conn: conn} do
+    ExposureChain.install()
+    address = "0x1111111111111111111111111111111111111111"
+
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters?series=#{address}&tab=redeem")
+    assert has_element?(view, "#exposure-series-unavailable", "This series is unavailable.")
+    refute has_element?(view, "#exposure-act")
+
+    view |> element("#exposure-series-unavailable a") |> render_click()
+    assert_patch(view, "/stock/isolated-afters")
+    render_async(view)
+    assert has_element?(view, "#exposure-act")
+    refute has_element?(view, "#exposure-series-unavailable")
+  end
+
   test "before the first close, the page says when allocations are set and splitting opens", %{
     conn: conn
   } do
@@ -434,6 +449,14 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     render_async(view)
     assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
     assert has_element?(view, "#exposure-leg-market-hours[aria-pressed=true]")
+
+    view |> element("#exposure-leg-after-hours") |> render_click()
+    render_async(view)
+    assert has_element?(view, "#exposure-leg-after-hours[aria-pressed=true]")
+
+    {:ok, reopened, _html} = live(conn, "/stock/isolated-afters?tab=buy&leg=after-hours")
+    render_async(reopened)
+    assert has_element?(reopened, "#exposure-leg-after-hours[aria-pressed=true]")
   end
 
   # A new signed-in person on the page, their wallet open.

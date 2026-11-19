@@ -118,7 +118,7 @@ defmodule AutolaunchWeb.EarnLive do
       <header class="earn__header">
         <div class="earn__intro">
           <h1>Earn</h1>
-          <p>Lend USDC on Base from your own wallet, and take it back when you choose.</p>
+          <p>Lend USDC on Base from your own wallet. Withdrawals depend on available liquidity.</p>
         </div>
         <P.last_read
           id="earn-read"
@@ -218,11 +218,11 @@ defmodule AutolaunchWeb.EarnLive do
         <dd>{EarnComponent.amount(@terms.supplied, @product.decimals, @product.asset)}</dd>
       </div>
       <div>
-        <dt>Available</dt>
+        <dt>Available to withdraw</dt>
         <dd>{EarnComponent.amount(@terms.available, @product.decimals, @product.asset)}</dd>
       </div>
       <div>
-        <dt>Capacity</dt>
+        <dt>Remaining deposit capacity</dt>
         <dd>{capacity(@terms, @product)}</dd>
       </div>
     </dl>

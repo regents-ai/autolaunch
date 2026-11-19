@@ -123,6 +123,15 @@ defmodule Autolaunch.Stocks.Assets do
 
   def fetch(_chain_id, _address), do: {:error, :unsupported_stock}
 
+  @doc "The stock at an address only while it is admitted for new launches."
+  def fetch_admitted(chain_id, address) do
+    case fetch(chain_id, address) do
+      {:ok, %Stock{admitted: true} = stock} -> {:ok, stock}
+      {:ok, _revoked} -> {:error, :unsupported_stock}
+      error -> error
+    end
+  end
+
   @doc """
   The exchange ticker behind a stock token symbol: the symbol without the Base
   issuer's trailing `c`, so `AAPLc` and Robinhood's `AAPL` are the same company.
