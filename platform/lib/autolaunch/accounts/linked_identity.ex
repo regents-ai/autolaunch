@@ -1,4 +1,18 @@
 defmodule Autolaunch.Accounts.LinkedIdentity do
+  @moduledoc """
+  An account Privy verified for one human account (X, GitHub, Farcaster), or
+  an ENS name its wallet controls, one per provider.
+
+  `inserted_at` is when this subject was linked to this account. A sign-in
+  with a subject already linked refreshes the link and leaves it
+  (`:refresh_verified`); a sign-in with a subject new to the account, its first
+  for the provider or one replacing the earlier subject, links it anew and
+  resets it (`:upsert_verified`), and only that tells the site
+  (`Autolaunch.Accounts.Signals` `:social_linked`). An ENS name is saved again
+  with each lookup, which resets its time too; nothing reads an ENS row's time.
+  `verified_at` is the newest check of the link.
+  """
+
   use Ash.Resource,
     otp_app: :autolaunch,
     primary_read_warning?: false,
@@ -88,7 +102,19 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
 
       upsert? true
       upsert_identity :unique_provider_per_account
-      upsert_fields [:subject, :username, :display_name, :verified_at, :metadata]
+      # A sign-in reaches this only for a subject new to the account, its first
+      # for the provider or one replacing the earlier subject, so `inserted_at`
+      # restarts with it; an ENS lookup saves its name here each time.
+      upsert_fields [:subject, :username, :display_name, :verified_at, :metadata, :inserted_at]
+
+      emit Autolaunch.Accounts.Signals, :social_linked,
+        where: [attribute_in(:provider, [:x, :github, :farcaster])]
+    end
+
+    # A sign-in that finds the same subject already linked to the account.
+    update :refresh_verified do
+      accept [:username, :display_name, :verified_at, :metadata]
+      require_atomic? false
     end
 
     read :read_mine do
@@ -109,6 +135,13 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
       filter expr(provider == ^arg(:provider) and subject == ^arg(:subject))
     end
 
+    # Each account's link to one provider made before a moment, such as the Points start.
+    read :linked_before do
+      argument :provider, :atom, allow_nil?: false
+      argument :at, :utc_datetime_usec, allow_nil?: false
+      filter expr(provider == ^arg(:provider) and inserted_at < ^arg(:at))
+    end
+
     destroy :remove_verified do
       accept []
       require_atomic? false
@@ -120,7 +153,14 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
       authorize_if always()
     end
 
-    policy action([:upsert_verified, :for_account, :by_provider_subject, :remove_verified]) do
+    policy action([
+             :upsert_verified,
+             :refresh_verified,
+             :for_account,
+             :by_provider_subject,
+             :linked_before,
+             :remove_verified
+           ]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
 

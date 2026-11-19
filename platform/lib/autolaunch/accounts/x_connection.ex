@@ -20,6 +20,10 @@ defmodule Autolaunch.Accounts.XConnection do
   OAuth credentials never live here. A row keeps only the short-lived PKCE
   attempt needed to finish one browser popup and the public identity returned
   by X after that attempt succeeds.
+
+  Each finished connection tells the site (`Autolaunch.Accounts.Signals`
+  `:x_connected`); a profile connection is the person's X for Regent Points
+  (`Autolaunch.Points.ConnectedX`).
   """
 
   use Ash.Resource,
@@ -112,6 +116,27 @@ defmodule Autolaunch.Accounts.XConnection do
               )
     end
 
+    # The profile connection that holds an X account now, the one connected
+    # first when more than one account has connected it.
+    read :connected_profile do
+      get? true
+      argument :x_user_id, :string, allow_nil?: false
+
+      filter expr(role == :profile and x_user_id == ^arg(:x_user_id) and not is_nil(verified_at))
+
+      prepare build(sort: [verified_at: :asc, id: :asc], limit: 1)
+    end
+
+    # The profile connections connected before a moment, such as the Points
+    # start, and still connected, oldest first.
+    read :profiles_connected_before do
+      argument :at, :utc_datetime_usec, allow_nil?: false
+
+      filter expr(role == :profile and not is_nil(x_user_id) and verified_at < ^arg(:at))
+
+      prepare build(sort: [verified_at: :asc, id: :asc])
+    end
+
     update :replace_attempt do
       accept [
         :attempt_state,
@@ -133,6 +158,8 @@ defmodule Autolaunch.Accounts.XConnection do
       change set_attribute(:attempt_verifier, nil)
       change set_attribute(:attempt_generation, arg(:next_generation))
       change set_attribute(:attempt_expires_at, nil)
+
+      emit Autolaunch.Accounts.Signals, :x_connected
     end
 
     update :clear_attempt do
@@ -183,6 +210,10 @@ defmodule Autolaunch.Accounts.XConnection do
 
     policy action(:public_for_humans) do
       authorize_if always()
+    end
+
+    policy action([:connected_profile, :profiles_connected_before]) do
+      authorize_if actor_attribute_equals(:role, :system)
     end
 
     policy action([

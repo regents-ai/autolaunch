@@ -4,7 +4,9 @@ defmodule Autolaunch.Points do
   (`Autolaunch.Points.Award`), and the checks Points runs on what it offered
   (`Autolaunch.Points.Launch`, `Autolaunch.Points.Graduation`,
   `Autolaunch.Points.Bid`, `Autolaunch.Points.Trade`, `Autolaunch.Points.Stake`,
-  `Autolaunch.Points.CoveredCall`).
+  `Autolaunch.Points.CoveredCall`, and for the account rules every Regent site
+  offers, `Autolaunch.Points.AccountActivated`, `Autolaunch.Points.LinkedSocial`,
+  `Autolaunch.Points.ConnectedX` and `Autolaunch.Points.PairedAgent`).
   """
 
   use Ash.Domain
