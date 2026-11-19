@@ -45,8 +45,7 @@ defmodule Autolaunch.AgentSwap do
 
   alias Autolaunch.AgentSwap.Refused
   alias Autolaunch.CoveredCalls.Signer
-  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.SwapActions
+  alias Autolaunch.{SwapActions, Token}
   alias AutolaunchWeb.ReadFailure
 
   # Every reason the review, the token's listing, the wallet and the person's
@@ -122,11 +121,11 @@ defmodule Autolaunch.AgentSwap do
   def swap_steps(%{token_id: id, direction: direction, amount: amount} = arguments, actor) do
     with {:ok, account} <- Signer.verified(actor),
          {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
-         {:ok, token} <- listed_token(id),
+         {:ok, token} <- Token.listed(id),
          {:ok, reviewed} <-
            SwapActions.review(
              %{
-               launch: launch(token),
+               launch: Token.launch(token),
                direction: direction,
                amount: amount,
                protection: arguments[:protection] || SwapActions.default_protection()
@@ -148,22 +147,6 @@ defmodule Autolaunch.AgentSwap do
     |> refused()
   rescue
     failure -> refused({:error, failure})
-  end
-
-  # A token the site lists and shows, as its page reads it; an id naming any
-  # other names none here.
-  defp listed_token(id) do
-    case Autolaunch.get_listed_token(id, actor: nil) do
-      {:ok, %Autolaunch.Token{} = token} -> {:ok, token}
-      {:ok, nil} -> {:error, :token_not_listed}
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  # The launch as its token page names it, on the chain its auction ran on.
-  defp launch(%{auction: auction}) do
-    chain = if RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base
-    %{chain: chain, auction: auction}
   end
 
   # The figures the panel shows beside the steps: what the wallet pays, what

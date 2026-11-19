@@ -45,7 +45,7 @@ defmodule Autolaunch.AgentPayment do
 
   alias Autolaunch.AgentPayment.Refused
   alias Autolaunch.CoveredCalls.Signer
-  alias Autolaunch.{Lab, SubjectWalletActions}
+  alias Autolaunch.{Lab, SubjectWalletActions, Token}
   alias AutolaunchWeb.ReadFailure
 
   # Every reason the review, the token's listing, the wallet and the person's
@@ -145,7 +145,7 @@ defmodule Autolaunch.AgentPayment do
   def payment_steps(%{token_id: id, kind: kind, asset: asset} = arguments, actor) do
     with {:ok, account} <- Signer.verified(actor),
          {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
-         {:ok, token} <- listed_token(id),
+         {:ok, token} <- Token.listed(id),
          :ok <- offered_here(),
          {:ok, reviewed} <-
            SubjectWalletActions.review(token.auction.id, signer, kind, %{
@@ -168,20 +168,10 @@ defmodule Autolaunch.AgentPayment do
     failure -> refused({:error, failure})
   end
 
-  # A token the site lists and shows, as its page reads it; an id naming any
-  # other names none here.
-  defp listed_token(id) do
-    case Autolaunch.get_listed_token(id, actor: nil) do
-      {:ok, %Autolaunch.Token{} = token} -> {:ok, token}
-      {:ok, nil} -> {:error, :token_not_listed}
-      {:error, error} -> {:error, error}
-    end
-  end
-
   # The token page shows no payment card on a site reading the local Base fork.
   defp offered_here, do: if(Lab.test_chain?(), do: {:error, :test_chain}, else: :ok)
 
-  defp symbol(:token, token), do: Autolaunch.Token.presentation(token).symbol
+  defp symbol(:token, token), do: Token.presentation(token).symbol
   defp symbol(:usdc, _token), do: "USDC"
   defp symbol(:regent, _token), do: "REGENT"
 

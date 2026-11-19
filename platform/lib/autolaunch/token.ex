@@ -452,6 +452,29 @@ defmodule Autolaunch.Token do
     identity :unique_auction, [:auction_id]
   end
 
+  @doc """
+  The token the site lists and shows as `id`, as its page reads it
+  (`Autolaunch.get_listed_token/2`); an id naming any other token, or none,
+  is `{:error, :token_not_listed}`.
+  """
+  def listed(id) do
+    case Autolaunch.get_listed_token(id, actor: nil) do
+      {:ok, %__MODULE__{} = token} -> {:ok, token}
+      {:ok, nil} -> {:error, :token_not_listed}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  @doc """
+  The launch a listed token's trade and stake panels act on, as its page
+  names it, on the chain its auction ran on:
+  `%{chain: :base | :robinhood, auction: auction}`.
+  """
+  def launch(%__MODULE__{auction: auction}) do
+    chain = if Autolaunch.Robinhood.Lab.chain?(auction.chain_id), do: :robinhood, else: :base
+    %{chain: chain, auction: auction}
+  end
+
   @doc "Returns the one public presentation shared by a graduated token and its auction."
   def presentation(token) do
     auction = loaded_auction(token)
