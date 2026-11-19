@@ -142,8 +142,8 @@ defmodule Autolaunch.SwapActions do
   The review `prepare/3` makes once it has proved `signer` is one of the
   acting account's own wallets, with the latest block the pool was read at
   (`block`) and when its steps stop being good (`expires_at`, Unix seconds):
-  the swap's deadline, or the Permit2 allowance it spends running out first.
-  It checks nothing about `signer` itself, so its caller must have proved it
+  the swap's deadline, which the Permit2 allowance it spends outlives. It
+  checks nothing about `signer` itself, so its caller must have proved it
   is one of the acting person's own wallets. A price protection out of range,
   or an amount that is not a decimal above zero, is refused before any chain
   is read; only the pool names how many places and how much its side takes.
@@ -457,15 +457,13 @@ defmodule Autolaunch.SwapActions do
 
   defp build(trade, limits, snapshot, pool, venue) do
     %{amount_in: amount_in, min_out: min_out} = limits
-
-    {steps, expires_at} =
-      reviewed_steps(trade, amount_in, min_out, System.os_time(:second), snapshot, venue)
+    deadline = System.os_time(:second) + @deadline_seconds
 
     %{
       chain: venue.network,
       block: pool.block.number,
-      expires_at: expires_at,
-      steps: steps,
+      expires_at: deadline,
+      steps: reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue),
       facts: facts(trade, limits, snapshot, pool),
       context: %{
         token: pool.token.address,
@@ -513,20 +511,12 @@ defmodule Autolaunch.SwapActions do
   defp fees(%{kind: :agent, lp_fee: lp_fee}, _trade),
     do: ["Trading fees, including the #{lp_fee} pool fee"]
 
-  # The reviewed sequence, as of `now`: the exact allowances the router still
-  # lacks, then the one swap they enable; and when it stops being good, the
-  # swap's deadline or the end of the Permit2 allowance it spends, whichever
-  # comes first.
-  defp reviewed_steps(trade, amount_in, min_out, now, snapshot, venue) do
-    deadline = now + @deadline_seconds
-    {permit2, expiration} = permit2_approval(trade, amount_in, deadline, now, snapshot, venue)
-
-    steps =
-      token_approval(trade, amount_in, snapshot, venue) ++
-        permit2 ++
-        [Review.step("swap", venue.router, swap_data(venue, trade, amount_in, min_out, deadline))]
-
-    {steps, min(deadline, expiration)}
+  # The reviewed sequence: the exact allowances the router still lacks, then the
+  # one swap they enable.
+  defp reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue) do
+    token_approval(trade, amount_in, snapshot, venue) ++
+      permit2_approval(trade, amount_in, deadline, snapshot, venue) ++
+      [Review.step("swap", venue.router, swap_data(venue, trade, amount_in, min_out, deadline))]
   end
 
   defp token_approval(_trade, amount, %{token_allowance: allowance}, _venue)
@@ -538,23 +528,21 @@ defmodule Autolaunch.SwapActions do
     [Review.step("token_approval", trade.sell.address, data)]
   end
 
-  # A standing Permit2 allowance is reused only if it outlives the deadline;
-  # either way, with the time the allowance the swap spends runs out.
+  # A standing Permit2 allowance is reused only if it outlives the deadline.
   defp permit2_approval(
          _trade,
          amount,
          deadline,
-         _now,
          %{permit2: %{amount: allowed, expiration: until}},
          _venue
        )
        when allowed >= amount and until >= deadline,
-       do: {[], until}
+       do: []
 
-  defp permit2_approval(trade, amount, _deadline, now, _snapshot, venue) do
-    until = now + @permit2_seconds
+  defp permit2_approval(trade, amount, _deadline, _snapshot, venue) do
+    until = System.os_time(:second) + @permit2_seconds
     data = Permit2Abi.encode_approve(trade.sell.address, venue.router, amount, until)
-    {[Review.step("permit2_approval", venue.permit2, data)], until}
+    [Review.step("permit2_approval", venue.permit2, data)]
   end
 
   defp swap_data(venue, trade, amount_in, min_out, deadline) do

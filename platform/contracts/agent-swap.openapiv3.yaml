@@ -215,8 +215,9 @@ components:
         expires_at:
           type: string
           format: date-time
-          description: When the steps stop being good, the swap's deadline or the end of the Permit2
-            allowance it spends, whichever comes first. After it, prepare them again.
+          description: When the steps stop being good, the swap's deadline, fifteen minutes after they
+            were read; the Permit2 allowance the swap spends lasts past it. After it, prepare them
+            again.
         steps:
           type: array
           items:
