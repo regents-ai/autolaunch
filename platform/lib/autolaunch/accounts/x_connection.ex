@@ -128,13 +128,17 @@ defmodule Autolaunch.Accounts.XConnection do
     end
 
     # The profile connections connected before a moment, such as the Points
-    # start, and still connected, oldest first.
+    # start run's own time, and still connected, oldest first; only whose each
+    # is and which X account it holds.
     read :profiles_connected_before do
       argument :at, :utc_datetime_usec, allow_nil?: false
 
       filter expr(role == :profile and not is_nil(x_user_id) and verified_at < ^arg(:at))
 
-      prepare build(sort: [verified_at: :asc, id: :asc])
+      prepare build(
+                sort: [verified_at: :asc, id: :asc],
+                select: [:x_user_id, :human_account_id, :verified_at]
+              )
     end
 
     update :replace_attempt do
@@ -213,7 +217,7 @@ defmodule Autolaunch.Accounts.XConnection do
     end
 
     policy action([:connected_profile, :profiles_connected_before]) do
-      authorize_if actor_attribute_equals(:role, :system)
+      authorize_if Autolaunch.Checks.SystemActor
     end
 
     policy action([

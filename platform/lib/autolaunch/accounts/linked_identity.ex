@@ -108,13 +108,12 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
       upsert_fields [:subject, :username, :display_name, :verified_at, :metadata, :inserted_at]
 
       emit Autolaunch.Accounts.Signals, :social_linked,
-        where: [attribute_in(:provider, [:x, :github, :farcaster])]
+        where: [one_of(:provider, [:x, :github, :farcaster])]
     end
 
     # A sign-in that finds the same subject already linked to the account.
     update :refresh_verified do
       accept [:username, :display_name, :verified_at, :metadata]
-      require_atomic? false
     end
 
     read :read_mine do
@@ -135,11 +134,13 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
       filter expr(provider == ^arg(:provider) and subject == ^arg(:subject))
     end
 
-    # Each account's link to one provider made before a moment, such as the Points start.
+    # Each account's link to one provider made before a moment, such as the
+    # Points start run's own time; only whose it is and what it links.
     read :linked_before do
       argument :provider, :atom, allow_nil?: false
       argument :at, :utc_datetime_usec, allow_nil?: false
       filter expr(provider == ^arg(:provider) and inserted_at < ^arg(:at))
+      prepare build(select: [:provider, :subject, :human_account_id])
     end
 
     destroy :remove_verified do

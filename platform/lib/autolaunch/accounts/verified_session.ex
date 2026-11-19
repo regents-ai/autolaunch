@@ -1,8 +1,9 @@
 defmodule Autolaunch.Accounts.VerifiedSession do
   @moduledoc "Establishes the shared Regent account from verified Privy evidence."
 
+  require Ash.Query
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.EnsIdentity
+  alias Autolaunch.Accounts.{EnsIdentity, LinkedIdentity}
   alias Autolaunch.Actors.System
 
   @social_providers [:x, :github, :farcaster]
@@ -128,7 +129,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
     with {:ok, current} <-
            Accounts.get_linked_identity_by_subject(provider, subject, actor: actor),
          :ok <- subject_available(current, human_account_id),
-         {:ok, _identity} <- save_linked_social(current, social, human_account_id, actor) do
+         :ok <- save_linked_social(current, social, human_account_id, actor) do
       {:ok, provider}
     else
       {:error, :already_linked} -> {:conflict, provider}
@@ -141,29 +142,49 @@ defmodule Autolaunch.Accounts.VerifiedSession do
 
   # A subject new to the account links it; the same subject again refreshes it.
   defp save_linked_social(nil, social, human_account_id, actor) do
-    Accounts.upsert_linked_identity(
-      social.provider,
-      social.subject,
-      social.username,
-      social.display_name,
-      DateTime.utc_now(),
-      %{},
-      human_account_id,
-      actor: actor
-    )
+    with {:ok, _identity} <-
+           Accounts.upsert_linked_identity(
+             social.provider,
+             social.subject,
+             social.username,
+             social.display_name,
+             DateTime.utc_now(),
+             %{},
+             human_account_id,
+             actor: actor
+           ),
+         do: :ok
   end
 
-  defp save_linked_social(current, social, _human_account_id, actor) do
-    Accounts.refresh_linked_identity(
-      current,
+  defp save_linked_social(link, social, _human_account_id, actor),
+    do: refresh_linked_social(link, social, actor)
+
+  @doc """
+  Refreshes `link` with the names Privy lists now (`social`) and the time of
+  this check, leaving when it was linked alone. One statement, written only
+  while the row is still that subject's link: one removed, or replaced by
+  another sign-in, meanwhile is left as it is and the sign-in carries on.
+  """
+  def refresh_linked_social(link, social, actor) do
+    LinkedIdentity
+    |> Ash.Query.for_read(:by_provider_subject, Map.take(link, [:provider, :subject]),
+      actor: actor
+    )
+    |> Ash.Query.filter(id == ^link.id)
+    |> Accounts.refresh_linked_identity(
       %{
         username: social.username,
         display_name: social.display_name,
         verified_at: DateTime.utc_now(),
         metadata: %{}
       },
-      actor: actor
+      actor: actor,
+      bulk_options: [strategy: :atomic, return_errors?: true]
     )
+    |> case do
+      %Ash.BulkResult{status: :success} -> :ok
+      %Ash.BulkResult{errors: errors} -> {:error, Ash.Error.to_error_class(errors)}
+    end
   end
 
   defp subject_available(nil, _human_account_id), do: :ok

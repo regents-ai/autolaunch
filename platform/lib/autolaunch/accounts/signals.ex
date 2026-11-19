@@ -28,12 +28,15 @@ defmodule Autolaunch.Accounts.Signals do
     end
 
     signal :social_linked do
-      argument :provider, :atom, allow_nil?: false
+      argument :provider, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:x, :github, :farcaster]]
+
       argument :subject, :string, allow_nil?: false
     end
 
     signal :x_connected do
-      argument :role, :atom, allow_nil?: false
+      argument :role, :atom, allow_nil?: false, constraints: [one_of: [:profile, :company]]
       argument :x_user_id, :string, allow_nil?: false
     end
   end

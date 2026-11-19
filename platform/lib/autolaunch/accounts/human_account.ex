@@ -41,10 +41,12 @@ defmodule Autolaunch.Accounts.HumanAccount do
       prepare build(load: [:display_name, :ens_name, :ens_avatar_url])
     end
 
-    # The accounts made before a moment, such as the Points start.
+    # The accounts made before a moment, on any Regent site, such as the Points
+    # start run's own time; only their ids.
     read :created_before do
       argument :at, :utc_datetime_usec, allow_nil?: false
       filter expr(created_at < ^arg(:at))
+      prepare build(select: [:id])
     end
 
     # The accounts of these people, by their Privy ids.
@@ -83,11 +85,10 @@ defmodule Autolaunch.Accounts.HumanAccount do
 
       # A sign-in to an account that already exists skips the upsert, and Ash marks
       # the account it returns with `upsert_skipped`.
-      change after_action(fn
-               _changeset, %{__metadata__: %{upsert_skipped: true}} = account, _context ->
+      change after_action(fn changeset, account, _context ->
+               if Ash.Resource.get_metadata(account, :upsert_skipped) do
                  {:ok, account}
-
-               changeset, account, _context ->
+               else
                  with :ok <-
                         Ash.Signals.emit(
                           changeset,
@@ -96,6 +97,7 @@ defmodule Autolaunch.Accounts.HumanAccount do
                           %{account_id: account.id}
                         ),
                       do: {:ok, account}
+               end
              end)
 
       change load([:display_name])
