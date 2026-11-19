@@ -10,8 +10,10 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   An approval is its own step and stays pressable once done. The action is
   disabled only when the chain, read at the latest block for this panel, makes
-  it certain to fail, with the reason beside it; a press made before a new
-  amount reached the server asks for the matching steps first.
+  it certain to fail, with the reason beside it; a buy or sell with no pool to
+  quote it, or too small to pay anything back, has no steps at all, so its
+  approval is disabled with the same reason. A press made before a new amount
+  reached the server asks for the matching steps first.
 
   The page passes `kind`, the `series` reading, and the panel's
   `session_lease` and `current_human_id`. A landed step tells the page with
@@ -85,9 +87,9 @@ defmodule AutolaunchWeb.ExposureComponent do
          {:ok, prepared} <- prepare(socket.assigns, request, signer) do
       socket = put_prepared(socket, signer, prepared)
 
-      if name not in @approvals and prepared.blocked,
-        do: {:reply, %{}, socket},
-        else: {:reply, %{review: socket.assigns.review, send: name}, socket}
+      if sendable?(prepared, name),
+        do: {:reply, %{review: socket.assigns.review, send: name}, socket},
+        else: {:reply, %{}, socket}
     else
       nil -> {:reply, %{}, sync(socket)}
       {:error, _reason} -> {:reply, %{}, socket |> sync() |> unsent()}
@@ -471,14 +473,14 @@ defmodule AutolaunchWeb.ExposureComponent do
           <P.button
             variant={if step.approval?, do: "secondary", else: nil}
             data-onchain-step={step.name}
-            disabled={!step.approval? and @blocked != nil}
-            aria-describedby={(!step.approval? and @blocked) && "#{@id}-#{step.name}-why"}
+            disabled={step.disabled?}
+            aria-describedby={step.disabled? && "#{@id}-#{step.name}-why"}
           >
             <span data-press-label>{step.label}</span>
           </P.button>
           <div class="exposure-panel__step-words">
             <span :if={step.words}>{step.words}</span>
-            <span :if={!step.approval? and @blocked} id={"#{@id}-#{step.name}-why"}>{@blocked}</span>
+            <span :if={step.disabled?} id={"#{@id}-#{step.name}-why"}>{@blocked}</span>
           </div>
           <P.button
             :if={step.stalled?}
@@ -640,6 +642,7 @@ defmodule AutolaunchWeb.ExposureComponent do
         name: name,
         label: label(name, assigns),
         approval?: approval?,
+        disabled?: prepared != nil and not sendable?(prepared, name),
         state: step_state(described, approval?, prepared),
         words: described && described.state != :confirmed && described.words,
         entry: entry,
@@ -647,6 +650,11 @@ defmodule AutolaunchWeb.ExposureComponent do
       }
     end)
   end
+
+  # A step can be sent when the steps built for the form hold it and, past its
+  # approval, nothing the chain says makes the action certain to fail.
+  defp sendable?(%{steps: steps, blocked: blocked}, name),
+    do: Enum.any?(steps, &(&1.step == name)) and (name in @approvals or is_nil(blocked))
 
   # A sent step shows how it went; before any press, an approval the chain
   # already holds shows as done and stays pressable.

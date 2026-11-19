@@ -24,8 +24,11 @@ defmodule Autolaunch.Exposure.Steps do
   not yet recordable) comes back with `blocked` set to the reason and
   `approved` saying whether the allowance already covers it; its steps are
   still built whenever they can be, so a press the chain has since allowed
-  reaches the wallet. A request that cannot name a real action (a zero amount)
-  is refused outright.
+  reaches the wallet. A swap is only ever built to take more than nothing: a
+  buy or sell with no pool to quote it, or whose quote comes to nothing once
+  the slippage allowance is taken, has no steps at all, `blocked` says why
+  (`:no_liquidity` or `:too_small`) and `facts.minimum` is nil. A request that
+  cannot name a real action (a zero amount) is refused outright.
   """
 
   alias Autolaunch.Chain.{Abi, Client}
@@ -173,32 +176,21 @@ defmodule Autolaunch.Exposure.Steps do
 
   # A buy pays `amount` USDC into the leg's pool; a sell pays `amount` of the leg.
   # The quote is the pool's own; the swap takes nothing less than it minus the
-  # slippage allowance, and only until its deadline.
+  # slippage allowance, and only until its deadline. With no quote, or one that
+  # comes to nothing once the allowance is taken, there is no swap to send and
+  # so no step at all: a swap is never built to take any price.
   defp trade(kind, request, series, config, signer, block, opts) do
     with {:ok, leg} <- leg(request[:leg]),
          {:ok, amount} <- positive(request[:amount]),
          {:ok, wallet} <- Chain.trade_position(series, config, leg, signer, block, opts),
          side = side(kind, Map.fetch!(series, leg).address, config, wallet),
          {:ok, out} <- quote(wallet.pool, amount, side.token_in, block, opts) do
-      min_out = out && div(out * (10_000 - @slippage_bps), 10_000)
-      route = {side.token_in, side.token_out, false, config.pool_factory}
-      deadline = block.timestamp + @swap_window
+      min_out = least(out)
 
       {:ok,
        %{
-         steps: [
-           Review.step(
-             side.approval,
-             side.token_in,
-             Abi.encode_erc20("approve", [config.router, amount])
-           ),
-           Review.step(
-             Atom.to_string(kind),
-             config.router,
-             Call.encode(@swap, [amount, min_out || 0, [route], signer, deadline])
-           )
-         ],
-         blocked: trade_blocked(kind, out, side, amount),
+         steps: swap(kind, side, amount, min_out, config, signer, block),
+         blocked: trade_blocked(kind, {out, min_out}, side, amount),
          approved: side.allowance >= amount,
          facts: %{
            leg: leg,
@@ -231,15 +223,51 @@ defmodule Autolaunch.Exposure.Steps do
       approval: "token_approval"
     }
 
-  defp trade_blocked(_kind, nil, _side, _amount), do: :no_liquidity
-  defp trade_blocked(_kind, 0, _side, _amount), do: :too_small
-  defp trade_blocked(:buy, _out, %{held: held}, amount) when held < amount, do: :not_enough_usdc
-  defp trade_blocked(:sell, _out, %{held: held}, amount) when held < amount, do: :more_than_held
+  # The least a swap of a quote of `out` takes, or nil when there is no quote or
+  # the least comes to nothing.
+  defp least(nil), do: nil
 
-  defp trade_blocked(_kind, _out, %{allowance: allowance}, amount) when allowance < amount,
+  defp least(out) do
+    case div(out * (10_000 - @slippage_bps), 10_000) do
+      0 -> nil
+      min_out -> min_out
+    end
+  end
+
+  # The exact approval to the router, then the swap taking at least `min_out`.
+  defp swap(_kind, _side, _amount, nil, _config, _signer, _block), do: []
+
+  defp swap(kind, side, amount, min_out, config, signer, block) do
+    route = {side.token_in, side.token_out, false, config.pool_factory}
+    deadline = block.timestamp + @swap_window
+
+    [
+      Review.step(
+        side.approval,
+        side.token_in,
+        Abi.encode_erc20("approve", [config.router, amount])
+      ),
+      Review.step(
+        Atom.to_string(kind),
+        config.router,
+        Call.encode(@swap, [amount, min_out, [route], signer, deadline])
+      )
+    ]
+  end
+
+  defp trade_blocked(_kind, {nil, _min_out}, _side, _amount), do: :no_liquidity
+  defp trade_blocked(_kind, {_out, nil}, _side, _amount), do: :too_small
+
+  defp trade_blocked(:buy, _quote, %{held: held}, amount) when held < amount,
+    do: :not_enough_usdc
+
+  defp trade_blocked(:sell, _quote, %{held: held}, amount) when held < amount,
+    do: :more_than_held
+
+  defp trade_blocked(_kind, _quote, %{allowance: allowance}, amount) when allowance < amount,
     do: :approve_first
 
-  defp trade_blocked(_kind, _out, _side, _amount), do: nil
+  defp trade_blocked(_kind, _quote, _side, _amount), do: nil
 
   defp quote(nil, _amount, _token_in, _block, _opts), do: {:ok, nil}
 

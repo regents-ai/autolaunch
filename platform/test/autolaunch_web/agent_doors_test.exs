@@ -75,6 +75,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
                      |> Path.expand(__DIR__)
                      |> YamlElixir.read_from_file!()
   @safe "0x9999999999999999999999999999999999999999"
+  @other "0x2222222222222222222222222222222222222222"
   @site_key String.duplicate("k", 32)
   @signed %{
     "x-siwa-signature" => "sig1=:c2lnbmVk:",
@@ -671,7 +672,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     end
   end
 
-  test "a person's covered calls and Earn balances go to them signed in and to the agent paired with them, a preview and the steps to that agent alone" do
+  test "a person's covered calls and Earn balances go to them signed in and to the agent paired with them, a preview and the steps, After-hours' too, to that agent alone" do
     switch(@features, false)
     account = TestSupport.register_creator!()
     {:ok, agent} = Autolaunch.Agents.resolve(paired_agent(account))
@@ -688,7 +689,9 @@ defmodule AutolaunchWeb.AgentDoorsTest do
            [agent, app_as_agent]},
           {Autolaunch.Earn.Product, :positions_answer, %{}, [agent, app_as_agent, person]},
           {Autolaunch.Earn.Product, :quote_answer, deposit, [agent, app_as_agent]},
-          {Autolaunch.Earn.Product, :prepare_answer, deposit, [agent, app_as_agent]}
+          {Autolaunch.Earn.Product, :prepare_answer, deposit, [agent, app_as_agent]},
+          {Autolaunch.Exposure.Series, :prepare_exposure_answer,
+           %{series: ExposureChain.series(), kind: :mint}, [agent, app_as_agent]}
         ],
         actor <- [agent, app_as_agent, person, app, %Autolaunch.Actors.System{}, nil] do
       may? = Ash.can?(Ash.ActionInput.for_action(resource, action, input), actor)
@@ -833,6 +836,103 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     assert http(:post, path, input, agent).status == 404
     refute name in tool_names(agent)
     assert %{"error" => _} = json(mcp(agent, call(name, Map.put(input, :series, series))))
+  end
+
+  # Found in the After-hours review: the three products' steps took the wallet
+  # without asking whether the person's wallet proof still held.
+  test "a person whose wallet proof has lapsed, or no longer holds together, gets no After-hours, covered-call or Earn steps for their agent, refused as a bid is" do
+    switch(~w(covered_calls exposure earn agent_bids), false)
+    account = TestSupport.register_creator!()
+    agent = paired_agent(account)
+    wallet = account.wallet_address
+    series = ExposureChain.series()
+    bid = %{auction_id: Ecto.UUID.generate(), amount: "1", max_price: "3"}
+    deposit = %{product: "aave-usdc", kind: "deposit", amount: 10 * EarnChain.unit()}
+
+    # Each product's route and tool, read from its own chain double; Earn's
+    # preview is its steps without their calls.
+    preparations = [
+      {"exposure", "/api/agent/v1/after-hour-stocks/#{series}/steps",
+       "autolaunch_after_hour_stocks_prepare", %{kind: "mint", amount: 1}, %{series: series}},
+      {"covered_calls", "/api/agent/v1/covered-calls/AMZNc/steps", "prepare_covered_call",
+       %{kind: "claim", listing_id: 1}, %{symbol: "AMZNc"}},
+      {"earn", "/api/agent/v1/earn/steps", "prepare_earn", deposit, %{}},
+      {"earn", "/api/agent/v1/earn/quote", "earn_quote", deposit, %{}}
+    ]
+
+    # Each prepares while the proof holds.
+    for {feature, path, _name, body, _where} <- preparations do
+      chain(feature)
+      assert http(:post, path, body, agent).status == 200, path
+    end
+
+    # Lapsed: no primary wallet and none listed, as a sign-in that finds no
+    # linked wallet leaves it. Not holding together: wallets listed but no
+    # primary among them. The account is read afresh for each, since an update
+    # from the first record would leave out any field that record already held.
+    for {primary, addresses} <- [{nil, []}, {nil, [wallet]}, {@other, [wallet]}] do
+      system = %Autolaunch.Actors.System{}
+      {:ok, current} = Accounts.points_account(account.id, actor: system)
+      {:ok, _account} = Accounts.refresh_verified(current, primary, addresses, actor: system)
+
+      bid_refusal = http(:post, "/api/agent/v1/bids/steps", bid, agent)
+      assert bid_refusal.status == 409 and bid_refusal.body["error"]["code"] == "wallet_required"
+
+      for {feature, path, name, body, where} <- preparations,
+          body <- [body, Map.put(body, :signer, wallet)] do
+        named = "#{inspect({primary, addresses})} #{path} #{inspect(body)}"
+        chain(feature)
+        route = http(:post, path, body, agent)
+
+        assert {route.status, Map.take(route.body["error"] || %{}, ["code", "hint"])} ==
+                 {409, Map.take(bid_refusal.body["error"], ["code", "hint"])},
+               "#{named} answered #{inspect(route.body)}"
+
+        assert tool(agent, name, Map.merge(body, where)) == {:error, route.body}, named
+      end
+    end
+  end
+
+  # Found in the After-hours review: the steps route answered every refusal of
+  # its action as the one before opening.
+  test "the After-hours steps route refuses each caller as the holdings route does, switched off as an unknown address, and before opening as every step waits" do
+    ExposureChain.install()
+    agent = paired_agent()
+    series = ExposureChain.series()
+    steps = "/api/agent/v1/after-hour-stocks/#{series}/steps"
+    holdings = "/api/agent/v1/after-hour-stocks/#{series}/holdings"
+    input = %{kind: "mint", amount: 1}
+    app = connected_app(TestSupport.register_creator!().privy_user_id)
+
+    # Unsigned, signed by an agent nobody paired, a proof the sign-in service
+    # refuses, and a connected app's token.
+    for caller <- [nil, wallet(), {:forged, agent}, app] do
+      prepared = http(:post, steps, input, caller)
+      held = http(:get, holdings, nil, caller)
+
+      assert prepared.status in [401, 403] and prepared == held,
+             "#{inspect(caller)}: #{inspect(prepared)} and #{inspect(held)}"
+    end
+
+    Application.put_env(:autolaunch, :exposure, :off)
+    off = http(:post, steps, input, agent)
+    assert off.status == 404 and off == http(:get, holdings, nil, agent)
+
+    ExposureChain.install()
+    Application.put_env(:autolaunch, :prelaunch_read_only, true)
+    closed = http(:post, steps, input, agent)
+    assert {closed.status, closed.body["error"]["code"]} == {503, "prelaunch_read_only"}
+    assert http(:get, holdings, nil, agent).status == 200
+
+    # Its hosted tool runs for the paired agent alone: nobody unsigned reaches
+    # it, and a connected app calling as itself is neither shown it nor runs it.
+    Application.put_env(:autolaunch, :prelaunch_read_only, false)
+    name = "autolaunch_after_hour_stocks_prepare"
+    hosted = call(name, Map.put(input, :series, series))
+    assert mcp(nil, hosted).status == 401
+    refute name in tool_names(app)
+    assert %{"error" => _} = json(mcp(app, hosted))
+    assert {:ok, %{"kind" => "mint"}} = tool(agent, name, Map.put(input, :series, series))
   end
 
   test "with Exposure on its three reads answer as their routes do; off, none is listed or run" do
@@ -1185,13 +1285,13 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   defp unclocked({result, answer}), do: {result, unclocked(answer)}
   defp unclocked(value), do: value
 
-  # A call to the hosted server by a paired agent's wallet, or by a connected
-  # app's access token.
+  # A call to the hosted server, unsigned, by a paired agent's wallet, or by a
+  # connected app's access token.
   defp mcp(caller, body) do
     conn(:post, "/mcp", Jason.encode!(body))
     |> Map.put(:remote_ip, from())
     |> put_req_header("content-type", "application/json")
-    |> called_by(caller)
+    |> then(&if(caller, do: called_by(&1, caller), else: &1))
     |> @endpoint.call([])
   end
 
@@ -1276,22 +1376,14 @@ defmodule AutolaunchWeb.AgentDoorsTest do
     {:app, token.value}
   end
 
-  # One HTTP request, anonymous or signed by `agent`, from an address of its own
-  # so no case spends another's rate budget.
-  defp http(method, path, body, agent \\ nil) do
+  # One HTTP request, anonymous or by `caller` as `called_by/2` takes it, from an
+  # address of its own so no case spends another's rate budget.
+  defp http(method, path, body, caller \\ nil) do
     conn =
       conn(method, path, body && Jason.encode!(body))
       |> Map.put(:remote_ip, from())
       |> then(&if(body, do: put_req_header(&1, "content-type", "application/json"), else: &1))
-      |> then(
-        &if(agent,
-          do:
-            &1
-            |> put_req_header("x-siwa-signature", "fixture-proof")
-            |> put_req_header("x-agent-wallet-address", agent),
-          else: &1
-        )
-      )
+      |> then(&if(caller, do: called_by(&1, caller), else: &1))
       |> @endpoint.call([])
 
     %{status: conn.status, body: json(conn)}
