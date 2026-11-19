@@ -420,6 +420,41 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "#exposure-buy-overnight-#{@series}", "at least 0.025872")
   end
 
+  # Found in the After-hours review: a swap with no pool to quote it, or a quote
+  # that leaves nothing once 2% is allowed, was built to take any price.
+  test "with no liquidity, or a quote too small to pay back, Buy and its approval are disabled and a press sends nothing",
+       %{conn: conn} do
+    panel_id = "#exposure-buy-overnight-#{@series}"
+
+    for {quote, why} <- [
+          {nil, "Trading opens when liquidity is added"},
+          {1, "Too small for the pool to pay anything back"}
+        ] do
+      ExposureChain.install(%{
+        pools: %{
+          ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", quote},
+          ExposureChain.session() => {"0x4444444444444444444444444444444444444444", 2_510_000}
+        }
+      })
+
+      {view, account} = signed_in(conn, "/stock/isolated-afters?tab=buy&leg=after-hours")
+      render_async(view)
+      panel = with_target(view, panel_id)
+      render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
+      view |> element("#{panel_id}-form") |> render_change(%{"amount" => "25"})
+      render_async(view)
+
+      for step <- ~w(usdc_approval buy) do
+        assert has_element?(view, "#{panel_id} [data-onchain-step=#{step}][disabled]")
+        assert has_element?(view, "#{panel_id}-#{step}-why", why)
+
+        render_hook(panel, "prepare_and_send", %{"form" => %{"amount" => "25"}, "step" => step})
+        assert_reply(view, reply)
+        assert reply == %{}
+      end
+    end
+  end
+
   # Found by the Buy and Sell review: an empty pool quotes zero, which counted as liquid.
   test "an empty pool is not liquid; with only Market-hours liquid, Buy opens on it", %{
     conn: conn
