@@ -1,5 +1,9 @@
 # Changelog
 
+## 19 November 2026: Stock CLI
+
+- Regents CLI 1.10.33 can read Covered Calls, After-hours and Earn and prepare their existing wallet steps for a paired agent. Your wallet signs and sends the steps.
+
 ## 18 November 2026: Stock Products
 
 - Start a Memestock from an eligible stock page. The form picks the right stock and network and asks before replacing a saved pair. Returning to Stocks restores your filters and hides empty groups.

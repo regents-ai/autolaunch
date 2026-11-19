@@ -373,6 +373,7 @@ is off in production.
 - An eligible stock opens the existing Memestock form with its network selected. Replacing a saved pair is an explicit action. Draft terms and readiness require a currently admitted stock, while historical auctions still resolve.
 - Covered-call and After-hours reads keep useful results during a partial outage. Covered-call orders show the available amount, and agents get market-specific recovery and exact offer links when the desk supports them.
 - Earn names the available withdrawal liquidity and remaining deposit capacity separately.
+- Regents CLI 1.10.33 supports the existing reads and unsigned wallet preparation for Covered Calls, After-hours Stocks and Earn. The installed wheel's public reads were checked on production.
 
 ## Gaps, in one list
 
@@ -382,8 +383,7 @@ and token page tabs; `/how-it-works`, `/account/points` in a browser,
 stake and unstake; Make a payment; selling fee shares; share picture content; a Revstake
 draft's picture or treasury saved through its route; the Points read from the regents binary; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys; each No in the guides' Agent access table: the CLI's covered-call, Isolated
-Exposure to After-hours Stocks, Earn, agent bid, agent Robinhood bid, agent launch, agent finish and agent staking commands, and on hosted MCP and the connector an agent's
+agent journeys; each No in the guides' Agent access table: the CLI's agent bid, agent Robinhood bid, agent launch, agent finish and agent staking commands, and on hosted MCP and the connector an agent's
 identity check and its check-in; a headless walk
 with an agent's own wallet through `/stock/covered-call`, `/portfolio` (Covered calls),
 `/stock/isolated-afters` and `/earn`;
