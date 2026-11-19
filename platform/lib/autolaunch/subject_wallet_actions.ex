@@ -11,8 +11,10 @@ defmodule Autolaunch.SubjectWalletActions do
   what a confirmed payment or sweep routed from its receipt.
 
   A wallet's balances are Base's public record, so `wallet_state/2` answers for
-  any address. A review is only for one of the signed-in account's own wallets,
-  proved against the account the mounted lease resolves to.
+  any address. `prepare/5` reviews only for one of the signed-in account's own
+  wallets, proved against the account the mounted lease resolves to.
+  `review/4` checks nothing about the wallet it is given, so its caller must
+  already have proved that wallet is one of the acting person's own.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -68,25 +70,39 @@ defmodule Autolaunch.SubjectWalletActions do
   """
   @spec prepare(String.t(), String.t(), atom(), map(), keyword()) ::
           {:ok, map()} | {:error, term()}
-  def prepare(auction_id, address, kind, params, opts) when kind in @kinds do
+  def prepare(auction_id, address, kind, params, opts) do
     with {:ok, _actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
+         do: review(auction_id, signer, kind, params)
+  end
+
+  @doc """
+  The review `prepare/5` makes once it has proved `signer` is one of the
+  acting account's own wallets, with the launch's own token (`subject`). It
+  checks nothing about `signer` itself, so its caller must have proved it is
+  one of the acting person's own wallets. The asset, and a payment's amount,
+  are read before any chain is.
+  """
+  @spec review(String.t(), String.t(), atom(), map()) :: {:ok, map()} | {:error, term()}
+  def review(auction_id, signer, kind, params) when kind in @kinds do
+    with {:ok, asset} <- selected_asset(params),
+         {:ok, amount} <- typed(kind, params, asset),
          {:ok, config} <- lab(),
          {:ok, subject} <- actionable(auction_id),
-         {:ok, asset} <- selected_asset(params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
-         {:ok, plan} <- planned(kind, asset, params, snapshot) do
+         {:ok, plan} <- planned(kind, asset, amount, snapshot) do
       {:ok,
        %{
          signer: signer,
          chain: Client.chain(config),
+         subject: asset_address(snapshot, :subject),
          steps: steps(plan, snapshot, asset),
          facts: facts(subject, kind, asset, plan, snapshot)
        }}
     end
   end
 
-  def prepare(_auction_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
+  def review(_auction_id, _signer, _kind, _params), do: unavailable(:unknown_action)
 
   @doc "The exact decimal rendering of an atomic amount of one bound asset."
   @spec units(non_neg_integer() | String.t(), atom()) :: String.t()
@@ -113,9 +129,8 @@ defmodule Autolaunch.SubjectWalletActions do
   end
 
   # Every rule the plan fixes for one action, answered from the one snapshot.
-  defp planned(:pay, asset, params, snapshot) do
-    with {:ok, amount} <- positive_amount(params, asset),
-         true <- amount <= snapshot.balances[asset] do
+  defp planned(:pay, asset, amount, snapshot) do
+    if amount <= snapshot.balances[asset] do
       reference = payment_reference()
 
       {:ok,
@@ -126,14 +141,13 @@ defmodule Autolaunch.SubjectWalletActions do
          data: SubjectAbi.encode_pay(asset_address(snapshot, asset), amount, reference)
        }}
     else
-      false -> unavailable(:amount_above_balance)
-      error -> error
+      unavailable(:amount_above_balance)
     end
   end
 
   # The receiver's own current balance is what a sweep routes, so it is reviewed
   # rather than chosen, and the event supplies the amount that actually moved.
-  defp planned(:sweep, asset, _params, snapshot) do
+  defp planned(:sweep, asset, _amount, snapshot) do
     held = snapshot.receiver.balances[asset]
 
     if held > 0 do
@@ -374,6 +388,11 @@ defmodule Autolaunch.SubjectWalletActions do
       _unsupported -> unavailable(:unsupported_asset)
     end
   end
+
+  # A payment's typed amount, before any chain is read; a sweep routes what the
+  # receiver holds, so it takes none.
+  defp typed(:pay, params, asset), do: positive_amount(params, asset)
+  defp typed(:sweep, _params, _asset), do: {:ok, nil}
 
   # Typed amounts are read the one way bids read them: exact digits, at most
   # the asset's decimals, built as an integer with no rounding.
