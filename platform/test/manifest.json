@@ -1,5 +1,5 @@
 {
-  "total": 572,
+  "total": 574,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2896,128 +2896,128 @@
       "file": "test/autolaunch/points_awards_test.exs",
       "line": 61,
       "test_name": "a launch earns its creator the first launch once, though a second one follows",
-      "keep_because": "A launch the site saves offers its Points award in the same transaction, and the account whose verified wallets held the launching wallet earns First Autolaunch launch once; a second launch, or saving the same launch again, earns no second one.",
+      "keep_because": "A launch the site saves offers its Points award in the same transaction, and the account whose verified wallets held the launching wallet earns First Autolaunch launch once; a second launch is recorded too and ends capped with no entry of its own, and saving the same launch again offers nothing new.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 269,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 85,
+      "line": 91,
       "test_name": "the day's launch award counts once each UTC day",
       "keep_because": "Autolaunch auction created earns once each UTC day by when the site saved the launch, as the Points library counts it; a second launch that day counts at nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 270,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 112,
+      "line": 118,
       "test_name": "a graduation earns the launch's creator the first graduation once",
-      "keep_because": "The token row saved when a launch graduates earns the launch's creator First Autolaunch graduation once; seeing the same graduation again offers nothing new.",
+      "keep_because": "The token row saved when a launch graduates earns the launch's creator First Autolaunch graduation once; a second graduation is recorded too and ends capped with no entry of its own, and seeing the same graduation again offers nothing new.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 271,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 131,
+      "line": 141,
       "test_name": "a launch from a wallet no account holds is saved and earns nothing",
       "keep_because": "A launch from a wallet no account held is still saved and listed, and earns nothing, recorded as refused because the wallet is not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 272,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 173,
+      "line": 183,
       "test_name": "while no rule is approved, launches and graduations offer nothing",
       "keep_because": "While earning is closed a launch and a graduation save as before and queue or write nothing for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 273,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 185,
+      "line": 195,
       "test_name": "the site's checks answer the same each time they are asked",
       "keep_because": "The site's check of a launch, graduation or bid reads only its saved rows, so asking twice gives the same answer, refusals included: a bid from an unlinked wallet, or on a hidden or unlisted launch, is refused, and a launch's creator bidding on it earns like anyone.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 274,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 231,
+      "line": 241,
       "test_name": "a bid from a linked wallet earns the day's bid award once, a second that day counting at nothing",
       "keep_because": "A Base bid the auction's reader saves as its bidder's position offers its Points award in the same transaction, and the account whose verified wallets held the bidding wallet earns Autolaunch auction bid once that UTC day; a second bid that day is written at nothing, as the Points library counts it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 275,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 252,
+      "line": 262,
       "test_name": "a bid from a wallet no account holds is saved and earns nothing",
       "keep_because": "A bid from a wallet no account held is still saved as its position and earns nothing, recorded as refused because the bidding wallet is not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 276,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 268,
+      "line": 278,
       "test_name": "a bid saved by the bidder's page earns once, and the reader's rebuild keeps it and offers nothing",
       "keep_because": "A bid's position is offered once, by whichever write saves it first; the page saving it again, the reader seeing it, and a rebuild of the auction's activity after a chain reorganisation keep its row and award and offer nothing more.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 277,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_awards_test.exs",
-      "line": 299,
+      "line": 309,
       "test_name": "while earning is closed, the reader still saves a bid and Points gets nothing",
       "keep_because": "While earning is closed (no start time, no rule approved) the auction's reader saves a bid's activity and position as before and queues or writes nothing for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dfbc1f40492fcc60b961eeb9206f28330322046cacff4432c895794c1b41ffe7"
+      "source_sha256": "fb6c83c12320476212442831326fa859ff5a6c40a7a80b10ae2ae05b46d67433"
     },
     {
       "id": 278,
@@ -3056,7 +3056,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 281,
@@ -3069,7 +3069,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 282,
@@ -3082,7 +3082,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 283,
@@ -3095,7 +3095,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 284,
@@ -3108,7 +3108,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 285,
@@ -3121,7 +3121,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 286,
@@ -3134,7 +3134,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 287,
@@ -3143,63 +3143,63 @@
       "file": "test/autolaunch/points_token_awards_test.exs",
       "line": 401,
       "test_name": "a stake from a linked wallet earns Autolaunch token staked once, though the wallet stakes again",
-      "keep_because": "A Staked log of a launch's splitter, read by the token's reader over the same blocks as its trades, is saved once with its chain, splitter, staker and raw amount, and earns Autolaunch token staked once for the account whose verified wallets held the staking wallet; staking again earns nothing more, and unstaking is never read.",
+      "keep_because": "A Staked log of a launch's splitter, read by the token's reader over the same blocks as its trades, is saved once with its chain, splitter, staker and raw amount, and earns Autolaunch token staked once for the account whose verified wallets held the staking wallet; the other stake is recorded too and ends capped with no entry of its own, and unstaking is never read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 288,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 424,
+      "line": 425,
       "test_name": "reading a stake again, or rebuilding after the chain changed, keeps it as first saved and offers nothing",
       "keep_because": "A stake read again, or read again in a rebuild after the chain changed under the reader's cursor, keeps the row first saved and offers Points nothing more.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 289,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 453,
+      "line": 454,
       "test_name": "a stake from a wallet no account holds is saved and earns nothing",
       "keep_because": "A stake from a wallet no account held at its block time is still saved and earns nothing, refused as not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 290,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 464,
+      "line": 465,
       "test_name": "while earning is closed, the reader still saves a stake and Points gets nothing",
       "keep_because": "While earning is closed the token's reader still saves each stake, and nothing is queued or written for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 291,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 547,
+      "line": 548,
       "test_name": "the site's stake check answers the same each time it is asked",
       "keep_because": "The stake check answers the same each time: a linked staker earns, an unlinked one, a stake not saved, or one of a hidden launch's token earns nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 292,
@@ -3212,46 +3212,46 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 293,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 476,
+      "line": 477,
       "test_name": "a splitter read the node refuses as too wide narrows the pass, and every trade and stake is still saved",
       "keep_because": "A splitter log read the node refuses as too many blocks narrows the pass to its first half instead of stopping it, and the following passes read on until every trade and stake is saved.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 294,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 501,
+      "line": 502,
       "test_name": "a stake log from another block than the one read under its number leaves the pass quietly to be read again",
       "keep_because": "A Staked log whose block hash differs from the header read for its block takes the quiet head-moved path: a one-minute wait with one warning, nothing saved and the cursor kept.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 295,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_token_awards_test.exs",
-      "line": 523,
+      "line": 524,
       "test_name": "a Staked log of nothing is skipped and the pass goes on",
       "keep_because": "A zero-amount Staked log is skipped while the pass saves the others, and the stake record refuses an amount of zero.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 296,
@@ -3264,7 +3264,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 297,
@@ -3277,7 +3277,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 298,
@@ -3290,7 +3290,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 299,
@@ -3303,7 +3303,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a5320a106854f5d61609c0d67387b5b1ddc6a27f91dc8848084db4ed2a43a171"
+      "source_sha256": "ed3bfd06cebe531cd54fde2aad430d1fc62fb278896c426ce8c49f2d6372f51c"
     },
     {
       "id": 300,
@@ -3312,206 +3312,206 @@
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
       "line": 116,
       "test_name": "a sale earns its seller and its buyer First Autolaunch covered call, each once, however many follow",
-      "keep_because": "A covered call bought from a listing and one sold into a bid are each saved once with their contract, stock, listing, bid, both sides and raw amounts, and First Autolaunch covered call earns once for the seller's account and once for the buyer's, however many sales follow.",
+      "keep_because": "A covered call bought from a listing and one sold into a bid are each saved once with their contract, stock, listing, bid, both sides and raw amounts, and First Autolaunch covered call earns once for the seller's account and once for the buyer's; each side of the sale that follows is recorded too and ends capped with no entry of its own.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 301,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 149,
+      "line": 164,
       "test_name": "an account on both sides of a sale earns it once",
-      "keep_because": "An account that sells into its own bid is on both sides of the sale and earns First Autolaunch covered call once, with no refusal written for the other side.",
+      "keep_because": "An account that sells into its own bid is on both sides of the sale: both sides are recorded for it, one earns First Autolaunch covered call and the other ends capped, with no refusal written.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 302,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 167,
+      "line": 183,
       "test_name": "reading a sale again keeps it as first saved and offers nothing",
       "keep_because": "A sale read again by the next pass and by the pass that reads its block for the last time keeps its row as first saved, moves the cursor on, offers Points nothing more and logs no warning.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 303,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 188,
+      "line": 204,
       "test_name": "a sale with a side no account holds is saved and earns only the linked side",
       "keep_because": "A sale whose buyer no account held is still saved; its seller earns and its buyer side is refused as not linked.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 304,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 201,
+      "line": 217,
       "test_name": "while earning is closed, the reader still saves a sale and Points gets nothing",
       "keep_because": "While earning is closed the market's reader still saves each sale, and nothing is queued or written for Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 305,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 212,
+      "line": 228,
       "test_name": "with covered calls off or their contracts not described, the reader has no job and reads nothing",
       "keep_because": "With covered calls off, or on without a description of their contracts, the chain watch makes no sales job, a job left over is cancelled, and the chain is asked nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 306,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 232,
+      "line": 248,
       "test_name": "the chain watch run twice leaves each market one reading job",
       "keep_because": "The chain watch run twice leaves one incomplete sales job for the covered-call market and asks the chain nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 307,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 243,
+      "line": 259,
       "test_name": "a sale the chain moved to another block is kept as first saved, warned of once, and offers nothing more",
       "keep_because": "A saved sale the chain moved to another block is not saved again while its old block is still read again, is named in one warning by the pass that reads its old block for the last time, is neither saved nor named again wherever the chain puts it later, and keeps the two awards it earned.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 308,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 280,
+      "line": 296,
       "test_name": "a sale read again that differs from the saved one is kept as first saved, with one warning",
       "keep_because": "A sale read again with other facts than its saved row keeps the saved row and its queued awards, with one warning naming the transaction and none on the next pass.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 309,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 297,
+      "line": 313,
       "test_name": "a sale the chain dropped stays saved and keeps what it earned, with one warning",
       "keep_because": "A saved sale whose block the chain replaced without it stays saved and keeps both awards, with one warning naming the transaction, none on the next pass, and the cursor moving on.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 310,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 316,
+      "line": 332,
       "test_name": "a node that fails on any read leaves the pass quietly to be read again, with nothing saved",
       "keep_because": "A node failing the deployment-block search, the head, the log search, a block or the contract read for the other sides ends the pass with a minute's wait and one reader warning, never an error, with nothing saved, the cursor unmoved and nothing queued; the next answered pass saves the sale.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 311,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 354,
+      "line": 370,
       "test_name": "a pass its node holds up still reports the lag, which grows with the head",
       "keep_because": "A pass whose log search fails still reports the covered-call sales lag, which grows as the head moves, and is zero again once a pass saves.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 312,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 385,
+      "line": 401,
       "test_name": "a log that does not read as a sale is skipped with one warning, and the pass goes on",
       "keep_because": "A log whose data does not read as a sale is skipped with one warning naming its transaction, the other sale in the pass is saved, and reading its block again logs nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 313,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 400,
+      "line": 416,
       "test_name": "a pass whose cursor moved under it saves nothing and reads again at once",
       "keep_because": "A pass whose cursor another pass moved while it read rolls back its sales and its cursor move and runs again a second later.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 314,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 436,
+      "line": 452,
       "test_name": "the first pass opens at the contract's deployment block, and each pass reads at most ten thousand blocks",
       "keep_because": "The first pass opens the cursor at the contract's deployment block, and each log search covers at most 10,000 blocks with the last 300 read again, so a far-behind reader catches up in bounded passes.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 315,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_covered_call_awards_test.exs",
-      "line": 452,
+      "line": 468,
       "test_name": "the site's covered-call check answers the same each time it is asked",
       "keep_because": "The covered-call check answers the same each time for each side: a linked side earns, an unlinked seller or buyer is refused as not linked, and a sale not saved is not found.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e0281956c6e9b9db0952f73524d0cc9fe754320698e28a1befd96300bb351b4b"
+      "source_sha256": "5b7c2a0d26af6c99d81ed539a2c9f6231f234bcc21410ff7bb4d567fb61e7490"
     },
     {
       "id": 390,
@@ -7353,91 +7353,117 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 44,
+      "line": 45,
       "test_name": "a new account earns once, and signing in again offers nothing",
       "keep_because": "A sign-in that creates the shared Regent account offers Account activated once, under the Regents name every site gives it, and it earns once; signing in again to the same account offers nothing. It fails if a sign-in to an existing account offers the award again, or a new account is not offered.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 743,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 62,
+      "line": 63,
       "test_name": "a GitHub link earns once, a refresh offers nothing, and a Farcaster link earns once",
       "keep_because": "A GitHub or Farcaster account Privy lists earns once when a sign-in first links it; a later sign-in with the same account only refreshes the link and offers nothing, an X account Privy lists offers nothing, and another GitHub account in its place is linked anew, its time restarting, and offered while the account keeps its one GitHub award. It fails if every sign-in offers the link again or a Privy-listed X becomes a second X source.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 744,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 98,
+      "line": 99,
       "test_name": "the person's own X earns once; a company X, or reconnecting the same X, earns nothing",
       "keep_because": "The person's own X, connected through the X button's real connect and callback with X's side stood in, earns once for that X user id; a company connection offers nothing, and disconnecting then connecting the same X again is offered and earns nothing more. It fails if a company connection earns or a reconnection earns twice.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 745,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 120,
+      "line": 121,
       "test_name": "the first paired agent earns once; another agent, or pairing again, earns nothing more",
-      "keep_because": "The first agent a person pairs earns First paired agent once; a second agent, or unpairing and pairing the first again, is offered and earns nothing more. The award names the agent's wallet, and the Points page's name lookup finds the agent's name by that wallet.",
+      "keep_because": "The first agent a person pairs earns First paired agent once; a second agent paired before that award was checked is recorded too and ends capped with no entry of its own, and unpairing and pairing the first again once it earned records nothing more. The award names the agent's wallet, and the Points page's name lookup finds the agent's name by that wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 746,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 148,
-      "test_name": "what this site held before the start earns at the start, once",
-      "keep_because": "An account, a GitHub link, a profile X connection and a pairing made before Points started, while nothing was approved, offer nothing then; once it starts the start run records each, dated at the start, leaves out a company X and an account another site already recorded for the rule, and a second run offers nothing.",
+      "line": 161,
+      "test_name": "the start run records what Points has not: from before the start at the start, from after it at its own time, once",
+      "keep_because": "An account, a GitHub link, a profile X connection and a pairing made before Points started, while nothing was approved, offer nothing then, and neither does a GitHub link made after the start while no rule was approved; once the rules are approved the start run records each, the earlier ones dated at the start and the later link dated when it was linked, and leaves out a company X and an account another site already recorded for the rule. A second run before the first run's offers are checked queues them all again, yet each account ends with one event and one entry for each rule and nothing refused; a later run offers nothing.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 747,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 201,
+      "line": 247,
       "test_name": "an X or GitHub account another site rewarded earns nothing here",
       "keep_because": "A GitHub account and an X account another site already rewarded, the X under Privy's id for it, are recorded here for a newcomer and held to nothing, so one social account earns once across Regent sites. It fails if the X button's id and Privy's subject stop naming the same X account in Points.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
     },
     {
       "id": 748,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch/points_account_awards_test.exs",
-      "line": 224,
+      "line": 270,
       "test_name": "with the rules off, signing in, linking, connecting X and pairing all work and offer nothing",
       "keep_because": "With Points started and none of the five account rules approved, signing in with GitHub and Farcaster, connecting X and pairing an agent all save as before, nothing is queued for Points, and nothing is recorded or refused.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+      "source_sha256": "4aa9f731e694366cce079e6468707d013e00dec6c8ef629ed9dd055765b0e27b"
+    },
+    {
+      "id": 749,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch/account_links_test.exs",
+      "line": 13,
+      "test_name": "a refresh writes only while the link is still that subject's, and never moves when it was linked",
+      "keep_because": "A sign-in refreshes a link it already holds in one write that applies only while the row is still that subject's: a refresh updates the names and the time of the check and keeps when it was linked, and one whose link another sign-in replaced or removed meanwhile writes nothing and still succeeds. It fails if a stale refresh writes the old subject's name onto the replacing link, or fails the sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "554fb495cd62bd882c3c4f0a2266f416f3154c6bb4ae8332fc410c390140ef6c"
+    },
+    {
+      "id": 750,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch/account_links_test.exs",
+      "line": 62,
+      "test_name": "a signed-in person, or no one, may not list what Points reads or refresh a link",
+      "keep_because": "A signed-in person, even for their own link, and a request with no actor are both refused on the reads the Points start run uses (accounts made before a time, accounts by Privy id, links made before a time, the holder of an X account, profile X connections made before a time) and on refreshing a link, which stays unchanged.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "554fb495cd62bd882c3c4f0a2266f416f3154c6bb4ae8332fc410c390140ef6c"
     }
   ],
   "legacy_folders_to_remove": [
