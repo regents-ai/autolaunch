@@ -163,13 +163,13 @@ defmodule AutolaunchWeb.PointsLive do
   end
 
   # The page where each action is done, for the ones this site has a page for,
-  # linked while the action can still earn here. Connected accounts are on the
-  # Account page here; a launch starts on the create page, and a launched
-  # auction graduates, and takes bids, among the auctions.
+  # linked while the action can still earn here. X and GitHub are connected on
+  # the Account page here, and agents paired on its Agents page; nothing here
+  # links Farcaster. A launch starts on the create page, and a launched auction
+  # graduates, and takes bids, among the auctions.
   @links %{
     "social.x" => "/account",
     "social.github" => "/account",
-    "social.farcaster" => "/account",
     "agent.activated" => "/account/agents",
     "autolaunch.first_launch" => "/create",
     "autolaunch.auction_created" => "/create",

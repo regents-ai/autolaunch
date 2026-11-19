@@ -28,9 +28,14 @@ config :phoenix, :logger, false
 
 # Regent Points earning opens here with the program, at 16 November 2026 17:00
 # UTC (Sean's 1 a, 15 November). The start is final: the library never lets it
-# change or return to nil. These are the actions that earn from that moment;
-# pausing one means taking it off this list, and each further action is added
-# here once its source is built (config/config.exs names every adapter).
+# change or return to nil. These are the actions that earn; pausing one means
+# taking it off this list, and each further action is added here once its
+# source is built (config/config.exs names every adapter). The five account
+# actions (Sean's 31 a, 19 November) are offered for what is done on this site:
+# an account made at sign-in here, GitHub or Farcaster linked at sign-in, X
+# connected with the Account page's X button, and an agent paired here. What
+# this site's records held before the start earns at the start
+# (RegentPoints.StartAwards), unless another site already recorded it.
 config :regent_points,
   starts_at: ~U[2026-11-16 17:00:00Z],
   approved_rules: ~w(
@@ -41,6 +46,11 @@ config :regent_points,
     autolaunch.token_traded
     autolaunch.token_staked
     autolaunch.first_covered_call
+    account.activated
+    social.x
+    social.github
+    social.farcaster
+    agent.activated
   )
 
 # Runtime production configuration, including reading
