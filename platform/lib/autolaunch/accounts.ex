@@ -62,8 +62,8 @@ defmodule Autolaunch.Accounts do
         action: :for_account,
         args: [:human_account_id]
 
-      define :get_linked_identity_by_subject,
-        action: :by_provider_subject,
+      define :get_first_link,
+        action: :first_link,
         args: [:provider, :subject],
         not_found_error?: false
 

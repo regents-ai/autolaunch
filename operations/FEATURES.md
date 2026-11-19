@@ -44,7 +44,8 @@ Map as of 27 October 2026. A release that adds or changes something here updates
 - Sign in and sign out
 - Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile)
 - Connect or remove X
-- A sign-in refreshes a GitHub, Farcaster or X link it finds already there in one write, only while that row is still that subject's link: one another sign-in removed or replaced meanwhile is left as it is and the sign-in carries on; the refresh updates the names and the time of the check, never when it was linked
+- A sign-in refreshes the account's own GitHub, Farcaster or X link to the account Privy lists in one write, updating the names and the time of the check, never when it was linked; when the account does not hold that link, whatever another sign-in just did, the sign-in links it
+- Several accounts may link the same X account at sign-in, and a later link takes nothing from the others; a GitHub or Farcaster account another account holds is reported as already connected and not linked
 - Only the site itself may list the accounts, links and X connections the Points start run reads, find which account holds an X account, or refresh a link; a signed-in person and a visitor with no sign-in are refused
 
 ## Wallet actions

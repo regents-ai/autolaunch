@@ -4,15 +4,21 @@ defmodule Autolaunch.Points.LinkedSocial do
   (`social.github`, `social.farcaster`): it reads the saved link and answers
   with what Points records. The provider and subject are the proof, so one
   social account earns once, whichever account links it and on whichever
-  Regent site; a link removed before the check earns nothing.
+  Regent site; a link removed before the check earns nothing. The check answers
+  for the account that linked it first and still holds it
+  (`Autolaunch.Accounts.LinkedIdentity` `:first_link`), so a later link by
+  another account moves nothing earned or waiting; a GitHub or Farcaster
+  account is linked to one account at a time, so that is the account holding it.
 
   An X account earns from the X connection the Account page makes
-  (`Autolaunch.Points.ConnectedX`), never from a link Privy lists.
+  (`Autolaunch.Points.ConnectedX`), never from a link Privy lists, which
+  several accounts may hold at once.
 
   `existing/2` lists this site's links to the rule's provider made before `at`,
-  the start run's own time, and still there, for `RegentPoints.StartAwards`.
-  One linked before the Points start earns at the start; a later one, such as
-  one linked while the rule was off, at its own time.
+  the start run's own time, and still there, one for each social account: its
+  first, for `RegentPoints.StartAwards`. One linked before the Points start
+  earns at the start; a later one, such as one linked while the rule was off,
+  at its own time.
   """
 
   alias Autolaunch.Accounts
@@ -21,7 +27,7 @@ defmodule Autolaunch.Points.LinkedSocial do
   def verify(%{"source_event_key" => key}) do
     [provider, subject] = String.split(key, ":", parts: 2)
 
-    case Accounts.get_linked_identity_by_subject(provider, subject, actor: %System{}) do
+    case Accounts.get_first_link(provider, subject, actor: %System{}) do
       {:ok, %{} = identity} -> {:ok, facts(identity, key)}
       {:ok, nil} -> {:error, :link_not_found}
       {:error, reason} -> {:retry, reason}
@@ -29,7 +35,10 @@ defmodule Autolaunch.Points.LinkedSocial do
   end
 
   def existing("social." <> provider, at) do
-    for identity <- Accounts.linked_identities_before!(provider, at, actor: %System{}) do
+    links = Accounts.linked_identities_before!(provider, at, actor: %System{})
+
+    # Of the accounts that hold one social account, only the first to link it.
+    for identity <- Enum.uniq_by(links, & &1.subject) do
       {identity.human_account_id,
        %{
          source_app: Autolaunch.Points.source_app(),

@@ -2,6 +2,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
   @moduledoc "Establishes the shared Regent account from verified Privy evidence."
 
   require Ash.Query
+  alias Ash.Error.Changes.InvalidAttribute
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.{EnsIdentity, LinkedIdentity}
   alias Autolaunch.Actors.System
@@ -120,57 +121,36 @@ defmodule Autolaunch.Accounts.VerifiedSession do
 
   defp linked_social_provider(_social), do: {:error, :invalid_verified_identity}
 
+  # The subject still linked to the account is refreshed where it stands; when no
+  # row holds it for the account, whatever another sign-in just did, it is linked.
   defp upsert_linked_social(
          %{provider: provider, subject: subject, username: _, display_name: _} = social,
          human_account_id,
          actor
        )
        when provider in @social_providers and is_binary(subject) and subject != "" do
-    with {:ok, current} <-
-           Accounts.get_linked_identity_by_subject(provider, subject, actor: actor),
-         :ok <- subject_available(current, human_account_id),
-         :ok <- save_linked_social(current, social, human_account_id, actor) do
-      {:ok, provider}
-    else
-      {:error, :already_linked} -> {:conflict, provider}
-      {:error, error} -> resolve_upsert_error(error, provider, subject, human_account_id, actor)
+    case refresh_linked_social(social, human_account_id, actor) do
+      :ok -> {:ok, provider}
+      :not_linked -> link_social(social, human_account_id, actor)
+      {:error, error} -> {:error, error}
     end
   end
 
   defp upsert_linked_social(_social, _human_account_id, _actor),
     do: {:error, :invalid_verified_identity}
 
-  # A subject new to the account links it; the same subject again refreshes it.
-  defp save_linked_social(nil, social, human_account_id, actor) do
-    with {:ok, _identity} <-
-           Accounts.upsert_linked_identity(
-             social.provider,
-             social.subject,
-             social.username,
-             social.display_name,
-             DateTime.utc_now(),
-             %{},
-             human_account_id,
-             actor: actor
-           ),
-         do: :ok
-  end
-
-  defp save_linked_social(link, social, _human_account_id, actor),
-    do: refresh_linked_social(link, social, actor)
-
-  @doc """
-  Refreshes `link` with the names Privy lists now (`social`) and the time of
-  this check, leaving when it was linked alone. One statement, written only
-  while the row is still that subject's link: one removed, or replaced by
-  another sign-in, meanwhile is left as it is and the sign-in carries on.
-  """
-  def refresh_linked_social(link, social, actor) do
+  # The account's own row for the subject takes the names Privy lists now and
+  # the time of this check, leaving when it was linked alone. One statement finds
+  # the row by provider, subject and account and updates it; no row matched is
+  # a subject the account does not hold now.
+  defp refresh_linked_social(
+         %{provider: provider, subject: subject} = social,
+         human_account_id,
+         actor
+       ) do
     LinkedIdentity
-    |> Ash.Query.for_read(:by_provider_subject, Map.take(link, [:provider, :subject]),
-      actor: actor
-    )
-    |> Ash.Query.filter(id == ^link.id)
+    |> Ash.Query.for_read(:for_account, %{human_account_id: human_account_id}, actor: actor)
+    |> Ash.Query.filter(provider == ^provider and subject == ^subject)
     |> Accounts.refresh_linked_identity(
       %{
         username: social.username,
@@ -180,24 +160,52 @@ defmodule Autolaunch.Accounts.VerifiedSession do
       },
       actor: actor,
       # Anyone but the site is refused, not counted as a link that is gone.
-      bulk_options: [strategy: :atomic, return_errors?: true, authorize_with: :error]
+      bulk_options: [
+        strategy: :atomic,
+        return_records?: true,
+        return_errors?: true,
+        authorize_with: :error
+      ]
     )
     |> case do
-      %Ash.BulkResult{status: :success} -> :ok
+      %Ash.BulkResult{status: :success, records: [_identity]} -> :ok
+      %Ash.BulkResult{status: :success, records: []} -> :not_linked
       %Ash.BulkResult{errors: errors} -> {:error, Ash.Error.to_error_class(errors)}
     end
   end
 
-  defp subject_available(nil, _human_account_id), do: :ok
-  defp subject_available(%{human_account_id: id}, id), do: :ok
-  defp subject_available(_identity, _human_account_id), do: {:error, :already_linked}
-
-  defp resolve_upsert_error(error, provider, subject, human_account_id, actor) do
-    case Accounts.get_linked_identity_by_subject(provider, subject, actor: actor) do
-      {:ok, %{human_account_id: id}} when id != human_account_id -> {:conflict, provider}
-      _result -> {:error, error}
+  # A first link for the provider, or one that replaces the account's earlier
+  # subject. A subject other accounts hold is linked here as well when its
+  # provider's accounts are shared (X); otherwise the database refuses it.
+  defp link_social(social, human_account_id, actor) do
+    case Accounts.upsert_linked_identity(
+           social.provider,
+           social.subject,
+           social.username,
+           social.display_name,
+           DateTime.utc_now(),
+           %{},
+           human_account_id,
+           actor: actor
+         ) do
+      {:ok, _identity} -> {:ok, social.provider}
+      {:error, error} -> conflict_or_error(error, social.provider)
     end
   end
+
+  # `LinkedIdentity` `:unique_subject_per_provider` refuses a subject another
+  # account holds, one a concurrent sign-in just took included, with an error on
+  # the subject alone that names the unique rule: that is the conflict.
+  defp conflict_or_error(%Ash.Error.Invalid{errors: errors} = error, provider) do
+    if Enum.any?(errors, &subject_taken?/1), do: {:conflict, provider}, else: {:error, error}
+  end
+
+  defp conflict_or_error(error, _provider), do: {:error, error}
+
+  defp subject_taken?(%InvalidAttribute{field: :subject, private_vars: vars}),
+    do: vars[:constraint_type] == :unique
+
+  defp subject_taken?(_error), do: false
 
   defp remove_missing_socials(existing, token_providers, account, actor) do
     existing
