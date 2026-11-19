@@ -40,8 +40,10 @@ defmodule Autolaunch.ShareVideoRequest do
     triggers do
       # Every request queues its own job as it is written, so there is no sweep.
       # A render cut off by a stopped machine is handed back by Lifeline and
-      # made once more; one that fails twice marks its request failed. Oban
-      # ends a render still running after five minutes.
+      # made once more; one that fails twice marks its request failed and
+      # then fails its job, so the second failure is saved as a crash (the
+      # first, tried again, is not: `Autolaunch.ErrorIgnorer`). Oban ends a
+      # render still running after five minutes.
       trigger :render do
         action :render
         where expr(state == :queued)
@@ -49,6 +51,7 @@ defmodule Autolaunch.ShareVideoRequest do
         max_attempts 2
         timeout :timer.minutes(5)
         on_error :fail
+        on_error_fails_job? true
         lock_for_update? false
         scheduler_cron false
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Render

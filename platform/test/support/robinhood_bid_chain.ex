@@ -37,7 +37,8 @@ defmodule Autolaunch.RobinhoodBidChain do
   with none for `nil`. `checkpoints` shapes the auction's stored price
   history: `:final`, one checkpoint below the bid's maximum and none after it;
   `:long`, a checkpoint below it at every block. `unreadable` names one method
-  the node refuses.
+  the node refuses. A sent step is on the chain once `transactions` holds its
+  transaction by hash, and has landed once `receipts` holds its receipt.
 
   Each request it answers tells the calling process `{:robinhood_read, method}`.
   """
@@ -178,7 +179,9 @@ defmodule Autolaunch.RobinhoodBidChain do
         token_balance: 0,
         token_allowance: 0,
         staked: 0,
-        claimable: %{dollar: 0, token: 0, currency: 0}
+        claimable: %{dollar: 0, token: 0, currency: 0},
+        transactions: %{},
+        receipts: %{}
       },
       Application.get_env(:autolaunch, __MODULE__, %{})
     )
@@ -209,6 +212,10 @@ defmodule Autolaunch.RobinhoodBidChain do
     do: %{"number" => "0x64", "hash" => @hash, "timestamp" => "0x6700"}
 
   defp answer("eth_getCode", [_address, _block], state), do: state.code
+
+  defp answer("eth_getTransactionByHash", [hash], state), do: Map.get(state.transactions, hash)
+
+  defp answer("eth_getTransactionReceipt", [hash], state), do: Map.get(state.receipts, hash)
 
   defp answer("eth_call", [%{to: to, data: data}, _block], state) do
     {:ok, config} = Lab.current()

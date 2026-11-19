@@ -55,6 +55,31 @@ defmodule Autolaunch.Stocks.StockCandidateReadMarketTest do
     assert Exception.message(error) =~ "stock candidate read failed: :invalid_chain_response"
   end
 
+  # The real read job through Oban's executor, with the crash saving the site
+  # attaches at start: its one try fails, the row's turn moves on, and the
+  # fault is saved as a crash.
+  test "a read job that fails moves the row's turn on and is saved as a crash", %{
+    candidate: candidate
+  } do
+    start_supervised!(
+      {Oban,
+       AshOban.config(
+         Application.fetch_env!(:autolaunch, :ash_domains),
+         Application.fetch_env!(:autolaunch, Oban)
+       )}
+    )
+
+    chain_answers_with(WrongShape)
+    %Oban.Job{} = AshOban.run_trigger(candidate, :read_market)
+
+    assert %{discard: 1} = Oban.drain_queue(queue: :stock_volume)
+
+    assert %DateTime{} =
+             Ash.get!(Autolaunch.Stocks.StockCandidate, candidate.id, actor: @actor).tried_at
+
+    assert [%ErrorTracker.Error{kind: "Elixir.Ash.Error.Unknown"}] = Repo.all(ErrorTracker.Error)
+  end
+
   defp chain_answers_with(client) do
     previous = Application.get_env(:autolaunch, :autolaunch_lab_http_client)
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, client)

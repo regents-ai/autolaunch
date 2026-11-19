@@ -73,11 +73,13 @@ defmodule Autolaunch.Stocks.StockCandidate do
         scheduler_cron "5,15,25,35,45,55 * * * *"
         sort tried_at: :asc_nils_first
         record_limit 3
-        # A failed read is tried again when the row's turn comes round. Its
-        # turn was taken before the read began, so a read stopped at the
-        # timeout, which never reaches `on_error`, still moves the row back.
+        # A failed read is tried again when the row's turn comes round, and
+        # its job fails so the fault is saved as a crash. Its turn was taken
+        # before the read began, so a read stopped at the timeout, which never
+        # reaches `on_error`, still moves the row back.
         max_attempts 1
         on_error :mark_tried
+        on_error_fails_job? true
         # The search is twenty seconds at most and a usual read takes one or
         # two; a read the chain drags out is stopped.
         timeout :timer.seconds(30)

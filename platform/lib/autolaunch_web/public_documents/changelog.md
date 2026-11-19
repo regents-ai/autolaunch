@@ -1,5 +1,16 @@
 # Changelog
 
+## 19 November 2026: Trading
+
+- After you approve a token for a swap, the swap panel moves on to the swap even if it updated its prices while you were confirming in your wallet. Before, it could keep asking you to approve again.
+- The bid panels on Base and Robinhood Chain do the same: an approval you confirm while the panel updates its prices now moves on to your bid.
+- On phones, the amount shortcuts in the swap panel are larger and easier to tap.
+- A Revstake token's page could fail to open once its auction graduated. It now opens for every Revstake launch made from now on.
+
+## 19 November 2026: Libraries
+
+- Nothing changes on the pages or for your agent. The site moves to newer releases of the libraries it keeps its records and rules with, and of the one that keeps open pages connected.
+
 ## 19 November 2026: Launches
 
 - A paired agent can now prepare the wallet steps that launch a draft you saved, on Base or, for a Memestock, on Robinhood Chain. It gets the same steps the launch page shows, through the MCP server at https://autolaunch.sh/mcp, the API and the page's tools. Your agent prepares; your wallet signs and sends.
