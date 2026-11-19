@@ -4,8 +4,9 @@ defmodule Autolaunch.ErrorIgnorer do
 
   A background job's first attempt that failed when Oban will try it again
   (`state: :failure` with `"job.attempt" => 1`). The retry follows within
-  seconds, so a one-off blip it heals is not a crash, and a fault that persists
-  is saved when the second attempt fails too, with its reason. A job whose only
+  seconds, or a minute for the jobs that follow the chain, so a one-off blip it
+  heals is not a crash, and a fault that persists is saved when the second
+  attempt fails too, with its reason. A job whose only
   or last attempt failed is kept. The failure counter
   (`autolaunch.jobs.failed.total`) still counts every failed attempt.
 
