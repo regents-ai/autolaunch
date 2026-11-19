@@ -1,10 +1,10 @@
 defmodule Autolaunch.SubjectWalletRpcClient do
   @moduledoc """
   The payment card's Base reads, all at one latest block: the splitter's own
-  bindings, treasury, total stake and the wallet's stake and claimable amounts;
-  the payment receiver's bindings, economics, note and the three balances
-  waiting at it; the wallet's three balances; and the allowance between the
-  wallet and the spender a payment needs.
+  bindings, treasury and total stake; the payment receiver's bindings,
+  economics, note and the three balances waiting at it; the wallet's three
+  balances; and the allowance between the wallet and the spender a payment
+  needs.
 
   It reads; it never decides. `Autolaunch.SubjectWalletActions` proves every
   binding against the launch's own record before any review exists.
@@ -22,7 +22,7 @@ defmodule Autolaunch.SubjectWalletRpcClient do
     with {:ok, config} <- Lab.current(),
          opts = LabRpc.opts(config, "autolaunch payment card"),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, splitter} <- splitter(request, block, opts),
+         {:ok, splitter} <- splitter(request.splitter, block, opts),
          {:ok, receiver} <- receiver(request.receiver, splitter, block, opts),
          {:ok, balances} <- balances(request.signer, splitter, block, opts),
          {:ok, allowance} <- allowance(request, block, opts) do
@@ -30,14 +30,10 @@ defmodule Autolaunch.SubjectWalletRpcClient do
     end
   end
 
-  defp splitter(%{splitter: address, signer: signer}, block, opts) do
+  defp splitter(address, block, opts) do
     with {:ok, bound} <- addresses(address, [:subject, :usdc, :regent, :treasury], block, opts),
-         {:ok, total_staked} <- uint(address, :total_staked, [], block, opts),
-         {:ok, staked_of} <- uint(address, :staked_of, [signer], block, opts),
-         {:ok, claimable} <-
-           per_asset(bound, &uint(address, :claimable, [signer, &1], block, opts)) do
-      {:ok,
-       Map.merge(bound, %{total_staked: total_staked, staked_of: staked_of, claimable: claimable})}
+         {:ok, total_staked} <- uint(address, :total_staked, [], block, opts) do
+      {:ok, Map.put(bound, :total_staked, total_staked)}
     end
   end
 

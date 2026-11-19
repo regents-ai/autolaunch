@@ -35,9 +35,7 @@ defmodule Autolaunch.Chain.SubjectAbi do
     usdc: {"usdc()", "0x3e413bee"},
     regent: {"regent()", "0x35cd696e"},
     treasury: {"treasury()", "0x61d027b3"},
-    total_staked: {"totalStaked()", "0x817b1cd2"},
-    staked_of: {"stakedOf(address)", "0xaf500ba3"},
-    claimable: {"claimable(address,address)", "0xd4570c1c"}
+    total_staked: {"totalStaked()", "0x817b1cd2"}
   }
 
   @receiver_reads %{

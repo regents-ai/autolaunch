@@ -3,7 +3,7 @@ defmodule Autolaunch.TestAutolaunchSubjectWalletChainClient do
   A fixture-bound Base client for the payment card.
 
   It is exactly what the plan permits and no more: a scripted set of bindings,
-  balances, stake, claimables and allowance, so the whole
+  balances, total stake and allowance, so the whole
   product flow that follows a snapshot can be proved while the production client
   stays closed. It is never installed outside a test or the browser-proof server
   process, and nothing it answers is reviewed evidence.
@@ -102,14 +102,7 @@ defmodule Autolaunch.SubjectWalletFixture do
         usdc: usdc(),
         regent: regent(),
         treasury: treasury,
-        total_staked: Map.get(overrides, :total_staked, 1_000 * @unit),
-        staked_of: Map.get(overrides, :staked_of, 400 * @unit),
-        claimable:
-          Map.get(overrides, :claimable, %{
-            subject: 0,
-            usdc: 12 * @usdc_unit,
-            regent: 3 * @unit
-          })
+        total_staked: Map.get(overrides, :total_staked, 1_000 * @unit)
       },
       receiver: %{
         splitter: @splitter,

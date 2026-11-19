@@ -3,10 +3,10 @@ defmodule Autolaunch.SubjectWalletChainClient do
   The one Base boundary a subject wallet action has.
 
   `snapshot/1` answers the whole reviewed question at once — the splitter's own
-  bindings and treasury, the receiver's bindings and canonical economics where a
-  payment needs them, the signed-in wallet's three balances, and the allowance
-  standing between it and the spender. There is no
-  partial answer: a review is derived from one snapshot or from none.
+  bindings, treasury and total stake, the receiver's bindings and canonical
+  economics where a payment needs them, the signed-in wallet's three balances,
+  and the allowance standing between it and the spender. There is no partial
+  answer: a review is derived from one snapshot or from none.
   """
 
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}

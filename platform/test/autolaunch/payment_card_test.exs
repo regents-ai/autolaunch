@@ -107,7 +107,6 @@ defmodule Autolaunch.PaymentCardTest do
       {@splitter, Chain.read(:regent), ""} => Chain.word(regent),
       {@splitter, Chain.read(:treasury), ""} => Chain.word(@treasury),
       {@splitter, Chain.read(:total_staked), ""} => 1_000,
-      {@splitter, Chain.read(:staked_of), Chain.arg(wallet)} => 0,
       {@receiver, Chain.read(:splitter), ""} => Chain.word(@splitter),
       {@receiver, Chain.read(:subject), ""} => Chain.word(@token),
       {@receiver, Chain.read(:usdc), ""} => Chain.word(usdc),
@@ -124,11 +123,6 @@ defmodule Autolaunch.PaymentCardTest do
           holder <- [wallet, @receiver],
           into: %{} do
         {{asset, Chain.erc20("balance_of"), Chain.arg(holder)}, 50 * @usdc_unit}
-      end
-    )
-    |> Map.merge(
-      for asset <- [@token, usdc, regent], into: %{} do
-        {{@splitter, Chain.read(:claimable), Chain.arg(wallet) <> Chain.arg(asset)}, 0}
       end
     )
   end
