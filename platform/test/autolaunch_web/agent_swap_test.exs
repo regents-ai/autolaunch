@@ -329,6 +329,38 @@ defmodule AutolaunchWeb.AgentSwapTest do
     end
   end
 
+  test "a listed token whose launch has not graduated has no pool yet: swap_not_open on both ways in, as the page refuses it, and nothing is logged",
+       %{agent: agent, opts: opts, wallet: wallet} do
+    # Robinhood Chain's double takes over the one chain client, so it comes last.
+    cases = [
+      {token!(kind: :agent, state: :ended), fn -> StakeChain.put(@wallet) end},
+      {robinhood!(), fn -> RobinhoodBidChain.install(%{lifecycle: 1}) end}
+    ]
+
+    for {token, arrange} <- cases, direction <- ["buy", "sell"] do
+      arrange.()
+      input = %{direction: direction, amount: "1"}
+      named = "#{token.auction.chain_id} #{direction}"
+
+      assert {:error, %Ash.Error.Invalid.Unavailable{reason: :swap_not_open}} =
+               SwapActions.prepare(page_request(token, input), wallet, opts),
+             named
+
+      {route, log} = with_log(fn -> http(:post, path(token.id), input, agent) end)
+
+      assert route.status == 409 and route.body["error"]["code"] == "swap_not_open",
+             "#{named} answered #{inspect(route.body)}"
+
+      refute log =~ "agent swap", named
+
+      assert tool(agent, "prepare_swap", Map.put(input, :token_id, token.id)) ==
+               {:error, route.body},
+             named
+    end
+
+    assert documented?(409, "swap_not_open")
+  end
+
   test "an amount that is no decimal above zero, and a price protection out of range, are refused before any chain is read, on the page and on both ways in; only the pool names how many places and how much it takes",
        %{agent: agent, listed: listed, opts: opts, wallet: wallet} do
     too_large = Integer.to_string(div(Integer.pow(2, 127), @unit) + 1)
@@ -472,6 +504,7 @@ defmodule AutolaunchWeb.AgentSwapTest do
     hidden = token!(kind: :agent)
     {:ok, _hidden} = Autolaunch.hide_auction(hidden.auction, actor: system())
     unlisted = unlisted!()
+    not_open = token!(kind: :agent, state: :ended)
     id = listed.id
     buy = %{direction: "buy", amount: "1"}
     # More than the quoter takes at once: 2^127 of the smallest unit.
@@ -505,6 +538,7 @@ defmodule AutolaunchWeb.AgentSwapTest do
       {%{}, id, %{buy | amount: too_large}, "invalid_amount"},
       {%{}, id, Map.put(buy, :protection, "11"), "protection_out_of_range"},
       {%{}, id, Map.put(buy, :protection, "0.5"), "protection_out_of_range"},
+      {%{}, not_open.id, buy, "swap_not_open"},
       {%{}, id, %{buy | amount: "5.000000000000000001"}, "amount_above_balance"},
       {%{balance: 0}, id, %{direction: "sell", amount: "1"}, "amount_above_balance"},
       {%{swap_quote: 0}, id, buy, "quote_unavailable"},
@@ -731,6 +765,7 @@ defmodule AutolaunchWeb.AgentSwapTest do
       amount_not_representable: :invalid_amount,
       amount_too_large: :invalid_amount,
       protection_out_of_range: :protection_out_of_range,
+      swap_not_open: :swap_not_open,
       amount_above_balance: :amount_above_balance,
       quote_unavailable: :quote_unavailable,
       chain_unavailable: :chain_unavailable,

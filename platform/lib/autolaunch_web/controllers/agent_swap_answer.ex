@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.AgentSwapAnswer do
        "Send amount as a decimal above zero with no more decimal places than the side you spend has, small enough for the pool to take at once."},
     protection_out_of_range:
       {:unprocessable_entity, "Send protection as a number from 1 to 10, or leave it out for 6."},
+    swap_not_open: {:conflict, "This token cannot be traded until its pool opens."},
     amount_above_balance: {:conflict, "This wallet holds less than that."},
     quote_unavailable:
       {:conflict, "The pool cannot fill this amount right now. Try a smaller amount."},

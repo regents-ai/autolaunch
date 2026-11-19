@@ -55,7 +55,8 @@ paths:
                 $ref: '#/components/schemas/AgentSwapError'
         '409':
           description: The person's account has no verified wallet to act with, or signer is not a
-            wallet address (wallet_required), the wallet holds less than amount
+            wallet address (wallet_required), the token's launch has not graduated, so it has no
+            pool to trade in yet (swap_not_open), the wallet holds less than amount
             (amount_above_balance), or the pool cannot fill the amount now (quote_unavailable)
           content:
             application/json:
@@ -276,6 +277,7 @@ components:
               - wallet_required
               - invalid_amount
               - protection_out_of_range
+              - swap_not_open
               - amount_above_balance
               - quote_unavailable
               - chain_unavailable

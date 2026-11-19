@@ -256,8 +256,10 @@ defmodule Autolaunch.SwapActions do
 
   defp pool(_launch), do: unavailable(:swap_unavailable)
 
+  # A launch that has not graduated has no pool to trade in yet.
   defp pooled({:ok, pool}), do: {:ok, pool}
   defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp pooled({:error, :not_graduated}), do: unavailable(:swap_not_open)
   defp pooled({:error, _reason}), do: unavailable(:swap_unavailable)
 
   # Where the trade runs: the deployment's RPC door, the chain its wallet

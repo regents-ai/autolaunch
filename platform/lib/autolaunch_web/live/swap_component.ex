@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.SwapComponent do
     lab_config_changed: "The network changed while this was prepared. Try again.",
     lab_contract_missing: "Swapping is not available for this token yet.",
     swap_unavailable: "Swapping is not available for this token yet.",
+    swap_not_open: "Swapping is not available for this token yet.",
     quote_unavailable: "The pool cannot fill this amount right now. Try a smaller amount.",
     amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount above zero.",

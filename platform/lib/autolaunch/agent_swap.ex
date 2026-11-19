@@ -52,7 +52,8 @@ defmodule Autolaunch.AgentSwap do
   # account name, as the code an agent is answered with. An id naming no token
   # the site lists and shows names no token here. An amount the review cannot
   # read, zero, finer than the side it spends or more than the pool takes at
-  # once is not one to trade. A pool that cannot fill the amount now, and a
+  # once is not one to trade. A token whose launch has not graduated has no
+  # pool to trade in yet. A pool that cannot fill the amount now, and a
   # wallet holding less than it, are the review's own refusals, as on the
   # page. A chain the review could not read, or whose answer it could not
   # decode, is `chain_unavailable`; a pool or router the site cannot find or
@@ -68,6 +69,7 @@ defmodule Autolaunch.AgentSwap do
     amount_not_representable: :invalid_amount,
     amount_too_large: :invalid_amount,
     protection_out_of_range: :protection_out_of_range,
+    swap_not_open: :swap_not_open,
     amount_above_balance: :amount_above_balance,
     quote_unavailable: :quote_unavailable,
     chain_unavailable: :chain_unavailable,
