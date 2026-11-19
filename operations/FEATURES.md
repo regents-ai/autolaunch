@@ -367,6 +367,13 @@ is off in production.
 | The consent page and its redirect back to Claude | **Gap** (not walked; the walk runs with the switch off) |
 | Switch on: each app an account connects keeps an identity of its own, unpaired until it pairs with its own code, so a second app never acts as the agent the first one paired, even with the agent permission | `autolaunch_web/claude_connector_test.exs` › "a refreshed token keeps its app's identity and agent; another app of the account starts unpaired", › "a second app of an account already paired through another app has its identity tools only" |
 
+### Stock product follow-ups
+
+- Stock filters survive the detail-page return, and filtered pages hide empty groups. The same detail URL serves Markdown with the token issuer, addresses and dated liquidity.
+- An eligible stock opens the existing Memestock form with its network selected. Replacing a saved pair is an explicit action. Draft terms and readiness require a currently admitted stock, while historical auctions still resolve.
+- Covered-call and After-hours reads keep useful results during a partial outage. Covered-call orders show the available amount, and agents get market-specific recovery and exact offer links when the desk supports them.
+- Earn names the available withdrawal liquidity and remaining deposit capacity separately.
+
 ## Gaps, in one list
 
 Home filter results (Network, Type, Creator verified) and the card cell panels; list filter results on `/auctions` and `/tokens`; the auction

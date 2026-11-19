@@ -22,10 +22,10 @@ test("stock filters keep their network and availability across navigation", asyn
   await ready(page)
   await expect(directory.getByLabel("Network")).toHaveValue("base")
   await result.click()
-  await expect(page).toHaveURL(/\/stocks\/AAPLc$/)
+  await expect(page).toHaveURL(/\/stocks\/AAPLc\?/)
   await expect(page.getByRole("heading", {level: 1})).toContainText("AAPLc")
 
-  await page.goBack()
+  await page.getByRole("link", {name: "← Onchain Stocks"}).click()
   await ready(page)
   await expect(page.locator("#stock-directory-count")).toHaveText("1 stock")
   await directory.getByRole("link", {name: "Reset"}).click()

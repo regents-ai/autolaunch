@@ -667,11 +667,22 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           Exercise by
           <CoveredCallComponent.local_time id="covered-calls-deadline-at" at={@exercise_by} />
         </span>
-        <.link :if={@human_id} navigate={~p"/portfolio"} class="covered-calls__mine">My calls</.link>
+        <.link
+          :if={@human_id}
+          navigate={~p"/portfolio#portfolio-covered-calls"}
+          class="covered-calls__mine"
+        >
+          My calls
+        </.link>
       </nav>
 
       <p :if={@book.failed} class="covered-calls__note" role="alert">
-        The listings couldn't be read just now. Try again in a moment.
+        The order book couldn't be refreshed.
+        <%= if @reading do %>
+          Showing the last reading from {Calendar.strftime(@reading.read_at, "%-d %b, %H:%M UTC")}.
+        <% else %>
+          Try again in a moment.
+        <% end %>
       </p>
 
       <section :if={@tab in [:buy, :bid]} class="covered-calls__section" aria-label="Buy">
@@ -714,6 +725,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                   <.link
                     patch={~p"/stock/covered-call?listing=#{listing.id}"}
                     class="rg-button rg-button--secondary"
+                    aria-label={F.offer_label("Buy", @market.symbol, listing)}
                     aria-expanded={to_string(@selected == listing.id)}
                   >
                     Buy
@@ -750,7 +762,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           human_id={@human_id}
         />
         <div
-          :if={@tab == :buy && @reading && @open == []}
+          :if={@tab == :buy && @reading && !@book.failed && @open == []}
           class="market-list__scroll market-list__empty"
         >
           <h2>No listings</h2>
@@ -845,6 +857,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                   <.link
                     patch={~p"/stock/covered-call?bid=#{bid.id}"}
                     class="rg-button rg-button--secondary"
+                    aria-label={F.offer_label("Sell", @market.symbol, bid)}
                     aria-expanded={to_string(@bid == bid.id)}
                   >
                     Sell
@@ -1644,7 +1657,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp buy_ticket(%{listing: listing, reading: reading, typed: typed} = assigns) do
     unit = reading.unit
     left = Terms.available(listing)
-    amount = if typed, do: F.parse_tokens(typed, unit), else: left
+    entered = if typed, do: F.parse_tokens(typed, unit), else: left
+    too_many = is_integer(entered) and entered > left
+    amount = if too_many, do: nil, else: entered
     break_even = listing.strike_per_token + listing.premium_per_token
 
     assigns =
@@ -1654,8 +1669,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         unit: unit,
         value: typed || F.tokens(left, unit),
         left: F.tokens(left, unit),
+        too_many: too_many,
         amount: amount,
-        order: amount && %{listing_id: listing.id, amount: amount},
+        order: entered && %{listing_id: listing.id, amount: entered},
         pay: amount && Terms.usdc_for(amount, listing.premium_per_token, unit),
         exercise: amount && Terms.usdc_for(amount, listing.strike_per_token, unit),
         break_even: break_even
@@ -1679,7 +1695,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <div class="covered-calls__field">
             <div class="covered-calls__label">
               <label for={"#{@id}-amount"}>Amount</label>
-              <small class="covered-calls__hint">of {@left}</small>
+              <small id={"#{@id}-available"} class="covered-calls__hint" aria-live="polite">
+                {if @too_many, do: "Only #{@left} available", else: "of #{@left}"}
+              </small>
             </div>
             <span class="covered-calls__input">
               <input
@@ -1691,6 +1709,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                 autocomplete="off"
                 spellcheck="false"
                 placeholder="0"
+                aria-invalid={@too_many && "true"}
+                aria-describedby={"#{@id}-available"}
               />
               <span aria-hidden="true">{@symbol}</span>
             </span>

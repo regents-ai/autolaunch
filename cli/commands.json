@@ -586,6 +586,483 @@
       "path": "/api/v1/account/points",
       "authority": "paired_agent",
       "effect": "read"
+    },
+    {
+      "command": "covered-calls book <symbol>",
+      "description": "Read this Base stock's covered-call listings, bids and reference price. Read read_at for the time of the shared reading.",
+      "operation_id": "getCoveredCallBook",
+      "webmcp": "autolaunch_covered_call_listings",
+      "method": "GET",
+      "path": "/api/v1/covered-calls/{symbol}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "in": "path",
+          "field": "symbol",
+          "description": "Stock token symbol as listed on the site, such as AMZNc."
+        }
+      ]
+    },
+    {
+      "command": "covered-calls quote <symbol>",
+      "description": "Estimate a covered-call premium and review the terms. Give an offered Friday expiry in Unix seconds. Premium and strike are micro-USDC per whole token.",
+      "operation_id": "quoteCoveredCall",
+      "webmcp": "autolaunch_covered_call_quote",
+      "method": "POST",
+      "path": "/api/v1/covered-calls/{symbol}/quote",
+      "authority": "public",
+      "effect": "quote",
+      "arguments": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "in": "path",
+          "field": "symbol",
+          "description": "Stock token symbol as listed on the site, such as AMZNc."
+        }
+      ],
+      "flags": [
+        {
+          "name": "expiry",
+          "type": "integer",
+          "in": "body",
+          "field": "expiry",
+          "description": "One of the next four Fridays at 21:00 UTC a quote offers, Unix seconds; Fridays when the US stock market is shut or closes early are left out.",
+          "required": true,
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "in": "body",
+          "field": "amount",
+          "description": "Raw stock units to list. Left out, the totals are null.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "strike-per-token",
+          "type": "integer",
+          "in": "body",
+          "field": "strike_per_token",
+          "description": "Micro-USDC per whole token. Left out, the middle suggested strike.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "premium-per-token",
+          "type": "integer",
+          "in": "body",
+          "field": "premium_per_token",
+          "description": "Micro-USDC per whole token the listing asks. Left out, the suggested premium.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      ]
+    },
+    {
+      "command": "covered-calls positions <symbol>",
+      "description": "Read the paired account's covered-call listings, holdings and bids for the named Base stock.",
+      "operation_id": "autolaunch_my_covered_calls",
+      "webmcp": "autolaunch_my_covered_calls",
+      "method": "GET",
+      "path": "/api/agent/v1/covered-calls/{symbol}/positions",
+      "authority": "paired_agent",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "in": "path",
+          "field": "symbol",
+          "description": "Stock token symbol as listed on the site, such as AMZNc."
+        }
+      ]
+    },
+    {
+      "command": "covered-calls prepare <symbol>",
+      "description": "Prepare one unsigned covered-call action for the paired account's wallet. Use a listing or bid number from the book or positions, and give amounts in raw stock units.",
+      "operation_id": "autolaunch_covered_call_prepare",
+      "webmcp": "autolaunch_covered_call_prepare",
+      "method": "POST",
+      "path": "/api/agent/v1/covered-calls/{symbol}/steps",
+      "authority": "paired_agent",
+      "effect": "prepare",
+      "arguments": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "in": "path",
+          "field": "symbol",
+          "description": "Stock token symbol as listed on the site, such as AMZNc."
+        }
+      ],
+      "flags": [
+        {
+          "name": "kind",
+          "type": "string",
+          "in": "body",
+          "field": "kind",
+          "description": "Action the wallet would take.",
+          "required": true,
+          "enum": [
+            "list",
+            "fill",
+            "cancel",
+            "exercise",
+            "claim",
+            "collect_strike",
+            "bid",
+            "raise_bid",
+            "cancel_bid",
+            "refund_bid",
+            "sell_to_bid"
+          ]
+        },
+        {
+          "name": "listing-id",
+          "type": "integer",
+          "in": "body",
+          "field": "listing_id",
+          "description": "For fill, cancel, exercise, claim and collect_strike: the listing's number.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "bid-id",
+          "type": "integer",
+          "in": "body",
+          "field": "bid_id",
+          "description": "For raise_bid, cancel_bid, refund_bid and sell_to_bid: the bid's number.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "in": "body",
+          "field": "amount",
+          "description": "Raw stock token units: to list, to buy (fill), to exercise, to bid for, to add to a bid (raise_bid) or to sell into a bid (sell_to_bid).",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "strike-per-token",
+          "type": "integer",
+          "in": "body",
+          "field": "strike_per_token",
+          "description": "For list and bid: the strike in micro-USDC per whole token.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "premium-per-token",
+          "type": "integer",
+          "in": "body",
+          "field": "premium_per_token",
+          "description": "For list: the minimum premium; for bid: the premium offered; in micro-USDC per whole token.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "expiry",
+          "type": "integer",
+          "in": "body",
+          "field": "expiry",
+          "description": "For list and bid: one of the next four Fridays at 21:00 UTC a quote offers, Unix seconds; Fridays when the US stock market is shut or closes early are left out.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "signer",
+          "type": "address",
+          "in": "body",
+          "field": "signer",
+          "description": "One of the person's wallets. Omit to use their sign-in wallet."
+        }
+      ],
+      "next_steps": [
+        {
+          "kind": "human",
+          "say": "Review the signer, figures and blocked status. If blocked is null, the person's wallet can review and sign steps in order."
+        }
+      ]
+    },
+    {
+      "command": "after-hours list",
+      "description": "List the Base After-hours Exposure series, their status, ledgers and pool quotes.",
+      "operation_id": "listExposureSeries",
+      "webmcp": "autolaunch_after_hour_stocks_list",
+      "method": "GET",
+      "path": "/api/v1/after-hour-stocks",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "after-hours series <series>",
+      "description": "Read one Base After-hours Exposure series, including its two tokens, schedule and recorded prices.",
+      "operation_id": "getExposureSeries",
+      "webmcp": "autolaunch_after_hour_stocks_series",
+      "method": "GET",
+      "path": "/api/v1/after-hour-stocks/{series}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "series",
+          "type": "address",
+          "in": "path",
+          "field": "series",
+          "description": "Base series address from after-hours list."
+        }
+      ]
+    },
+    {
+      "command": "after-hours positions <series>",
+      "description": "Read the paired account's balances and what it can redeem in this After-hours Exposure series.",
+      "operation_id": "autolaunch_my_after_hour_stocks",
+      "webmcp": "autolaunch_my_after_hour_stocks",
+      "method": "GET",
+      "path": "/api/agent/v1/after-hour-stocks/{series}/holdings",
+      "authority": "paired_agent",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "series",
+          "type": "address",
+          "in": "path",
+          "field": "series",
+          "description": "Base series address from after-hours list."
+        }
+      ]
+    },
+    {
+      "command": "after-hours prepare <series>",
+      "description": "Prepare unsigned steps to buy, sell, split, redeem, update or end this series. The After-hours leg is overnight and the Market-hours leg is session.",
+      "operation_id": "autolaunch_after_hour_stocks_prepare",
+      "webmcp": "autolaunch_after_hour_stocks_prepare",
+      "method": "POST",
+      "path": "/api/agent/v1/after-hour-stocks/{series}/steps",
+      "authority": "paired_agent",
+      "effect": "prepare",
+      "arguments": [
+        {
+          "name": "series",
+          "type": "address",
+          "in": "path",
+          "field": "series",
+          "description": "Base series address from after-hours list."
+        }
+      ],
+      "flags": [
+        {
+          "name": "kind",
+          "type": "string",
+          "in": "body",
+          "field": "kind",
+          "description": "Action the wallet would take.",
+          "required": true,
+          "enum": [
+            "buy",
+            "sell",
+            "mint",
+            "redeem",
+            "update",
+            "end"
+          ]
+        },
+        {
+          "name": "leg",
+          "type": "string",
+          "in": "body",
+          "field": "leg",
+          "description": "For buy and sell, overnight for the After-hours token or session for the Market-hours token.",
+          "enum": [
+            "overnight",
+            "session"
+          ]
+        },
+        {
+          "name": "signer",
+          "type": "address",
+          "in": "body",
+          "field": "signer",
+          "description": "One of the person's wallets. Omit to use their sign-in wallet."
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "in": "body",
+          "field": "amount",
+          "description": "For buy, USDC micro-units to spend; for sell, raw token units; for mint, raw stock units. Must fit uint256.",
+          "minimum": 1,
+          "maximum": 115792089237316195423570985008687907853269984665640564039457584007913129639935
+        },
+        {
+          "name": "overnight",
+          "type": "integer",
+          "in": "body",
+          "field": "overnight",
+          "description": "For redeem, raw After-hours units; equal to session before the series ends. Must fit uint256.",
+          "minimum": 0,
+          "maximum": 115792089237316195423570985008687907853269984665640564039457584007913129639935
+        },
+        {
+          "name": "session",
+          "type": "integer",
+          "in": "body",
+          "field": "session",
+          "description": "For redeem, raw Market-hours units; equal to overnight before the series ends. Must fit uint256.",
+          "minimum": 0,
+          "maximum": 115792089237316195423570985008687907853269984665640564039457584007913129639935
+        }
+      ],
+      "next_steps": [
+        {
+          "kind": "human",
+          "say": "Review the signer, figures and blocked status. If blocked is null, the person's wallet can review and sign steps in order."
+        }
+      ]
+    },
+    {
+      "command": "earn list",
+      "description": "List available Earn products with the asset, rate and market liquidity.",
+      "operation_id": "autolaunch_earn_products",
+      "webmcp": "autolaunch_earn_products",
+      "method": "GET",
+      "path": "/api/v1/earn/products",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "earn positions",
+      "description": "Read what the paired account holds in each Earn product.",
+      "operation_id": "autolaunch_earn_positions",
+      "webmcp": "autolaunch_earn_positions",
+      "method": "GET",
+      "path": "/api/agent/v1/earn/positions",
+      "authority": "paired_agent",
+      "effect": "read"
+    },
+    {
+      "command": "earn quote",
+      "description": "Preview an Earn deposit or withdrawal from the paired account. Give the asset's smallest units, or use --everything alone to withdraw the full balance.",
+      "operation_id": "autolaunch_earn_quote",
+      "webmcp": "autolaunch_earn_quote",
+      "method": "POST",
+      "path": "/api/agent/v1/earn/quote",
+      "authority": "paired_agent",
+      "effect": "quote",
+      "flags": [
+        {
+          "name": "product",
+          "type": "string",
+          "in": "body",
+          "field": "product",
+          "description": "Product id from earn list.",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "in": "body",
+          "field": "kind",
+          "description": "deposit or withdraw.",
+          "required": true,
+          "enum": [
+            "deposit",
+            "withdraw"
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "in": "body",
+          "field": "amount",
+          "description": "The asset's smallest units. Leave it out only to withdraw everything.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "everything",
+          "type": "boolean",
+          "in": "body",
+          "field": "everything",
+          "description": "Only for withdraw, and never with an amount."
+        },
+        {
+          "name": "signer",
+          "type": "address",
+          "in": "body",
+          "field": "signer",
+          "description": "One of the person's wallets. Omit to use their sign-in wallet."
+        }
+      ]
+    },
+    {
+      "command": "earn prepare",
+      "description": "Prepare an unsigned Earn deposit or withdrawal for the paired account. Give the asset's smallest units, or use --everything alone to withdraw the full balance.",
+      "operation_id": "autolaunch_earn_prepare",
+      "webmcp": "autolaunch_earn_prepare",
+      "method": "POST",
+      "path": "/api/agent/v1/earn/steps",
+      "authority": "paired_agent",
+      "effect": "prepare",
+      "flags": [
+        {
+          "name": "product",
+          "type": "string",
+          "in": "body",
+          "field": "product",
+          "description": "Product id from earn list.",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "in": "body",
+          "field": "kind",
+          "description": "deposit or withdraw.",
+          "required": true,
+          "enum": [
+            "deposit",
+            "withdraw"
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "in": "body",
+          "field": "amount",
+          "description": "The asset's smallest units. Leave it out only to withdraw everything.",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "name": "everything",
+          "type": "boolean",
+          "in": "body",
+          "field": "everything",
+          "description": "Only for withdraw, and never with an amount."
+        },
+        {
+          "name": "signer",
+          "type": "address",
+          "in": "body",
+          "field": "signer",
+          "description": "One of the person's wallets. Omit to use their sign-in wallet."
+        }
+      ],
+      "next_steps": [
+        {
+          "kind": "human",
+          "say": "Review the signer, figures and blocked status. If blocked is null, the person's wallet can review and sign steps in order."
+        }
+      ]
     }
   ]
 }

@@ -19,4 +19,4 @@ A preview reserves nothing: a step built at one block may be stale by the time i
 
 The site only prepares steps. Each answer lists `steps` (`to`, `data` and `value` on the named `chain`) for one of your person's own wallets: `signer` when you send one, otherwise the wallet they signed in with. That wallet's own key signs and sends the steps in order, and money moves only then. Each step's `data` ends with the site's Builder Code. Any other wallet is refused with `wrong_signer`.
 
-The risks: the rate changes; a withdrawal depends on how much USDC is available at that moment; the market's contracts, or the assets borrowers pledge, could fail and money could be lost. The regents CLI has no Earn commands yet.
+The risks: the rate changes; a withdrawal depends on how much USDC is available at that moment; the market's contracts, or the assets borrowers pledge, could fail and money could be lost. Regents CLI 1.10.33 adds these operations under `regents autolaunch earn`.

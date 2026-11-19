@@ -12,14 +12,14 @@ defmodule AutolaunchWeb.ApiError do
   alias AutolaunchWeb.{PublicDocuments, Refusal}
 
   @doc "Answers `conn` with `status` and the error document for `code`."
-  def send(conn, status, code, message),
-    do: conn |> put_status(status) |> json(body(code, message))
+  def send(conn, status, code, message, hint \\ nil),
+    do: conn |> put_status(status) |> json(body(code, message, hint))
 
   @doc "Answers `conn` with an answer's document, or with the refusal it carries."
   def answer(conn, {:ok, body}), do: json(conn, body)
 
-  def answer(conn, {:error, %Refusal{status: status, code: code, message: message}}),
-    do: send(conn, status, code, message)
+  def answer(conn, {:error, %Refusal{status: status, code: code, message: message, hint: hint}}),
+    do: send(conn, status, code, message, hint)
 
   @doc """
   An answer as its hosted MCP tool gives it: the document's `data`, or the
@@ -31,7 +31,8 @@ defmodule AutolaunchWeb.ApiError do
   def data({:error, %Refusal{}} = refused), do: refused
 
   @doc "The error document for `code`, with its hint."
-  def body(code, message), do: %{error: %{code: code, message: message, hint: hint(code)}}
+  def body(code, message, next_step \\ nil),
+    do: %{error: %{code: code, message: message, hint: next_step || hint(code)}}
 
   defp hint("invalid_request"),
     do:
@@ -56,6 +57,22 @@ defmodule AutolaunchWeb.ApiError do
   defp hint("estimate_not_offered"),
     do:
       "Read the auction's figures with GET #{PublicDocuments.url("/api/v1/auctions/{id}")} or on its page (its url). Sending the same request again will not help."
+
+  defp hint(code) when code in ["unknown_listing", "unknown_bid"],
+    do:
+      "Read the current order book with GET #{PublicDocuments.url("/api/v1/covered-calls/{symbol}")} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP), then use an offer ID from that market."
+
+  defp hint(code) when code in ["expiry_not_offered", "expiry_passed"],
+    do:
+      "Read expiries with GET #{PublicDocuments.url("/api/v1/covered-calls/{symbol}")} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP). Choose an expiry from that answer and request a new quote."
+
+  defp hint("unknown_series"),
+    do:
+      "List the current series with GET #{PublicDocuments.url("/api/v1/after-hour-stocks")} or the autolaunch_after_hour_stocks_list tool. Use the series address from that answer."
+
+  defp hint("unknown_product"),
+    do:
+      "List the current products with GET #{PublicDocuments.url("/api/v1/earn/products")} or the earn_products hosted tool (autolaunch_earn_products in WebMCP). Use the product id from that answer."
 
   defp hint("agent_not_paired"),
     do:

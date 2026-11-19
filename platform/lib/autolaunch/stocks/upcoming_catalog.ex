@@ -11,6 +11,20 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
   @stocks @source |> File.read!() |> Jason.decode!() |> Map.fetch!("stocks")
   @chains [base: "Base", robinhood: "Robinhood"]
 
+  alias Autolaunch.Search
+
+  @doc "The canonical directory search parameters, without empty or unknown values."
+  def filters(params) do
+    %{
+      q: Search.normalize(params["q"]),
+      chain: choice(params["chain"], ~w(base robinhood)),
+      availability: choice(params["availability"], ~w(available soon feed_required))
+    }
+    |> Map.reject(fn {_key, value} -> value == "" end)
+  end
+
+  defp choice(value, allowed), do: if(value in allowed, do: value, else: "")
+
   @doc "The catalog's identities and dated observations."
   def stocks, do: @stocks
 

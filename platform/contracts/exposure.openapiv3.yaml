@@ -531,7 +531,7 @@ components:
           enum:
           - overnight
           - session
-          description: For buy and sell, overnight for the After-hours token or session for the Market-hours token.
+          description: For buy and sell, overnight selects after_hours from the series read and session selects market_hours.
         signer:
           type: string
           description: One of the person's own wallets; omit it for the wallet they signed in with.

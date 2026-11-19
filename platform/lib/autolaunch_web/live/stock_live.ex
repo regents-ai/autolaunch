@@ -12,11 +12,11 @@ defmodule AutolaunchWeb.StockLive do
   import AutolaunchWeb.Components.StockIdentity, only: [stock_identity: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
-  alias Autolaunch.Stocks.UpcomingCatalog
+  alias Autolaunch.Stocks.{Assets, UpcomingCatalog}
   alias AutolaunchWeb.{NotFoundError, PublicDocuments, UsdValue}
   alias RegentChain.Address
 
-  def mount(%{"symbol" => symbol}, _session, socket) do
+  def mount(%{"symbol" => symbol} = params, _session, socket) do
     case UpcomingCatalog.stock(symbol) do
       nil ->
         raise NotFoundError
@@ -25,7 +25,13 @@ defmodule AutolaunchWeb.StockLive do
         {:ok,
          socket
          |> assign(PublicDocuments.market_page(:stock, stock["name"], stock["symbol"]))
-         |> assign(stock: stock, chain: chain, covered_calls?: covered_calls?(stock, chain))}
+         |> assign(
+           stock: stock,
+           chain: chain,
+           directory_query: UpcomingCatalog.filters(params),
+           covered_calls?: covered_calls?(stock, chain),
+           launchable?: launchable?(stock, chain)
+         )}
     end
   end
 
@@ -33,7 +39,7 @@ defmodule AutolaunchWeb.StockLive do
     ~H"""
     <article class="fact-page upcoming-details">
       <header class="autolaunch-heading">
-        <.link navigate={~p"/stocks"} class="market-back">← Onchain Stocks</.link>
+        <.link navigate={~p"/stocks?#{@directory_query}"} class="market-back">← Onchain Stocks</.link>
         <div class="upcoming-details__heading">
           <.stock_logo stock={%{symbol: @stock["symbol"]}} />
           <div>
@@ -47,6 +53,13 @@ defmodule AutolaunchWeb.StockLive do
       <p :if={@covered_calls?} class="upcoming-details__action">
         <.link id="stock-covered-calls" navigate={~p"/stock/covered-call"} class="rg-button">Covered Calls</.link>
         <span>Buy calls or list your {@stock["symbol"]}. Sellers receive the premium when a buyer fills the listing.</span>
+      </p>
+      <p :if={@launchable?} class="upcoming-details__action">
+        <.link
+          id="stock-create-memestock"
+          navigate={~p"/create?#{%{stock_chain: @chain.chain, stock: @stock["token_address"]}}"}
+          class="rg-button rg-button--primary"
+        >Create Memestock</.link>
       </p>
       <dl class="upcoming-details__facts">
         <dt>Token</dt>
@@ -93,6 +106,18 @@ defmodule AutolaunchWeb.StockLive do
     </article>
     """
   end
+
+  defp launchable?(%{"section" => "available", "token_address" => address}, %{chain: chain})
+       when is_binary(address) do
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         {:ok, stocks} <- Assets.read(chain) do
+      Enum.any?(stocks, &Address.equal?(&1.address, address))
+    else
+      _unavailable -> false
+    end
+  end
+
+  defp launchable?(_stock, _chain), do: false
 
   # The covered-calls page opens the deployment's first market.
   defp covered_calls?(%{"symbol" => symbol, "token_address" => address}, %{chain: :base})

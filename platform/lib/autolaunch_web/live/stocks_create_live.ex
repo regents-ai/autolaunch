@@ -65,6 +65,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
       |> assign(
         launch_chain: :base,
         linked_token: params["token"],
+        linked_pair: linked_pair(params),
+        suggested_stock: nil,
         draft: nil,
         draft_values: Map.new(@stored_params, &{&1, ""}),
         draft_errors: %{},
@@ -74,6 +76,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         current_human_id: nil,
         creator_connections: %{},
         market: %{prices: %{}, venues: []},
+        market_loading?: false,
         stock_sort: "alphabetical",
         reviewing?: false,
         launched?: false,
@@ -166,7 +169,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp assign_market(socket) do
     chain = socket.assigns.launch_chain
     stock = stock_for(socket.assigns.stocks, socket.assigns.draft_values["stock_address"])
-    start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
+
+    socket
+    |> assign(market_loading?: true)
+    |> start_async(:market, fn -> Stocks.MarketData.overview(chain, stock) end)
   end
 
   # The draft's chain's stock list, read again each time the draft is, or
@@ -214,6 +220,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
       do: {:noreply, socket},
       else: {:noreply, autosaved(socket, "autosave_stocks_token_details", %{field => value})}
   end
+
+  def handle_event("use_linked_stock", _params, %{assigns: %{suggested_stock: stock}} = socket)
+      when not is_nil(stock),
+      do: {:noreply, socket |> select_linked_pair(stock) |> assign_market()}
 
   def handle_event("read_stocks", _params, socket),
     do: {:noreply, socket |> assign_stocks() |> assign_market()}
@@ -316,8 +326,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
-  def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
+  def handle_async(:market, {:ok, market}, socket),
+    do: {:noreply, assign(socket, market: market, market_loading?: false)}
+
+  def handle_async(:market, _unavailable, socket),
+    do: {:noreply, assign(socket, market: %{prices: %{}, venues: []}, market_loading?: false)}
 
   def handle_async(:launches_paused, {:ok, {:ok, paused}}, socket),
     do: {:noreply, assign(socket, launches_paused?: paused)}
@@ -438,8 +451,36 @@ defmodule AutolaunchWeb.StocksCreateLive do
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}
                 </p>
+                <p
+                  :if={
+                    is_list(@stocks) and is_nil(@stock) and
+                      @draft_values["stock_address"] not in [nil, ""] and
+                      is_nil(@draft_errors["stock_address"])
+                  }
+                  class="autolaunch-draft-error"
+                  role="alert"
+                >
+                  The saved stock is no longer available to pair on this network. Choose another stock.
+                </p>
+                <p :if={@suggested_stock} class="create-page__hint" id="memestock-linked-stock">
+                  Keep your saved stock or replace it with {@suggested_stock.symbol} on {LaunchChain.label(
+                    elem(@linked_pair, 0)
+                  )}.
+                  <button class="standalone-link" type="button" phx-click="use_linked_stock">
+                    Replace paired stock
+                  </button>
+                </p>
                 <p class="create-page__hint">
                   <.link navigate="/stocks" class="standalone-link">Onchain Stocks</.link>
+                </p>
+                <p
+                  :if={@stock && !@market_loading? && is_nil(@opening.rate)}
+                  class="create-page__hint"
+                  id="memestock-quote-unavailable"
+                  role="status"
+                >
+                  Stock quote unavailable.
+                  <button class="standalone-link" type="button" phx-click="read_stocks">Retry quote</button>
                 </p>
                 <p
                   :if={@stock && @market.venues != []}
@@ -798,6 +839,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp restore(socket, values) do
     values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
+
+    values =
+      if socket.assigns.linked_pair, do: Map.drop(values, ~w(chain stock_address)), else: values
+
     {socket, values} = restore_chain(socket, values)
 
     {socket, unsaved, errors} =
@@ -947,6 +992,43 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
+  defp linked_pair(%{"stock_chain" => name, "stock" => address}) when is_binary(address) do
+    with {:ok, chain} <- Map.fetch(@chains, name),
+         {:ok, _bytes} <- Address.decode(address) do
+      {chain, address}
+    else
+      _invalid -> nil
+    end
+  end
+
+  defp linked_pair(_params), do: nil
+
+  # A directory link names one stock on one chain. An existing selection can
+  # only be replaced by the named button in the form.
+  defp choose_linked_stock(%{assigns: %{status: :ready, linked_pair: {chain, address}}} = socket) do
+    with {:ok, stocks} <- Assets.read(chain),
+         %{address: _} = stock <- stock_for(stocks, address) do
+      current = socket.assigns.draft_values["stock_address"]
+
+      cond do
+        socket.assigns.launch_chain == chain and Address.equal?(current, stock.address) ->
+          assign(socket, suggested_stock: nil)
+
+        current in [nil, ""] ->
+          select_linked_pair(socket, stock)
+
+        true ->
+          assign(socket, suggested_stock: stock)
+      end
+    else
+      _unavailable ->
+        assign(socket,
+          suggested_stock: nil,
+          draft_notice: %{tone: :error, message: "That stock is unavailable to pair right now."}
+        )
+    end
+  end
+
   # A link can name the stock (`?token=<symbol or address>`): the choice is
   # made exactly as choosing it in the form would make it, and a name the
   # draft's chain does not list leaves the draft as it was. The link wins over
@@ -965,6 +1047,56 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   defp choose_linked_stock(socket), do: socket
+
+  defp select_linked_pair(socket, stock) do
+    {chain, _address} = socket.assigns.linked_pair
+    values = %{chain: chain, stock_address: stock.address}
+
+    result =
+      case human_actor(socket) do
+        nil ->
+          with {:ok, updated} <- sketch(socket.assigns.sketch, :autosave_terms, values),
+               do: {:ok, assign_sketch(socket, updated)}
+
+        actor ->
+          with {:ok, saved} <- save_linked_draft(socket, actor, values),
+               do: {:ok, assign_draft(socket, saved)}
+      end
+
+    case result do
+      {:ok, selected} ->
+        assign(selected, suggested_stock: nil, market: %{prices: %{}, venues: []})
+
+      {:error, {:selection_changed, draft}} ->
+        socket |> assign_draft(draft) |> assign(suggested_stock: stock)
+
+      {:error, _error} ->
+        assign(socket,
+          draft_notice: %{tone: :error, message: "That stock could not be selected. Try again."}
+        )
+    end
+  end
+
+  defp save_linked_draft(socket, actor, values) do
+    current = socket.assigns.draft
+
+    Session.transact(socket, fn ->
+      case Autolaunch.get_my_stocks_launch_draft_for_update(current.id, actor: actor) do
+        {:ok, %LaunchDraft{chain: chain, stock_address: address} = saved}
+        when chain == current.chain and address == current.stock_address ->
+          Autolaunch.autosave_stocks_terms(saved, values, actor: actor)
+
+        {:ok, %LaunchDraft{} = saved} ->
+          {:error, {:selection_changed, saved}}
+
+        {:ok, nil} ->
+          {:error, :draft_changed}
+
+        error ->
+          error
+      end
+    end)
+  end
 
   defp assign_ticker_taken(socket),
     do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
@@ -1036,6 +1168,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
       read -> read
     end
   end
+
+  defp draft_field_errors({:error, %Ash.Changeset{errors: errors}}),
+    do: draft_field_errors({:error, Ash.Error.to_error_class(errors)})
 
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}} = failure) do
     marked =

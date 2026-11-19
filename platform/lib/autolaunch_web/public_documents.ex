@@ -308,6 +308,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document("/agents" <> _rest = path), do: AgentGuides.document(path)
 
+  def document("/stocks/" <> symbol) do
+    case Autolaunch.Stocks.UpcomingCatalog.stock(symbol) do
+      nil -> nil
+      {stock, chain} -> %{markdown: AutolaunchWeb.StockMarkdown.render(stock, chain)}
+    end
+  end
+
   def document(path) do
     case @paths do
       %{^path => name} -> %{markdown: markdown(name)}
@@ -343,6 +350,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   end
 
   @doc "Whether the page at `path` also answers as Markdown."
+  def markdown?("/stocks/" <> symbol),
+    do: Autolaunch.Stocks.UpcomingCatalog.stock(symbol) != nil
+
   def markdown?(path), do: Map.has_key?(@paths, path) or path in AgentGuides.paths()
 
   @doc """

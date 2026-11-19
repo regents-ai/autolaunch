@@ -14,7 +14,6 @@ defmodule AutolaunchWeb.UpcomingLive do
   import AutolaunchWeb.Components.StockIdentity, only: [stock_identity: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
-  alias Autolaunch.Search
   alias Autolaunch.Stocks.UpcomingCatalog
 
   @impl true
@@ -24,7 +23,8 @@ defmodule AutolaunchWeb.UpcomingLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    filters = filters(params)
+    query = UpcomingCatalog.filters(params)
+    filters = Map.merge(%{q: "", chain: "", availability: ""}, query)
     chains = UpcomingCatalog.search(filters.q, filters.chain, filters.availability)
 
     count =
@@ -32,24 +32,16 @@ defmodule AutolaunchWeb.UpcomingLive do
         length(chain.available) + length(chain.eligible) + length(chain.feed_required)
       end)
 
-    {:noreply, assign(socket, filters: filters, chains: chains, count: count)}
+    {:noreply, assign(socket, filters: filters, query: query, chains: chains, count: count)}
   end
 
   @impl true
   def handle_event("filter", params, socket) do
-    query = params |> filters() |> Enum.reject(fn {_name, value} -> value == "" end)
-    {:noreply, push_patch(socket, to: ~p"/stocks?#{query}")}
+    {:noreply, push_patch(socket, to: ~p"/stocks?#{UpcomingCatalog.filters(params)}")}
   end
 
-  defp filters(params) do
-    %{
-      q: Search.normalize(params["q"]),
-      chain: choice(params["chain"], ~w(base robinhood)),
-      availability: choice(params["availability"], ~w(available soon feed_required))
-    }
-  end
-
-  defp choice(value, allowed), do: if(value in allowed, do: value, else: "")
+  defp columns(chains, _key, query) when map_size(query) == 0, do: chains
+  defp columns(chains, key, _query), do: Enum.reject(chains, &(Map.fetch!(&1, key) == []))
 
   @impl true
   def render(assigns) do
@@ -109,15 +101,16 @@ defmodule AutolaunchWeb.UpcomingLive do
       </p>
 
       <section
-        :if={@count > 0 and @filters.availability in ["", "soon"]}
+        :if={@count > 0 and columns(@chains, :eligible, @query) != []}
         class="fact-page__section"
         aria-labelledby="upcoming-eligible"
       >
         <h2 id="upcoming-eligible">Soon Available</h2>
         <div class="upcoming__columns">
           <.column
-            :for={chain <- @chains}
+            :for={chain <- columns(@chains, :eligible, @query)}
             id={"upcoming-eligible-#{chain.chain}"}
+            query={@query}
             chain={chain}
             stocks={chain.eligible}
           />
@@ -125,7 +118,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       </section>
 
       <section
-        :if={@count > 0 and @filters.availability in ["", "available"]}
+        :if={@count > 0 and columns(@chains, :available, @query) != []}
         class="fact-page__section"
         aria-labelledby="upcoming-available"
       >
@@ -142,8 +135,9 @@ defmodule AutolaunchWeb.UpcomingLive do
         </h2>
         <div class="upcoming__columns">
           <.column
-            :for={chain <- @chains}
+            :for={chain <- columns(@chains, :available, @query)}
             id={"upcoming-available-#{chain.chain}"}
+            query={@query}
             chain={chain}
             stocks={chain.available}
           />
@@ -151,15 +145,16 @@ defmodule AutolaunchWeb.UpcomingLive do
       </section>
 
       <section
-        :if={@count > 0 and @filters.availability in ["", "feed_required"]}
+        :if={@count > 0 and columns(@chains, :feed_required, @query) != []}
         class="fact-page__section"
         aria-labelledby="upcoming-feed-required"
       >
         <h2 id="upcoming-feed-required">Feed Required</h2>
         <div class="upcoming__columns">
           <.column
-            :for={chain <- @chains}
+            :for={chain <- columns(@chains, :feed_required, @query)}
             id={"upcoming-feed-required-#{chain.chain}"}
+            query={@query}
             chain={chain}
             stocks={chain.feed_required}
           />
@@ -172,6 +167,7 @@ defmodule AutolaunchWeb.UpcomingLive do
   attr :id, :string, required: true
   attr :chain, :map, required: true
   attr :stocks, :list, required: true
+  attr :query, :map, required: true
 
   defp column(assigns) do
     ~H"""
@@ -180,7 +176,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       <ul :if={@stocks != []} class="upcoming-column__stocks">
         <li :for={stock <- @stocks}>
           <.link
-            navigate={~p"/stocks/#{stock["symbol"]}"}
+            navigate={~p"/stocks/#{stock["symbol"]}?#{@query}"}
             class="upcoming-stock"
             aria-label={"#{stock["symbol"]} on #{@chain.name}: stock details"}
           >

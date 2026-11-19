@@ -28,7 +28,9 @@ check-required-fixes:
 REGENTS_CLI_REV := a972d344a1e8355e84d3a3632328871ebc0501bc
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
-	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml
+	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml \
+	  platform/contracts/covered-calls.openapiv3.yaml platform/contracts/exposure.openapiv3.yaml \
+	  platform/contracts/earn.openapiv3.yaml
 # Fails unless the site is on the newest SIWA on both sides: the newest regents-cli
 # (the pin above, the documents and the journeys) and, at the elixir-utils commit
 # platform/mix.exs pins, the same SIWA library folder as on elixir-utils main (the

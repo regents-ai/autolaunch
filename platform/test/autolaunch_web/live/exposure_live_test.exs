@@ -78,6 +78,21 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "#exposure-share")
   end
 
+  test "an unknown series link never opens an order for the latest series", %{conn: conn} do
+    ExposureChain.install()
+    address = "0x1111111111111111111111111111111111111111"
+
+    {:ok, view, _html} = live(conn, "/stock/isolated-afters?series=#{address}&tab=redeem")
+    assert has_element?(view, "#exposure-series-unavailable", "This series is unavailable.")
+    refute has_element?(view, "#exposure-act")
+
+    view |> element("#exposure-series-unavailable a") |> render_click()
+    assert_patch(view, "/stock/isolated-afters")
+    render_async(view)
+    assert has_element?(view, "#exposure-act")
+    refute has_element?(view, "#exposure-series-unavailable")
+  end
+
   test "before the first close, the page says when allocations are set and splitting opens", %{
     conn: conn
   } do

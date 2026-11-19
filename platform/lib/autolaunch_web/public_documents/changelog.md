@@ -2,6 +2,10 @@
 
 ## 18 November 2026: Stock Products
 
+- Start a Memestock from an eligible stock page. The form picks the right stock and network and asks before replacing a saved pair. Returning to Stocks restores your filters and hides empty groups.
+- Covered Calls shows the amount left before quoting a purchase and dates the last good reading if a refresh fails. My Calls goes straight to the portfolio, where the calls closest to their exercise deadline come first.
+- After-hours keeps the positions it can read, distinguishes links to unavailable series, and labels Redeem only when it is available. Earn shows withdrawal liquidity separately from deposit capacity.
+- Agents get stock detail Markdown at the same URL, direct links to covered-call offers where available, and recovery instructions for stale selections and invalid amounts.
 - Search Onchain Stocks by name, ticker or token address. Filter by network or availability and share the results by link. Stock pages show the network's explorer alongside the address and date their liquidity observations.
 - Covered-call tickets show exact posted prices and the minimum sale when it differs from one token. A linked offer refreshes after a failed read or when it expires. Your portfolio keeps its last reading during a temporary chain error.
 - After-hours now appears under Stocks while the product is available. Buy and Sell keep the token you choose. Wallet balances follow the current wallet, and a confirmation names the action that landed.

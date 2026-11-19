@@ -327,7 +327,7 @@ test("covered-call bids: bid, sell into it, raise, stop, refund, exercise and co
     .toBe(1)
   await expect(listed).toContainText("3 AMZNc")
   await fitsAndPresses(page, touch)
-  await listed.getByRole("link", {name: "Sell", exact: true}).click()
+  await listed.getByRole("link", {name: /^Sell .* calls, bid /}).click()
   await expect(page).toHaveURL(new RegExp(`[?]bid=${bidId}$`))
   const ticket = page.locator(`#covered-call-sell-${bidId}`)
   const amount = ticket.getByLabel("Amount", {exact: true})

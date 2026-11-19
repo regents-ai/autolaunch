@@ -333,6 +333,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert text(view, "#covered-call-buy-1-strike") |> String.starts_with?(F.usd(260_000_000))
     assert text(view, "#covered-call-buy-1-break-even") |> String.starts_with?(F.usd(263_000_000))
 
+    # An oversized order does not get a payable receipt.
+    view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "999"})
+    assert has_element?(view, "#covered-call-buy-1-amount[aria-invalid=true]")
+    assert has_element?(view, "#covered-call-buy-1-available", "Only 6 available")
+    assert text(view, "#covered-call-buy-1-pay") == F.usd(nil)
+    assert text(view, "#covered-call-buy-1-exercise") == F.usd(nil)
+
     # An amount that doesn't read leaves the totals empty.
     view |> element("#covered-call-buy-1-form") |> render_change(%{"amount" => "x"})
     assert text(view, "#covered-call-buy-1-exercise") == F.usd(nil)

@@ -188,7 +188,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -200,7 +200,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -212,7 +212,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -224,7 +224,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -236,7 +236,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -248,7 +248,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -260,7 +260,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -272,7 +272,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -284,7 +284,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -296,7 +296,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -308,7 +308,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {
@@ -320,7 +320,7 @@
         "webmcp": true,
         "hosted_mcp": true,
         "http": true,
-        "cli": "No regents-cli command yet."
+        "cli": true
       }
     },
     {

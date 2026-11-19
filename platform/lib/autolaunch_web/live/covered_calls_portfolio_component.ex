@@ -240,8 +240,14 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         row(side, listing, holdings[listing.id], positions.unit, positions.now)
       end)
       |> Enum.concat(Enum.map(positions.bids, &bid_row(&1, positions.unit, positions.now)))
-      # An open exercise window comes first: it is the one that closes soon.
-      |> Enum.sort_by(&(&1.stage != :exercise))
+      |> Enum.sort_by(fn
+        %{stage: :exercise, on: %{holding: held}, expiry: expiry}
+        when held > 0 and is_integer(held) ->
+          {0, expiry + Terms.exercise_window()}
+
+        _other ->
+          {1, 0}
+      end)
 
     assigns =
       assign(assigns,
@@ -415,7 +421,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       bid.amount > 0 &&
         %{
           name: :sold,
-          label: "Sold",
+          label: "Filled",
           figure: if(stage == :sold, do: bid.filled, else: {bid.filled, bid.amount}),
           step: if(stage == :open, do: :raise_bid)
         },

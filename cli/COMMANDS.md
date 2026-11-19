@@ -4,7 +4,7 @@ These descriptions belong to the unified `regents autolaunch …` CLI. A command
 there once a regents-cli release takes `commands.json`; `regents autolaunch --help`
 lists what your installed version has.
 
-The seven public reads need no sign-in and change nothing. Every other command requires
+Public reads and quotes need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
 require a current pairing and an Autolaunch account resolved from the owner's verified
 Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
@@ -210,6 +210,33 @@ leaderboard → return the published projection. Requires shared Points schema a
 pairing. Missing/revoked authority refuses; unavailable data, or a leaderboard not
 read yet, returns `account_unavailable`. Creates no account or reward.
 
+## `covered-calls`
+
+- `book <symbol>` reads a Base stock's covered-call listings and bids. Check their remaining size and the book's `read_at` time.
+- `quote <symbol> --expiry SECONDS` suggests a premium for an offered Friday expiry, with optional `--amount`, `--strike-per-token` and `--premium-per-token`.
+- `positions <symbol>` reads the paired account's covered calls and bids.
+- `prepare <symbol> --kind ACTION` prepares the wallet steps. Use `--listing-id` for fill, exercise, cancel, claim and collect_strike. Use `--bid-id` for raise_bid, sell_to_bid, cancel_bid and refund_bid. List and bid take `--amount`, `--strike-per-token`, `--premium-per-token` and `--expiry`.
+
+The book and quote are public. Positions and preparation require a paired agent. Use whole numbers in the stock token's smallest units for amounts, micro-USDC per whole token for strikes and premiums, and Unix seconds for expiries. The current [Covered Calls page](https://autolaunch.sh/stock/covered-call) lists the available expiries.
+
+## `after-hours`
+
+- `list` lists the available Base series. `series <address>` reads one series, its schedule and its two tokens.
+- `positions <address>` reads the paired account's balances and redeemable amounts for that series.
+- `prepare <address> --kind ACTION` prepares wallet steps for buy, sell, mint, redeem, update or end. For buy or sell, set `--leg overnight` for After-hours (`after_hours`) or `--leg session` for Market-hours (`market_hours`). Buy amounts use micro-USDC. Sell amounts use the selected token's smallest units. Mint amounts use the stock token's smallest units. For redeem, use `--overnight` and `--session` in the respective token units.
+
+The series reads are public. Positions and preparation require a paired agent.
+
+## `earn`
+
+- `list` reads available products and their rates and liquidity. Use its product ID for a quote or preparation.
+- `positions` reads the paired account's Earn positions.
+- `quote --product ID --kind deposit|withdraw` previews a wallet action. `prepare` takes the same options and adds unsigned wallet steps. Use `--amount` in the asset's smallest units, or `--everything` without an amount for a full withdrawal.
+
+The product list is public. Positions, preview and preparation require a paired agent.
+
+Every stock-product preparation returns `data.steps` for the wallet named by `data.signer`. Read `data.blocked` before continuing. If it is set, resolve the reason and prepare again. The wallet owner reviews, signs and sends.
+
 ## Command history and CLI handoff
 
 9 October 2026: signed source added in `64d6cf8`. Draft reads now end in `show`:
@@ -261,3 +288,5 @@ in the same OpenAPI 2.0.0 as the Points change above.
 it; each action keeps its fields. A one-time action earned on any site is `done`, and
 `left` is true only for an action this site earns. The OpenAPI document moves to
 4.0.0. No command changes.
+
+18 November 2026: added the Covered Calls, After-hours and Earn command groups for the existing public and paired-agent routes. Wallet steps are unsigned. Existing commands keep their names, inputs and responses.

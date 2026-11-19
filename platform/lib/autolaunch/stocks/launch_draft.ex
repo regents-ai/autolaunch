@@ -82,7 +82,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   # schedule, price or minimum to enter: bidding opens a fixed number of
   # blocks after the launch is created, at the lowest price the auction accepts.
   defp missing_terms(draft) do
-    case Assets.fetch(Map.get(draft, :stock_chain_id), Map.get(draft, :stock_address) || "") do
+    case Assets.fetch_admitted(
+           Map.get(draft, :stock_chain_id),
+           Map.get(draft, :stock_address) || ""
+         ) do
       {:ok, _stock} -> []
       _missing -> [:stock_address]
     end
@@ -92,6 +95,31 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
+
+  defp validate_stock(changeset, allow_blank?) do
+    address = Ash.Changeset.get_attribute(changeset, :stock_address)
+
+    cond do
+      not (Ash.Changeset.changing_attribute?(changeset, :stock_address) or
+               Ash.Changeset.changing_attribute?(changeset, :chain)) ->
+        :ok
+
+      allow_blank? and address in [nil, ""] ->
+        :ok
+
+      match?(
+        {:ok, _stock},
+        Assets.fetch_admitted(
+          Assets.chain_id(Ash.Changeset.get_attribute(changeset, :chain)),
+          address
+        )
+      ) ->
+        :ok
+
+      true ->
+        {:error, field: :stock_address, message: "is not available to pair on this network"}
+    end
+  end
 
   postgres do
     table "stock_launch_drafts"
@@ -134,16 +162,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change Autolaunch.Stocks.LaunchDraft.Changes.CarryStock,
         where: [changing(:chain), negate(changing(:stock_address))]
 
-      validate fn changeset, _context ->
-        chain_id = Ash.Changeset.get_attribute(changeset, :stock_chain_id)
-        address = Ash.Changeset.get_attribute(changeset, :stock_address)
-
-        cond do
-          not Ash.Changeset.changing_attribute?(changeset, :stock_address) -> :ok
-          is_binary(address) and match?({:ok, _stock}, Assets.fetch(chain_id, address)) -> :ok
-          true -> {:error, field: :stock_address, message: "is not a stock this chain lists"}
-        end
-      end
+      validate fn changeset, _context -> validate_stock(changeset, false) end
 
       change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @agent_fields, mark: true}
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
@@ -201,10 +220,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     end
 
     update :autosave_terms do
-      accept @terms_fields
+      accept [:chain | @terms_fields]
       require_atomic? false
+      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
-      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @terms_fields, mark: false}
+      validate fn changeset, _context -> validate_stock(changeset, true) end, before_action?: true
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:chain | @terms_fields], mark: false}
     end
 
     update :choose_chain do

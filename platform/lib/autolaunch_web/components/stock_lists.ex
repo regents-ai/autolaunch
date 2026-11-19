@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Components.StockLists do
               <.link
                 navigate={"/stock/covered-call?listing=#{listing.id}"}
                 class="rg-button rg-button--secondary"
-                aria-label={"Buy #{@symbol} calls at #{CoveredCallsFormat.unit_price(listing.strike_per_token)}"}
+                aria-label={CoveredCallsFormat.offer_label("Buy", @symbol, listing)}
               >
                 Buy
               </.link>
