@@ -22,7 +22,9 @@ defmodule Autolaunch.AgentSwap do
   the account).
 
   The token is one the site lists and shows, as its page reads it, known
-  before any chain is read. `protection` is the price protection in percent,
+  before any chain is read, on a network that is no local test fork, as
+  `Autolaunch.AgentPayment` asks; the steps are only given for the network
+  the launch ran on. `protection` is the price protection in percent,
   from 1 to 10, the panel's own starting setting when left out
   (`SwapActions.default_protection/0`).
 
@@ -45,25 +47,29 @@ defmodule Autolaunch.AgentSwap do
 
   alias Autolaunch.AgentSwap.Refused
   alias Autolaunch.CoveredCalls.Signer
-  alias Autolaunch.{SwapActions, Token}
+  alias Autolaunch.{Lab, SwapActions, Token}
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias AutolaunchWeb.ReadFailure
 
   # Every reason the review, the token's listing, the wallet and the person's
   # account name, as the code an agent is answered with. An id naming no token
-  # the site lists and shows names no token here. An amount the review cannot
-  # read, zero, finer than the side it spends or more than the pool takes at
-  # once is not one to trade. A token whose launch has not graduated has no
-  # pool to trade in yet. A pool that cannot fill the amount now, and a
-  # wallet holding less than it, are the review's own refusals, as on the
-  # page. A chain the review could not read, or whose answer it could not
-  # decode, is `chain_unavailable`; a pool or router the site cannot find or
-  # read for a token it lists is the site's own fault, which the agent cannot
-  # mend: `swap_unavailable`, logged by kind alone.
+  # the site lists and shows names no token here, and one on a local test fork
+  # is swapped for no agent here. An amount the review cannot read, zero,
+  # finer than the side it spends or more than the pool takes at once is not
+  # one to trade. A token whose launch has not graduated has no pool to trade
+  # in yet. A pool that cannot fill the amount now, and a wallet holding less
+  # than it, are the review's own refusals, as on the page. A chain the review
+  # could not read, or whose answer it could not decode, is
+  # `chain_unavailable`; a pool or router the site cannot find or read for a
+  # token it lists, or a deployment on another network than the launch's
+  # (`review_network_mismatch`), is the site's own fault, which the agent
+  # cannot mend: `swap_unavailable`, logged by kind alone.
   @codes %{
     authentication_required: :authentication_required,
     wallet_required: :wallet_required,
     wrong_signer: :wrong_signer,
     token_not_listed: :token_not_found,
+    test_chain: :swap_not_offered,
     amount_required: :invalid_amount,
     invalid_decimal: :invalid_amount,
     amount_not_representable: :invalid_amount,
@@ -124,16 +130,19 @@ defmodule Autolaunch.AgentSwap do
     with {:ok, account} <- Signer.verified(actor),
          {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
          {:ok, token} <- Token.listed(id),
+         launch = Token.launch(token),
+         :ok <- offered_here(launch),
          {:ok, reviewed} <-
            SwapActions.review(
              %{
-               launch: Token.launch(token),
+               launch: launch,
                direction: direction,
                amount: amount,
                protection: arguments[:protection] || SwapActions.default_protection()
              },
              signer
-           ) do
+           ),
+         :ok <- launch_network(reviewed.chain, token.auction) do
       {:ok,
        %{
          direction: Atom.to_string(direction),
@@ -150,6 +159,20 @@ defmodule Autolaunch.AgentSwap do
   rescue
     failure -> refused({:error, failure})
   end
+
+  # A site reading a local test fork prepares no agent swap on it, as it
+  # prepares no agent payment there (`Autolaunch.AgentPayment`).
+  defp offered_here(%{chain: :base}),
+    do: if(Lab.test_chain?(), do: {:error, :test_chain}, else: :ok)
+
+  defp offered_here(%{chain: :robinhood}),
+    do: if(RobinhoodLab.test_chain?(), do: {:error, :test_chain}, else: :ok)
+
+  # The steps are sent on the deployment's network, so they are given only when
+  # that is the launch's own, as a payment's are
+  # (`Autolaunch.SubjectWalletActions`).
+  defp launch_network(%{chain_id: chain_id}, %{chain_id: chain_id}), do: :ok
+  defp launch_network(_chain, _auction), do: {:error, :review_network_mismatch}
 
   # The figures the panel shows beside the steps: what the wallet pays, what
   # today's quote says it receives, the least the trade accepts, the price

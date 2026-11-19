@@ -361,6 +361,66 @@ defmodule AutolaunchWeb.AgentSwapTest do
     assert documented?(409, "swap_not_open")
   end
 
+  test "a token this site trades on a local test fork, Base's or Robinhood Chain's, takes no agent swap, before any chain is read",
+       %{agent: agent, listed: listed} do
+    input = %{direction: "buy", amount: "1"}
+
+    # A Robinhood Chain launch on the site's Robinhood test network, and then
+    # any Base token on a site reading the local Base fork.
+    fork =
+      token!(
+        chain_id: 31_338,
+        kind: :stocks,
+        address: unique_address(),
+        symbol: "FORK",
+        token_address: unique_address(),
+        quote_token_address: RobinhoodBidChain.stock(),
+        quote_token_symbol: "TSLA",
+        quote_token_decimals: 18
+      )
+
+    cases = [
+      {fork, :autolaunch_robinhood_chain_id, 31_338, &RobinhoodLab.test_chain?/0},
+      {listed, :autolaunch_base_chain_id, 31_337, &Lab.test_chain?/0}
+    ]
+
+    for {token, key, chain_id, test_chain?} <- cases do
+      keep_env(key)
+      Application.put_env(:autolaunch, key, chain_id)
+      assert test_chain?.()
+      chain_reads()
+
+      route = http(:post, path(token.id), input, agent)
+
+      assert route.status == 409 and route.body["error"]["code"] == "swap_not_offered",
+             "#{chain_id} answered #{inspect(route.body)}"
+
+      assert tool(agent, "prepare_swap", Map.put(input, :token_id, token.id)) ==
+               {:error, route.body}
+
+      assert chain_reads() == [], "#{chain_id}"
+    end
+
+    assert documented?(409, "swap_not_offered")
+  end
+
+  test "a launch on another network than the deployment its pool is read on is the site's own fault: swap_unavailable, logged by kind alone",
+       %{agent: agent, wallet: wallet} do
+    elsewhere = token!(kind: :agent, chain_id: 84_532)
+    input = %{direction: "buy", amount: "1"}
+
+    {route, log} = with_log(fn -> http(:post, path(elsewhere.id), input, agent) end)
+
+    assert route.status == 503 and route.body["error"]["code"] == "swap_unavailable",
+           inspect(route.body)
+
+    assert log =~ "agent swap failed: review_network_mismatch"
+    refute log =~ wallet
+
+    assert tool(agent, "prepare_swap", Map.put(input, :token_id, elsewhere.id)) ==
+             {:error, route.body}
+  end
+
   test "an amount that is no decimal above zero, and a price protection out of range, are refused before any chain is read, on the page and on both ways in; only the pool names how many places and how much it takes",
        %{agent: agent, listed: listed, opts: opts, wallet: wallet} do
     too_large = Integer.to_string(div(Integer.pow(2, 127), @unit) + 1)
@@ -563,8 +623,17 @@ defmodule AutolaunchWeb.AgentSwapTest do
         code
       end
 
-    # The site's own fault: its Base deployment cannot be read.
+    # A site reading the local Base fork.
     StakeChain.put(@wallet)
+    keep_env(:autolaunch_base_chain_id)
+    Application.put_env(:autolaunch, :autolaunch_base_chain_id, 31_337)
+    route = http(:post, path(id), buy, agent)
+    assert route.status == 409 and route.body["error"]["code"] == "swap_not_offered"
+    assert tool(agent, "prepare_swap", Map.put(buy, :token_id, id)) == {:error, route.body}
+    assert documented?(409, "swap_not_offered")
+    Application.put_env(:autolaunch, :autolaunch_base_chain_id, 8453)
+
+    # The site's own fault: its Base deployment cannot be read.
     keep_env(:autolaunch_base_deployment_id)
     Application.put_env(:autolaunch, :autolaunch_base_deployment_id, "")
     route = http(:post, path(id), buy, agent)
@@ -579,7 +648,9 @@ defmodule AutolaunchWeb.AgentSwapTest do
 
     # Each code the contract lists is reached here, but the account read and
     # prelaunch refusals, each in its own test below.
-    assert Enum.sort(Enum.uniq(["agent_not_paired", "swap_unavailable" | reached])) ==
+    assert Enum.sort(
+             Enum.uniq(["agent_not_paired", "swap_not_offered", "swap_unavailable" | reached])
+           ) ==
              Enum.sort(
                @codes -- ~w(authentication_required account_unavailable prelaunch_read_only)
              )
@@ -760,6 +831,7 @@ defmodule AutolaunchWeb.AgentSwapTest do
       wallet_required: :wallet_required,
       wrong_signer: :wrong_signer,
       token_not_listed: :token_not_found,
+      test_chain: :swap_not_offered,
       amount_required: :invalid_amount,
       invalid_decimal: :invalid_amount,
       amount_not_representable: :invalid_amount,
@@ -775,10 +847,12 @@ defmodule AutolaunchWeb.AgentSwapTest do
     assert Map.new(codes, fn {reason, _code} -> {reason, AgentSwap.code(reason)} end) == codes
 
     # The review's own fault for a pool, router or deployment it cannot find or
-    # read, and every reason it names that no buy or sell of a listed token
-    # reaches, are the site's.
+    # read, a deployment on another network than the launch's, and every
+    # reason it names that no buy or sell of a listed token reaches, are the
+    # site's.
     for unexpected <- [
           :swap_unavailable,
+          :review_network_mismatch,
           :lab_contract_missing,
           :invalid_direction,
           :invalid_address,

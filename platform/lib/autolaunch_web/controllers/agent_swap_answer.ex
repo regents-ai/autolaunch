@@ -26,6 +26,8 @@ defmodule AutolaunchWeb.AgentSwapAnswer do
       {:conflict,
        "Your person's Regent account has no verified wallet to act with, or signer is not a wallet address."},
     token_not_found: {:not_found, "There is no token listed here with that id."},
+    swap_not_offered:
+      {:conflict, "This token trades on a test network here, so no swap is prepared."},
     invalid_amount:
       {:unprocessable_entity,
        "Send amount as a decimal above zero with no more decimal places than the side you spend has, small enough for the pool to take at once."},
