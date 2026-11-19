@@ -1,5 +1,11 @@
 # Changelog
 
+## 19 November 2026: Points
+
+- On Autolaunch you now also earn Points for your account, for linking X or GitHub on your Account page and for pairing your first agent.
+- Each earns once, and never twice across Regent sites: one that already earned on another Regent site earns nothing more here.
+- X and GitHub accounts you linked here before Points began count too.
+
 ## 19 November 2026: Trading
 
 - After you approve a token for a swap, the swap panel moves on to the swap even if it updated its prices while you were confirming in your wallet. Before, it could keep asking you to approve again.
