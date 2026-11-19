@@ -198,7 +198,8 @@ defmodule Autolaunch.AgentPayment do
   # otherwise turn into text (`AutolaunchWeb.AgentPaymentAnswer`). The review
   # names its reasons inside Ash's own unavailable error; the listing's failed
   # read is Ash's own error. One nobody named, or a raise, which the function's
-  # rescue catches as the backstop it is, is logged by kind alone
+  # rescue catches (Ash raises a raise in an action's `run` again rather than
+  # returning it, so the route would crash), is logged by kind alone
   # (`AutolaunchWeb.ReadFailure`) and answered `payment_unavailable`.
   defp refused({:ok, _answer} = answered), do: answered
 
