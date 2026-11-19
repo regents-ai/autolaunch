@@ -71,11 +71,11 @@ defmodule Autolaunch.Accounts.ConnectEns do
   end
 
   # Another account's connection to the same name
-  # (`LinkedIdentity`'s `unique_subject_per_provider`). A save that fails inside
-  # the lease's transaction rolls it back with its changeset, which carries the
-  # same errors.
+  # (`LinkedIdentity`'s `unique_subject_per_provider`, whose error is on the
+  # subject). A save that fails inside the lease's transaction rolls it back
+  # with its changeset, which carries the same errors.
   defp name_taken?(%{errors: errors}) when is_list(errors),
-    do: Enum.any?(errors, &match?(%{field: field} when field in [:provider, :subject], &1))
+    do: Enum.any?(errors, &match?(%{field: :subject}, &1))
 
   defp name_taken?(_error), do: false
 
