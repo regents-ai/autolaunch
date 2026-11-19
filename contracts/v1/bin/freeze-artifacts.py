@@ -6,8 +6,11 @@ Every committed file under `abi/`, the frozen ABI surface and size reports, and
 artifacts in `out/`. Nothing here is hand written, and nothing here restates a value the
 compiler already decided.
 
-Two modes:
+Three modes:
 
+  paths  Print what the build compiles: the package's own roots and the pinned upstream sources
+         `DEPENDENCY_CONTRACTS` and `CONSUMED_SURFACES` name. The production sources do not import
+         every one of them, and this freezer, the gate and the ceremony all read their artifacts.
   write  Regenerate every frozen output from the current build.
   check  Regenerate into memory and compare byte for byte with the committed files. Any
          drift — a hand-edited ABI, a stale manifest, a recompiled contract, a renamed
@@ -30,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -93,11 +97,13 @@ EIP3860_INITCODE_LIMIT = 49_152
 CONSUMED_SURFACES = {
     "ContinuousClearingAuctionFactory": {
         "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+        "source": "lib/continuous-clearing-auction/src/ContinuousClearingAuctionFactory.sol",
         "functions": ("create(address,uint256,bytes,bytes32)", "protocolFeeController()"),
         "events": ("AuctionCreated(address,address,uint256,bytes)",),
     },
     "ContinuousClearingAuction": {
         "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+        "source": "lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol",
         # Everything the strategy, the escrow, and a product bidder actually call. A rename
         # upstream fails the freeze instead of surfacing as a runtime revert.
         "functions": (
@@ -146,6 +152,7 @@ CONSUMED_SURFACES = {
     # recording one would imply a product surface that does not exist.
     "IAllowanceTransfer": {
         "repository": "https://github.com/Uniswap/permit2",
+        "source": "lib/liquidity-launcher/lib/v4-periphery/lib/permit2/src/interfaces/IAllowanceTransfer.sol",
         "functions": (
             "allowance(address,address,address)",
             "approve(address,address,uint160,uint48)",
@@ -917,7 +924,33 @@ def check_runtime_baseline(
 # =============================================================================
 
 
+def forge(*args: str) -> str:
+    env = dict(os.environ, FOUNDRY_OFFLINE="true", FOUNDRY_PROFILE="default", FOUNDRY_LINT_LINT_ON_BUILD="false")
+    result = subprocess.run(["forge", *args], capture_output=True, text=True, env=env)
+    if result.returncode != 0:
+        raise SystemExit(f"freeze: forge {' '.join(args)} failed:\n{result.stderr}")
+    return result.stdout
+
+
+def build_paths() -> list[str]:
+    """The configured source, test and script roots that exist, then the pinned upstream sources
+    this freezer reads, which those roots do not all import. They compile in one run: a separate
+    run would write an upstream artifact over a same-named source of the package's own."""
+    config = json.loads(forge("config", "--json"))
+    roots = [config[key] for key in ("src", "test", "script") if Path(config[key]).is_dir()]
+    pinned = (*DEPENDENCY_CONTRACTS.values(), *CONSUMED_SURFACES.values())
+    return [*roots, *sorted({wanted["source"] for wanted in pinned})]
+
+
+def build() -> None:
+    forge("build", *build_paths())
+
+
 def run(args: argparse.Namespace) -> int:
+    if args.mode == "paths":
+        print("\n".join(build_paths()))
+        return 0
+
     out = Path(args.out)
     artifacts = load_artifacts(out)
     entries = owned(artifacts)
@@ -981,7 +1014,7 @@ def run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("write", "check"))
+    parser.add_argument("mode", choices=("paths", "write", "check"))
     parser.add_argument("--out", default="out")
     parser.add_argument("--frozen", default="requirements/frozen-identity.json")
     parser.add_argument("--manifest", default="contracts/autolaunch-release-manifest.json")

@@ -71,8 +71,10 @@ from a remote. It runs the external tools and hands every structured comparison 
    tool identity and only has to begin with the `SPEC.md` semantic version.
 6. **Threat-model integrity.** Every requirement the threat model names as a mitigation must
    exist in the ledger.
-7. `forge fmt --check`, then `forge build --sizes`, then the compiler, optimizer, via-IR,
-   EVM version, and metadata settings actually recorded in every produced artifact.
+7. `forge fmt --check`, then `forge build --sizes` over the paths `bin/freeze-artifacts.py paths`
+   lists (the package's own roots and the pinned upstream sources the freezer reads), then the
+   compiler, optimizer, via-IR, EVM version, and metadata settings actually recorded in every
+   produced artifact.
 8. **Frozen release surface.** `bin/freeze-artifacts.py check` regenerates every committed file
    under `abi/`, `reports/frozen/abi-surface.json`, `reports/frozen/deployable-sizes.json`, and
    `contracts/autolaunch-release-manifest.json` from those artifacts and compares them byte for

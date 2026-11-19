@@ -8,9 +8,13 @@ written, and nothing here restates a value the compiler already decided. The pac
 `requirements/freeze.json` names what is frozen: the production contracts, the clone targets, the
 hook and its permission bits, the admitted dependency builds, and the dependency snapshot.
 
-Two modes:
+Three modes:
 
-  write  Run `forge clean` and `forge build`, then regenerate every frozen output from that build.
+  paths  Print what the build compiles: the package's own roots and the dependency sources
+         `dependency_contracts` names. The package's own sources do not import every one of them,
+         and the frozen record, the gate and the ceremony all read their artifacts.
+  write  Run `forge clean` and `forge build` over those paths, then regenerate every frozen output
+         from that build.
   check  Regenerate into memory from the build the gate just made and compare byte for byte with
          the committed files. Any drift — a changed runtime byte, a hand-edited ABI, a renamed
          event, a changed integer width, a changed dependency file — fails closed. Check mode
@@ -695,12 +699,28 @@ def forge(*args: str) -> str:
     return result.stdout
 
 
+def build_paths(freeze: dict) -> list[str]:
+    """The configured source, test and script roots that exist, then the pinned dependency sources
+    the freeze record names, which those roots do not all import. They compile in one run: a
+    separate run would write a dependency's artifact over a same-named source of the package's own."""
+    config = json.loads(forge("config", "--json"))
+    roots = [config[key] for key in ("src", "test", "script") if Path(config[key]).is_dir()]
+    return [*roots, *sorted({wanted["source"] for wanted in freeze["dependency_contracts"].values()})]
+
+
+def build(freeze: dict) -> None:
+    forge("build", *build_paths(freeze))
+
+
 def run(args: argparse.Namespace) -> int:
     freeze = json.loads(Path(args.freeze).read_text(encoding="utf-8"))
 
+    if args.mode == "paths":
+        print("\n".join(build_paths(freeze)))
+        return 0
     if args.mode == "write":
         forge("clean")
-        forge("build")
+        build(freeze)
 
     artifacts = load_artifacts(Path(args.out))
     all_owned = owned(artifacts, tuple(freeze["owned_source_prefixes"]))
@@ -771,7 +791,7 @@ def run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("write", "check"))
+    parser.add_argument("mode", choices=("paths", "write", "check"))
     parser.add_argument("--freeze", default="requirements/freeze.json")
     parser.add_argument("--out", default="out")
     parser.add_argument("--receipt", default="reports/generated/dependency-receipt.txt")

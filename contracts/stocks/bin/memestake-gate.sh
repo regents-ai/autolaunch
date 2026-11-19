@@ -312,7 +312,10 @@ section "Build and compiled build identity"
 # ---------------------------------------------------------------------------
 
 forge clean
-forge build --sizes
+# One compiler run over the package's own roots and the pinned dependency sources the freeze
+# record names. The freezer prints them one per line, none with a space.
+build_paths=$(python3 "$freezer" paths --freeze "$freeze")
+forge build --sizes $build_paths
 
 python3 "$checker" artifacts --frozen "$frozen" --out out --receipt "$receipt"
 

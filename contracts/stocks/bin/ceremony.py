@@ -51,7 +51,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import freeze  # noqa: E402  (keccak256, load_artifacts, code_object, render)
+import freeze  # noqa: E402  (build, keccak256, load_artifacts, code_object, render)
 
 GENERATED = Path("reports/generated/deployment")
 DEPLOYMENTS = Path("deployments")
@@ -1251,8 +1251,8 @@ CONTRACT_KEYS = {
 
 
 def frozen_artifacts(frozen: Frozen) -> dict[str, dict]:
-    """The default-profile build, proved to be the frozen one object by object."""
-    run(["forge", "build"], env=dict(os.environ, FOUNDRY_PROFILE="default", FOUNDRY_OFFLINE="true", FOUNDRY_LINT_LINT_ON_BUILD="false"))
+    """The freezer's build, proved to be the frozen one object by object."""
+    freeze.build(frozen.requirements)
     artifacts = freeze.load_artifacts(Path("out"))
     by_name: dict[str, dict] = {}
     for key, artifact in artifacts.items():
@@ -1305,6 +1305,7 @@ def mode_site_config(package: Package, frozen: Frozen, args: argparse.Namespace)
     manifest = installed_manifest(package)
     if manifest.get("status") != "deployed":
         raise CeremonyError("no deployed manifest is installed; the site-config is rendered from confirmed receipts only")
+    freeze.build(frozen.requirements)
     builds: dict[str, dict] = {}
     abis = {}
     for key, (out, target) in package.abi_artifacts().items():

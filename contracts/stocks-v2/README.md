@@ -266,7 +266,9 @@ forge build
 `bin/gate.sh` is the one required check before a change is proposed. It is offline and proves,
 in order: the frozen tool and build identity (`requirements/frozen-identity.json` against
 `forge --version`, `slither --version` and `forge config --json`), `forge fmt --check`, a clean
-`forge build --sizes` whose artifacts carry the frozen compiler identity, the frozen release surface
+`forge build --sizes` over the paths `bin/freeze.py paths` lists (the package's own roots and the
+pinned dependency sources `requirements/freeze.json` names) whose artifacts carry the frozen
+compiler identity, the frozen release surface
 (`bin/freeze.py check` reconciles `abi/` and `reports/frozen/` byte for byte against the fresh
 build, and the dependency snapshot under `lib/` against `reports/frozen/dependency-closure.json`),
 Slither with every detector on and every result dispositioned in
@@ -285,7 +287,7 @@ cd contracts/stocks-v2 && bin/gate.sh
 ```
 
 `bin/freeze.py write` regenerates the frozen release surface after an intended production change.
-It runs `forge clean` and `forge build` and rewrites `abi/` and
+It runs `forge clean` and the same build and rewrites `abi/` and
 `reports/frozen/`; review the diff, then run the gate. The freeze pins every production contract's
 runtime and creation code, its ABI and selectors, the clone template the launchpad stamps, the
 hook flags the deploy script mines for, and the content digest of every dependency.

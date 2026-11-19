@@ -399,7 +399,10 @@ section "Build and compiled build identity"
 # Stale Foundry artifacts cannot participate in evidence compilation. `forge clean` is bounded by
 # the committed Foundry configuration to this ticket's own out/cache roots.
 forge clean
-forge build --sizes
+# One compiler run over the package's own roots and the pinned upstream sources the freezer
+# names. The freezer prints them one per line, none with a space.
+build_paths=$(python3 "$freezer" paths)
+forge build --sizes $build_paths
 
 python3 "$checker" artifacts --frozen "$frozen" --out out --receipt "$receipt"
 

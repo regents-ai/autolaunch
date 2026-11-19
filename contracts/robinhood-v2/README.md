@@ -87,7 +87,9 @@ controller always does).
 `bin/gate.sh` is the one required check before a change is proposed. It shares its body with the
 Base package (`../stocks-v2/bin/memestake-gate.sh`) and proves the same things in the same order: the
 frozen tool and build identity in `requirements/frozen-identity.json`, formatting, a clean build
-whose artifacts carry the frozen compiler identity, the frozen release surface under `abi/` and
+over the paths `../stocks-v2/bin/freeze.py paths` lists (this package's roots and the pinned
+dependency sources `requirements/freeze.json` names) whose artifacts carry the frozen compiler
+identity, the frozen release surface under `abi/` and
 `reports/frozen/` (`../stocks-v2/bin/freeze.py check` against `requirements/freeze.json`), Slither
 with every detector on and every result dispositioned in
 `docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and

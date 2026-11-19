@@ -61,7 +61,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import freeze  # noqa: E402  (keccak256, load_artifacts, code_object, render)
+import freeze  # noqa: E402  (build, keccak256, load_artifacts, code_object, render)
 
 GENERATED = Path("reports/generated/deployment")
 DEPLOYMENTS = Path("deployments")
@@ -1128,8 +1128,8 @@ CONTRACT_KEYS = {
 
 
 def frozen_artifacts(frozen: Frozen) -> dict[str, dict]:
-    """The default-profile build, proved to be the frozen one object by object."""
-    run(["forge", "build"], env=dict(os.environ, FOUNDRY_PROFILE="default", FOUNDRY_OFFLINE="true", FOUNDRY_LINT_LINT_ON_BUILD="false"))
+    """The freezer's build, proved to be the frozen one object by object."""
+    freeze.build(frozen.requirements)
     artifacts = freeze.load_artifacts(Path("out"))
     by_name: dict[str, dict] = {}
     for key, artifact in artifacts.items():
@@ -1176,13 +1176,14 @@ def mode_site_config(package: Package, frozen: Frozen, args: argparse.Namespace)
     manifest = installed_manifest(package)
     if manifest.get("status") != "deployed":
         raise CeremonyError("no deployed manifest is installed; the site-config is rendered from confirmed receipts only")
+    freeze.build(frozen.requirements)
     artifacts = freeze.load_artifacts(Path("out"))
     abis = {}
     for key, target in package.abi_artifacts().items():
         try:
             abis[key] = artifacts[target]["abi"]
         except KeyError:
-            raise CeremonyError(f"out carries no artifact {target}; run forge build first")
+            raise CeremonyError(f"the build carries no artifact {target}")
     document = package.site_config(manifest, args, abis)
     candidate = write_candidate(SITE_CONFIG_NAME, document)
     print(f"site-config written to {candidate}; it carries both endpoints and is never committed")

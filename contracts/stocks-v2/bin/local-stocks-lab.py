@@ -388,7 +388,11 @@ def forge_environment(extra: Mapping[str, str] | None = None) -> dict[str, str]:
 
 
 def forge_build(root: Path) -> None:
-    run_checked(["forge", "build", "--offline"], root, forge_environment())
+    """One run over what the freezer builds: the package and the pinned dependency sources its
+    freeze record names, which carry the auction ABI the site reads."""
+    environment = forge_environment()
+    paths = run_checked([sys.executable, str(Path(__file__).with_name("freeze.py")), "paths"], root, environment)
+    run_checked(["forge", "build", "--offline", *paths.split()], root, environment)
 
 
 def load_artifact(root: Path, relative: str) -> dict[str, Any]:

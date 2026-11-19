@@ -43,7 +43,7 @@ def _load_freeze():
     return module
 
 
-freeze = _load_freeze()  # keccak256, load_artifacts, code, render
+freeze = _load_freeze()  # build, keccak256, load_artifacts, code, render
 
 GENERATED = Path("reports/generated/deployment")
 PACKET = Path("deployments/base-mainnet/mainnet-no-go-packet.json")
@@ -264,9 +264,8 @@ def permit2() -> str:
 
 
 def frozen_artifacts() -> tuple[dict, dict[str, dict]]:
-    """The default-profile build, proved to be the frozen release build object by object."""
-    run(["forge", "build"], env=dict(os.environ, FOUNDRY_PROFILE="default", FOUNDRY_OFFLINE="true",
-                                    FOUNDRY_LINT_LINT_ON_BUILD="false"))
+    """The freezer's build, proved to be the frozen release build object by object."""
+    freeze.build()
     release = load_json(RELEASE_MANIFEST)
     artifacts = freeze.load_artifacts(Path("out"))
     found = {}
