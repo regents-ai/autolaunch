@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
 
   def prepare_input(_body), do: :error
 
-  defp amount_hint(:invalid_amount),
+  defp amount_hint(reason) when reason in [:invalid_amount, :invalid_request],
     do:
       "Use micro-USDC (6 decimals) for a buy amount, raw leg units for sell and redeem, and raw stock units for mint."
 

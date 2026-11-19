@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.EarnAnswer do
     ApiError.body(Atom.to_string(reason), message, amount_hint(reason))
   end
 
-  defp amount_hint(:invalid_amount),
+  defp amount_hint(reason) when reason in [:invalid_amount, :invalid_request],
     do:
       "Use the asset’s smallest units. For a full withdrawal, send everything as true and omit amount."
 

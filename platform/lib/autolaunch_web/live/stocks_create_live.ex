@@ -758,6 +758,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         {:ok, socket} ->
           socket
           |> refresh_market(before)
+          |> maybe_clear_linked_pair(before)
           |> assign(draft_errors: %{}, draft_notice: saved_notice(socket))
 
         {:error, errors} ->
@@ -778,6 +779,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       {:ok,
        socket
        |> assign(draft_errors: %{}, draft_notice: nil, market: %{prices: %{}, venues: []})
+       |> clear_linked_pair()
        |> assign_market()
        |> keep()}
     end
@@ -991,6 +993,22 @@ defmodule AutolaunchWeb.StocksCreateLive do
       {:error, _error} -> assign(socket, status: :error)
     end
   end
+
+  defp maybe_clear_linked_pair(socket, previous_address) do
+    if socket.assigns.draft_values["stock_address"] == previous_address,
+      do: socket,
+      else: clear_linked_pair(socket)
+  end
+
+  # A manual choice takes over from the stock link and survives sign-in through
+  # the normal draft carry-over.
+  defp clear_linked_pair(%{assigns: %{linked_pair: {_, _}}} = socket),
+    do:
+      socket
+      |> assign(linked_pair: nil, suggested_stock: nil)
+      |> push_patch(to: ~p"/create", replace: true)
+
+  defp clear_linked_pair(socket), do: socket
 
   defp linked_pair(%{"stock_chain" => name, "stock" => address}) when is_binary(address) do
     with {:ok, chain} <- Map.fetch(@chains, name),

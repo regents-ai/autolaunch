@@ -60,19 +60,19 @@ defmodule AutolaunchWeb.ApiError do
 
   defp hint(code) when code in ["unknown_listing", "unknown_bid"],
     do:
-      "Read the current order book with GET #{PublicDocuments.url("/api/v1/covered-calls/{symbol}")} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP), then use an offer ID from that market."
+      "Read the current order book with GET /api/v1/covered-calls/{symbol} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP), then use an offer ID from that market. For a call you hold or a closed order, read your positions with GET /api/agent/v1/covered-calls/{symbol}/positions or the covered_call_positions hosted tool."
 
   defp hint(code) when code in ["expiry_not_offered", "expiry_passed"],
     do:
-      "Read expiries with GET #{PublicDocuments.url("/api/v1/covered-calls/{symbol}")} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP). Choose an expiry from that answer and request a new quote."
+      "Read expiries with GET /api/v1/covered-calls/{symbol} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP). Choose an expiry from that answer and request a new quote."
 
   defp hint("unknown_series"),
     do:
-      "List the current series with GET #{PublicDocuments.url("/api/v1/after-hour-stocks")} or the autolaunch_after_hour_stocks_list tool. Use the series address from that answer."
+      "List the current series with GET /api/v1/after-hour-stocks or the autolaunch_after_hour_stocks_list tool. Use the series address from that answer."
 
   defp hint("unknown_product"),
     do:
-      "List the current products with GET #{PublicDocuments.url("/api/v1/earn/products")} or the earn_products hosted tool (autolaunch_earn_products in WebMCP). Use the product id from that answer."
+      "List the current products with GET /api/v1/earn/products or the earn_products hosted tool (autolaunch_earn_products in WebMCP). Use the product id from that answer."
 
   defp hint("agent_not_paired"),
     do:

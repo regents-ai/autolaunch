@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     ApiError.body(Atom.to_string(reason), message, amount_hint(reason))
   end
 
-  defp amount_hint(:invalid_amount),
+  defp amount_hint(reason) when reason in [:invalid_amount, :invalid_request],
     do: "Use raw stock units for size and micro-USDC (6 decimals) for strike and premium."
 
   defp amount_hint(_reason), do: nil
