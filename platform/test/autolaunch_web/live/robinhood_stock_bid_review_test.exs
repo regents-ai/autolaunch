@@ -299,7 +299,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
 
     # Once it lands, the review on the page asks only for the bid.
     assert_push_event(view, "onchain-steps:review", %{review: %{steps: [%{step: "usdg_bid"}]}})
-    assert has_element?(view, ~s|#bid [data-onchain-step="usdg_bid"]:not([disabled])|, "Place bid")
+
+    assert has_element?(
+             view,
+             ~s|#bid [data-onchain-step="usdg_bid"]:not([disabled])|,
+             "Place bid"
+           )
+
     refute has_element?(view, ~s|#bid [data-onchain-step="usdg_approval"]|)
   end
 

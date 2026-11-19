@@ -6046,7 +6046,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 585,
@@ -6202,7 +6202,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 597,
@@ -6215,20 +6215,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 598,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 308,
+      "line": 314,
       "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
       "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 599,
@@ -6397,7 +6397,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 620,
@@ -7229,7 +7229,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     }
   ],
   "legacy_folders_to_remove": [
