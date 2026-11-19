@@ -1,5 +1,9 @@
 # Changelog
 
+## 19 November 2026: Robinhood auctions
+
+- A Robinhood auction page now shows the token link when the launch graduates, even if you keep the auction page open.
+
 ## 19 November 2026: Stock CLI
 
 - Regents CLI 1.10.33 can read Covered Calls, After-hours and Earn and prepare their existing wallet steps for a paired agent. Your wallet signs and sends the steps.

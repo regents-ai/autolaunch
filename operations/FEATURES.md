@@ -369,6 +369,7 @@ is off in production.
 
 ### Stock product follow-ups
 
+- An open Robinhood auction shows its finished card and links to its token when the site records graduation, even with the rollup clock unchanged. The Robinhood auction retry test records graduation and its token through the same transaction the market reader uses.
 - Stock filters survive the detail-page return, and filtered pages hide empty groups. The same detail URL serves Markdown with the token issuer, addresses and dated liquidity.
 - An eligible stock opens the existing Memestock form with its network selected. Replacing a saved pair is an explicit action. Draft terms and readiness require a currently admitted stock, while historical auctions still resolve.
 - Covered-call and After-hours reads keep useful results during a partial outage. Covered-call orders show the available amount, and agents get market-specific recovery and exact offer links when the desk supports them.
