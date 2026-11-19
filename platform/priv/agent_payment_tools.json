@@ -1,0 +1,70 @@
+{
+  "_comment": "Agent payments' browser tool. AutolaunchWeb.ToolManifest adds it to tool_manifest.json only while the site offers agent payments (AUTOLAUNCH_AGENT_PAYMENTS=true). The hosted MCP tool prepare_payment takes its title and words from here, less how a browser host signs (Autolaunch).",
+  "tools": [
+    {
+      "name": "autolaunch_payment_prepare",
+      "title": "Payment",
+      "description": "Prepare the wallet steps of one payment into the revenue split of a Revstake token listed here, by its id from autolaunch_tokens, for one of my person's own wallets, read from Base exactly as the token page's Make a payment card reads it: pay pays amount of the asset into the split; sweep routes everything of the asset already waiting at the token's payment address into the split, and takes no amount. asset is usdc, regent or token, the token itself. An exact approval to the payment address comes first when a payment lacks one, then the payment or the sweep. Each step gives its to, data and value for the wallet to send in order on the network chain names, its data ending with the site's Builder Code: the wallet must be on that network to send them. facts give the amount paid or routed, the payment address, the payment's reference, and how it divides as staking stands now: the protocol's part, the stakers' part and the treasury's. Nothing comes back to the wallet. A wallet holding less than amount is refused amount_above_balance; nothing waiting to sweep, nothing_to_sweep; a revenue split or payment address that is not the launch's own, split_mismatch. The site only prepares: my person's wallet signs and sends each step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "token_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The token's id exactly as autolaunch_tokens lists it."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pay",
+              "sweep"
+            ],
+            "description": "pay to pay the amount named into the token's revenue split, or sweep to route everything of the asset already waiting at its payment address into the split."
+          },
+          "asset": {
+            "type": "string",
+            "enum": [
+              "usdc",
+              "regent",
+              "token"
+            ],
+            "description": "usdc for USDC, regent for REGENT, or token for the token itself."
+          },
+          "amount": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "For pay only, and needed there: how much of the asset to pay, as a decimal with no more decimal places than the asset has. Leave it out for sweep."
+          },
+          "signer": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "token_id",
+          "kind",
+          "asset"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/tokens/{token_id}/payment/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_payment_prepare",
+        "http": "POST /api/agent/v1/tokens/{token_id}/payment/steps"
+      },
+      "effect": "prepare"
+    }
+  ]
+}

@@ -4,8 +4,9 @@ defmodule Autolaunch.Checks.Offered do
   feature's own switch (`enabled?/0`): agent bids (`Autolaunch.AgentBid`),
   agent Robinhood bids (`Autolaunch.AgentRobinhoodBid`), agent launches
   (`Autolaunch.AgentLaunch`), agent finishes (`Autolaunch.AgentFinish`),
-  agent staking (`Autolaunch.AgentStake`) or agent swaps
-  (`Autolaunch.AgentSwap`), each resource naming itself. Off,
+  agent staking (`Autolaunch.AgentStake`), agent swaps
+  (`Autolaunch.AgentSwap`) or agent payments (`Autolaunch.AgentPayment`),
+  each resource naming itself. Off,
   the hosted MCP server neither lists nor runs the feature's tools, as its
   routes (`AutolaunchWeb.Router.admit_offered/2`) and browser tools are not
   there either.

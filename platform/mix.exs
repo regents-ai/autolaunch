@@ -231,14 +231,14 @@ defmodule Autolaunch.MixProject do
         # steps, a connected app's identity calls), the router naming the errors
         # admin page, and the router naming the hosted MCP server's input check
         # (AshAi takes it only as a function). Nothing else is permitted. The
-        # ceiling is forty-five domain-to-resource edges (Accounts six,
-        # Autolaunch thirty-two, CoveredCalls three, Agents, Earn, Exposure and
-        # Points one each), fifty-three resource-to-check edges (the agent
+        # ceiling is forty-six domain-to-resource edges (Accounts six,
+        # Autolaunch thirty-three, CoveredCalls three, Agents, Earn, Exposure and
+        # Points one each), fifty-four resource-to-check edges (the agent
         # features' one switch check names no module, so it connects nothing),
         # the one endpoint edge, those four actions and those two router edges,
         # and it is re-based per unit when a domain, resource or check module
         # lands.
-        "xref graph --label compile-connected --fail-above 105",
+        "xref graph --label compile-connected --fail-above 107",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

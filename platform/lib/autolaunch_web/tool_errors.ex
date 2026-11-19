@@ -14,8 +14,9 @@ defmodule AutolaunchWeb.ToolErrors do
   agent launch route's (`AutolaunchWeb.AgentLaunchAnswer.body/1`), an agent
   finish's the agent finish route's (`AutolaunchWeb.AgentFinishAnswer.body/1`),
   an agent staking action's the agent staking route's
-  (`AutolaunchWeb.AgentStakeAnswer.body/1`), and an agent swap's the agent
-  swap route's (`AutolaunchWeb.AgentSwapAnswer.body/1`). Every other tool's
+  (`AutolaunchWeb.AgentStakeAnswer.body/1`), an agent swap's the agent swap
+  route's (`AutolaunchWeb.AgentSwapAnswer.body/1`), and an agent payment's the
+  agent payment route's (`AutolaunchWeb.AgentPaymentAnswer.body/1`). Every other tool's
   refusal is its route's own (`AutolaunchWeb.Refusal`). A failure nobody expected answers
   `internal_error`, as the API does, and is logged by kind alone
   (`AutolaunchWeb.ReadFailure`).
@@ -25,8 +26,9 @@ defmodule AutolaunchWeb.ToolErrors do
   same input gets over HTTP: a bid estimate's own route's answer to the same
   body (`invalid_amount` for an amount that is not text, as there), the other
   market reads', the covered calls', Exposure's, Earn's, agent bids', agent
-  Robinhood bids', agent launches', agent finishes', agent staking's and agent
-  swaps' `invalid_request`, each in its own route's words, a draft save's
+  Robinhood bids', agent launches', agent finishes', agent staking's, agent
+  swaps' and agent payments' `invalid_request`, each in its own route's words,
+  a draft save's
   `invalid_draft`, a pairing's
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
@@ -111,6 +113,9 @@ defmodule AutolaunchWeb.ToolErrors do
 
   defp refused(Autolaunch.AgentSwap, _swap),
     do: Jason.encode!(AutolaunchWeb.AgentSwapAnswer.body(:invalid_request))
+
+  defp refused(Autolaunch.AgentPayment, _payment),
+    do: Jason.encode!(AutolaunchWeb.AgentPaymentAnswer.body(:invalid_request))
 
   defp refused(_resource, covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
@@ -214,6 +219,11 @@ end
 defimpl AshAi.ToToolError, for: Autolaunch.AgentSwap.Refused do
   def to_tool_error(%{reason: reason}),
     do: Jason.encode!(AutolaunchWeb.AgentSwapAnswer.body(reason))
+end
+
+defimpl AshAi.ToToolError, for: Autolaunch.AgentPayment.Refused do
+  def to_tool_error(%{reason: reason}),
+    do: Jason.encode!(AutolaunchWeb.AgentPaymentAnswer.body(reason))
 end
 
 defimpl AshAi.ToToolError, for: Ash.Error.Unknown.UnknownError do

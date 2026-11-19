@@ -362,6 +362,25 @@ if agent_swaps_on do
   config :autolaunch, agent_swaps: :on
 end
 
+# A paired agent prepares its person's payment into a listed Revstake token's
+# revenue split only on a site switched on with AUTOLAUNCH_AGENT_PAYMENTS=true;
+# it reads Base through its description, as the token page's Make a payment
+# card does. Off, no tool or route offers it (`Autolaunch.AgentPayment`).
+agent_payments_on =
+  case System.get_env("AUTOLAUNCH_AGENT_PAYMENTS") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_AGENT_PAYMENTS must be true or unset"
+  end
+
+if agent_payments_on do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_AGENT_PAYMENTS=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :autolaunch, agent_payments: :on
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs
