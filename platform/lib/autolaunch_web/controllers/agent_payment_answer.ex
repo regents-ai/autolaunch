@@ -41,8 +41,7 @@ defmodule AutolaunchWeb.AgentPaymentAnswer do
       {:conflict, "There is nothing of that asset waiting at the payment address right now."},
     chain_unavailable:
       {:service_unavailable, "Base could not be read just now. Try again in a moment."},
-    payment_unavailable:
-      {:service_unavailable, "That did not go through. Try again in a moment."}
+    payment_unavailable: {:service_unavailable, "That did not go through. Try again in a moment."}
   }
 
   @fields ~w(kind asset amount signer)

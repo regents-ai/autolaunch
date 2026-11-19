@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.AgentGuideSentencesTest do
   @moduledoc """
-  The guides' sentences on who does what, in each of the 64 ways the six
+  The guides' sentences on who does what, in each of the 128 ways the seven
   agent switches with a wallet step can stand: every served guide is whole,
   names what each switched-on feature lets a paired agent prepare, points to
   each one's section where it points to sections, never names a switched-off
@@ -22,7 +22,9 @@ defmodule AutolaunchWeb.AgentGuideSentencesTest do
      ~r/\blaunch step\b|\blaunch of (?:the|your) person's saved draft\b/},
     {:agent_finish, "Finishing auctions", ~r/\bfinish(?: step)? of an ended auction\b/},
     {:agent_staking, "Agent staking", ~r/\bstake, unstake or claim\b/},
-    {:agent_swaps, "Agent swaps", ~r/\bbuy or sell of a listed token\b/}
+    {:agent_swaps, "Agent swaps", ~r/\bbuy or sell of a listed token\b/},
+    {:agent_payments, "Agent payments",
+     ~r/\bpayment or sweep into a listed token's revenue split\b/}
   ]
   @switches for {key, _section, _prepares} <- @features, do: key
   # How a guide would name each feature's operations among what stays with
@@ -35,7 +37,8 @@ defmodule AutolaunchWeb.AgentGuideSentencesTest do
     agent_launches: ~r/\blaunch(?:es|ing)?\b/i,
     agent_finish: ~r/\bfinish/i,
     agent_staking: ~r/\bstak(?:e|es|ing)\b|\bclaim(?:s|ing)?\b|\bfinancial\b/i,
-    agent_swaps: ~r/\btrad(?:e|es|ing)\b|\bswaps?\b|\bbuy\b|\bsell\b|\bfinancial\b/i
+    agent_swaps: ~r/\btrad(?:e|es|ing)\b|\bswaps?\b|\bbuy\b|\bsell\b|\bfinancial\b/i,
+    agent_payments: ~r/\bpay(?:s|ing|ments?)?\b|\bsweep|\brevenue split\b|\bfinancial\b/i
   }
   # The ways a guide says what stays with the person, each in its own clause,
   # and the way it denies agents every operation its sentence names.

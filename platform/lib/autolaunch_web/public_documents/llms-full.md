@@ -229,6 +229,7 @@ The separate `autolaunch` CLI package remains unpublished. The unified Regents C
 {{agent_finish}}
 {{agent_staking}}
 {{agent_swaps}}
+{{agent_payments}}
 ## Related Regent products
 
 - [Regents](https://regents.sh/llms.txt): Agent identity, operations, staking and redemption. [Website](https://regents.sh) · [Source](https://github.com/regents-ai/regents).

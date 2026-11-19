@@ -124,6 +124,18 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_swap_guide_path
   @agent_swap_guide File.read!(@agent_swap_guide_path)
 
+  # Agent payments' route and its components, and its section of the agent
+  # guides, added only while the site offers them.
+  @agent_payment_contract_path Path.expand(
+                                 "../../contracts/agent-payment.openapiv3.yaml",
+                                 __DIR__
+                               )
+  @external_resource @agent_payment_contract_path
+  @agent_payment_contract YamlElixir.read_from_file!(@agent_payment_contract_path)
+  @agent_payment_guide_path Path.join(@directory, "agent_payment.md")
+  @external_resource @agent_payment_guide_path
+  @agent_payment_guide File.read!(@agent_payment_guide_path)
+
   # A section's title, from its own heading.
   section = fn guide -> hd(Regex.run(~r/^## (.+)$/m, guide, capture: :all_but_first)) end
 
@@ -210,6 +222,17 @@ defmodule AutolaunchWeb.PublicDocuments do
       step: "the steps",
       of: "a buy or sell of a listed token",
       takes: ["trading"],
+      stays: nil
+    },
+    %{
+      feature: "agent_payments",
+      guide: @agent_payment_guide,
+      section: section.(@agent_payment_guide),
+      chain: nil,
+      for: "a payment or sweep into a listed token's revenue split",
+      step: "the steps",
+      of: "a payment or sweep into a listed token's revenue split",
+      takes: [],
       stays: nil
     }
   ]
@@ -1227,7 +1250,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"agent_launches", @agent_launches_contract},
       {"agent_finish", @agent_finish_contract},
       {"agent_staking", @agent_stake_contract},
-      {"agent_swaps", @agent_swap_contract}
+      {"agent_swaps", @agent_swap_contract},
+      {"agent_payments", @agent_payment_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->

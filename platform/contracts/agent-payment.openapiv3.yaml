@@ -1,0 +1,297 @@
+# Agent payments, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_PAYMENTS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json is
+# api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
+# path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/tokens/{token_id}/payment/steps:
+    post:
+      operationId: autolaunch_payment_prepare
+      summary: Prepare a payment
+      description: The wallet steps of one payment into the revenue split of a Revstake token listed
+        here, on Base, read exactly as the token page's Make a payment card reads it, for one of the
+        person's own wallets (`signer`, or the wallet they signed in with). `pay` pays `amount` of
+        `asset` into the split; `sweep` routes everything of `asset` already waiting at the token's
+        payment address into the split. An exact approval to the payment address comes first when a
+        payment lacks one, then the payment or the sweep. Nothing comes back to the wallet. The site
+        only prepares; the wallet's own key signs and sends each step, in order, on the network
+        `chain` names, and each step's data ends with the site's Builder Code. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentPaymentTokenId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPaymentRequest'
+      responses:
+        '200':
+          description: The payment steps and how the payment divides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '404':
+          description: No token is listed here with that id (token_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '409':
+          description: The person's account has no verified wallet to act with, or signer is not a
+            wallet address (wallet_required), the token takes no payment on this site
+            (payment_not_offered), it has no revenue split, treasury or payment address yet
+            (payment_not_open), its revenue split or payment address is not the launch's own
+            (split_mismatch), the wallet holds less than amount (amount_above_balance), or nothing
+            of the asset waits at the payment address (nothing_to_sweep)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '422':
+          description: An unknown field, a field that is not text or is longer than 128 characters, a
+            token id that is not one, a kind that is not pay or sweep, an asset that is not usdc,
+            regent or token, a payment with no amount or a sweep with one (invalid_request), or an
+            amount that is not a decimal above zero or has more decimal places than the asset
+            (invalid_amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '503':
+          description: Base or the person's account could not be read just now (chain_unavailable,
+            account_unavailable), the site could not prepare it just now (payment_unavailable), or
+            the site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+components:
+  parameters:
+    AgentPaymentTokenId:
+      name: token_id
+      in: path
+      required: true
+      description: The token's id exactly as autolaunch_tokens lists it.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AgentPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - asset
+      properties:
+        kind:
+          type: string
+          enum:
+          - pay
+          - sweep
+          description: pay pays amount into the token's revenue split, sweep routes everything of the
+            asset already waiting at its payment address into the split.
+        asset:
+          type: string
+          enum:
+          - usdc
+          - regent
+          - token
+          description: USDC, REGENT, or the token itself.
+        amount:
+          type: string
+          maxLength: 128
+          description: For pay only, and needed there; how much of the asset to pay, as a decimal in
+            the asset's own units. Leave it out for sweep.
+        signer:
+          type: string
+          maxLength: 128
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentPaymentToken:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentPaymentChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: The network the steps are sent on, Base.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentPaymentStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          description: approval when the wallet has not let the payment address take amount, then
+            action, the payment or the sweep.
+          enum:
+          - approval
+          - action
+        to:
+          type: string
+          description: The asset for its approval, the token's payment address for the payment or the
+            sweep.
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentPaymentAmount:
+      type: object
+      required:
+      - amount
+      - symbol
+      properties:
+        amount:
+          type: string
+          description: A decimal in the asset's own units.
+        symbol:
+          type: string
+    AgentPaymentSteps:
+      type: object
+      required:
+      - kind
+      - asset
+      - signer
+      - token
+      - chain
+      - steps
+      - facts
+      properties:
+        kind:
+          type: string
+          enum:
+          - pay
+          - sweep
+        asset:
+          type: string
+          enum:
+          - usdc
+          - regent
+          - token
+        signer:
+          type: string
+        token:
+          $ref: '#/components/schemas/AgentPaymentToken'
+        chain:
+          $ref: '#/components/schemas/AgentPaymentChain'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentPaymentStep'
+        facts:
+          type: object
+          description: The payment as Base stood when the steps were read, before any step is sent.
+          required:
+          - amount
+          - receiver
+          - payment_reference
+          - split
+          properties:
+            amount:
+              $ref: '#/components/schemas/AgentPaymentAmount'
+            receiver:
+              type: string
+              description: The token's payment address.
+            payment_reference:
+              type: string
+              description: The reference the payment carries, new for every payment; a sweep's is
+                zero.
+            split:
+              type: object
+              description: How the amount divides as staking stands now. The protocol takes 2%; the
+                stakers' part and the treasury's change if staking changes before the step is sent.
+              required:
+              - protocol
+              - stakers
+              - treasury
+              properties:
+                protocol:
+                  $ref: '#/components/schemas/AgentPaymentAmount'
+                stakers:
+                  $ref: '#/components/schemas/AgentPaymentAmount'
+                treasury:
+                  $ref: '#/components/schemas/AgentPaymentAmount'
+    AgentPaymentStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentPaymentSteps'
+    AgentPaymentError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - token_not_found
+              - wallet_required
+              - invalid_amount
+              - payment_not_offered
+              - payment_not_open
+              - split_mismatch
+              - amount_above_balance
+              - nothing_to_sweep
+              - chain_unavailable
+              - payment_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string

@@ -22,7 +22,14 @@ defmodule AutolaunchWeb.AgentSwapOffTest do
   # The guides with a section for each switched-on agent feature.
   @sectioned ~w(/docs /llms-full.txt /agents.md /skill.md)
   # The other agent features with a wallet step, each with its own switch.
-  @others [:agent_bids, :agent_robinhood_bids, :agent_launches, :agent_finish, :agent_staking]
+  @others [
+    :agent_bids,
+    :agent_robinhood_bids,
+    :agent_launches,
+    :agent_finish,
+    :agent_staking,
+    :agent_payments
+  ]
   @switches [:agent_swaps | @others]
 
   setup do
