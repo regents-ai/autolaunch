@@ -8,8 +8,10 @@ defmodule Autolaunch.StakeChain do
   (`subject/0`) and stake it in the same staking contract (`splitter/0`):
 
     * the Revstake launch: the strategy's record of the migrated launch (its
-      locked position, `lp_token_id/0`), the pool, and the LP locker's
-      simulated `collect` of that position (2 REGENT and 1 of the token);
+      locked position, `lp_token_id/0`, its payment address, `receiver/0`,
+      and its `treasury`, `treasury/0` unless a test names another), the
+      pool, and the LP locker's simulated `collect` of that position (2
+      REGENT and 1 of the token);
     * the Memestock launch (launch 3, made by the auction `auction/0`):
       the launchpad's record of it, trading against the stock `stock/0`
       (AAPLc, 8 decimals) with its full-range position (`memestock_lp/0`)
@@ -47,6 +49,7 @@ defmodule Autolaunch.StakeChain do
   @escrow "0x7777777777777777777777777777777777777777"
   @splitter "0x8888888888888888888888888888888888888888"
   @receiver "0x6666666666666666666666666666666666666666"
+  @treasury "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   @stock "0x5555555555555555555555555555555555555555"
   @auction "0x4444444444444444444444444444444444444444"
@@ -69,6 +72,8 @@ defmodule Autolaunch.StakeChain do
 
   def subject, do: @subject
   def splitter, do: @splitter
+  def receiver, do: @receiver
+  def treasury, do: @treasury
   def stock, do: @stock
   def auction, do: @auction
   def route, do: @route
@@ -111,7 +116,8 @@ defmodule Autolaunch.StakeChain do
             converter: @executor,
             quote: 0,
             permit2: %{amount: 0, expiration: 0},
-            swap_quote: 0
+            swap_quote: 0,
+            treasury: @treasury
           },
           Map.new(overrides)
         )
@@ -155,7 +161,7 @@ defmodule Autolaunch.StakeChain do
       {"getPositionLiquidity(uint256)", fn _id -> [0] end},
       {"collect(uint256)", fn [id] -> collected(id) end},
       # The Revstake launch's strategy, auction and treasury escrow.
-      {"distribution(address)", fn _auction -> distribution() end},
+      {"distribution(address)", fn _auction -> distribution(stake) end},
       {"POOL_FEE()", fn _none -> [3_000] end},
       {"POOL_TICK_SPACING()", fn _none -> [60] end},
       {"remainingSupply()", fn _none -> [0] end},
@@ -228,7 +234,7 @@ defmodule Autolaunch.StakeChain do
   defp arguments(hex), do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
 
   # The strategy's seventeen-word `distribution` record of a migrated launch.
-  defp distribution do
+  defp distribution(stake) do
     [
       0,
       0,
@@ -242,7 +248,7 @@ defmodule Autolaunch.StakeChain do
       0,
       word(@subject),
       word(@escrow),
-      0,
+      word(stake.treasury),
       word(@splitter),
       word(@receiver),
       1,

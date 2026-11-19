@@ -62,6 +62,8 @@ defmodule Autolaunch.SubjectWalletFixture do
   @moduledoc """
   The one subject wallet fixture: a scripted chain whose splitter and canonical
   receiver agree with the pinned product bindings, for the browser proof server.
+  A test whose launch record names another token, splitter or payment address
+  binds the fixture to them (`token`, `splitter` and `receiver`).
 
   Every value here is fixture-bound. Nothing it produces is reviewed evidence,
   and no test that uses it may claim the production client prepares anything.
@@ -95,10 +97,12 @@ defmodule Autolaunch.SubjectWalletFixture do
     # note editor, so one treasury value drives every binding unless a test is
     # deliberately breaking one of them.
     treasury = Map.get(overrides, :treasury, @treasury)
+    token = Map.get(overrides, :token, @token)
+    splitter = Map.get(overrides, :splitter, @splitter)
 
     snapshot = %{
       splitter: %{
-        subject: @token,
+        subject: token,
         usdc: usdc(),
         regent: regent(),
         treasury: treasury,
@@ -112,15 +116,15 @@ defmodule Autolaunch.SubjectWalletFixture do
           })
       },
       receiver: %{
-        splitter: @splitter,
-        subject: @token,
+        splitter: splitter,
+        subject: token,
         usdc: usdc(),
         regent: regent(),
         treasury: treasury,
         beneficiary: Map.get(overrides, :beneficiary, treasury),
         note_editor: Map.get(overrides, :note_editor, treasury),
         referral_bps: Map.get(overrides, :referral_bps, 0),
-        note: Map.get(overrides, :note, note_word(@receiver)),
+        note: Map.get(overrides, :note, note_word(Map.get(overrides, :receiver, @receiver))),
         balances:
           Map.get(overrides, :receiver_balances, %{
             subject: 0,
