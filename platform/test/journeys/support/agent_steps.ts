@@ -90,9 +90,21 @@ export async function listedToken(agent: Agent, symbol: string): Promise<any> {
   return found
 }
 
-/** The auction as the site's public API answers it. */
+/**
+ * The auction as the site's public API answers it. An answer without it fails the journey with
+ * what the site sent, its status and body, so the failure says why.
+ */
 export async function record(id: string): Promise<any> {
-  return (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions/${id}`)).json()).data
+  const answer = await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions/${id}`)
+  const body = await answer.text()
+  let data: any
+  try {
+    data = JSON.parse(body).data
+  } catch {
+    data = undefined
+  }
+  if (!answer.ok || !data) throw new Error(`GET /api/v1/auctions/${id} answered ${answer.status}: ${body.slice(0, 1_000)}`)
+  return data
 }
 
 export type Venue = "memestock" | "revstake" | "robinhood"
