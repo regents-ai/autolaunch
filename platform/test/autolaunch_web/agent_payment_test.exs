@@ -812,10 +812,14 @@ defmodule AutolaunchWeb.AgentPaymentTest do
              json(mcp(agent, call("prepare_payment", Map.put(@pay, :token_id, listed.id))))
   end
 
-  test "switched on a paired agent lists the tool as read-only; off, it is not listed, and a call to it is answered as one to no tool",
+  test "switched on a paired agent lists the tool as read-only and not idempotent; off, it is not listed, and a call to it is answered as one to no tool",
        %{agent: agent, listed: listed} do
-    assert [%{"annotations" => %{"readOnlyHint" => true}}] =
+    assert [%{"annotations" => %{"readOnlyHint" => true} = hints}] =
              for(%{"name" => "prepare_payment"} = tool <- listed(agent), do: tool)
+
+    # Each payment's steps carry a new random reference, so a second call with
+    # the same input prepares a different payment.
+    refute Map.has_key?(hints, "idempotentHint")
 
     Application.put_env(:autolaunch, :agent_payments, :off)
     refute "prepare_payment" in tool_names(agent)

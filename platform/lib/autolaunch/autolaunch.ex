@@ -199,10 +199,11 @@ defmodule Autolaunch do
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
 
+    # Not idempotent: each payment's steps carry a new random reference.
     tool :prepare_payment, Autolaunch.AgentPayment, :prepare do
       title(@browser_tools["autolaunch_payment_prepare"]["title"])
       description @browser_tools["autolaunch_payment_prepare"]["description"]
-      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+      annotations(read_only_hint: true, open_world_hint: true)
     end
   end
 
