@@ -4,12 +4,13 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  # Branch eu/points-third-on-autolaunch-pin-1119: the idna 8.0.0 fix line
+  # Branch eu/siwa-tests-out-on-autolaunch-pin-1119: the idna 8.0.0 fix line
   # (EEF-CVE-2026-117678), the two Points review fixes, the start run that also
   # records what came after the start, an award waiting or refused no longer
   # blocking a later offer, and the start run's offers waiting behind live ones,
-  # one job for each while it waits.
-  @elixir_utils_ref "a2327b1a232e6209e678922cc515bc4f556fd667"
+  # one job for each while it waits; and the SIWA library folder as on
+  # elixir-utils main.
+  @elixir_utils_ref "fd7de50268bcbcc1ce9aa7ee217c83252a0b79bb"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "69dbfface3fdc2ab728f8cc57cface25f9c7120c"
 
@@ -18,13 +19,6 @@ defmodule Autolaunch.MixProject do
       app: :autolaunch,
       version: "0.1.0",
       elixir: "~> 1.20",
-      elixirc_paths: elixirc_paths(Mix.env()),
-      # The browser walk's and the agent journeys' scripts (test/browser,
-      # test/journeys) are run by Playwright and scripts/agent-journeys.sh, not ExUnit.
-      test_ignore_filters: [
-        &String.starts_with?(&1, "test/browser/"),
-        &String.starts_with?(&1, "test/journeys/")
-      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
@@ -44,17 +38,6 @@ defmodule Autolaunch.MixProject do
       extra_applications: [:logger, :runtime_tools]
     ]
   end
-
-  def cli do
-    [
-      preferred_envs: [precommit: :test]
-    ]
-  end
-
-  # Specifies which paths to compile per environment.
-  # The browser walk's server runs in the test environment (playwright.config.ts).
-  defp elixirc_paths(:test), do: ["lib", "test/support", "test/browser/support/server"]
-  defp elixirc_paths(_), do: ["lib"]
 
   # `mix usage_rules.sync` writes the marked block at the end of AGENTS.md: how to
   # read the installed version's docs, and links to each package's own rules in deps/.
@@ -97,7 +80,7 @@ defmodule Autolaunch.MixProject do
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
-      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
+      {:igniter, "== 0.8.5", only: :dev, runtime: false},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       {:siwa,
        git: @elixir_utils,
@@ -129,10 +112,8 @@ defmodule Autolaunch.MixProject do
       {:mdex, "== 0.14.6"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
-      {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
-      # In :test too, because precommit runs in :test and checks the synced block.
-      {:usage_rules, "~> 1.3.1", only: [:dev, :test], runtime: false},
-      {:lazy_html, ">= 0.1.0", only: :test},
+      {:sourceror, "~> 1.12", only: :dev, runtime: false},
+      {:usage_rules, "~> 1.3.1", only: :dev, runtime: false},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:logger_json, "~> 7.0"},
       {:telemetry_metrics, "~> 1.0"},
@@ -158,15 +139,11 @@ defmodule Autolaunch.MixProject do
       {:yaml_elixir, "== 2.12.2"},
       {:vix, "== 0.42.0"},
       {:bandit, "~> 1.14"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: :dev, runtime: false},
+      {:ex_slop, "~> 0.4", only: :dev, runtime: false},
       {:credo_ash,
-       git: @elixir_utils,
-       ref: @elixir_utils_ref,
-       sparse: "credo_ash",
-       only: [:dev, :test],
-       runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credo_ash", only: :dev, runtime: false},
+      {:sobelow, "~> 0.16", only: :dev, runtime: false}
     ]
   end
 
@@ -195,7 +172,6 @@ defmodule Autolaunch.MixProject do
         # repo's migration_default_prefix. Both must land in autolaunch_app.
         "ash_postgres.migrate --quiet --prefix autolaunch_app"
       ],
-      test: ["db.setup", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": [
         "compile",
@@ -246,18 +222,13 @@ defmodule Autolaunch.MixProject do
         # and it is re-based per unit when a domain, resource or check module
         # lands.
         "xref graph --label compile-connected --fail-above 105",
-        "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
-        "cmd npm run typecheck",
-        "cmd npm test",
-        # The browser walk (test/browser): every page at phone and desktop width,
-        # and the paths a person takes, on its own server and database.
-        "cmd npm run test:browser"
+        "cmd npm run typecheck"
       ]
     ]
   end

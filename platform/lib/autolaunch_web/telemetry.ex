@@ -372,7 +372,7 @@ defmodule AutolaunchWeb.Telemetry do
        period: 10_000,
        name: :autolaunch_site_poller}
 
-  # Where the endpoint runs no server (tests), there is nothing to count. The
+  # Where the endpoint runs no server, there is nothing to count. The
   # poller drops a measurement that exits for good, so a web server supervisor
   # that is restarting or slow to answer this tick skips it; the next tick
   # counts again.
@@ -404,7 +404,7 @@ defmodule AutolaunchWeb.Telemetry do
 
   # Only running queues are measured: a paused queue (the finishing queue
   # while the finisher is off) holds its jobs on purpose, and its age would
-  # only grow. Where no queue runs (tests), nothing is read.
+  # only grow. Where no queue runs, nothing is read.
   defp measure_oldest_unfinished_jobs do
     case for %{queue: queue, paused: false} <- Oban.check_all_queues(), do: queue do
       [] -> :ok

@@ -515,8 +515,8 @@ defmodule AutolaunchWeb.AuctionLive do
         report={report(@page_record)}
         surface="auction-detail"
       />
-      <%!-- A local-fork site has no treasury evidence to show: the fixture the lab
-        runs on is not a chain observation, so the page says so instead. --%>
+      <%!-- A local-fork site has no treasury evidence to show, so the page says so
+        instead. --%>
       <aside
         :if={@page_record.kind == :agent && @lab}
         id="treasury-security-auction-detail"

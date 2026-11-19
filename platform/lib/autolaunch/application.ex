@@ -124,12 +124,10 @@ defmodule Autolaunch.Application do
 
   # The stocks each launchpad admits are read from the chain as soon as a
   # server starts, then every five minutes (`Autolaunch.Stocks.Stock`). After
-  # the jobs child, which runs the read. Not under ExUnit, where no job runs
-  # unless a test asks for it.
+  # the jobs child, which runs the read.
   defp stock_admissions_child do
     if !Autolaunch.Prelaunch.read_only?() and
-         Application.get_env(:autolaunch, :database_startup_enabled, false) and
-         Application.fetch_env!(:autolaunch, Oban)[:testing] != :manual do
+         Application.get_env(:autolaunch, :database_startup_enabled, false) do
       Supervisor.child_spec(
         {Task, fn -> AshOban.schedule(Autolaunch.Stocks.Stock, :sync_admissions) end},
         id: :stock_admissions_at_start
@@ -166,8 +164,8 @@ defmodule Autolaunch.Application do
        do: Autolaunch.ChainHead.children() ++ Autolaunch.CoveredCalls.PriceLine.children()
   end
 
-  # The Points board is read only where pages are served, so a task or a test
-  # never reads the database before it asks to.
+  # The Points board is read only where pages are served, so a task never reads
+  # the database before it asks to.
   defp points_board_child do
     if Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
       do: Autolaunch.Points.Board

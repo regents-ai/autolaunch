@@ -215,15 +215,7 @@ defmodule Autolaunch.SubjectWalletActions do
       spender: spender_request(kind, subject)
     }
 
-    # The Base reads (`Autolaunch.SubjectWalletRpcClient`), or the answers a test installed.
-    client =
-      Application.get_env(
-        :autolaunch,
-        :autolaunch_subject_wallet_chain_client,
-        SubjectWalletRpcClient
-      )
-
-    case client.snapshot(request) do
+    case SubjectWalletRpcClient.snapshot(request) do
       {:ok, snapshot} -> snapshot |> put_addresses(subject) |> proved(subject, kind)
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)

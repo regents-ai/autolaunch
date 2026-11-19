@@ -75,7 +75,7 @@ as the site's public auctions and stock list are kept, through `Cachex.fetch/4`,
 ask while a reading is being taken wait for that one reading instead of each starting their own.
 No GenServer, no timer of Earn's own.
 
-- **Lifetime.** Ten seconds (`:earn_terms_kept_ms`, 10_000; 0 in the tests, which reads live).
+- **Lifetime.** Ten seconds (`:earn_terms_kept_ms`, 10_000; 0 keeps nothing and reads live).
   Cachex's own expiry drops it. A reading that fails is not kept.
 - **A landed step, once for each transaction.** `SharedTerms.changed(id, hash)` marks the
   transaction landed and bumps the product's landed count in one step: `Cachex.get_and_update/3`
@@ -186,10 +186,7 @@ latest block makes certain to fail, with its reason beside it.
 
 Only Aave governance moves it. The site sees a move at its next read: Refresh, a confirmed step,
 the page coming back into view, a wallet change, or any agent call; the terms within the shared
-reading's ten seconds. Tests:
-`test/autolaunch/earn/states_test.exs` (the order, the table), `steps_test.exs` (a market that is
-not open blocks what it does not take), `earn_live_test.exs` (a frozen market disables Deposit
-and lets a withdrawal out).
+reading's ten seconds.
 
 ### 6.2 Deposit capacity — `States.capacity/1`
 
@@ -205,10 +202,7 @@ whose scaled amount, rounded down, still fits (section 2).
 | `:full` | `most` < `scaled`, or `left` = 0 | a capacity when withdrawals free it or the cap rises | no deposit (`over_supply_cap`); withdrawals unaffected |
 
 Page: Capacity, "No cap", the amount left, or "Full". Agents: `capacity` null, units or 0, and
-`supply_cap` null or whole tokens. Tests: `states_test.exs` (each boundary to the unit at an index
-of 1, the pool's rounding at 1.5, and a property against the pool's own check at any index),
-`steps_test.exs` (the treasury's share and the index counted), `earn_live_test.exs` (a market at
-its cap reads full; one without a cap says so); the fork proof checks it against the pool.
+`supply_cap` null or whole tokens.
 
 ### 6.3 Withdraw availability — `States.availability/2`
 
@@ -217,8 +211,7 @@ its cap reads full; one without a cap says so); the fork proof checks it against
 | `:available` | amount ≤ the pool's virtual balance | short when borrowing takes it | the withdrawal |
 | `{:short, available_now}` | amount > the pool's virtual balance | available as borrowers repay or lenders deposit | nothing for that amount (`not_available_now`) |
 
-For everything, the amount checked is the balance at this block. Tests: `states_test.exs`,
-`steps_test.exs` (blocked past what the market has now).
+For everything, the amount checked is the balance at this block.
 
 ### 6.4 Deposit readiness — `States.readiness/2`
 
@@ -227,10 +220,7 @@ For everything, the amount checked is the balance at this block. Tests: `states_
 | `:needs_approval` | allowance < amount | approved when an approval for at least the amount lands, or the amount is lowered | both steps, the approval first |
 | `:approved` | allowance ≥ amount | needs approval when the supply spends it (the approval is exact), the amount is raised, or the allowance is changed elsewhere | both steps; the approval is shown done and still pressable |
 
-Never a blocked reason, and never disables Confirm deposit (section 9.1). Tests:
-`states_test.exs` (each boundary), `steps_test.exs` (follows the allowance against the amount as
-it stands), `earn_live_test.exs` (an approval the chain holds shows as done; one for less does
-not).
+Never a blocked reason, and never disables Confirm deposit (section 9.1).
 
 ### 6.5 Withdraw amount kind — `States.withdrawal/1`
 
@@ -240,9 +230,7 @@ not).
 | `:everything` | Max on the Withdraw tab; an agent's `everything: true` with no amount | an amount as soon as the field is edited; empty after the tab changes or the withdrawal is done | withdraw `2^256 − 1`: the whole balance when it lands |
 
 Everything is only ever asked for by name: a typed figure equal to the balance is that figure,
-since interest keeps growing until the step lands. Everything is withdraw-only. Tests:
-`states_test.exs`, `steps_test.exs` (an amount equal to the balance withdraws that amount),
-`earn_live_test.exs` (Max on Withdraw asks for everything; only an edited figure is a figure).
+since interest keeps growing until the step lands. Everything is withdraw-only.
 
 ### 6.6 Position — `States.position/1`
 
@@ -250,9 +238,6 @@ since interest keeps growing until the step lands. Everything is withdraw-only. 
 | --- | --- | --- | --- |
 | `:none` | aUSDC balance 0 | held when a deposit lands | deposit; a withdrawal is `over_balance`; page "No balance yet", portfolio "Nothing lent yet." with Deposit |
 | `{:held, balance}` | aUSDC balance > 0, one unit of dust included | grows with interest; smaller after a partial withdrawal; none after withdrawing everything | deposit, withdraw; portfolio shows the balance with Withdraw |
-
-Tests: `states_test.exs` (only zero is none), `earn_live_test.exs` (nothing lent; the portfolio
-cases), `earn_routes_test.exs` (positions).
 
 ### 6.7 Amount entry — `Autolaunch.Earn.Amount.entry/2`
 
@@ -262,16 +247,14 @@ cases), `earn_routes_test.exs` (positions).
 | `{:invalid, reason}` | `:not_a_number`, `:too_precise` (more than 6 decimals), `:zero`, `:too_large` | another state on a keystroke | its words under the field; the button stays enabled, and a press repeats the words |
 | `{:valid, units}` | digits with at most one dot, above zero, within 9,007,199,254,740,991 | another state on a keystroke; empty after the tab changes, the wallet changes or the step is done | a quote and, on a press, a review |
 
-Max writes the figure with `Amount.text/2`, which `entry/2` reads back exactly (property tests).
+Max writes the figure with `Amount.text/2`, which `entry/2` reads back exactly.
 Spacing at the edges, a non-breaking space or a new line included, is dropped; inside the figure
 it is not an amount, and neither are digits from other scripts or an exponent ("1e3"). More digits
 than the bound has is `:too_large` before anything is read as a number, so a very long string
 costs nothing. The field takes at most 32 characters and sends its amount 300 ms after the last
 key (`phx-debounce`).
 For agents the amount is an integer of smallest units; 0, a string or a fraction is
-`invalid_request`, and `everything` on a deposit is `invalid_amount`. Tests: `reads_test.exs`
-(three states, two properties), `earn_live_test.exs` (an amount that doesn't read is said under
-the field and disables nothing), `steps_test.exs` (refused, never blocked).
+`invalid_request`, and `everything` on a deposit is `invalid_amount`.
 
 ### 6.8 Blocked-reason derivation — `States.blocked/1`
 
@@ -293,12 +276,7 @@ button is enabled: it is never held by a reason from an earlier reading, and nev
 because a preview is under way. The preview is read only when the amount (its tab included), the
 wallet that may act, the page's `reads` or the panel's `held_reads` changed (`quoted_for`), so the
 page drawing the panel again with nothing new reads nothing. This matches covered calls (section
-9.5). Tests: `states_test.exs` (both orders, every reason), `steps_test.exs`,
-`earn_live_test.exs` (a deposit past the wallet's USDC is disabled with its reason and comes back
-once the chain allows it; a paused or closed market disables both steps with the reason, and
-Refresh brings the button back once it opens; a new reading drops the reason that held the button
-until the chain answers again; the page drawn again with nothing new for the panel reads nothing
-again).
+9.5).
 
 ### 6.9 Terms read — `EarnLive`, one `AsyncResult` per product
 
@@ -315,16 +293,7 @@ panel takes to read its wallet and preview again. Between a confirmed step and t
 terms show nothing: each read starts from loading, so on a page open when the step lands, on any
 machine, a figure from before it never passes for a current one. A page opened just after on a
 machine that had none open may show a reading up to ten seconds old, its block named (section
-2.1). The panel's own wallet figures are a separate machine (section 7.1). Tests:
-`earn_live_test.exs` (no figures before the read, the figures and block, a failed read with the
-panel still there and Refresh, the panel working signed in while the market can't be read,
-Refresh pressed during a reading starts no second one, a confirmed step reads the market again on
-every open page, a step heard of from another machine is counted here before the page reads),
-`shared_terms_test.exs` (one reading for readers at the same moment; kept; left behind by a
-landed step; a transaction reported again, or forty times at once, moves readers on and tells the
-pages once; a machine that hears of a step counts it once before its pages read; a cache that
-can't be used refuses the reading and a landed step is logged and still told; never kept when it
-fails).
+2.1). The panel's own wallet figures are a separate machine (section 7.1).
 
 ### 6.10 Review lifecycle — shared `AutolaunchWeb.OnchainSteps`, as covered calls
 
@@ -370,13 +339,6 @@ The cases the brief names:
   step shows its newest press; a step any press of which landed stays done. Two supplies that both
   land deposit twice, an accepted outcome under rule 11.
 
-Tests: `earn_live_test.exs` (opens with the exact steps and closes on request; a confirmed step
-re-reads and the last closes the review with what moved; a step that does not go through is
-reviewed again, then closes with the reason; a review closes on another wallet or another tab;
-a change with no amount or a check of a hash that is not text leaves the panel as it is; a step
-reported again, or checked again while it is still being read, starts no second check); the
-shared `test/autolaunch_web/onchain_steps_rebuild_test.exs` and covered calls' journeys.
-
 ### 6.11 Wallet — `OnchainSteps.signer/2` and `mismatch_note/2`; the network at the press
 
 | State | Derived from | Moves to | Allows |
@@ -390,9 +352,7 @@ shared `test/autolaunch_web/onchain_steps_rebuild_test.exs` and covered calls' j
 | on another network | known only at a press (`send_step.ts`) | Base once the wallet switches | Privy's switch asks the wallet on every press, and the press sends once it resolves; declined (`switch_declined`) or failed (`network_mismatch`), nothing is sent and the note asks for the switch |
 
 The network is not a server state on purpose: knowing it before a press would mean gating a button
-by page state. Tests: `earn_live_test.exs` (no wallet open; a review closes when the wallet that
-may act changes; another wallet starts from an empty amount with Max off), the shared hook's
-journeys.
+by page state.
 
 ### 6.12 Switch × prelaunch
 
@@ -403,9 +363,7 @@ journeys.
 
 Derived from `Catalog.enabled?/0` (`Autolaunch.Earn.Checks.Offered` for the operations, the
 router and the documents) and `Autolaunch.Prelaunch.read_only?/0` (`AutolaunchWeb.Prelaunch`, and
-`LaunchesOpen` on `prepare_answer`). Tests: `earn_off_test.exs` (no route, unnamed everywhere,
-the contract adds only Earn's parts), `earn_routes_test.exs` (preview before opening, steps only
-after), `earn_mcp_test.exs` (listed only while on; prelaunch hides `prepare_earn`; the guides).
+`LaunchesOpen` on `prepare_answer`).
 
 ### 6.13 Agent flow — stateless
 
@@ -424,7 +382,7 @@ step; only the market reading every caller shares for up to ten seconds. An agen
 reads products, quotes, prepares, has its person's wallet send each step in turn, and reads
 positions to see the result. A step built at block N may be stale when sent; the agent prepares
 again. Every surface (HTTP routes, browser tools, hosted MCP tools) runs the same operation, so
-answers and refusals match word for word. Tests: `earn_routes_test.exs`, `earn_mcp_test.exs`.
+answers and refusals match word for word.
 
 ## 7. Implicit machines found
 
@@ -503,8 +461,8 @@ Max with no figures read.
 
 1. **Deposit after its approval.** The brief asks for Deposit to be disabled until its approval
    is on the chain, "exactly as covered calls' Buy does". Covered calls' Buy is not disabled: its
-   approval is a step of the review, Confirm purchase shows the moment the approval is sent, and
-   its test says so. Earn follows covered calls, and rule 11, under which a pending approval is
+   approval is a step of the review, Confirm purchase shows the moment the approval is sent.
+   Earn follows covered calls, and rule 11, under which a pending approval is
    never a reason to block. Exposure is the page that disables its step with "Approve first".
    Settled on 15 November 2026: keep as built.
 2. **A reload with a pending transaction.** The brief names "adopt". The shared code keeps nothing
@@ -542,13 +500,8 @@ Max with no figures read.
    without waiting for a reading; Earn now does the same with the catalog's decimals, checked
    against the market's own on every reading.
 
-## 10. Tests and evidence
+## 10. Evidence
 
-- `test/autolaunch/earn/`: `states_test.exs` (11, one property), `reads_test.exs` (8, two
-  properties), `steps_test.exs` (14), `shared_terms_test.exs` (7).
-- `test/autolaunch_web/`: `controllers/earn_routes_test.exs` (7), `controllers/earn_off_test.exs`
-  (3), `earn_mcp_test.exs` (6), `live/earn_live_test.exs` (27). Each is in `test/manifest.json`.
-- The chain double is `test/support/earn_chain.ex`.
 - Fork proof, 15 November 2026, on anvil forking Base at block 58065118 with anvil's first test
   account: the pool at revision 12; Available read as the pool's virtual balance,
   16616952128271, below the 16621868424364 USDC the aToken holds; a 250 USDC deposit prepared as
@@ -568,5 +521,4 @@ Max with no figures read.
 
 - Covered calls' `check_again` crash on a non-text hash, its tools' bounds and its handling of a
   transaction reported again (sections 9.6, 9.7 and 9.8) are outside Earn and left as they are.
-- A headless browser walk of `/earn` against a fork (FEATURES marks it a gap; proved by hand).
 - regents CLI commands, when the switch goes on.

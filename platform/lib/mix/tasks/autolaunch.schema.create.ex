@@ -2,8 +2,8 @@ defmodule Mix.Tasks.Autolaunch.Schema.Create do
   @shortdoc "Creates the autolaunch_app schema in the configured database"
   @moduledoc """
   Creates the product schema on a database that was just created, so the
-  migrations that follow have somewhere to run. The `setup` and `test` aliases
-  run it between creating the database and migrating.
+  migrations that follow have somewhere to run. The `db.setup` alias runs it
+  between creating the database and migrating.
   """
 
   use Mix.Task

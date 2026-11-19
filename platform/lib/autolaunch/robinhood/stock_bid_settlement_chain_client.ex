@@ -70,7 +70,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
     %{
       abi: Lab.abi!(config, :auction),
       rpc_url: config.rpc_url,
-      client_key: :autolaunch_lab_http_client,
       block: block,
       opts: opts
     }

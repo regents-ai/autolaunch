@@ -1,7 +1,7 @@
 # Autolaunch Covered Calls — technical specification
 
 **Version:** 29 October 2026. **Status:** contract deployed on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752). The
-site code is on `main` with covered calls switched off. The CLI commands in section 8 are proposed,
+site code is on `main` with covered calls switched off. The CLI commands in section 7 are proposed,
 not built.
 
 **What this document is for.** A complete, self-contained description for an independent second
@@ -284,8 +284,7 @@ Covered calls sit behind a switch: `AUTOLAUNCH_COVERED_CALLS=true` plus
 `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT` (a JSON file naming each market's stock, contract and
 Chainlink feed). Off — as in production today — the site is byte for byte what it was before:
 every covered-call route answers as an unknown address, `/openapi.json` is the base API contract
-exactly, and no page, script, stylesheet, agent guide or tool names covered calls. Lasting tests
-hold this (`CoveredCallsOffTest`, browser walk `switched_off.spec.ts`).
+exactly, and no page, script, stylesheet, agent guide or tool names covered calls.
 
 ### 6.1 Pages
 
@@ -363,17 +362,7 @@ handed these only while covered calls are on (appendix E). Hosted MCP: not yet.
 While the site is in its preview state, the public book and quote answer; preparing any wallet step
 — covered calls included — is refused like every other wallet step.
 
-## 7. Evidence for the site
-
-- 271 server checks (ExUnit: 247 tests and 24 property tests), 14 browser-script tests, 19 browser-walk
-  checks (phone and desktop width): `make check-platform`, passing.
-- End-to-end journey on a local Base copy with the contract deployed, at phone and desktop width:
-  list, buy (seller receives the premium less exactly 1%), stop selling, exercise while the issuer
-  has transfers paused, a stock collection refused during the pause with the words shown, the strike
-  collected during the pause, both sides' stock collected after it. The buyer is a fresh random
-  wallet each run, never seen and never paired.
-
-## 8. CLI: proposed commands
+## 7. CLI: proposed commands
 
 Two CLIs read this site:
 
@@ -402,23 +391,20 @@ Behaviour, matching the existing commands:
   USDC" or "Buy calls") and `blocked` with its reason. Every step is for the person's own wallet;
   the server refuses any other.
 - Each entry goes into `cli/commands.json` with its `operation_id`, `webmcp` tool name, method, path,
-  authority and flags, so the parity check (`cli/test/parity.test.js`) holds the CLI, WebMCP and
-  OpenAPI to the same operations. The commands appear only once covered calls are switched on in
-  production.
+  authority and flags, and `make check-cli` checks the descriptions against the API's OpenAPI
+  copy. The commands appear only once covered calls are switched on in production.
 
 Open question for the regents-cli owner: whether `regents` should later gain a separate,
 explicitly-confirmed send step for prepared transactions. Today's rule (never sign) is kept here.
 
-## 9. Open items
+## 8. Open items
 
 1. Deployment: done on 29 October 2026 (section 5). Source verified on Basescan (exact match) and Sourcify.
 2. Switching covered calls on in production is a separate release after deployment, with the
    deployed address in the markets file.
 3. Hosted MCP tools and the CLI commands above are not built.
-4. The agent route's cancel, exercise, claim and collect-strike steps share the tested steps module
-   but have no route test of their own.
-5. A fork test of the real `effectiveAt()` read once Foundry's local B20 supports it.
-6. Separate finding for the Memestake lane: the admitted AMZNc launch route swaps in a thin pool.
+4. A fork test of the real `effectiveAt()` read once Foundry's local B20 supports it.
+5. Separate finding for the Memestake lane: the admitted AMZNc launch route swaps in a thin pool.
 
 ---
 

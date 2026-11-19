@@ -11,11 +11,10 @@ flow can be tried with test assets. Launching and bidding need `AUTOLAUNCH_LAUNC
 site is read-only, lists what the fork holds and answers 404 on `/create`. Everything else
 on a lab site is labelled rather than switched: the REGENT facts panel and
 the Buy, Chart, Stake and Redeem links say they are public Base mainnet, subject staking and
-payments show an explicit unavailable state, and treasury evidence is reported as unavailable
-instead of drawn from the test fixture. Every page of a lab site carries the line
+payments show an explicit unavailable state, and treasury evidence is reported as
+unavailable. Every page of a lab site carries the line
 "Local Base fork · test assets · no mainnet value" (`Autolaunch.Lab.label/0` names the fork)
-at the top of the screen, ending in "sign in with Privy" on an open site with real sign-in
-configured (below) and "sign-in unavailable" on an open site without it.
+at the top of the screen, ending in "sign in with Privy" on an open site.
 
 ## Pieces
 
@@ -45,43 +44,36 @@ is sent, so `advance` or `pace` moves an auction through its milestones.
 
 ## Running the site from this checkout
 
-Run everything from `platform/` in the test environment. It gives the site a partition
-database of its own, a plain connection pool and HTTP on `PORT`. Sign-in is either off (the
-fixture verifier, which has no interactive login) or real Privy, as chosen below.
-Strip any ambient database URLs.
+Run everything from `platform/` in the development environment. The site uses the local
+database `autolaunch_dev`, serves HTTP on `PORT` and takes real Privy sign-in; it does not
+start without the two Privy inputs below.
 
 Build once:
 
 ```sh
 cd platform
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    sh -c 'mix deps.get && npm ci --ignore-scripts && mix compile && mix assets.setup && mix assets.build'
+mix deps.get && npm ci --ignore-scripts && mix compile && mix assets.setup && mix assets.build
 ```
 
-Start the site (this example uses the partition `_lab`, so the database is
-`autolaunch_lab_test`). A fresh disposable partition needs its tables as well as the
-database: `mix ecto.create` alone creates an empty database, so prepare a new partition
-with `mix db.setup`, scoped to that partition, before the first start:
+A database that does not exist yet needs its tables as well as the database: `mix db.setup`
+creates `autolaunch_dev` and migrates it. Never drop, recreate or replay migrations on a
+database another run may own; an existing database is reused as it is.
 
 ```sh
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    MIX_TEST_PARTITION=_lab mix db.setup
+mix db.setup
 ```
 
-Run it only against a partition of your own. Never drop, recreate or replay migrations on
-a database another run may own; an existing lab database, such as the one a recovered run
-already uses, is reused as it is.
+Start the site:
 
 ```sh
 cd platform
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    MIX_TEST_PARTITION=_lab PORT=4050 \
-    AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
-    AUTOLAUNCH_LAUNCHES_OPEN=true \
-    PRIVY_APP_ID=browser-test-public-id \
-    AUTOLAUNCH_BASE_DEPLOYMENT=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
-    AUTOLAUNCH_BASE_DEPLOYMENT_ID=<run label> \
-    mix phx.server
+PORT=4050 \
+AUTOLAUNCH_LAUNCHES_OPEN=true \
+PRIVY_APP_ID=<the Privy app id> \
+PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-key.pem)" \
+AUTOLAUNCH_BASE_DEPLOYMENT=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
+AUTOLAUNCH_BASE_DEPLOYMENT_ID=<run label> \
+mix phx.server
 ```
 
 | Variable | Meaning |
@@ -89,50 +81,22 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
 | `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment |
 | `AUTOLAUNCH_LAUNCHES_OPEN=true` | Opens launching, bidding and the test-funds panel; without it the lab is read-only |
 | `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; the Stocks admission scan reads a changed label as a new deployment |
-| `PORT` | The port to serve on (test default 4050) |
-| `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |
-| `AUTOLAUNCH_BROWSER_TEST=1` | Test environment only: serve HTTP and use a plain connection pool instead of the sandbox |
-| `PRIVY_APP_ID` | Public Privy app id. Without real sign-in any placeholder such as `browser-test-public-id` will do; with it, the real id |
-| `MIX_TEST_PARTITION` | Names the database `autolaunch<partition>_test` |
-
-Then check `http://127.0.0.1:4050/`, `/auctions`, `/create` and `/api/v1/auctions`.
-
-While a lab config is set, the test environment does not install the subject-wallet and
-launch fixture clients: launch and bid resolve to their lab clients and answer from the fork,
-subject-wallet preparation stays unavailable, the treasury fixture remains for the launch and
-bid flows while every treasury panel reports its evidence as unavailable, and the production
-indexer stays off.
-
-### Sign-in on a lab site
-
-Without further configuration a lab site is for public browsing: the test environment
-verifies sessions with `Autolaunch.TestPrivyVerifier`, which has no interactive login, so the
-notice line ends in "sign-in unavailable". Pressing Sign in with a placeholder app id reports
-"Sign in couldn't start" and `/account` offers its Sign in button; neither waits forever.
-
-Real Privy sign-in is switched on explicitly, with three more inputs, none of them secret:
-
-```sh
-AUTOLAUNCH_LAB_AUTH=privy \
-PRIVY_APP_ID=<the Privy app id> \
-PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-key.pem)" \
-... mix phx.server
-```
-
-| Variable | Meaning |
-| --- | --- |
-| `AUTOLAUNCH_LAB_AUTH=privy` | Test environment only. Selects the production verifier `Autolaunch.Privy`, admits `http://localhost:PORT` as a site origin alongside `http://127.0.0.1:PORT`, and names `localhost` as the site host. The boot stops if `AUTOLAUNCH_BASE_DEPLOYMENT` or either input below is missing: explicit real sign-in never falls back to the fixture verifier |
+| `PORT` | The port to serve on (default 4050) |
 | `PRIVY_APP_ID` | The real public app id of the Privy application |
 | `PRIVY_VERIFICATION_KEY` | The application's current public ES256 verification key as one PEM block. The Privy dashboard shows it, and Privy publishes it at `https://auth.privy.io/api/v1/apps/<app id>/jwks.json`. Sign-in and the shared profile API (`/api/v1/profile`) both verify each token against this key through `RegentPrivy` |
 
+Then check `http://localhost:4050/`, `/auctions`, `/create` and `/api/v1/auctions`.
+
+### Sign-in on a lab site
+
 Open the site at `http://localhost:4050`, the origin the Privy application allows, not at
-`127.0.0.1`. Sign in, `/account`, the shared profile API and sign out then run through the
-production verifier and session boundaries exactly as on the public site: the browser's
-Privy state never establishes a session by itself, a session is written only after the
-token pair verifies on the server, and a provider that is not ready or cannot load never
-revokes one. Test tokens are not accepted on such a site. Signed out, a person can still use
-the auction pages, the live panel and the public API; `/create` explains that it needs a
-sign-in and keeps the visitor on the page for after it.
+`127.0.0.1`. Sign in, `/account`, the shared profile API and sign out run through the
+production verifier (`Autolaunch.Privy`) and session boundaries exactly as on the public
+site: the browser's Privy state never establishes a session by itself, a session is written
+only after the token pair verifies on the server, and a provider that is not ready or cannot
+load never revokes one. Signed out, a person can still use the auction pages, the live panel
+and the public API; `/create` explains that it needs a sign-in and keeps the visitor on the
+page for after it.
 
 Bridge import and provider readiness each have a bounded startup window. A failed
 provider is unmounted; retries construct a new provider rather than reuse dead
@@ -151,14 +115,13 @@ failure feedback; passive reconciliation stays silent.
   the same `--fork-url`, `--fork-block-number` and `--chain-id 31337` plus
   `--load-state PATH`. Compare block hashes and contract code before stopping the original;
   the recovery in September 2026 matched on every check.
-- **A fresh lab is a fresh database.** After a new `start`, run the site against a new
-  disposable partition prepared with `mix db.setup` as above, holding no auctions from an
-  earlier fork. Do not drop or migrate the database of an existing run.
+- **A fresh lab keeps the same database.** The development environment has one database,
+  `autolaunch_dev`, which still holds what an earlier fork projected into it. Do not drop or
+  migrate the database of an existing run.
 
 ## Limits
 
 - The lab's create and bid flow uses its explicit local treasury binding, not production
   Safe verification; nothing here changes production authorization.
 - A pass that cannot read the fork is one warning line in the log, and is read again a minute later.
-- Real Privy sign-in against a lab site needs a person with a wallet in a real browser; no
-  automated check signs in.
+- Real Privy sign-in against a lab site needs a person with a wallet in a real browser.

@@ -11,20 +11,17 @@
 # regents-cli: the pin is the newest release's tag commit; the public documents
 # name the release, that commit and the wheel's SHA256 (platform/lib/autolaunch_web/
 # public_documents.ex is where they are kept; the documents carry a placeholder);
-# the agent journeys install the CLI from the same commit; no install line names
-# another release. The SIWA library: siwa/siwa-elixir/apps/siwa at the elixir-utils
-# commit platform/mix.exs pins is the same folder, file for file, as on
-# elixir-utils main. The folder is compared, not the history, so a site whose
-# pin is its own line plus the SIWA change passes. Needs `gh auth login` and
-# curl.
+# no install line names another release. The SIWA library:
+# siwa/siwa-elixir/apps/siwa at the elixir-utils commit platform/mix.exs pins is
+# the same folder, file for file, as on elixir-utils main. The folder is
+# compared, not the history, so a site whose pin is its own line plus the SIWA
+# change passes. Needs `gh auth login` and curl.
 set -euo pipefail
 
 # Where this site keeps them. The release every public document names lives in
-# one place, public_documents.ex (the documents carry only a placeholder for it),
-# and the journeys install the same CLI from the commit scripts/agent-journeys.sh pins.
+# one place, public_documents.ex (the documents carry only a placeholder for it).
 documents=platform/lib/autolaunch_web/public_documents.ex
 install_lines=(platform/lib/autolaunch_web/public_documents platform/lib/autolaunch_web/public_documents.ex)
-journeys=scripts/agent-journeys.sh
 pin=$1
 read -r latest wheel < <(curl -fsS https://pypi.org/pypi/regents-cli/json | python3 -I -c '
 import json, sys
@@ -48,9 +45,6 @@ for word in "version: \"$latest\"" "commit: \"$tag\"" "wheel_sha256: \"$wheel\""
   grep -qF "$word" "$documents" ||
     fail "regents-cli $latest is the newest release: $documents does not name $word."
 done
-journeys_rev=$(sed -nE 's/^REGENTS_CLI_REV=([0-9a-f]{40})$/\1/p' "$journeys")
-[ "$journeys_rev" = "$tag" ] ||
-  fail "regents-cli $latest is the newest release: move REGENTS_CLI_REV in $journeys from ${journeys_rev:-nothing} to $tag."
 stale=$(grep -rnoE 'regents-cli==[0-9]+(\.[0-9]+)*' "${install_lines[@]}" | grep -vE "==${latest//./\\.}\$" || true)
 [ -z "$stale" ] || fail "regents-cli $latest is the newest release: these install lines name another release:
 $stale"

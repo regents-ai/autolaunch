@@ -16,7 +16,7 @@ defmodule Autolaunch.TreasuryChainClient do
   @external_resource @manifest_path
   @manifest YamlElixir.read_from_file!(@manifest_path)
 
-  @rpc_opts [client_key: :autolaunch_treasury_http_client, log_scope: "autolaunch treasury"]
+  @rpc_opts [log_scope: "autolaunch treasury"]
   @zero "0x0000000000000000000000000000000000000000"
   @sentinel "0x0000000000000000000000000000000000000001"
   @page_size 100
@@ -52,46 +52,8 @@ defmodule Autolaunch.TreasuryChainClient do
           outbound: String.t() | nil
         }
 
-  @callback observe(String.t(), evidence_hashes()) :: {:ok, map()} | {:error, atom()}
-  @callback observe_latest(String.t()) :: {:ok, map()} | {:error, atom()}
-  @callback canonical?(non_neg_integer(), String.t()) :: boolean()
-
+  @spec observe(String.t(), evidence_hashes()) :: {:ok, map()} | {:error, atom()}
   def observe(address, evidence) do
-    case module() do
-      __MODULE__ -> read_observation(address, evidence)
-      module -> module.observe(address, evidence)
-    end
-  end
-
-  @doc """
-  The address's code and Safe configuration at the latest Base block, without
-  evidence: what the create form says beside the treasury box.
-  """
-  def observe_latest(address) do
-    case module() do
-      __MODULE__ -> read_latest(address)
-      module -> module.observe_latest(address)
-    end
-  end
-
-  def canonical?(number, hash) do
-    case module() do
-      __MODULE__ -> canonical_block?(number, hash)
-      module -> module.canonical?(number, hash)
-    end
-  end
-
-  def module do
-    configured = Application.get_env(:autolaunch, :autolaunch_treasury_chain_client, __MODULE__)
-
-    if configured == __MODULE__ and System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
-      Autolaunch.TestAutolaunchTreasuryChainClient
-    else
-      configured
-    end
-  end
-
-  defp read_observation(address, evidence) do
     with {:ok, block} <- Rpc.safe_block(@rpc_opts),
          {:ok, runtime} <- code(address, block),
          {:ok, observation} <- classify(address, runtime, block) do
@@ -99,7 +61,12 @@ defmodule Autolaunch.TreasuryChainClient do
     end
   end
 
-  defp read_latest(address) do
+  @doc """
+  The address's code and Safe configuration at the latest Base block, without
+  evidence: what the create form says beside the treasury box.
+  """
+  @spec observe_latest(String.t()) :: {:ok, map()} | {:error, atom()}
+  def observe_latest(address) do
     with {:ok, block} <- Rpc.latest_block(@rpc_opts),
          {:ok, runtime} <- code(address, block),
          do: classify(address, runtime, block)
@@ -442,7 +409,8 @@ defmodule Autolaunch.TreasuryChainClient do
   defp call(address, data, block),
     do: request("eth_call", [%{to: address, data: data}, block_ref(block)])
 
-  defp canonical_block?(number, hash) do
+  @spec canonical?(non_neg_integer(), String.t()) :: boolean()
+  def canonical?(number, hash) do
     with {:ok, header} when is_map(header) <-
            request("eth_getBlockByNumber", [hex(number), false]),
          {:ok, ^number} <- quantity(header["number"]),

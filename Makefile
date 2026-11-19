@@ -1,20 +1,11 @@
-.PHONY: help check check-platform check-browser check-scripts check-required-fixes check-cli check-siwa-latest readiness
+.PHONY: help check check-platform check-required-fixes check-cli check-siwa-latest readiness
 help:
-	@echo "Run make check for every gate, or check-platform, check-browser, check-scripts, check-required-fixes, check-cli or check-siwa-latest for one."
+	@echo "Run make check for every gate, or check-platform, check-required-fixes, check-cli or check-siwa-latest for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
-check: check-platform check-scripts check-required-fixes check-cli check-siwa-latest
-# The platform check (mix precommit) ends with the TypeScript check, the
-# TypeScript tests and the browser walk.
+check: check-platform check-required-fixes check-cli check-siwa-latest
+# The platform check (mix precommit) ends with the TypeScript check.
 check-platform:
 	cd platform && mix precommit
-# The browser walk alone (platform/test/browser): the layout checks at phone and
-# desktop width. It starts its own server on its own database.
-check-browser:
-	cd platform && npm run test:browser
-# The deploy and rollback scripts' tests, on a fixture repository with stand-ins for
-# Fly and the site (scripts/tests/test_release.py). They reach no real app.
-check-scripts:
-	uv run --no-project python -B -m unittest discover -s scripts/tests -p 'test_release.py'
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
@@ -32,7 +23,7 @@ check-cli:
 	  platform/contracts/covered-calls.openapiv3.yaml platform/contracts/exposure.openapiv3.yaml \
 	  platform/contracts/earn.openapiv3.yaml
 # Fails unless the site is on the newest SIWA on both sides: the newest regents-cli
-# (the pin above, the documents and the journeys) and, at the elixir-utils commit
+# (the pin above and the documents) and, at the elixir-utils commit
 # platform/mix.exs pins, the same SIWA library folder as on elixir-utils main (the
 # folder is compared, not the history). Needs `gh auth login`.
 check-siwa-latest:

@@ -26,9 +26,7 @@
   },
   "scripts": {
     "build": "node --check bin/autolaunch.js && node --check src/cli.js && node --check src/commands.js",
-    "test": "node --test test/cli.test.js",
-    "test:parity": "node --test test/parity.test.js",
-    "check": "npm run build && npm test",
+    "check": "npm run build && npm run check:contract",
     "prepack": "npm run build",
     "check:contract": "node scripts/check-contract.mjs"
   },

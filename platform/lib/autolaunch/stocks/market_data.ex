@@ -159,7 +159,6 @@ defmodule Autolaunch.Stocks.MarketData do
     with {:ok, "0x" <> hex} when byte_size(hex) == 320 <-
            Rpc.request("eth_call", [%{to: feed, data: @latest_round_data}, "latest"],
              rpc_url: rpc_url(chain),
-             client_key: :autolaunch_market_http_client,
              log_scope: "stocks market"
            ),
          {:ok, <<_round::256, answer::signed-256, _started::256, updated::256, _answered::256>>} <-
@@ -335,9 +334,7 @@ defmodule Autolaunch.Stocks.MarketData do
   defp venue_name(dex), do: String.capitalize(dex)
 
   defp get(url) do
-    client = Application.get_env(:autolaunch, :autolaunch_market_http_client, Req)
-
-    case client.get(url,
+    case Req.get(url,
            headers: [accept: "application/json"],
            connect_options: [timeout: 3_000],
            receive_timeout: 5_000,

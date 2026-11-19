@@ -22,7 +22,7 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch.{
     Lab,
     LabAbi,
-    LaunchChainClient,
+    LabLaunchChainClient,
     LaunchDraft,
     LaunchLinks,
     LaunchOperation,
@@ -132,7 +132,7 @@ defmodule Autolaunch.LaunchActions do
   @doc "Whether the Base factory has new launches paused, as Base reads now."
   @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
   def launches_paused do
-    case LaunchChainClient.module().snapshot(%{signer: nil}) do
+    case LabLaunchChainClient.snapshot(%{signer: nil}) do
       {:ok, %{paused: paused}} -> {:ok, paused}
       {:error, reason} -> {:error, reason}
     end
@@ -340,7 +340,7 @@ defmodule Autolaunch.LaunchActions do
   # Chain snapshot
 
   defp snapshot(signer) do
-    case LaunchChainClient.module().snapshot(%{signer: signer}) do
+    case LabLaunchChainClient.snapshot(%{signer: signer}) do
       {:ok, snapshot} -> complete(snapshot)
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)

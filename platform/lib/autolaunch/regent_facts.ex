@@ -367,10 +367,8 @@ defmodule Autolaunch.RegentFacts do
   # DexScreener's USD price for the REGENT pool, trusted only when the pool's
   # base token is REGENT and the price is a plain decimal.
   defp price_usd(token) do
-    client = Application.get_env(:autolaunch, :autolaunch_market_http_client, Req)
-
     with {:ok, %{status: 200, body: %{"pairs" => [pair | _]}}} <-
-           client.get("https://api.dexscreener.com/latest/dex/pairs/base/#{@pool}",
+           Req.get("https://api.dexscreener.com/latest/dex/pairs/base/#{@pool}",
              connect_options: [timeout: 3_000],
              receive_timeout: 5_000,
              retry: false

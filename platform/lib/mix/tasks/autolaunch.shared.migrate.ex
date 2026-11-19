@@ -5,13 +5,13 @@ defmodule Mix.Tasks.Autolaunch.Shared.Migrate do
   identity tables, the agents people pair and their Points. Regents and the
   platform own them in production, and a release only checks the shared
   migrations are there (`Autolaunch.Release`); locally each site creates them, as
-  ash-template does. `mix db.setup`, and so `mix test`, runs this task.
+  ash-template does. `mix db.setup` runs this task.
   """
   use Mix.Task
 
   @impl true
   def run(_args) do
-    unless Mix.env() in [:dev, :test], do: Mix.raise("local database setup is dev and test only")
+    unless Mix.env() == :dev, do: Mix.raise("local database setup is dev only")
 
     Mix.Task.run("app.config")
     {:ok, _} = Application.ensure_all_started(:ecto_sql)

@@ -7,6 +7,7 @@ defmodule Autolaunch.Accounts.XOAuth do
   public identity returned by X.
   """
 
+  alias Assent.Strategy.OAuth2
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.{SessionAuthority, XConnection}
   alias Autolaunch.Actors.Human
@@ -29,7 +30,7 @@ defmodule Autolaunch.Accounts.XOAuth do
     with {:ok, role} <- role(role),
          {:ok, intent} <- intent(intent_params),
          {:ok, config} <- config(),
-         {:ok, %{url: url, session_params: params}} <- strategy().authorize_url(config),
+         {:ok, %{url: url, session_params: params}} <- OAuth2.authorize_url(config),
          {:ok, state} <- required_binary(params, :state),
          {:ok, verifier} <- required_binary(params, :code_verifier),
          {:ok, generation} <- attempt_generation(claim, state) do
@@ -275,7 +276,7 @@ defmodule Autolaunch.Accounts.XOAuth do
   # Assent is handed the provider's query as it arrived; an answer it cannot
   # read is a failed connection, never a crashed callback page.
   defp provider_callback(config, params) do
-    strategy().callback(config, params)
+    OAuth2.callback(config, params)
   rescue
     _error -> {:error, :provider_failure}
   catch
@@ -449,9 +450,5 @@ defmodule Autolaunch.Accounts.XOAuth do
   end
 
   defp actor(account), do: %Human{human_account_id: account.id}
-  defp now, do: clock().()
-  defp clock, do: Application.get_env(:autolaunch, :x_oauth_clock, &DateTime.utc_now/0)
-
-  defp strategy,
-    do: Application.get_env(:autolaunch, :x_oauth_strategy, Assent.Strategy.OAuth2)
+  defp now, do: DateTime.utc_now()
 end
