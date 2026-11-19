@@ -60,5 +60,4 @@ necessarily emitted after the messenger and cleanup succeed.
 
 The token helper uses checked low-level calls to support the ERC-20 convention that successful
 methods may return either `true` or no data. CREATE2 requires one small assembly block because
-Solidity has no high-level operation that exposes its salt semantics. These narrowly bounded uses
-are covered by rollback, code-identity, and address-formula tests.
+Solidity has no high-level operation that exposes its salt semantics.

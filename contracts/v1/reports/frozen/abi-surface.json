@@ -1,5 +1,5 @@
 {
-  "purpose": "The frozen external surface of every Regent production contract, derived from the compiler artifacts. Selectors and event topics are keccak over the canonical signature, so a changed integer width, a renamed field, a reordered tuple, or a changed indexed flag all change the recorded line. test/abi/** reads this file as its authority and reconciles every line against compiler truth.",
+  "purpose": "The frozen external surface of every Regent production contract, derived from the compiler artifacts. Selectors and event topics are keccak over the canonical signature, so a changed integer width, a renamed field, a reordered tuple, or a changed indexed flag all change the recorded line.",
   "contracts": {
     "RegentsAutolaunchFactoryV1": {
       "source": "src/factory/RegentsAutolaunchFactoryV1.sol",

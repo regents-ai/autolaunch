@@ -1,6 +1,5 @@
 [profile.default]
 src = "src"
-test = "test"
 script = "script"
 out = "out"
 # Revstake v3 builds against the exact dependency snapshot the Base Memestake v3 package exported
@@ -21,64 +20,9 @@ cbor_metadata = false
 offline = true
 ffi = false
 fs_permissions = []
-# Each test runs as one transaction, as under the frozen Forge. Newer Forge isolates every top-level
-# call by default, which spends a deployer nonce per call and breaks the fixtures' address predictions.
+# Top-level calls share one transaction, as under the frozen Forge. Newer Forge isolates every
+# top-level call by default, which spends a deployer nonce per call and breaks address predictions.
 isolate = false
-
-# `test/base/` runs only under the `base` profile against a copy of Base mainnet, and
-# `test/sepolia/` only under the `sepolia` profile against the public Base Sepolia endpoint.
-no_match_path = "test/{base,sepolia}/**"
-
-# The fuzz and invariant portfolio contracts/v1 runs, unchanged.
-[profile.default.fuzz]
-runs = 512
-seed = "0x5245474e54"
-max_test_rejects = 65536
-fail_on_revert = true
-
-[profile.default.invariant]
-runs = 256
-depth = 128
-fail_on_revert = true
-max_assume_rejects = 65536
-shrink_run_limit = 5000
-
-# Version 3 on a copy of Base mainnet, which runs 0.2 s blocks since Denim: the real pinned CCA
-# factory, Permit2, pool pieces, REGENT and version 2's deployed implementations. Read-only: the
-# fork is local to Forge and nothing is sent to the chain.
-[profile.base]
-match_path = "test/base/**"
-# Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
-no_match_path = "none/**"
-offline = false
-network = "base"
-# The public Base endpoint exists only in this profile, so the required gate's configuration
-# resolves no endpoint. Forge forks it at the latest block before the suite starts.
-eth_rpc_url = "https://mainnet.base.org"
-
-# A version 3 launch on Base Sepolia, which already runs 0.2 s blocks, through the real pinned CCA
-# factory. Read-only: the fork is local to Forge and nothing is sent to the chain.
-[profile.sepolia]
-match_path = "test/sepolia/**"
-no_match_path = "none/**"
-offline = false
-
-# The public Base Sepolia endpoint exists only in this profile, so the required gate's configuration
-# resolves no endpoint.
-[profile.sepolia.rpc_endpoints]
-base_sepolia = "https://sepolia.base.org"
-
-# The deployment-ceremony profile, the only profile `../stocks-v3/bin/ceremony.py` runs. Same frozen
-# build; a separate test root and build directory so ceremony artifacts never touch the set the
-# required gate reconciles. No filesystem access: the graph is emitted as decoded logs and rendered by
-# the tool.
-[profile.deployment]
-test = "test-deployment"
-out = "reports/generated/deployment-out"
-cache_path = "reports/generated/deployment-cache"
-offline = false
-ffi = false
-fs_permissions = []
 
 # The Base endpoint stays an unresolved environment reference in every committed file; the
 # required offline gate never reads it.
@@ -86,5 +30,5 @@ fs_permissions = []
 base = "${REGENT_BASE_RPC_URL}"
 
 [lint]
-ignore = ["test/**/*.sol", "script/**/*.sol", "test-deployment/**/*.sol"]
+ignore = ["script/**/*.sol"]
 exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]

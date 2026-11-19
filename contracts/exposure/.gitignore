@@ -1,6 +1,4 @@
 /out/
 /cache/
-/out-fork/
-/cache-fork/
 /broadcast/**/dry-run/
 /broadcast/**/*.recovery.lock

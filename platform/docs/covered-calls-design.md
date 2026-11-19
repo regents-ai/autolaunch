@@ -159,9 +159,7 @@ function claimable(uint256 listingId, address account) external view returns (ui
 - `list` and `fill` read `effectiveAt()` on the stock token, which answers 0 on Base mainnet today.
   If that read ever reverted, `list` and `fill` would stop until it answered again; cancel,
   exercise, claim and strike collection never read it. Raw-unit accounting means a split or a
-  dividend never breaks a series anyway, so the check is a second line of defence. A fork test of
-  the real read is added once Foundry's local B20 has it (Foundry 1.8.6 implements only the older
-  read set).
+  dividend never breaks a series anyway, so the check is a second line of defence.
 - An instant (unscheduled) multiplier change cannot be detected. Prices are per raw unit, so the
   terms keep their value; pages show share-equivalents at the current multiplier.
 - Reads grow with the listings ever made: a book costs one read per listing and a wallet's
@@ -422,33 +420,13 @@ What remains unbounded, and what it costs an attacker:
 - **Unmeasured.** How long Base's RPC takes for 200 reads in one request, and its rate limits
   for eight at a time, have not been measured against the live provider.
 
-## 6. Tests and evidence
+## 6. Evidence
 
-- Contract (`contracts/covered-calls`, `bin/gate.sh`, passes with the Mac's Foundry 1.5.1):
-  - 29 unit tests: every call and refusal, the Friday 21:00 UTC expiry rule, the spec's three
-    payoff cases, rounding, the fee, self-dealing, exact window boundaries, events.
-  - 9 rules tests from the review's third pass: the Friday 21:00 UTC rule recomputed from the
-    calendar, the fee as ceil(1%) never above the premium, and `claimable` equal to what `claim`
-    pays in every state.
-  - 9 ordering tests from the review's second pass: cancel, claim and the after-window return in
-    every order, never paying a unit twice or touching another listing, and `claimable`.
-  - 13 recovery tests: every way a token, the issuer, Circle or staking can refuse, and a fuzzed
-    many-account scenario in which everyone recovers exactly what is theirs once restrictions lift.
-  - 7 invariants over random sequences of every call by four accounts across time, with all those
-    restrictions switching on and off: stock held equals stock owed, USDC held equals strike
-    uncollected, nothing oversold, every listed unit accounted for, no token created or lost, each
-    fee paid exactly once, every claim paying exactly what `claimable` showed; and after each run
-    every restriction lifts, everyone collects, and the contract ends holding nothing.
-  - 7 fork tests on Base (Foundry 1.8.6, `anvil --network base`) with the real AMZNc token, Base
-    USDC and live REGENT staking, staging a real blocklisting, a real transfer pause and a
-    multiplier change through the issuer's own admin accounts.
 - Adversarial review (independent agent, solidity-security and solidity-auditor skills): first
   pass found two medium findings, both from one call moving two tokens (a seller could not stop
   sales during a stock pause; a block on one token held up the other). Both are fixed by the
-  split above; the five tests that failed on the first version are kept as lasting tests in
-  `test/CoveredCallsV1.recovery.t.sol`. The fix had its own second review, and the expiry, fee and `claimable` changes a third; neither
-  found anything above informational; its
-  tests are kept in `test/CoveredCallsV1.ordering.t.sol`. Its main informational point, that a
+  split above. The fix had its own second review, and the expiry, fee and `claimable` changes a
+  third; neither found anything above informational. Its main informational point, that a
   seller's `owed` figure omits the after-window return until they claim, is answered by the
   `claimable` read, which every page and tool uses.
 - On Base itself, 29 Oct 2026: `contracts/covered-calls/deploy/dry-run.py` simulates a whole
@@ -463,12 +441,8 @@ What remains unbounded, and what it costs an attacker:
 1. **Eligibility.** Coinbase's tokenized stocks are only for persons in eligible jurisdictions
    outside the United States. This needs Sean's own advice; customer copy says nothing beyond
    the wording he approves.
-2. **Foundry for the fork suite.** The offline gate runs on the Mac's Foundry 1.5.1. The Base fork
-   suite needs Foundry 1.8.4 or later, because Base stock tokens are precompiles. Base's own build
-   (base-anvil) would also cover the newer `effectiveAt()` read. Installing either on the Mac
-   changes the shared toolchain, so that waits for the toolchain owner.
-3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is on Base at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` (13 November 2026, block 56,749,573; `contracts/covered-calls-v2/deploy/deployed.json`). The release that moves the site to it copies `contracts/covered-calls-v2/deploy/site-markets.json` to `platform/deployment/covered-calls.json`, and the release check refuses a covered-calls description that names any other contract.
-4. **Follow-ups outside this lane.** The admitted Memestake AMZNc route uses the thin pool
+2. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is on Base at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` (13 November 2026, block 56,749,573; `contracts/covered-calls-v2/deploy/deployed.json`). The release that moves the site to it copies `contracts/covered-calls-v2/deploy/site-markets.json` to `platform/deployment/covered-calls.json`, and the release check refuses a covered-calls description that names any other contract.
+3. **Follow-ups outside this lane.** The admitted Memestake AMZNc route uses the thin pool
    (section 1).
-5. **Gaps.** The regents CLI for every covered-call action (a No in the guides' Agent access
+4. **Gaps.** The regents CLI for every covered-call action (a No in the guides' Agent access
    table; `operations/FEATURES.md`).

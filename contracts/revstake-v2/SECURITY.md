@@ -1,14 +1,13 @@
 # Autolaunch Revstake version 2: security posture
 
-Status: deployed on Base on 6 October 2026, unit-proven against the hermetic suite, not externally
-audited. Deployment receipts and code checks are in `deployments/base-mainnet/`. This package
-carries no Base fork suite. On 28 September 2026 a practice run on a copy of Base, using an
-earlier revision, exercised it against the real Permit2, CCA factory, PoolManager and
+Status: deployed on Base on 6 October 2026, not externally audited. Deployment receipts and code
+checks are in `deployments/base-mainnet/`. On 28 September 2026 a practice run on a copy of Base,
+using an earlier revision, exercised it against the real Permit2, CCA factory, PoolManager and
 PositionManager: bids early, mid-auction and late, the exact minimum and the minimum plus one unit,
 a launcher minimum, refusals before the claim and migration blocks, graduation, bidder claims,
 vesting at half and full term, a failed auction with refunds and retirement of the whole supply,
 swaps both ways (exact input and exact output), pool fee collection through the locker, staking,
-and the fee rounding floor. Staker claims and unstaking were covered by the hermetic suite only.
+and the fee rounding floor. Staker claims and unstaking were not part of that run.
 That run used the earlier terms (20/15/65, a launcher-chosen floor, the pool at raise ÷ sale
 allocation, a 4% hook fee); the 1 October 2026 terms have not yet had a practice run.
 
@@ -27,27 +26,28 @@ allocation, a 4% hook fee); the 1 October 2026 terms have not yet had a practice
 - The only privileged power is the Governance and REGENT Safe's pause of new launches. No launch
   has an administrator.
 
-## What the tests prove
+## Properties
 
-| Property | Tests |
-| --- | --- |
-| A graduated auction sells its whole sale allocation to the bidders, up to crumbs: one bidder at the start, in the last eligible block, partly filled at its limit, fuzzed, and several bidders covering every way a bid ends | `test_SALE_001` … `test_SALE_005` |
-| Every SUBJECT left after graduation (crumbs, unpaired reserve, anything sent to the strategy before migration) goes to the escrow and vests to the treasury | `test_SALE_007`, `test_MIG_008_LeftoverSubjectGoesToTheEscrow` |
-| Every launch has the one fixed floor, and the required raise is the floor times the sale allocation, rounded up | `test_STR_013_RequiredRaiseIsTheFloorRaise`, `test_FAC_023_*`, `test_MIN_001` … `test_MIN_003` |
-| A zero-bid or under-raised auction fails and retires the whole supply; bidders are refunded | `test_FAIL_001` … `test_FAIL_008` |
-| The pool opens at the final clearing price; the position takes half the raise (within one part in a million, never more) and at most the reserve, and the rest of the raise reaches the treasury | `test_MIG_005`, `test_MIG_007`, `test_MIG_008` |
-| Every external boundary of launch, migration and graduation rolls back completely | `test_FAC_021_*`, `test_STR_004_*`, `AutolaunchTerminalRollback` |
-| Supply is conserved across every lifecycle; graduation sends the launch's own escrow exactly its leftover (the unpaired reserve plus crumbs), the unsold part is never more than crumbs, and the shared contracts keep nothing that is not a stranger's gift | `AutolaunchLifecycleInvariants` (`INV-006`, `INV-010`) |
+- A graduated auction sells its whole sale allocation to the bidders, up to crumbs, however its
+  bids end: one bidder at the start, in the last eligible block or partly filled at its limit, or
+  several bidders.
+- Every SUBJECT left after graduation (crumbs, unpaired reserve, anything sent to the strategy
+  before migration) goes to the escrow and vests to the treasury.
+- Every launch has the one fixed floor, and the required raise is the floor times the sale
+  allocation, rounded up.
+- A zero-bid or under-raised auction fails and retires the whole supply; bidders are refunded.
+- The pool opens at the final clearing price; the position takes half the raise (within one part in
+  a million, never more) and at most the reserve, and the rest of the raise reaches the treasury.
+- Every external boundary of launch, migration and graduation rolls back completely.
+- Supply is conserved across every lifecycle; graduation sends the launch's own escrow exactly its
+  leftover (the unpaired reserve plus crumbs), the unsold part is never more than crumbs, and the
+  shared contracts keep nothing that is not a stranger's gift.
 
 ## Known limits
 
 - **Rounding at the minimum.** The pinned CCA counts a bid placed after the auction's first block up
-  to one REGENT base unit short, so the minimum plus one unit is what graduates in any block
-  (`test_MIN_002`, `test_MIN_003`).
+  to one REGENT base unit short, so the minimum plus one unit is what graduates in any block.
 - **Crumbs.** The auction rounds its clearing price up, so a graduated auction can leave a few
   SUBJECT base units unsold: at most the sale allocation divided by the floor price. At the fixed
   floor that bound is about 4.66 whole tokens. Crumbs never reach a bidder or stay in the strategy:
   they go to the escrow and vest to the treasury.
-- **Permit2.** The real Permit2 cannot be built under this package's compiler, so hermetic bids use
-  a double of its allowance-transfer slice; real Permit2 bids were exercised in the 28 September
-  practice run on a copy of Base.

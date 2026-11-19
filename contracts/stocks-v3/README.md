@@ -141,21 +141,11 @@ the last block, which then no longer matches version 2's. It is not taken.
 ## Layout
 
 The layout is version 2's, with `src/StocksLaunchpadV3.sol` and `src/interfaces/IStocksLaunchpadV3.sol`
-in place of the version 2 launchpad. Added tests:
-
-| Path | Proves |
-| --- | --- |
-| `test/StocksPreset.t.sol` | The new constants; the schedule sums to `1e7` over 431,991 blocks; it equals version 2 at every version 2 step boundary and stays within 10,218 mps of it at every 2-second mark and, by fuzzing, at any block. |
-| `test/StocksScheduleAuction.t.sol` | The pinned CCA accepts the schedule, and a version 3 launch's auction reports exactly what a version 2 auction from the same factory reports at every version 2 boundary, ten times as many blocks in. |
-| `test/StocksLaunchpadMigrate.t.sol` | Creator vesting on timestamps: before graduation, at the start, the middle, the end and after it, and five blocks sharing one timestamp releasing nothing new. |
-| `test/V2Schedule.sol` | Version 2's schedule, kept only as the reference, and the schedule arithmetic the tests use. |
-| `test/sepolia/StocksSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): the chain runs five blocks a second, and a launch through the real pinned CCA factory (code hash checked) and Permit2 opens 10 minutes after creation, releases version 3's amount at 12 hours, ends after a day, claims after 128 s, migrates at 256 s and not one block earlier, and vests the creator half at 15 days and all at 30. |
-| `test/base/AerodromeStockRouteFork.t.sol` | Version 2's route suite, moved from the local lab to a copy of Base mainnet with the real stock tokens: every admitted pool and feed binds and quotes, a $100 buy and a 0.1-share sale through the live AAPLc pool land within 1% of the feed, and a purchase beyond the pool's depth is refused by a 95%-of-quote minimum and executed at a zero minimum. |
-| `test/base/StocksBaseCopy.t.sol` | Version 2's lab lifecycle suite, ported to a copy of Base mainnet with the real AAPLc, its version 2 route and Aerodrome pool, the pinned CCA factory, Permit2, PoolManager, PositionManager, USDC and REGENT staking: a launch costs nothing and opens 3,000 blocks after creation; a full lifecycle with a direct bid and a USDC bid through the adapter graduates, opens the pool at the clearing price, charges both swap directions and settles the REGENT lane through the real route into live staking; a short raise fails and refunds; stakers receive the staker lane and the locked positions' fees. Also: the copy makes five blocks a second, a launch runs its day, delays and 30-day vesting on that clock, and one checkpoint across all thirteen steps costs about 230,000 gas. |
+in place of the version 2 launchpad.
 
 The deployment kit follows version 2's, for the two creations version 3 makes:
-`script/DeployStocksV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
-`requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
+`script/DeployStocksV3.s.sol`, the frozen release surface in `requirements/`, `reports/frozen/`
+and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
 `deployments/base-mainnet/`, whose `README.md` describes the ceremony and the Safe's admission of
 version 2's ten routes afterwards. The ceremony tool is `bin/ceremony.py`.
 
@@ -165,17 +155,6 @@ version 2's ten routes afterwards. The ceremony tool is `bin/ceremony.py`.
 cd contracts/stocks-v3
 python3 bootstrap-deps.py /path/to/hydrated/autolaunch/checkout   # once; fills lib/
 forge build
-forge test                                     # hermetic, offline
-FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
-FOUNDRY_PROFILE=base forge test                # Base mainnet copy, public endpoint, read-only
 ./bin/gate.sh                                  # the required gate, offline, on a clean commit
 python3 bin/ceremony.py render    # the deployment packet, offline
 ```
-
-The Sepolia profile forks `https://sepolia.base.org` inside Forge; nothing is signed or sent. The
-pool pieces, USDC, REGENT staking and the stock are built fresh at their Base mainnet addresses,
-which hold nothing usable on Sepolia; the CCA factory and Permit2 are Sepolia's own.
-
-The base profile forks `https://mainnet.base.org` at its latest block inside Forge; nothing is
-signed or sent. It needs Foundry 1.8.6 or later, whose Base network runs the stock tokens' one-byte
-`0xef` code, and takes about seven minutes on the public endpoint.

@@ -1,6 +1,6 @@
 # Machine-readable fork diff: RegentLBPStrategy against the pinned Liquidity Launcher LBPStrategy.
 #
-# This file is evidence, never configuration. Nothing reads it at build, test, or gate time; it
+# This file is evidence, never configuration. Nothing reads it at build or gate time; it
 # exists so a reviewer can check every upstream behaviour one by one and see whether this fork
 # preserved it, replaced it, or deleted it, and why.
 
@@ -238,9 +238,9 @@ deliberate_additions:
       tick boundary, so the highest reachable clearing price is the greatest multiple of the tick
       beneath it and the raw ceiling overstates the reachable raise.
     reason: A required raise the fixed auction cannot reach guarantees a failed launch, which the
-      specification calls a mathematically unreachable raise. The cap is proved tight rather than
-      assumed: a real pinned auction opened at exactly `MAX_REACHABLE_RAISE` settles on exactly
-      that raise from one on-grid bid and graduates.
+      specification calls a mathematically unreachable raise. The cap is tight: a real pinned
+      auction opened at exactly `MAX_REACHABLE_RAISE` settles on exactly that raise from one
+      on-grid bid and graduates.
     evidence: [STR-013, STR-014]
 
   - behaviour: `requiredRegentRaised` is the creator's to choose. Initialization refuses zero
@@ -265,7 +265,7 @@ deliberate_additions:
       of those would refuse the ordinary treasuries the design exists for. The two consequences that
       survive — a treasury that is another launch's artifact, and a treasury that collides with an
       address this strategy's current nonce would later produce — are recorded in the threat model
-      and proved rather than prevented.
+      rather than prevented.
     evidence: [STR-019, FAC-028, FAC-015]
 
   - behaviour: Both per-launch clones keep the pinned upstream ordinary `LibClone.clone`,

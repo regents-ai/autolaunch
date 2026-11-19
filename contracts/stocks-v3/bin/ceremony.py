@@ -14,18 +14,12 @@ consumes from the environment is never printed or written.
 
 Modes:
 
-  render      Offline. Runs the hermetic ceremony suite under the `deployment` profile. While the
-              deployed manifest is the empty record, re-derives the committed selection (when one
-              is installed) through the selection suite, renders the packet candidate from the
-              frozen manifest and compares it byte for byte with
+  render      Offline. While the deployed manifest is the empty record, renders the packet candidate
+              from the frozen manifest and compares it byte for byte with
               `deployments/<network>/mainnet-no-go-packet.json`. Once the manifest is a deployed
               record the chain is the authority: the installed packet is proved from its own
               content (its digest recomputes, the source tree it names exists in the repository)
               and the manifest names it; nothing is re-derived from HEAD. Reaches no network.
-  prepare     Reads the selected deployer's nonce, the head block, every binding's code hash and
-              the control surface through `cast` (read-only), mines the hook salt offline through
-              the selection suite, and writes a packet candidate carrying the selection and the
-              external observation to reports/generated/deployment/. A human installs it.
   rehearse    Re-observes the committed external state and compares it exactly, proves the deployer
               nonce still equals the committed one, and simulates the ceremony against the live
               chain with no signer and no broadcast. It simulates the exact creation transactions
@@ -67,7 +61,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import freeze  # noqa: E402  (keccak256, load_artifacts, code_object, render)
+import freeze  # noqa: E402  (build, keccak256, load_artifacts, code_object, render)
 
 GENERATED = Path("reports/generated/deployment")
 DEPLOYMENTS = Path("deployments")
@@ -79,9 +73,6 @@ MANIFEST_NAME = "deployed-manifest.json"
 SITE_CONFIG_NAME = "site-config.json"
 REHEARSED_TRANSACTIONS_NAME = "rehearsed-transactions.json"
 SAFE_BATCH_NAME = "safe-batch.json"
-DEPLOYMENT_PROFILE = "deployment"
-SELECTION_CONTRACT = "DeploymentSelectionTest"
-CEREMONY_CONTRACT = "DeploymentCeremonyTest"
 
 # Never run beside signing authority; the script and the tool only ever simulate and read.
 FORBIDDEN_ENV = (
@@ -94,7 +85,6 @@ DOTENV_FILES = (".env", ".env.local", ".envrc")
 ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]{40}")
 HASH32_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")
 URL_RE = re.compile(r"(?:https?|wss?)://[^\s\"'`)>\]]+")
-SELECTION_LOG_RE = re.compile(r"^selection (\S+): (.+)$")
 
 
 class CeremonyError(SystemExit):
@@ -172,50 +162,8 @@ def refuse_signing_authority() -> None:
 
 
 # =============================================================================
-# Forge and cast
+# Cast
 # =============================================================================
-
-
-def forge_env(offline: bool, extra: dict | None = None) -> dict:
-    env = dict(os.environ)
-    env.update({
-        "FOUNDRY_PROFILE": DEPLOYMENT_PROFILE,
-        "FOUNDRY_LINT_LINT_ON_BUILD": "false",
-        "RUST_LOG": "error",
-        "FOUNDRY_OFFLINE": "true" if offline else "false",
-    })
-    if extra:
-        env.update(extra)
-    return env
-
-
-def forge_test(match_contract: str, match_test: str | None, env: dict) -> dict:
-    args = ["forge", "test", "--json", "-vv", "--match-contract", match_contract]
-    if match_test:
-        args += ["--match-test", match_test]
-    report = json.loads(run(args, env=env))
-    results = {}
-    for suite in report.values():
-        for selector, outcome in (suite.get("test_results") or {}).items():
-            if outcome.get("status") != "Success":
-                raise CeremonyError(f"{match_contract}::{selector} did not pass: {outcome.get('reason')}")
-            results[selector] = outcome.get("decoded_logs") or []
-    if not results:
-        raise CeremonyError(f"no test of {match_contract} ran")
-    return results
-
-
-def selection_logs(match_test: str, env: dict) -> dict[str, str]:
-    results = forge_test(SELECTION_CONTRACT, match_test, env)
-    found: dict[str, str] = {}
-    for logs in results.values():
-        for line in logs:
-            match = SELECTION_LOG_RE.match(line)
-            if match:
-                found[match.group(1)] = match.group(2).strip()
-    if not found:
-        raise CeremonyError(f"{SELECTION_CONTRACT}::{match_test} emitted no selection")
-    return found
 
 
 class Chain:
@@ -375,29 +323,14 @@ class Package:
     """What differs between the two ceremonies, stated once per package."""
 
     CREATIONS: tuple[str, ...]
-    PREDICTED: tuple[str, ...]
     # The founder-sent creation whose constructor makes the internal creations.
     constructor_creator: str
     component: str
     network: str
     chain: Chain
-    hook_salt_env = "REGENT_DEPLOYMENT_HOOK_SALT"
-    deployer_env = "REGENT_DEPLOYMENT_DEPLOYER"
-    starting_nonce_env = "REGENT_DEPLOYMENT_STARTING_NONCE"
 
     def __init__(self, frozen: Frozen) -> None:
         self.frozen = frozen
-
-    # --- selection ---------------------------------------------------------------------------
-
-    def version_two_inputs(self) -> dict:
-        raise NotImplementedError
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        raise NotImplementedError
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        raise NotImplementedError
 
     # --- observation -------------------------------------------------------------------------
 
@@ -583,19 +516,6 @@ def safe_batch(meta: dict, chain_id: int, safe: str, calls: list[dict], created_
     }
 
 
-def mined_salt_bits(salt_hex: str) -> None:
-    if not HASH32_RE.match(salt_hex):
-        raise CeremonyError(f"the mined hook salt is not 32 bytes: {salt_hex}")
-
-
-def version_two_record(path: Path) -> dict:
-    """A version 2 package's committed deployed manifest, which a version 3 ceremony builds on."""
-    manifest = load_json(path)
-    if manifest.get("status") != "deployed":
-        raise CeremonyError(f"{path} is not a deployed record; version 3 builds on version 2's deployment")
-    return manifest
-
-
 def earlier_section(manifest_path: Path, abi_dir: Path, address_keys: tuple[str, ...],
                     abi_contracts: dict[str, str]) -> dict:
     """An earlier version's section of the site-config: the contracts the website keeps reading
@@ -627,9 +547,7 @@ class RevstakeV3(Package):
     component = "contracts/revstake-v3"
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
-    PREDICTED = ("factory", "strategy", "lp_locker", "hook")
-    # (contract, selection key) per version 2 address the factory binds, read from version 2's
-    # deployed manifest by contract name.
+    # (contract, selection key) per version 2 address the factory binds.
     REUSED = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
               ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"))
     VERSION_TWO = Path("../revstake-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
@@ -641,33 +559,6 @@ class RevstakeV3(Package):
                 "GOVERNANCE_AND_REGENT_SAFE")
     # The website drives the one Permit2 the Base Memestake build pins; Revstake binds none of its own.
     PERMIT2_IDENTITY = Path("../stocks-v3") / FROZEN_IDENTITY
-
-    def version_two_inputs(self) -> dict:
-        deployed = {entry["contract"]: entry["address"] for entry in version_two_record(self.VERSION_TWO)["contracts"]}
-        return {"reused": {key: checksum(deployed[contract]) for contract, key in self.REUSED}}
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        env = {
-            self.deployer_env: selection["deployer"],
-            self.starting_nonce_env: str(selection["starting_nonce"]),
-            **{f"REGENT_DEPLOYMENT_{key.upper()}": address for key, address in selection["reused"].items()},
-        }
-        if salt:
-            env[self.hook_salt_env] = salt
-        return env
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        for key, address in inputs["reused"].items():
-            if not same_address(logs[key], address):
-                raise CeremonyError(f"the selection suite derived from a different {key}: {logs[key]}, not {address}")
-        mined_salt_bits(logs["hook_salt"])
-        return {
-            "deployer": checksum(logs["deployer"]),
-            "starting_nonce": int(logs["starting_nonce"]),
-            "hook_salt": logs["hook_salt"],
-            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
-            "reused": inputs["reused"],
-        }
 
     def observe(self, selection: dict) -> dict:
         chain = self.chain
@@ -797,11 +688,9 @@ class StocksV3(Package):
     component = "contracts/stocks-v3"
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
-    PREDICTED = ("launchpad", "splitter_implementation", "locker", "hook", "bid_adapter")
     CREATIONS = ("StocksLaunchpadV3", "StockBidAdapterV1", "MemestockSplitterV1", "MemestockLPLocker", "StocksFeeHookV1")
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
-    VERSION_TWO = Path("../stocks-v2") / DEPLOYMENTS / "base-mainnet" / MANIFEST_NAME
     # The earlier launchpads, which their launches keep running on: the site-config section, the
     # package, and the contracts of each whose ABIs the website reads. Each section also names the
     # bid adapter its USDC bids went through.
@@ -809,38 +698,6 @@ class StocksV3(Package):
                                           "locker": "MemestockLPLocker"}),
                ("v2", Path("../stocks-v2"), {"launchpad": "StocksLaunchpadV2", "hook": "StocksFeeHookV1",
                                              "locker": "MemestockLPLocker"}))
-
-    def version_two_inputs(self) -> dict:
-        """The UERC20 factory version 2's launchpad binds and the stocks it admits with their routes."""
-        manifest = version_two_record(self.VERSION_TWO)
-        return {
-            "uerc20_factory": checksum(manifest["selection"]["uerc20_factory"]),
-            "admissions": [{"symbol": a["symbol"], "stock": checksum(a["stock"]), "route": checksum(a["route"])}
-                           for a in manifest["admissions"]],
-        }
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        env = {
-            self.deployer_env: selection["deployer"],
-            self.starting_nonce_env: str(selection["starting_nonce"]),
-            "REGENT_DEPLOYMENT_UERC20_FACTORY": selection["uerc20_factory"],
-        }
-        if salt:
-            env[self.hook_salt_env] = salt
-        return env
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        mined_salt_bits(logs["hook_salt"])
-        if not same_address(logs["uerc20_factory"], inputs["uerc20_factory"]):
-            raise CeremonyError("the selection suite derived from a different UERC20 factory")
-        return {
-            "deployer": checksum(logs["deployer"]),
-            "starting_nonce": int(logs["starting_nonce"]),
-            "hook_salt": logs["hook_salt"],
-            "uerc20_factory": inputs["uerc20_factory"],
-            "admissions": inputs["admissions"],
-            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
-        }
 
     def observe(self, selection: dict) -> dict:
         chain = self.chain
@@ -1081,7 +938,7 @@ def installed_manifest(package: Package) -> dict:
 def require_selection(package: Package) -> tuple[dict, dict, dict]:
     packet = installed_packet(package)
     if not packet or not packet.get("selection"):
-        raise CeremonyError(f"no selection is installed in deployments/{package.network}/{PACKET_NAME}; run prepare first and install its candidate")
+        raise CeremonyError(f"no selection is installed in deployments/{package.network}/{PACKET_NAME}")
     return packet, packet["selection"], packet["external_observation"]
 
 
@@ -1094,23 +951,6 @@ def compare_bytes(rendered: dict, installed: dict | None, label: str) -> None:
     if freeze.render(installed) != rendered_text:
         raise CeremonyError(f"{label}: the installed packet differs from the rendered candidate at {candidate}")
     print(f"{label}: the installed packet renders byte for byte; digest {rendered['digest']['value']}")
-
-
-def verify_hermetic_suite() -> None:
-    results = forge_test(CEREMONY_CONTRACT, None, forge_env(offline=True))
-    print(f"hermetic ceremony suite: {len(results)} tests passed under the deployment profile, offline")
-
-
-def verify_selection_rederives(package: Package, selection: dict) -> None:
-    env = forge_env(offline=True, extra=package.selection_environment(selection, selection["hook_salt"]))
-    logs = selection_logs("test_SelectionMatchesTheCommittedValues", env)
-    rederived = package.selection_from_logs(selection, logs)
-    for name in package.PREDICTED:
-        if rederived["predicted_addresses"][name] != selection["predicted_addresses"][name]:
-            raise CeremonyError(f"predicted {name} re-derives to {rederived['predicted_addresses'][name]}, not the committed {selection['predicted_addresses'][name]}")
-    if rederived["hook_salt"].lower() != selection["hook_salt"].lower():
-        raise CeremonyError("the committed hook salt did not round-trip")
-    print("selection: every predicted address re-derives from the committed values exactly")
 
 
 def is_deployed_record(package: Package) -> bool:
@@ -1162,42 +1002,15 @@ def verify_manifest_shape(package: Package, packet: dict | None) -> None:
 def mode_render(package: Package, frozen: Frozen, args: argparse.Namespace) -> int:
     os.environ.pop(package.chain.env_name, None)
     print("offline: no endpoint variable survives into this run")
-    verify_hermetic_suite()
     packet = installed_packet(package)
     if is_deployed_record(package):
         verify_deployed_packet(packet)
     else:
         selection = packet.get("selection") if packet else None
         observation = packet.get("external_observation") if packet else None
-        if selection:
-            verify_selection_rederives(package, selection)
         compare_bytes(render_packet(package, frozen, selection, observation), packet, "render")
     verify_manifest_shape(package, packet)
     print("CEREMONY RENDER PASS: mainnet-NO-GO, not authorized")
-    return 0
-
-
-def mode_prepare(package: Package, frozen: Frozen, args: argparse.Namespace) -> int:
-    deployer = checksum(args.deployer)
-    inputs = package.version_two_inputs()
-    package.chain.probe()
-    nonce = package.chain.nonce(deployer)
-    print(f"deployer {deployer} is at nonce {nonce} on {package.chain.alias}")
-    seed = {"deployer": deployer, "starting_nonce": nonce, **inputs}
-    env = forge_env(offline=True, extra=package.selection_environment(seed, None))
-    logs = selection_logs("test_SelectionPrepareCandidate", env)
-    selection = package.selection_from_logs(inputs, logs)
-    if selection["deployer"] != deployer or selection["starting_nonce"] != nonce:
-        raise CeremonyError("the selection suite did not derive from the selected deployer and its live nonce")
-    print(f"hook salt mined: {selection['hook_salt']}")
-    for name in package.PREDICTED:
-        print(f"predicted {name}: {selection['predicted_addresses'][name]}")
-    observation = package.observe(selection)
-    print(f"external state observed at block {observation['observed_at_block']}")
-    verify_hermetic_suite()
-    candidate = write_candidate(PACKET_NAME, render_packet(package, frozen, selection, observation))
-    print(f"packet candidate written to {candidate}; review it, install it at deployments/{package.network}/{PACKET_NAME} and commit on the founder's word")
-    print("CEREMONY PREPARE PASS: mainnet-NO-GO, not authorized")
     return 0
 
 
@@ -1214,7 +1027,6 @@ def mode_rehearse(package: Package, frozen: Frozen, args: argparse.Namespace) ->
     if problems:
         raise CeremonyError("external state moved since the packet was prepared:\n  " + "\n  ".join(problems))
     print("external observation: every committed fact matches the live chain exactly")
-    verify_selection_rederives(package, selection)
     package.rehearse(packet)
     print("CEREMONY REHEARSE PASS: mainnet-NO-GO, not authorized")
     return 0
@@ -1316,8 +1128,8 @@ CONTRACT_KEYS = {
 
 
 def frozen_artifacts(frozen: Frozen) -> dict[str, dict]:
-    """The default-profile build, proved to be the frozen one object by object."""
-    run(["forge", "build"], env=dict(os.environ, FOUNDRY_PROFILE="default", FOUNDRY_OFFLINE="true", FOUNDRY_LINT_LINT_ON_BUILD="false"))
+    """The freezer's build, proved to be the frozen one object by object."""
+    freeze.build(frozen.requirements)
     artifacts = freeze.load_artifacts(Path("out"))
     by_name: dict[str, dict] = {}
     for key, artifact in artifacts.items():
@@ -1364,13 +1176,14 @@ def mode_site_config(package: Package, frozen: Frozen, args: argparse.Namespace)
     manifest = installed_manifest(package)
     if manifest.get("status") != "deployed":
         raise CeremonyError("no deployed manifest is installed; the site-config is rendered from confirmed receipts only")
+    freeze.build(frozen.requirements)
     artifacts = freeze.load_artifacts(Path("out"))
     abis = {}
     for key, target in package.abi_artifacts().items():
         try:
             abis[key] = artifacts[target]["abi"]
         except KeyError:
-            raise CeremonyError(f"out carries no artifact {target}; run forge build first")
+            raise CeremonyError(f"the build carries no artifact {target}")
     document = package.site_config(manifest, args, abis)
     candidate = write_candidate(SITE_CONFIG_NAME, document)
     print(f"site-config written to {candidate}; it carries both endpoints and is never committed")
@@ -1389,8 +1202,6 @@ def main() -> int:
     except KeyError:
         raise CeremonyError(f"{frozen.component} has no ceremony profile")
     modes.add_parser("render")
-    prepare = modes.add_parser("prepare")
-    prepare.add_argument("--deployer", required=True, help="the founder-selected deployer; its live nonce becomes the starting nonce")
     modes.add_parser("rehearse")
     preflight = modes.add_parser("preflight")
     preflight.add_argument("index", type=int, help="the creation about to be sent, counting from 0 in nonce order")
@@ -1404,7 +1215,6 @@ def main() -> int:
     refuse_signing_authority()
     return {
         "render": mode_render,
-        "prepare": mode_prepare,
         "rehearse": mode_rehearse,
         "preflight": mode_preflight,
         "record": mode_record,

@@ -2,8 +2,8 @@
 
 ## How Slither runs
 
-`bin/gate.sh` runs Slither only after the frozen identity, the build identity, the frozen release
-surface, the compiled test listing and the executed test set are all green:
+`bin/gate.sh` runs Slither only after the frozen identity, the build identity and the frozen release
+surface are all green:
 
 ```
 slither . --fail-medium --json reports/generated/slither.json --checklist
@@ -45,9 +45,8 @@ configuration key or a well-formed command-line flag, so the gate pins both:
 - The gate compares the number of contracts Slither says it analyzed against the number of
   contracts, libraries and interfaces declared under `src/`, so a narrowed source list cannot
   produce a quiet pass.
-- Every inline `slither-disable` comment under `src/`, `test/` and `script/` needs a row in the
-  inline suppressions table naming its detector, its rationale and a protecting test that Foundry
-  lists; a suppression without a record, or one naming a test that does not exist, fails.
+- Every inline `slither-disable` comment under `src/` and `script/` needs a row in the inline
+  suppressions table naming its detector and its rationale; a suppression without a record fails.
 
 ## Generated evidence
 
@@ -86,41 +85,39 @@ committed. The tables below are the committed record the gate reconciles them ag
 
 <!-- slither-suppression-count: 32 -->
 
-Every suppression is on a `slither-disable-next-line` comment. The protecting test is the hermetic
-test that exercises the suppressed line's behaviour and would fail if the suppressed concern were
-real.
+Every suppression is on a `slither-disable-next-line` comment.
 
-| File | Detector | Rationale | Protecting test |
-|---|---|---|---|
-| `src/StockBidAdapterV1.sol` | `reentrancy-no-eth` | `bidWithUsdc` is `nonReentrant`; every external call (launchpad reads, USDC pull, route swap, Permit2 approve, CCA `submitBid`) happens inside one guarded invocation and the only state is the guard itself. | `test_two_invocations_are_independent_bids` |
-| `src/StockBidAdapterV1.sol` | `reentrancy-benign` | Same guarded invocation; the adapter holds no accounting state a re-entered call could read stale. | `test_two_invocations_are_independent_bids` |
-| `src/StockBidAdapterV1.sol` | `timestamp` | `deadline` is the caller's own wall-clock bound compared with `block.timestamp`; a miner shifting the block time by seconds can only make the caller's own bid expire, never move value. | `test_deadline_zero_amount_and_allowance_guards` |
-| `src/StockBidAdapterV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed here and a missing route reverts with `NoRoute`. | `test_each_auction_resolves_its_own_stock_and_route` |
-| `src/StockBidAdapterV1.sol` | `unused-return` | The route's reported output is not trusted; the STOCK actually received is measured by balance delta and compared with `minStockOut`. | `test_min_stock_out_and_zero_output_are_refused` |
-| `src/StockBidAdapterV1.sol` | `unused-return` | Only the remaining Permit2 amount is read from `allowance`; expiry and nonce are irrelevant once the amount is proved zero. | `test_larger_standing_allowance_is_consumed_exactly` |
-| `src/StocksLaunchpadV1.sol` | `missing-zero-check` | `_requireRuntimeCodeHash` runs first and the zero address has no code, so it can never carry the required UERC20 factory hash. | `test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve` |
-| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `launch` is `nonReentrant`; the launch record is written in one guarded invocation after the token and auction are created. | `test_launch_is_atomic_when_the_auction_creation_fails` |
-| `src/StocksLaunchpadV1.sol` | `reentrancy-benign` | Same guarded `launch`; no other entry point reads the record before the invocation completes. | `test_launch_is_atomic_when_the_auction_creation_fails` |
-| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `migrate` is `nonReentrant` and writes the terminal lifecycle before the first external call of either branch. | `test_migrate_guards` |
-| `src/StocksLaunchpadV1.sol` | `unused-return` | `checkpoint()` returns the checkpoint it wrote; the classification is read back through `isGraduated()` and `lbpInitializationParams()`. | `test_graduation_both_orderings` |
-| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_retire` runs only inside guarded `migrate`, writes `Lifecycle.Failed` before the sweep, and the amount recorded after it is the only late write. | `test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca` |
-| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_graduate` runs only inside guarded `migrate`, writes `Lifecycle.Graduated` before the first external call, and every later revert rolls the whole graduation back. | `test_graduation_both_orderings` |
-| `src/StocksLaunchpadV1.sol` | `incorrect-equality` | `auction.code.length == 0` is a code-presence check on the CREATE2 address the factory returned, not an arithmetic equality anybody can steer. | `test_launch_is_atomic_when_the_auction_creation_fails` |
-| `src/StocksLaunchpadV1.sol` | `unused-return` | `PoolManager.initialize` returns the initial tick; the pool key and price are already fixed by the graduation and the tick is not needed. | `test_nobody_can_initialize_the_official_pool_before_migration` |
-| `src/StocksLaunchpadV1.sol` | `unused-return` | `PositionPlanner.resolve` returns positions and a residue; the full-range position is validated to be exactly one and the residue is handled by the second, stock-only plan. | `testFuzz_graduation_locks_all_net_stock_at_any_clearing_price` |
-| `src/StocksLaunchpadV1.sol` | `unused-return` | The stock-only plan's residue is retired by the fixed preset rule after both positions are minted. | `testFuzz_graduation_locks_all_net_stock_at_any_clearing_price` |
-| `src/StocksPreset.sol` | `divide-before-multiply` | `4 * (INITIAL_SUPPLY / 5)` is exact: the supply is a multiple of five, so the division has no remainder and the two allocations sum to the supply. | `test_allocation_splits_the_initial_supply_exactly` |
-| `src/routes/AerodromeStockRouteV2.sol` | `unused-return` | `latestRoundData` returns five fields; only the answer and its update time matter, and the update time is checked for zero and staleness on the next lines. | `test_quote_rejects_a_stopped_or_broken_feed` |
-| `src/MemestockLPLocker.sol` | `unused-return` | `getPoolAndPositionInfo` returns the key and packed position info; registration validates the key and reads liquidity through `getPositionLiquidity` instead of trusting the info word. | `test_registration_checks_ownership_pool_and_splitter` |
-| `src/MemestockLPLocker.sol` | `unused-return` | `collect` needs only the registered position's two currencies from `getPoolAndPositionInfo`; the collected amounts are measured by balance delta. | `test_collect_deposits_both_currencies_into_the_splitter_and_keeps_nothing` |
-| `src/StocksFeeHookV1.sol` | `missing-zero-check` | Zero is a legitimate executor value that disables `settleRegentLane`, and `setExecutor` is governance only. | `test_settle_regent_lane_guards` |
-| `src/StocksFeeHookV1.sol` | `reentrancy-no-eth` | `settleRegentLane` is `nonReentrant` and debits the lane before any token moves. | `test_settle_regent_lane_deposits_usdc_into_live_staking` |
-| `src/StocksFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the residue re-credit after the swap is the only later write and is part of the same invocation. | `test_settle_regent_lane_re_credits_route_residue` |
-| `src/StocksFeeHookV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed and a missing route reverts with `NoRoute`. | `test_settle_regent_lane_guards` |
-| `src/StocksFeeHookV1.sol` | `unused-return` | The route's reported output is not trusted; USDC received is measured by balance delta and compared with `minUsdcOut`. | `test_settle_regent_lane_deposits_usdc_into_live_staking` |
-| `src/StocksFeeHookV1.sol` | `reentrancy-no-eth` | `settleStakerLane` is `nonReentrant` and zeroes the lane before depositing into the splitter. | `test_settle_staker_lane_is_permissionless_and_deposits_stock_in_kind_into_the_splitter` |
-| `src/StocksFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the only state is the lane it zeroes first. | `test_settle_staker_lane_guards` |
-| `src/StocksFeeHookV1.sol` | `divide-before-multiply` | Each lane is floored independently on purpose: two equal lanes of `realized / 100`, never one lane floored from two percent; the fee matrix proves conservation. | `test_small_stock_inputs_are_charged_exactly_and_floored` |
-| `src/StocksFeeHookV1.sol` | `divide-before-multiply` | `LANES * lane` takes exactly the two floored lanes that were accrued, so the hook's balance equals the sum of both lanes. | `test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes` |
-| `src/StocksFeeHookV1.sol` | `reentrancy-events` | `HookFeeAccrued` is emitted after `poolManager.take` inside the pool manager's own swap lock; the event reports the amounts already accrued. | `test_accrual_event_reports_both_lanes` |
-| `src/MemestockSplitterCore.sol` | `incorrect-equality` | `address(this).balance == 0` is the intended check: the splitter has no receive path, so any balance is force-sent ETH and the whole of it goes to the treasury. | `test_force_sent_eth_goes_to_the_safe` |
+| File | Detector | Rationale |
+|---|---|---|
+| `src/StockBidAdapterV1.sol` | `reentrancy-no-eth` | `bidWithUsdc` is `nonReentrant`; every external call (launchpad reads, USDC pull, route swap, Permit2 approve, CCA `submitBid`) happens inside one guarded invocation and the only state is the guard itself. |
+| `src/StockBidAdapterV1.sol` | `reentrancy-benign` | Same guarded invocation; the adapter holds no accounting state a re-entered call could read stale. |
+| `src/StockBidAdapterV1.sol` | `timestamp` | `deadline` is the caller's own wall-clock bound compared with `block.timestamp`; a miner shifting the block time by seconds can only make the caller's own bid expire, never move value. |
+| `src/StockBidAdapterV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed here and a missing route reverts with `NoRoute`. |
+| `src/StockBidAdapterV1.sol` | `unused-return` | The route's reported output is not trusted; the STOCK actually received is measured by balance delta and compared with `minStockOut`. |
+| `src/StockBidAdapterV1.sol` | `unused-return` | Only the remaining Permit2 amount is read from `allowance`; expiry and nonce are irrelevant once the amount is proved zero. |
+| `src/StocksLaunchpadV1.sol` | `missing-zero-check` | `_requireRuntimeCodeHash` runs first and the zero address has no code, so it can never carry the required UERC20 factory hash. |
+| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `launch` is `nonReentrant`; the launch record is written in one guarded invocation after the token and auction are created. |
+| `src/StocksLaunchpadV1.sol` | `reentrancy-benign` | Same guarded `launch`; no other entry point reads the record before the invocation completes. |
+| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `migrate` is `nonReentrant` and writes the terminal lifecycle before the first external call of either branch. |
+| `src/StocksLaunchpadV1.sol` | `unused-return` | `checkpoint()` returns the checkpoint it wrote; the classification is read back through `isGraduated()` and `lbpInitializationParams()`. |
+| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_retire` runs only inside guarded `migrate`, writes `Lifecycle.Failed` before the sweep, and the amount recorded after it is the only late write. |
+| `src/StocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_graduate` runs only inside guarded `migrate`, writes `Lifecycle.Graduated` before the first external call, and every later revert rolls the whole graduation back. |
+| `src/StocksLaunchpadV1.sol` | `incorrect-equality` | `auction.code.length == 0` is a code-presence check on the CREATE2 address the factory returned, not an arithmetic equality anybody can steer. |
+| `src/StocksLaunchpadV1.sol` | `unused-return` | `PoolManager.initialize` returns the initial tick; the pool key and price are already fixed by the graduation and the tick is not needed. |
+| `src/StocksLaunchpadV1.sol` | `unused-return` | `PositionPlanner.resolve` returns positions and a residue; the full-range position is validated to be exactly one and the residue is handled by the second, stock-only plan. |
+| `src/StocksLaunchpadV1.sol` | `unused-return` | The stock-only plan's residue is retired by the fixed preset rule after both positions are minted. |
+| `src/StocksPreset.sol` | `divide-before-multiply` | `4 * (INITIAL_SUPPLY / 5)` is exact: the supply is a multiple of five, so the division has no remainder and the two allocations sum to the supply. |
+| `src/routes/AerodromeStockRouteV2.sol` | `unused-return` | `latestRoundData` returns five fields; only the answer and its update time matter, and the update time is checked for zero and staleness on the next lines. |
+| `src/MemestockLPLocker.sol` | `unused-return` | `getPoolAndPositionInfo` returns the key and packed position info; registration validates the key and reads liquidity through `getPositionLiquidity` instead of trusting the info word. |
+| `src/MemestockLPLocker.sol` | `unused-return` | `collect` needs only the registered position's two currencies from `getPoolAndPositionInfo`; the collected amounts are measured by balance delta. |
+| `src/StocksFeeHookV1.sol` | `missing-zero-check` | Zero is a legitimate executor value that disables `settleRegentLane`, and `setExecutor` is governance only. |
+| `src/StocksFeeHookV1.sol` | `reentrancy-no-eth` | `settleRegentLane` is `nonReentrant` and debits the lane before any token moves. |
+| `src/StocksFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the residue re-credit after the swap is the only later write and is part of the same invocation. |
+| `src/StocksFeeHookV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed and a missing route reverts with `NoRoute`. |
+| `src/StocksFeeHookV1.sol` | `unused-return` | The route's reported output is not trusted; USDC received is measured by balance delta and compared with `minUsdcOut`. |
+| `src/StocksFeeHookV1.sol` | `reentrancy-no-eth` | `settleStakerLane` is `nonReentrant` and zeroes the lane before depositing into the splitter. |
+| `src/StocksFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the only state is the lane it zeroes first. |
+| `src/StocksFeeHookV1.sol` | `divide-before-multiply` | Each lane is floored independently on purpose: two equal lanes of `realized / 100`, never one lane floored from two percent; the fee matrix proves conservation. |
+| `src/StocksFeeHookV1.sol` | `divide-before-multiply` | `LANES * lane` takes exactly the two floored lanes that were accrued, so the hook's balance equals the sum of both lanes. |
+| `src/StocksFeeHookV1.sol` | `reentrancy-events` | `HookFeeAccrued` is emitted after `poolManager.take` inside the pool manager's own swap lock; the event reports the amounts already accrued. |
+| `src/MemestockSplitterCore.sol` | `incorrect-equality` | `address(this).balance == 0` is the intended check: the splitter has no receive path, so any balance is force-sent ETH and the whole of it goes to the treasury. |

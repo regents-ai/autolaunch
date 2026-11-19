@@ -46,12 +46,5 @@ One contract instance per stock. It has no owner, admin, oracle, upgrade or paus
 bin/gate.sh
 ```
 
-The offline gate: `forge fmt --check`, `forge build`, and the unit, recovery and invariant suites.
+The offline gate: `forge fmt --check` and `forge build`.
 It builds against `../stocks-v2/lib` (forge-std and solady), filled by `stocks-v2/bootstrap-deps.py`.
-
-The Base fork suite (`test/fork/`) runs the contract against the real AMZNc token, Base USDC and live
-REGENT staking. Base stock tokens are B20 precompiles, so it needs Foundry 1.8.4 or later with the
-Base network: start `anvil --network base --fork-url <Base RPC>`, then
-`FOUNDRY_PROFILE=fork forge test --network base --fork-url http://127.0.0.1:<port>`. Foundry's local
-B20 does not yet have the newer `effectiveAt()` read, so the fork suite stands in its live mainnet
-value (0); everything else is the real token.

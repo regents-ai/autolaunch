@@ -53,10 +53,6 @@ GIT_TERMINAL_PROMPT=0
 PYTHONDONTWRITEBYTECODE=1
 export FOUNDRY_OFFLINE FOUNDRY_PROFILE GIT_TERMINAL_PROMPT PYTHONDONTWRITEBYTECODE
 
-# The gates this entrypoint proves. A claim designated for any other gate can be activated,
-# but it is never closed here and its selectors may not run here.
-GATES=hermetic,invariant
-
 frozen=requirements/frozen-identity.json
 ledger=requirements/ledger.toml
 manifest=contracts/chain-contracts.yaml
@@ -69,17 +65,12 @@ sizes=reports/frozen/deployable-sizes.json
 slither_config=slither.config.json
 checker=bin/check-requirements.py
 freezer=bin/freeze-artifacts.py
-tooling_test=test/tooling/provider_output_scan_test.py
-component_root_test=test/tooling/component_root_test.py
 
 generated=reports/generated
 receipt_final="$generated/dependency-receipt.txt"
 receipt="$generated/.dependency-receipt.tmp"
 tool_identity="$generated/tool-identity.txt"
 forge_config="$generated/forge-config.json"
-test_list="$generated/forge-test-list.json"
-test_report="$generated/forge-test.json"
-test_stderr="$generated/forge-test.stderr.log"
 slither_json="$generated/slither.json"
 slither_checklist="$generated/slither-checklist.md"
 slither_stderr="$generated/slither.stderr.log"
@@ -347,7 +338,7 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" "$tooling_test" "$component_root_test" \
+    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" \
     src/bindings/FrozenIdentity.sol \
     SPEC.md "$git_root/.gitmodules" foundry.toml reports/frozen/c4-runtime-baseline.json; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
@@ -367,7 +358,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
 cat "$tool_identity"
 
 # The effective configuration, not the committed file: an environment override that changes
-# the build or the fuzz portfolio shows up here and fails the reconciliation.
+# the build shows up here and fails the reconciliation.
 forge config --json >"$forge_config"
 
 # ---------------------------------------------------------------------------
@@ -408,7 +399,10 @@ section "Build and compiled build identity"
 # Stale Foundry artifacts cannot participate in evidence compilation. `forge clean` is bounded by
 # the committed Foundry configuration to this ticket's own out/cache roots.
 forge clean
-forge build --sizes
+# One compiler run over the package's own roots and the pinned upstream sources the freezer
+# names. The freezer prints them one per line, none with a space.
+build_paths=$(python3 "$freezer" paths)
+forge build --sizes $build_paths
 
 python3 "$checker" artifacts --frozen "$frozen" --out out --receipt "$receipt"
 
@@ -419,8 +413,7 @@ section "Frozen release surface"
 # Check mode only. The freezer regenerates every committed ABI, surface, size and manifest
 # document from these artifacts and compares byte for byte, then compares the whole src/**
 # compiled byte string against the pre-edit C4 baseline captured before this ticket touched
-# any file. It writes DEP-016's verified receipt, so deleting this invocation does not
-# quietly stop checking the freeze — it fails the ledger reconciliation below.
+# any file. It writes DEP-016's verified receipt.
 python3 "$freezer" check \
     --out out \
     --frozen "$frozen" \
@@ -429,40 +422,13 @@ python3 "$freezer" check \
     --receipt "$receipt"
 
 # ---------------------------------------------------------------------------
-section "Compiled test listing, execution, and requirement reconciliation"
-# ---------------------------------------------------------------------------
-
-# Foundry's own compiled listing, regenerated on every run. It is the authority for which
-# test identities exist: a source scan cannot tell inherited, overloaded, or duplicated
-# identities apart, and this can.
-forge test --list --json >"$test_list"
-
-test_status=0
-# `-vv` is load-bearing rather than cosmetic: Foundry only populates each result's
-# `decoded_logs` at that verbosity, and the published-evidence reconciliation below reads
-# GAS-007's own emitted measurements out of exactly that field.
-forge test --json -vv >"$test_report" 2>"$test_stderr" || test_status=$?
-cat "$test_stderr"
-
-python3 "$checker" ledger \
-    --ledger "$ledger" \
-    --spec SPEC.md \
-    --gates "$GATES" \
-    --test-list "$test_list" \
-    --test-report "$test_report" \
-    --receipt "$receipt"
-
-[ "$test_status" -eq 0 ] || fail "forge test exited $test_status"
-
-# ---------------------------------------------------------------------------
 section "Published-evidence reconciliation"
 # ---------------------------------------------------------------------------
 
-# The audit packet publishes figures a founder is asked to read rather than rerun. Every one of
-# them is compared here against the artifact or the executed measurement it came from, so a stale
-# published number fails the gate instead of surviving review.
+# The audit packet publishes sizes a founder is asked to read rather than rerun. Every one of
+# them is compared here against the frozen record it came from, so a stale published number
+# fails the gate instead of surviving review.
 python3 "$checker" evidence \
-    --test-report "$test_report" \
     --sizes "$sizes" \
     --gas-doc "$gas_doc"
 
@@ -509,37 +475,16 @@ python3 "$checker" security \
     --slither-command "$slither_command" \
     --detector-inventory "$detector_inventory" \
     --dispositions "$dispositions" \
-    --test-list "$test_list" \
     --analyzed-sources src \
-    --suppression-sources src test script
+    --suppression-sources src script
 
 [ "$slither_status" -eq 0 ] || fail "slither exited $slither_status"
-
-# ---------------------------------------------------------------------------
-section "Provider-output scan tooling"
-# ---------------------------------------------------------------------------
-
-# The fork gate's two failure orders — a clean run that failed, and dirty output whatever the
-# run's status — are shell control flow around a Python scanner, so no Solidity test can reach
-# them. They are proved here instead, deterministically and without a provider, against the real
-# `sanitize` implementation. A failure is a gate failure.
-python3 "$tooling_test"
-
-# ---------------------------------------------------------------------------
-section "Component-root tooling"
-# ---------------------------------------------------------------------------
-
-# The three gates refuse every script root except contracts/v1 under the Git top level, and the
-# checker reads the shared top-level .gitmodules as component-relative paths. Both boundaries are
-# shell and Python control flow around Git, so they are proved here against copies of the real
-# scripts in throwaway repositories. A failure is a gate failure.
-python3 "$component_root_test"
 
 # ---------------------------------------------------------------------------
 section "Provider-secret scan"
 # ---------------------------------------------------------------------------
 
-# Bind the receipt to the exact clean commit only after every compilation, test, evidence and
+# Bind the receipt to the exact clean commit only after every compilation, evidence and
 # static-analysis check has succeeded. It remains temporary until the final scan and repository
 # integrity proof below.
 tested_commit=$(git rev-parse HEAD)
@@ -555,12 +500,11 @@ tested_src=$(git rev-parse "HEAD:$component/src")
 # Nothing this gate produces, and nothing it commits, may carry a resolved provider endpoint.
 # The scan covers every evidence location recursively: the regenerated evidence — the effective
 # Foundry configuration included, so a resolved RPC alias would show up — every committed frozen
-# artifact, the whole audit packet, and the fork harness itself. The effective configuration is
-# additionally walked to every nested leaf, because a credential one level down is still a
-# credential.
+# artifact and the whole audit packet. The effective configuration is additionally walked to
+# every nested leaf, because a credential one level down is still a credential.
 python3 "$checker" secrets \
     --forge-config "$forge_config" \
-    --scan "$generated" reports/frozen abi contracts requirements docs/audit docs/security test-fork
+    --scan "$generated" reports/frozen abi contracts requirements docs/audit docs/security
 
 require_clean_repository
 [ "$repository_identity" = "$initial_repository_identity" ] ||

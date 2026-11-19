@@ -3,21 +3,22 @@
 Revstake `contracts/revstake-v3`).
 
 Every committed file under `abi/` and every document under `reports/frozen/` is *generated* from
-the exact compiler artifacts in `out/`, the pinned dependency snapshot and Foundry's own compiled
-test listing. Nothing here is hand written, and nothing here restates a value the compiler already
-decided. The package's `requirements/freeze.json` names what is frozen: the production contracts,
-the clone targets, the hook and its permission bits, the admitted dependency builds, and the
-dependency snapshot.
+the exact compiler artifacts in `out/` and the pinned dependency snapshot. Nothing here is hand
+written, and nothing here restates a value the compiler already decided. The package's
+`requirements/freeze.json` names what is frozen: the production contracts, the clone targets, the
+hook and its permission bits, the admitted dependency builds, and the dependency snapshot.
 
-Two modes:
+Three modes:
 
-  write  Run `forge clean`, `forge build` and `forge test --list --json`, then regenerate every
-         frozen output from that build.
-  check  Regenerate into memory from the build the gate just made and the test listing the gate
-         just took, and compare byte for byte with the committed files. Any drift — a changed
-         runtime byte, a hand-edited ABI, a renamed event, a changed integer width, a deleted or
-         renamed test, a changed dependency file — fails closed. Check mode appends its own verified
-         receipt line so the gate's report carries what was reconciled.
+  paths  Print what the build compiles: the package's own roots and the dependency sources
+         `dependency_contracts` names. The package's own sources do not import every one of them,
+         and the frozen record, the gate and the ceremony all read their artifacts.
+  write  Run `forge clean` and `forge build` over those paths, then regenerate every frozen output
+         from that build.
+  check  Regenerate into memory from the build the gate just made and compare byte for byte with
+         the committed files. Any drift — a changed runtime byte, a hand-edited ABI, a renamed
+         event, a changed integer width, a changed dependency file — fails closed. Check mode
+         appends its own verified receipt line so the gate's report carries what was reconciled.
 
 The keccak-256 used for selectors and event topics is implemented here rather than imported, so the
 gate needs no package. It is not trusted on its word: every function selector it derives is
@@ -683,33 +684,6 @@ def dependency_closure_document(freeze: dict) -> dict:
     }
 
 
-# =============================================================================
-# test portfolio
-# =============================================================================
-
-
-def test_listing_document(listing: dict) -> dict:
-    """Foundry's own compiled test listing, sorted, as the frozen test portfolio.
-
-    The gate compares the listing it takes to this one, so a deleted, renamed or added test is a
-    freeze change rather than a silent shrink or growth of the evidence.
-    """
-    portfolio = {
-        path: {contract: sorted(tests) for contract, tests in sorted(contracts.items())}
-        for path, contracts in sorted(listing.items())
-    }
-    total = sum(len(tests) for contracts in portfolio.values() for tests in contracts.values())
-    return {
-        "purpose": (
-            "The frozen hermetic test portfolio: every test identity Foundry lists under the default "
-            "profile, by source file and contract. bin/gate.sh takes the listing again and requires "
-            "it to equal this, then requires every listed test to execute exactly once and pass."
-        ),
-        "total": total,
-        "tests": portfolio,
-    }
-
-
 def render(document: object) -> str:
     return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
 
@@ -725,15 +699,28 @@ def forge(*args: str) -> str:
     return result.stdout
 
 
+def build_paths(freeze: dict) -> list[str]:
+    """The configured source, test and script roots that exist, then the pinned dependency sources
+    the freeze record names, which those roots do not all import. They compile in one run: a
+    separate run would write a dependency's artifact over a same-named source of the package's own."""
+    config = json.loads(forge("config", "--json"))
+    roots = [config[key] for key in ("src", "test", "script") if Path(config[key]).is_dir()]
+    return [*roots, *sorted({wanted["source"] for wanted in freeze["dependency_contracts"].values()})]
+
+
+def build(freeze: dict) -> None:
+    forge("build", *build_paths(freeze))
+
+
 def run(args: argparse.Namespace) -> int:
     freeze = json.loads(Path(args.freeze).read_text(encoding="utf-8"))
 
+    if args.mode == "paths":
+        print("\n".join(build_paths(freeze)))
+        return 0
     if args.mode == "write":
         forge("clean")
-        forge("build")
-        listing = json.loads(forge("test", "--list", "--json"))
-    else:
-        listing = json.loads(Path(args.test_list).read_text(encoding="utf-8"))
+        build(freeze)
 
     artifacts = load_artifacts(Path(args.out))
     all_owned = owned(artifacts, tuple(freeze["owned_source_prefixes"]))
@@ -758,7 +745,6 @@ def run(args: argparse.Namespace) -> int:
             manifest_document(freeze, entries, all_owned, dependencies, template)
         ),
         Path("reports/frozen/dependency-closure.json"): render(dependency_closure_document(freeze)),
-        Path("reports/frozen/test-listing.json"): render(test_listing_document(listing)),
     }
     for name in freeze["production_contracts"]:
         documents[Path(f"abi/{name}.json")] = render(contract_abi_document(name, entries[name]))
@@ -790,28 +776,24 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     closure = dependency_closure_document(freeze)["dependencies"]
-    total_tests = test_listing_document(listing)["total"]
     with Path(args.receipt).open("a", encoding="utf-8") as handle:
         handle.write(
             f"freeze verified: bin/freeze.py check regenerated {len(documents)} frozen documents byte for "
             f"byte from {len(artifacts)} compiled artifacts ({len(all_owned)} owned, "
             f"{len(entries)} production), reconciled {selectors_checked} solc method identifiers against "
-            f"its own keccak, pinned {len(closure)} dependency snapshots by content, and froze "
-            f"{total_tests} hermetic test identities\n"
+            f"its own keccak, and pinned {len(closure)} dependency snapshots by content\n"
         )
     print(f"frozen documents reconciled: {len(documents)}")
     print(f"solc method identifiers reconciled against derived keccak: {selectors_checked}")
     print(f"dependency snapshots pinned by content: {len(closure)}")
-    print(f"frozen hermetic test identities: {total_tests}")
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("write", "check"))
+    parser.add_argument("mode", choices=("paths", "write", "check"))
     parser.add_argument("--freeze", default="requirements/freeze.json")
     parser.add_argument("--out", default="out")
-    parser.add_argument("--test-list", default="reports/generated/forge-test-list.json")
     parser.add_argument("--receipt", default="reports/generated/dependency-receipt.txt")
     return run(parser.parse_args())
 

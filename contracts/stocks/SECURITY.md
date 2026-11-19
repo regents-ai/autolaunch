@@ -1,6 +1,6 @@
-# Autolaunch Stocks: security posture and invariant proofs
+# Autolaunch Stocks: security posture and invariants
 
-Status: unit-proven and fork-proven against fixtures. Deployed on Base on 23 September 2026
+Status: deployed on Base on 23 September 2026
 (`deployments/base-mainnet/README.md`), launches open since 24 September 2026; ten stocks admitted with
 `AerodromeStockRouteV2` routes, which carry no execution price guard.
 
@@ -58,32 +58,28 @@ requirement ("STOCK-side hook fees on every swap") therefore needs `beforeSwap` 
 beforeSwapReturnDelta, afterSwapReturnDelta`; the address is CREATE2-mined for exactly those bits.
 STOCK-specified swaps whose fill is cut short by the trader's own price limit revert
 (`PartialFillNotSupported`) rather than charging an inexact pre-committed fee; STOCK-unspecified swaps
-fill partially as usual. `test_fee_matrix_charges_stock_on_every_swap_form_with_conservation`
-proves all 8 (ordering × form) cases.
+fill partially as usual.
 
-## Invariants (numbered as in README "Money and custody rules") and their proofs
+## Invariants (numbered as in README "Money and custody rules")
 
-| # | Rule | Where enforced | Proved by |
-| --- | --- | --- | --- |
-| 1 | Exactly `S0` minted, to the launchpad, once; `inventory + reserve == S0`; launchpad holds only the reserve after `launch` | `_createNew` (supply and balance read-back), `launch` (exact inventory delivery, `ReserveMismatch`) | `StocksPresetTest.test_allocation_splits_the_initial_supply_exactly`, `StocksLaunchpadLaunchTest.test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve`, `test_launch_is_atomic_when_the_auction_creation_fails` |
-| 2 | CCA `currency == stock`, both recipients the launchpad, `protocolFeeController == 0` | `_createAuction` reads back 11 bindings; `launch` refuses a nonzero controller | `test_auction_is_bound_to_stock_and_to_the_launchpad_as_both_recipients`; fork: `test_fork_full_lifecycle_*` against the real factory |
-| 3 | `migrate` classifies with the final checkpoint; graduation sweeps, registers, initializes, clones the splitter, mints two positions to the locker in one PositionManager call and registers both to that splitter — the full range from the whole reserve and the STOCK it pairs, then a one-sided STOCK position from every remaining unit of net STOCK — with exact settlement amounts, so `lpStockUsed + lpStockOnlyUsed + dust == netStock` and `dust` is the planner's rounding residue (`< sqrt(clearingPrice)` base units; zero at every fixture price); retires unsold NEW; routes the residue; failure retires reserve and inventory and never touches bidder STOCK | `migrate`, `_graduate`, `_retire`, `_mintLockedPositions`, `_stockOnlyDefinition`, `_exactlyFundedPlan`; geometry in `StocksPreset.STOCK_ONLY_*` | `StocksLaunchpadMigrateTest.test_graduation_both_orderings` (sell-out: both NFTs in the locker, consecutive and registered to the launch's splitter, one-sided range adjacent to the initial tick on the STOCK side, raised == placed + dust, dust within the derived bound, reserve placed up to rounding, PositionManager balances unchanged, launchpad holds nothing), `test_graduation_with_less_than_a_quarter_sold_both_orderings` (STOCK-bound full range), `testFuzz_graduation_locks_all_net_stock_at_any_clearing_price` (every bid-grid price, both orderings), `test_graduation_emits_the_record`, `test_failed_minimum_*`, `test_failed_launch_with_no_bids`, `test_migrate_guards`, `test_nobody_can_initialize_the_official_pool_before_migration`, `test_no_principal_path_exists_for_either_locked_position`, `test_each_graduation_gets_its_own_splitter`, `test_launchpad_never_exposes_a_token_or_stock_withdrawal`; fork: `_assertAllNetStockLocked` in both graduated lifecycles against the real PositionManager |
-| 4 | Refunds and claims go through the CCA and depend on nothing here | The launchpad never calls `exitBid`/`claimTokens`; it never holds bidder STOCK | `test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca` (bidder refunded by `exitBid` after `migrate`), `StockBidAdapterTest.test_the_bid_settles_through_the_cca_for_the_caller_alone`; fork: `test_fork_failed_minimum_*` |
-| 5 | The hook only accrues; the REGENT lane leaves only through `settleRegentLane` (executor-only, admitted route, `minUsdcOut`) and the staker lane only through `settleStakerLane` (anyone, whole lane, STOCK in kind, into the pool's fixed splitter); a failing settlement reverts only itself | `_afterSwap` only `take`s to itself and increments the two lanes; each settlement debits first, measures deltas, requires the reported amount to equal the measured one and the allowance back at zero | `StocksFeeHookTest.test_settle_regent_lane_deposits_usdc_into_live_staking`, `test_settle_regent_lane_re_credits_route_residue`, `test_settle_regent_lane_guards`, `test_settle_regent_lane_refuses_a_misbehaving_staking_and_reverts_only_itself` (swaps still work while settlement fails), `test_settle_staker_lane_is_permissionless_and_deposits_stock_in_kind_into_the_splitter`, `test_settle_staker_lane_guards`, `test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes`, `test_accrual_event_reports_both_lanes`; fork: `test_fork_full_lifecycle_graduates_and_settles_the_regent_lane_into_live_staking`, `test_fork_stakers_receive_the_staker_lane_and_the_locked_positions_fees` |
-| 6 | A pool's splitter is fixed at registration and nothing redirects either lane; the splitter pays out exactly what it recognized (`gross == protocolShare + stakerShare`, 2% to the protocol route, 98% wholly to stakers, everything to the protocol route while nothing is staked); staked principal is never revenue; the locker never moves liquidity | `registerPool` (launchpad-only, write-once, zero splitter refused); `MemestockSplitterCore._recognize`, `_routeProtocolShare`, the one-block exit rule; `MemestockLPLocker.register` (launchpad-only, write-once, ownership/pool/splitter checked) and `collect` (zero-liquidity decrease, invocation deltas only) | `MemestockSplitterTest.*` (binding and no administrator, USDC share into live staking, MEMESTOCK and STOCK shares to the Safe, pro rata with nothing held back, later stakers, unstaking keeps earnings, nothing staked, same-block exit refused, surplus recognition excludes principal and owed revenue, stray tokens and ETH to the Safe, failing staking fails only USDC recognition, `testFuzz_every_recognized_unit_is_the_protocols_or_a_stakers`), `MemestockLPLockerTest.*` (both currency orders, tagged deposit, pre-existing balances untouched, nothing staked, unregistered positions refused, write-once launchpad-only registration, ownership/pool/splitter checks), `StocksLaunchpadMigrateTest.test_each_graduation_gets_its_own_splitter` |
-| 7 | The adapter uses invocation deltas only, restores every allowance to zero, bids as `owner = msg.sender` | `bidWithUsdc`: before/after balances, exact allowance consumption, ERC-20 and Permit2 allowances asserted zero, residue returned | `StockBidAdapterTest.*` (owner, exact pull, larger allowance consumed exactly, foreign auction, deadline, zero output, `minStockOut`, donated balances untouched, residue returned, atomic reverts); fork: adapter path with the real Permit2 |
-| 8 | A launch costs nothing beyond gas and opens on a fixed clock: no REGENT is pulled, no allowance is needed, the staking contract is not called at creation (a paused staking contract cannot stop a launch) and the launchpad never holds REGENT; the start block is the creation block plus `START_LEAD_BLOCKS` (300), read back from the created auction and carried by the event; the required raise is the launcher's STOCK amount, refused at zero or above what the inventory can settle on | `launch` has no fee path and no staking call; `_createAuction` binds `startBlock` (field 5) and `endBlock` (field 6) to the created auction; `UnreachableRequiredRaise` in `launch` | `StocksLaunchpadLaunchTest.test_launch_costs_no_regent_and_needs_no_allowance` (penniless launcher, no allowance, `depositCalls() == 0`, launch while staking is paused, no REGENT moves through graduation), `test_auction_opens_exactly_ten_minutes_after_the_creation_block` (event, record and `auction.startBlock()` all equal creation + 300, a bid refused one block early and accepted on the block, a later creation opens later), `test_required_raise_is_chosen_by_the_launcher_above_zero_and_within_reach` (one base unit accepted, zero refused, `reachable + 1` refused, `reachable` accepted), `StocksPresetTest.test_timing_constants`; fork: `test_fork_launch_costs_nothing_and_opens_three_hundred_blocks_after_creation` (launcher holds no REGENT, record and real auction start equal creation + 300, a failed raise moves no REGENT) |
+| # | Rule | Where enforced |
+| --- | --- | --- |
+| 1 | Exactly `S0` minted, to the launchpad, once; `inventory + reserve == S0`; launchpad holds only the reserve after `launch` | `_createNew` (supply and balance read-back), `launch` (exact inventory delivery, `ReserveMismatch`) |
+| 2 | CCA `currency == stock`, both recipients the launchpad, `protocolFeeController == 0` | `_createAuction` reads back 11 bindings; `launch` refuses a nonzero controller |
+| 3 | `migrate` classifies with the final checkpoint; graduation sweeps, registers, initializes, clones the splitter, mints two positions to the locker in one PositionManager call and registers both to that splitter — the full range from the whole reserve and the STOCK it pairs, then a one-sided STOCK position from every remaining unit of net STOCK — with exact settlement amounts, so `lpStockUsed + lpStockOnlyUsed + dust == netStock` and `dust` is the planner's rounding residue (`< sqrt(clearingPrice)` base units); retires unsold NEW; routes the residue; failure retires reserve and inventory and never touches bidder STOCK | `migrate`, `_graduate`, `_retire`, `_mintLockedPositions`, `_stockOnlyDefinition`, `_exactlyFundedPlan`; geometry in `StocksPreset.STOCK_ONLY_*` |
+| 4 | Refunds and claims go through the CCA and depend on nothing here | The launchpad never calls `exitBid`/`claimTokens`; it never holds bidder STOCK |
+| 5 | The hook only accrues; the REGENT lane leaves only through `settleRegentLane` (executor-only, admitted route, `minUsdcOut`) and the staker lane only through `settleStakerLane` (anyone, whole lane, STOCK in kind, into the pool's fixed splitter); a failing settlement reverts only itself | `_afterSwap` only `take`s to itself and increments the two lanes; each settlement debits first, measures deltas, requires the reported amount to equal the measured one and the allowance back at zero |
+| 6 | A pool's splitter is fixed at registration and nothing redirects either lane; the splitter pays out exactly what it recognized (`gross == protocolShare + stakerShare`, 2% to the protocol route, 98% wholly to stakers, everything to the protocol route while nothing is staked); staked principal is never revenue; the locker never moves liquidity | `registerPool` (launchpad-only, write-once, zero splitter refused); `MemestockSplitterCore._recognize`, `_routeProtocolShare`, the one-block exit rule; `MemestockLPLocker.register` (launchpad-only, write-once, ownership/pool/splitter checked) and `collect` (zero-liquidity decrease, invocation deltas only) |
+| 7 | The adapter uses invocation deltas only, restores every allowance to zero, bids as `owner = msg.sender` | `bidWithUsdc`: before/after balances, exact allowance consumption, ERC-20 and Permit2 allowances asserted zero, residue returned |
+| 8 | A launch costs nothing beyond gas and opens on a fixed clock: no REGENT is pulled, no allowance is needed, the staking contract is not called at creation (a paused staking contract cannot stop a launch) and the launchpad never holds REGENT; the start block is the creation block plus `START_LEAD_BLOCKS` (300), read back from the created auction and carried by the event; the required raise is the launcher's STOCK amount, refused at zero or above what the inventory can settle on | `launch` has no fee path and no staking call; `_createAuction` binds `startBlock` (field 5) and `endBlock` (field 6) to the created auction; `UnreachableRequiredRaise` in `launch` |
 
-### Additional proofs
+### Additional properties
 
-- Hook address permission bits and mined salt: `test_hook_address_carries_exactly_the_declared_permission_bits`, `test_a_fresh_launchpad_is_born_paused` (each launchpad mines its own hook).
-- Callback authentication: `test_callbacks_are_pool_manager_only`, `test_swaps_on_an_unregistered_pool_with_this_hook_cannot_exist`, `test_registration_validates_the_whole_key`.
-- Authority surface: `test_governance_only_mutators`, `test_launchpad_only_surface`, `test_clone_is_bound_once_to_the_launch_and_has_no_administrator`, `test_bindings_and_the_launchpad_only_write_once_registration`.
-- Splitter provenance: every splitter is a clone the launchpad made inside `migrate` (`test_each_graduation_gets_its_own_splitter`); the hook and the locker accept a splitter only from the launchpad.
-- Route: `AerodromeStockRouteTest.*` (pinned pool and feed with orientation and code checks, feed-price quotes both ways, stopped or non-positive feed refused, output under `minAmountOut` refused, executions far under the feed executed when the caller's minimum allows and refused by that minimum alone, in both directions and for short fills, a swap executed while the feed is stale and the quote reverts, unconsumed input returned, nothing left on the route, reentry from the pool callback refused, callback from anyone but the pool refused); `AerodromeStockRouteForkTest.*` on Base (all ten admitted pool and feed bindings quote and round-trip, live AAPLc swaps both ways land within 1% of the feed, a purchase beyond the pool's depth is refused by a 95%-of-quote minimum and executes at a zero minimum).
-- Arithmetic: `testFuzz_grossLane_is_the_smallest_fixed_point`, `testFuzz_bidTickSpacingFor_is_one_hundredth_of_an_on_grid_floor`, `StocksPresetTest.test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps`.
+- Each launchpad mines its own hook, and a fresh launchpad is born paused.
+- Splitter provenance: every splitter is a clone the launchpad made inside `migrate`; the hook and
+  the locker accept a splitter only from the launchpad.
 
-## Known limits (not defects, but not proofs either)
+## Known limits (not defects)
 
 - Revenue is shared among whoever is staked when it is recognized, and both the staker lane and the
   locked positions' LP fees arrive in lumps (when someone calls `settleStakerLane` or `collect`). A
@@ -101,7 +97,7 @@ proves all 8 (ordering × form) cases.
   paid to anyone else.
 
 - The fixture STOCK (`FixtureStockToken`) stands in for Base-native `0xb2…` tokens whose `0xef` code
-  Anvil cannot run, so no local test exercises the live tokens (AT04, AT48). They were exercised on a
+  Anvil cannot run, so the lab never runs the live tokens (AT04, AT48). They were exercised on a
   Base node instead (read-only simulation, 23 September 2026, all ten admitted stocks): each moved
   through the bid adapter's exact Permit2 allowance path (ERC-20 allowance to Permit2, Permit2
   allowance to a puller, `transferFrom`) with both allowances back at zero, and each deployed route
@@ -116,11 +112,8 @@ proves all 8 (ordering × form) cases.
   while an over-balance control reverted. No recipient allowlist blocks the Safe today; the issuer
   changing the policy later is not ruled out. Accepted as a known limit (founder decision
   2026-09-19).
-- `FixtureStockRoute` is a fixed-price lab fixture; the lab and the hermetic suite still use it. The
-  production route is `AerodromeStockRouteV2` (`AerodromeStockRouteTest` hermetically over a v3-
-  semantics pool double; `AerodromeStockRouteForkTest` against Base itself, with the fixture ERC-20
-  installed over the `0xef` precompile so the live pool's liquidity and USDC are real but the stock
-  token's transfer policy is not exercised). Admitting a route is still a governance call.
+- `FixtureStockRoute` is a fixed-price lab fixture; the lab uses it. The production route is
+  `AerodromeStockRouteV2`. Admitting a route is still a governance call.
 - The route has no price guard of its own. The Chainlink feeds hold the last close outside market
   hours while the pools trade around the clock, so the feed quote and the pool price drift apart
   over a weekend or holiday; the price control is the minimum each caller sets, and nothing else
@@ -133,11 +126,10 @@ proves all 8 (ordering × form) cases.
 - The one-sided STOCK position's width (adjacent tick-spacing boundary out to the last usable tick on
   the STOCK side) and the destination of the rounding residue (REGENT lane) are the founder's
   decision of 9 September 2026. The
-  residue bound is a property of the pinned planner's arithmetic, derived in
-  `StocksLaunchpadMigrateTest._roundingBound` and asserted at every fuzzed clearing price; it is not
-  a guarantee about a different planner or tick spacing. Per-tick liquidity is not checked in code:
-  the CCA's own maximum bid price keeps each position's liquidity under 2^107, and the spacing-60 cap is
-  about 2^113 (observed: ~2^61 to ~2^68 per position at the fixture prices).
-- `depositUSDC` on the live staking contract is permissionless on the fork at block 50984591; the
-  fork proof records that, not a guarantee about future upgrades. Nothing at creation depends on the
+  residue bound is a property of the pinned planner's arithmetic; it is not a guarantee about a
+  different planner or tick spacing. Per-tick liquidity is not checked in code: the CCA's own
+  maximum bid price keeps each position's liquidity under 2^107, and the spacing-60 cap is about
+  2^113.
+- `depositUSDC` on the live staking contract was permissionless at Base block 50984591; that reading
+  is not a guarantee about future upgrades. Nothing at creation depends on the
   staking contract; only settlement of the REGENT lane and the splitter's USDC share reach it.

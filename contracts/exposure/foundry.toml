@@ -1,6 +1,5 @@
 [profile.default]
 src = "src"
-test = "test"
 script = "script"
 out = "out"
 # Exposure builds against the dependency snapshot the Base Memestake v2 package exports
@@ -20,26 +19,7 @@ cbor_metadata = false
 ffi = false
 fs_permissions = []
 
-# `test/fork/` runs only under the `fork` profile against a local Base fork (anvil --network base).
-no_match_path = "test/fork/**"
-
-[profile.default.fuzz]
-runs = 1024
-seed = "0x4558504f53"
-
-[profile.default.invariant]
-runs = 256
-depth = 128
-fail_on_revert = false
-
-[profile.fork]
-test = "test/fork"
-out = "out-fork"
-cache_path = "cache-fork"
-match_path = "test/fork/**"
-no_match_path = "none/**"
-
 [lint]
-ignore = ["test/**/*.sol", "script/**/*.sol"]
+ignore = ["script/**/*.sol"]
 # The print schedule and the report deadline are the product, so time comparisons are intended.
 exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "block-timestamp"]

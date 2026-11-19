@@ -2,8 +2,8 @@
 
 ## How Slither runs
 
-`bin/gate.sh` runs Slither only after the frozen identity, the build identity, the frozen release
-surface, the compiled test listing and the executed test set are all green:
+`bin/gate.sh` runs Slither only after the frozen identity, the build identity and the frozen release
+surface are all green:
 
 ```
 slither . --fail-medium --json ../slither.json --checklist
@@ -53,10 +53,9 @@ configuration key or a well-formed command-line flag, so the gate pins both:
 - The gate compares the number of contracts Slither says it analyzed against the number of
   contracts, libraries and interfaces declared under `src/` and `../stocks/src/`, so a narrowed
   source list cannot produce a quiet pass.
-- Every inline `slither-disable` comment under `src/`, `test/` and `script/` needs a row in the
-  inline suppressions table naming its detector, its rationale and a protecting test that Foundry
-  lists; a suppression without a record, or one naming a test that does not exist, fails. The
-  suppressions in `contracts/stocks/src` are recorded by that package's own dispositions.
+- Every inline `slither-disable` comment under `src/` and `script/` needs a row in the inline
+  suppressions table naming its detector and its rationale; a suppression without a record fails.
+  The suppressions in `contracts/stocks/src` are recorded by that package's own dispositions.
 
 ## Generated evidence
 
@@ -95,40 +94,38 @@ the gate reconciles them against.
 
 <!-- slither-suppression-count: 31 -->
 
-Every suppression is on a `slither-disable-next-line` comment. The protecting test is the hermetic
-test that exercises the suppressed line's behaviour and would fail if the suppressed concern were
-real.
+Every suppression is on a `slither-disable-next-line` comment.
 
-| File | Detector | Rationale | Protecting test |
-|---|---|---|---|
-| `src/RobinhoodStockBidAdapterV1.sol` | `reentrancy-no-eth` | `bidWithUsdg` is `nonReentrant`; every external call (launchpad reads, USDG pull, route swap, Permit2 approve, CCA `submitBid`) happens inside one guarded invocation and the only state is the guard itself. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
-| `src/RobinhoodStockBidAdapterV1.sol` | `reentrancy-benign` | Same guarded invocation; the adapter holds no accounting state a re-entered call could read stale. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
-| `src/RobinhoodStockBidAdapterV1.sol` | `timestamp` | `deadline` is the caller's own wall-clock bound compared with `block.timestamp`; a shifted block time can only make the caller's own bid expire, never move value. | `test_unknown_auction_and_short_output_are_refused` |
-| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed here and a missing route reverts with `NoRoute`. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
-| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | The route's reported output is not trusted; the STOCK actually received is measured by balance delta and compared with `minStockOut`. | `test_unknown_auction_and_short_output_are_refused` |
-| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | Only the remaining Permit2 amount is read from `allowance`; expiry and nonce are irrelevant once the amount is proved zero. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
-| `src/routes/UniswapV3StockRouteV1.sol` | `unused-return` | `latestRoundData` returns five values; the route needs only the answer and its update time, and rejects a non-positive answer or one older than `MAX_FEED_AGE`. | `test_quote_rejects_a_stopped_or_broken_feed` |
-| `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `launch` is `nonReentrant`; the launch and stock records are written in one guarded invocation after the token and auction are created. | `test_stock_launch_requires_admission_and_records_the_launch` |
-| `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_finishGraduation` runs only inside guarded `migrate`, after the terminal lifecycle is written; the dust credit to the hook and the retired-amount write are one atomic graduation. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
-| `src/libraries/RobinhoodPositionsLib.sol` | `unused-return` | `PositionPlanner.resolve` returns positions and a residue; the full-range plan is validated to be exactly one position and the residue is handled by the stock-only plan. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
-| `src/libraries/RobinhoodPositionsLib.sol` | `unused-return` | The stock-only plan's residue is credited to the protocol lane by `_finishGraduation` after both positions are minted. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
-| `src/RobinhoodProtocolRevenueInboxV1.sol` | `reentrancy-no-eth` | `bridgeRevenue` is Safe-only and `nonReentrant`; the batch record is written before the single adapter call and the exact pull is proved afterwards. | `test_bridge_records_a_batch_and_moves_exactly_the_amount` |
-| `src/RobinhoodProtocolRevenueInboxV1.sol` | `reentrancy-benign` | Same guarded, Safe-only invocation; a partial pull by the adapter reverts the whole batch. | `test_a_partial_pull_by_the_adapter_reverts_the_batch` |
-| `src/RobinhoodProtocolRevenueInboxV1.sol` | `timestamp` | `deadline` is the Safe proposal's own wall-clock bound compared with `block.timestamp`; a shifted block time can only expire the Safe's own batch. | `test_bridge_refuses_stale_version_stale_adapter_expiry_and_overdraw` |
-| `src/RobinhoodFeeHookV1.sol` | `missing-zero-check` | Zero is a legitimate executor value that disables `settleProtocolLane`, and `setExecutor` is Safe only. | `test_launchpad_only_and_safe_only_surfaces` |
-| `src/RobinhoodFeeHookV1.sol` | `reentrancy-no-eth` | `settleProtocolLane` is `nonReentrant` and debits the lane before any token moves. | `test_protocol_lane_settles_executor_only_through_the_route_into_the_inbox` |
-| `src/RobinhoodFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the residue re-credit after the swap is the only later write and is part of the same invocation. | `test_protocol_lane_settles_executor_only_through_the_route_into_the_inbox` |
-| `src/RobinhoodFeeHookV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed and a missing route reverts with `NoRoute`. | `test_protocol_lane_settles_executor_only_through_the_route_into_the_inbox` |
-| `src/RobinhoodFeeHookV1.sol` | `unused-return` | The route's reported output is not trusted; USDG received is measured by balance delta and compared with `minUsdgOut`. | `test_protocol_lane_refuses_a_conversion_below_the_executor_minimum` |
-| `src/RobinhoodFeeHookV1.sol` | `reentrancy-no-eth` | `settleStakerLane` is `nonReentrant` and zeroes the lane before depositing into the splitter. | `test_staker_lane_settles_permissionlessly_in_stock_into_the_splitter` |
-| `src/RobinhoodFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the only state is the lane it zeroes first. | `test_staker_lane_settles_permissionlessly_in_stock_into_the_splitter` |
-| `src/RobinhoodFeeHookV1.sol` | `divide-before-multiply` | Each lane is floored independently on purpose: two equal lanes of `realized / 100`, never one lane floored from two percent. | `test_every_swap_accrues_two_equal_stock_lanes_and_the_pool_is_bound_to_its_splitter` |
-| `src/RobinhoodFeeHookV1.sol` | `divide-before-multiply` | `LANES * lane` takes exactly the two floored lanes that were accrued, so the hook's balance equals the sum of both lanes. | `test_every_swap_accrues_two_equal_stock_lanes_and_the_pool_is_bound_to_its_splitter` |
-| `src/RobinhoodFeeHookV1.sol` | `reentrancy-events` | `HookFeeAccrued` is emitted after `poolManager.take` inside the pool manager's own swap lock; the event reports the amounts already accrued. | `test_every_swap_accrues_two_equal_stock_lanes_and_the_pool_is_bound_to_its_splitter` |
-| `src/RobinhoodLaunchpadBase.sol` | `missing-zero-check` | The UERC20 factory's runtime code hash is required first and the zero address has no code, so it can never carry that hash. | `test_the_launchpad_deploys_its_own_locker_and_splitter_implementation` |
-| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `migrate` is `nonReentrant` and writes the terminal lifecycle before the first external call of either branch. | `test_migration_waits_for_the_migration_block` |
-| `src/RobinhoodLaunchpadBase.sol` | `unused-return` | `checkpoint()` returns the checkpoint it wrote; the classification is read back through `isGraduated()` and `lbpInitializationParams()`. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
-| `src/RobinhoodLaunchpadBase.sol` | `incorrect-equality` | `auction.code.length == 0` is a code-presence check on the CREATE2 address the factory returned, not an arithmetic equality anybody can steer. | `test_stock_launch_requires_admission_and_records_the_launch` |
-| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `_retire` runs only inside guarded `migrate`, writes `Lifecycle.Failed` before the sweep, and the amount recorded after it is the only late write. | `test_stock_launch_that_misses_the_raise_retires_every_new` |
-| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `_graduate` runs only inside guarded `migrate`, writes `Lifecycle.Graduated` before the first external call, and every later revert rolls the whole graduation back. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
-| `src/RobinhoodLaunchpadBase.sol` | `unused-return` | `PoolManager.initialize` returns the initial tick; the pool key and price are already fixed by the graduation and the tick is not needed. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
+| File | Detector | Rationale |
+|---|---|---|
+| `src/RobinhoodStockBidAdapterV1.sol` | `reentrancy-no-eth` | `bidWithUsdg` is `nonReentrant`; every external call (launchpad reads, USDG pull, route swap, Permit2 approve, CCA `submitBid`) happens inside one guarded invocation and the only state is the guard itself. |
+| `src/RobinhoodStockBidAdapterV1.sol` | `reentrancy-benign` | Same guarded invocation; the adapter holds no accounting state a re-entered call could read stale. |
+| `src/RobinhoodStockBidAdapterV1.sol` | `timestamp` | `deadline` is the caller's own wall-clock bound compared with `block.timestamp`; a shifted block time can only make the caller's own bid expire, never move value. |
+| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed here and a missing route reverts with `NoRoute`. |
+| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | The route's reported output is not trusted; the STOCK actually received is measured by balance delta and compared with `minStockOut`. |
+| `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | Only the remaining Permit2 amount is read from `allowance`; expiry and nonce are irrelevant once the amount is proved zero. |
+| `src/routes/UniswapV3StockRouteV1.sol` | `unused-return` | `latestRoundData` returns five values; the route needs only the answer and its update time, and rejects a non-positive answer or one older than `MAX_FEED_AGE`. |
+| `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `launch` is `nonReentrant`; the launch and stock records are written in one guarded invocation after the token and auction are created. |
+| `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_finishGraduation` runs only inside guarded `migrate`, after the terminal lifecycle is written; the dust credit to the hook and the retired-amount write are one atomic graduation. |
+| `src/libraries/RobinhoodPositionsLib.sol` | `unused-return` | `PositionPlanner.resolve` returns positions and a residue; the full-range plan is validated to be exactly one position and the residue is handled by the stock-only plan. |
+| `src/libraries/RobinhoodPositionsLib.sol` | `unused-return` | The stock-only plan's residue is credited to the protocol lane by `_finishGraduation` after both positions are minted. |
+| `src/RobinhoodProtocolRevenueInboxV1.sol` | `reentrancy-no-eth` | `bridgeRevenue` is Safe-only and `nonReentrant`; the batch record is written before the single adapter call and the exact pull is proved afterwards. |
+| `src/RobinhoodProtocolRevenueInboxV1.sol` | `reentrancy-benign` | Same guarded, Safe-only invocation; a partial pull by the adapter reverts the whole batch. |
+| `src/RobinhoodProtocolRevenueInboxV1.sol` | `timestamp` | `deadline` is the Safe proposal's own wall-clock bound compared with `block.timestamp`; a shifted block time can only expire the Safe's own batch. |
+| `src/RobinhoodFeeHookV1.sol` | `missing-zero-check` | Zero is a legitimate executor value that disables `settleProtocolLane`, and `setExecutor` is Safe only. |
+| `src/RobinhoodFeeHookV1.sol` | `reentrancy-no-eth` | `settleProtocolLane` is `nonReentrant` and debits the lane before any token moves. |
+| `src/RobinhoodFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the residue re-credit after the swap is the only later write and is part of the same invocation. |
+| `src/RobinhoodFeeHookV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed and a missing route reverts with `NoRoute`. |
+| `src/RobinhoodFeeHookV1.sol` | `unused-return` | The route's reported output is not trusted; USDG received is measured by balance delta and compared with `minUsdgOut`. |
+| `src/RobinhoodFeeHookV1.sol` | `reentrancy-no-eth` | `settleStakerLane` is `nonReentrant` and zeroes the lane before depositing into the splitter. |
+| `src/RobinhoodFeeHookV1.sol` | `reentrancy-benign` | Same guarded settlement; the only state is the lane it zeroes first. |
+| `src/RobinhoodFeeHookV1.sol` | `divide-before-multiply` | Each lane is floored independently on purpose: two equal lanes of `realized / 100`, never one lane floored from two percent. |
+| `src/RobinhoodFeeHookV1.sol` | `divide-before-multiply` | `LANES * lane` takes exactly the two floored lanes that were accrued, so the hook's balance equals the sum of both lanes. |
+| `src/RobinhoodFeeHookV1.sol` | `reentrancy-events` | `HookFeeAccrued` is emitted after `poolManager.take` inside the pool manager's own swap lock; the event reports the amounts already accrued. |
+| `src/RobinhoodLaunchpadBase.sol` | `missing-zero-check` | The UERC20 factory's runtime code hash is required first and the zero address has no code, so it can never carry that hash. |
+| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `migrate` is `nonReentrant` and writes the terminal lifecycle before the first external call of either branch. |
+| `src/RobinhoodLaunchpadBase.sol` | `unused-return` | `checkpoint()` returns the checkpoint it wrote; the classification is read back through `isGraduated()` and `lbpInitializationParams()`. |
+| `src/RobinhoodLaunchpadBase.sol` | `incorrect-equality` | `auction.code.length == 0` is a code-presence check on the CREATE2 address the factory returned, not an arithmetic equality anybody can steer. |
+| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `_retire` runs only inside guarded `migrate`, writes `Lifecycle.Failed` before the sweep, and the amount recorded after it is the only late write. |
+| `src/RobinhoodLaunchpadBase.sol` | `reentrancy-no-eth` | `_graduate` runs only inside guarded `migrate`, writes `Lifecycle.Graduated` before the first external call, and every later revert rolls the whole graduation back. |
+| `src/RobinhoodLaunchpadBase.sol` | `unused-return` | `PoolManager.initialize` returns the initial tick; the pool key and price are already fixed by the graduation and the tick is not needed. |

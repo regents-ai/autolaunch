@@ -7,7 +7,7 @@ I want to discuss and possibly work on: completing Autolaunch RevenueMesh v1 fro
 - Find the Regent workspace and the `autolaunch-revenue-mesh` repository from the current directory, a parent directory, or the usual workspace.
 - Read the local `AGENTS.md` instructions and start with the Regent workflow skill. This project routes money and touches contracts, chains, wallets, deployment, and custody boundaries, so implementation tickets are Tier 1 unless the chief of staff explicitly classifies a narrower non-protected slice otherwise.
 - Locate the founder-supplied specification titled **“Autolaunch RevenueMesh v1 — Technical Specification.”** Treat this handoff as orientation, not a replacement for that source.
-- Inspect the current repository, tests, documentation, recent commits, the backlog at `/Users/sean/Documents/regent/docs/backlogs/autolaunch.md`, and the current `autolaunch-contracts` release candidate before proposing changes.
+- Inspect the current repository, documentation, recent commits, the backlog at `/Users/sean/Documents/regent/docs/backlogs/autolaunch.md`, and the current `autolaunch-contracts` release candidate before proposing changes.
 - Re-check all time-sensitive chain, token, contract-address, fee, API, and production-status facts against current official documentation. Do not treat a copied address in this handoff as live-chain proof.
 - Independently decide whether each remaining task is still needed, correctly ordered, and scoped. Call out stale assumptions, hidden economic choices, design contradictions, and anything that should stop the work.
 - Do not push, deploy, publish payment addresses, sign, use wallets, access production data, read secrets, fund gas, send canaries, burn or mint USDC, or move value unless the founder gives separate explicit authority for that exact consequential action.
@@ -152,7 +152,7 @@ bytes32("eip155")
 = 0x6569703135350000000000000000000000000000000000000000000000000000
 ```
 
-The integrated Arbitrum test vector uses Base receiver `0x1111111111111111111111111111111111111111` and Base splitter `0x2222222222222222222222222222222222222222`, producing route ID:
+The integrated Arbitrum reference vector uses Base receiver `0x1111111111111111111111111111111111111111` and Base splitter `0x2222222222222222222222222222222222222222`, producing route ID:
 
 ```text
 0x816118fa8cee7c00584d3965730ec11d752e7c97525586e160dbc03e88d734ab
@@ -343,7 +343,6 @@ Verified evidence at the integrated Arbitrum candidate:
 
 - `forge fmt --check` passed.
 - `forge build` passed.
-- `forge test -vvv`: 35 passed, 0 failed, 0 skipped.
 - Slither analyzed the candidate with zero findings.
 - `ArbitrumOneRevenueInboxFactoryV1` deployability passed with runtime 10,934 bytes and total initcode 11,619 bytes including 64 constructor-argument bytes.
 - Wrapper, base factory, and inbox ABIs contain no forbidden authority, mutation, rescue, proxy, arbitrary-call, fallback, or receive surface.
@@ -396,7 +395,6 @@ If the founder has not decided these, continue only with work that does not sile
 - Use replaceable provider adapters and durable idempotency keyed to exact CCTP messages/nonces and transaction phases, without granting the relayer custody or recipient authority.
 - Parse exact V2 events and use Iris V2 only; do not add CCTP V1 fallback.
 - Model retries from authoritative transaction/receipt state, distinguish transient provider failure from terminal revert, and never treat one receiver sweep as proof of one source payment.
-- Test with deterministic local mocks before any fork or live provider work.
 
 ### 4. CLI and manifest packages
 
@@ -409,7 +407,7 @@ If the founder has not decided these, continue only with work that does not sile
 
 - Design and implement the PDA, ATA, Circle CPI, event-account funding, and immutable state.
 - Prove the public payment address is the USDC ATA, not the PDA/program.
-- Add full property tests and an explicit later ceremony to revoke upgrade authority.
+- Add an explicit later ceremony to revoke upgrade authority.
 
 ### 6. Activation and end-to-end evidence
 
@@ -438,7 +436,6 @@ If the founder has not decided these, continue only with work that does not sile
 
 For each code ticket, use the smallest complete evidence appropriate to its Tier 1 boundary. Normally include:
 
-- focused and full relevant unit/property tests;
 - exact external ABI/event/message fixtures;
 - authority and value-flow proof;
 - rollback at every material external call stage;
@@ -449,7 +446,7 @@ For each code ticket, use the smallest complete evidence appropriate to its Tier
 - one independent adversarial review of the frozen candidate; and
 - `regentctl verify` after integration metadata is complete.
 
-Live-chain evidence, deployment rehearsal, canaries, and signing are not ordinary test steps; they require explicit founder authority.
+Live-chain evidence, deployment rehearsal, canaries, and signing are not ordinary validation steps; they require explicit founder authority.
 
 ## Desired output from the receiving agent
 

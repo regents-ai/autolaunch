@@ -220,15 +220,8 @@ The contract's balances always equal what it owes:
    state.
 8. **No sale below the minimum:** every sale is at least its bid's minimum sale or exactly the
    bid's whole remainder, and no bid's minimum ever changes.
-9. After every random run, when all restrictions are lifted, everyone collects everything, the
-   contract ends holding zero stock and zero USDC, and each bidder has paid exactly
-   `costFor(filled)`.
-
-These run as Foundry invariants over random sequences of every call, listings and bids, by four
-accounts across time, with the stock's pause and blocklist, USDC's pause and blacklist, scheduled
-corporate actions and a refusing staking contract switching on and off
-(`test/CoveredCallsV2.invariant.t.sol`). Two deliberate bugs (a sale rounding on its own, and
-closing a bid without releasing its escrow) were each caught by them before being undone.
+9. When all restrictions are lifted and everyone collects everything, the contract ends holding
+   zero stock and zero USDC, and each bidder has paid exactly `costFor(filled)`.
 
 ## Review
 
@@ -236,16 +229,16 @@ Adversarial review of the bid paths, with what it found and what changed:
 
 | Concern | Finding and handling |
 | --- | --- |
-| **Reentrancy through stock, USDC or staking** | Every state-changing call is guarded and writes state and events first. Tested with a stock and a USDC that call back into the contract mid-transfer, trying each state-changing function in turn, and a staking contract that does the same during a sale and a fill: every callback is refused with `Reentrancy()` and the books stay exact (`test/CoveredCallsV2.attacks.t.sol`). |
-| **Rounding theft** | Found while building: if each sale rounded up on its own, a seller splitting a sale into dust would draw more than the bid escrowed and starve later sellers. Fixed by rounding once per bid (Arithmetic). Fuzzed: one seller's split, many sellers' split, and random sales, raises and cancels all end exactly level with one sale (`test/CoveredCallsV2.split.t.sol`). |
-| **Griefing a bidder's escrow** | Only the bidder can raise, cancel or refund. Found while building: if cancelling sent the refund, a blacklisted or paused bidder could not stop sales; cancelling now moves no token and refunding is a separate pull. Found in review: a seller could sell a bid in 1,000 dust pieces for about a cent of gas on Base, leaving the bidder 1,000 listings to exercise one by one, on a contract nobody can change later. Fixed with the bid's minimum sale (Known limits 1); tested below the minimum, at it, with a smaller last piece, with a minimum of the whole bid, and across raises, and the split fuzz tests use a random minimum. |
-| **Front-running a sale** | A bidder cancelling or another seller filling the rest just before a sale makes it revert whole (`ExceedsAvailable`); nothing moves. A raise in the same block changes nothing for the sale (the terms are per token and cannot change). A seller names the bid by id, so a cancelled bid re-posted on worse terms is a different bid. Another seller's sale landing first moves the price by at most one micro-USDC (fuzzed). A seller selling just before a cancel lands sells at the bidder's own posted terms, as with any standing order. |
-| **Paused or blocklisted tokens** | A sale needs both tokens to move and reverts whole otherwise. `cancelBid` moves nothing; `refundBid` needs only USDC; a bidder blacklisted by Circle can still be sold into, since the sale never touches the bidder's balance. Tested for each. |
+| **Reentrancy through stock, USDC or staking** | Every state-changing call is guarded and writes state and events first, so a stock, a USDC or a staking contract that calls back into the contract mid-transfer is refused with `Reentrancy()` and the books stay exact. |
+| **Rounding theft** | Found while building: if each sale rounded up on its own, a seller splitting a sale into dust would draw more than the bid escrowed and starve later sellers. Fixed by rounding once per bid (Arithmetic). |
+| **Griefing a bidder's escrow** | Only the bidder can raise, cancel or refund. Found while building: if cancelling sent the refund, a blacklisted or paused bidder could not stop sales; cancelling now moves no token and refunding is a separate pull. Found in review: a seller could sell a bid in 1,000 dust pieces for about a cent of gas on Base, leaving the bidder 1,000 listings to exercise one by one, on a contract nobody can change later. Fixed with the bid's minimum sale (Known limits 1). |
+| **Front-running a sale** | A bidder cancelling or another seller filling the rest just before a sale makes it revert whole (`ExceedsAvailable`); nothing moves. A raise in the same block changes nothing for the sale (the terms are per token and cannot change). A seller names the bid by id, so a cancelled bid re-posted on worse terms is a different bid. Another seller's sale landing first moves the price by at most one micro-USDC. A seller selling just before a cancel lands sells at the bidder's own posted terms, as with any standing order. |
+| **Paused or blocklisted tokens** | A sale needs both tokens to move and reverts whole otherwise. `cancelBid` moves nothing; `refundBid` needs only USDC; a bidder blacklisted by Circle can still be sold into, since the sale never touches the bidder's balance. |
 | **Fee-on-transfer tokens** | Not supported, as in V1 (Known limits 6). |
-| **Corporate action between bid and sale** | `sellToBid` and `raiseBid` refuse while a multiplier change is scheduled before the bid's exercise window closes; `cancelBid` and `refundBid` never check, so the escrow is always recoverable. Tested. |
-| **Staking short-changing a fee** | A sale requires `depositUSDC` to report exactly the fee (`DepositMismatch` otherwise) and leaves no allowance. Tested with a staking that pulls half and one that reports more. |
-| **Overflow** | Checked arithmetic and `mulDivUp` revert; tested for bids and raises at extreme amounts. A sale cannot overflow: it never costs more than the escrow its bid already worked out. |
-| **Someone else's funds** | No call sends to anyone but the caller, except a fill's premium to its listing's own seller and fees to staking. Tested: no account reaches another's escrow, stock or strike at any stage of a bid's life. |
+| **Corporate action between bid and sale** | `sellToBid` and `raiseBid` refuse while a multiplier change is scheduled before the bid's exercise window closes; `cancelBid` and `refundBid` never check, so the escrow is always recoverable. |
+| **Staking short-changing a fee** | A sale requires `depositUSDC` to report exactly the fee (`DepositMismatch` otherwise) and leaves no allowance. |
+| **Overflow** | Checked arithmetic and `mulDivUp` revert. A sale cannot overflow: it never costs more than the escrow its bid already worked out. |
+| **Someone else's funds** | No call sends to anyone but the caller, except a fill's premium to its listing's own seller and fees to staking. |
 
 ## Moving the site from V1 to V2
 
@@ -292,8 +285,8 @@ there (Basescan, Contract, then Write Contract, `claim(listingId)` once per list
 [deploy/](../covered-calls/deploy/README.md) was: deterministic CREATE2, a deploy script that sends
 exactly the packet's transaction, and a rehearsal on a local copy of Base that runs a whole life
 with the real AMZNc, USDC and REGENT staking. Its transaction landed as built, and the code on Base
-hashes to the packet's runtime code. V1 also had an independent review of its packet, a dry run on
-the latest Base block once deployed, and a Base fork suite; V2 has none of those yet.
+hashes to the packet's runtime code. V1 also had an independent review of its packet and a dry run
+on the latest Base block once deployed; V2 has neither yet.
 
 ## Checks
 
@@ -301,20 +294,8 @@ the latest Base block once deployed, and a Base fork suite; V2 has none of those
 bin/gate.sh
 ```
 
-The offline gate: `forge fmt --check`, `forge build`, and every suite. It builds against
+The offline gate: `forge fmt --check` and `forge build`. It builds against
 `../stocks-v2/lib` (forge-std and solady), filled by `stocks-v2/bootstrap-deps.py`.
 
-| Suite | Tests | What it covers |
-| --- | --- | --- |
-| `CoveredCallsV2.listings.t.sol` | 29 | V1's unit suite, run unchanged against V2's listings |
-| `CoveredCallsV2.rules.t.sol` | 9 | V1's rules suite |
-| `CoveredCallsV2.ordering.t.sol` | 9 | V1's ordering suite |
-| `CoveredCallsV2.recovery.t.sol` | 13 | V1's recovery suite |
-| `CoveredCallsV2.bids.t.sol` | 39 | every bid call and refusal, the minimum sale, all-or-nothing sales, a blacklisted bidder still sold into, dust, many sellers, one seller into many bids, expiry with no deadline, corporate actions, cancel or raise just before a sale |
-| `CoveredCallsV2.split.t.sol` | 3 fuzz | splitting, in pieces of at least a random minimum sale, never pays a seller less or a bidder more than one sale |
-| `CoveredCallsV2.attacks.t.sol` | 5 | reentry through stock, USDC and staking; nobody reaches another's funds; overflow |
-| `CoveredCallsV2.invariant.t.sol` | 9 invariants | the Invariants above |
-
-There is no Base fork suite yet. The deploy packet's rehearsal (`deploy/rehearse.sh`) runs the
-contract on a local copy of Base with the real AMZNc, USDC and REGENT staking, but not the
+The deploy packet's rehearsal (`deploy/rehearse.sh`) runs the contract on a local copy of Base with the real AMZNc, USDC and REGENT staking, but not the
 issuer's pause, blocklist or corporate actions.

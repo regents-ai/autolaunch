@@ -5,17 +5,13 @@ protects, who may act on it, where it depends on code it does not own, and how e
 failure class is answered by a requirement in [the ledger](../../requirements/ledger.toml).
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
-mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. Through C5 the repository holds the immutable bindings, the proof scaffolding, the three
-fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and `PaymentReceiverV1` —
-the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
-`RegentsAutolaunchFactoryV1` that deploys and binds both of them and creates every launch. The
-dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
-strategy, migration, failure, stateful invariant, ABI, deployed-runtime, and complete-transaction
-gas mitigations carry their designated evidence. Under separate read-only authority, the Revstake
-fork check executed every fork claim at Base block `50541328` and the nine-claim identity, proxy,
-controller, header and gas-method subset again at block `50541628`; all twenty-seven mapped
-selectors passed against the Revstake source authority
+mitigation it names is a requirement ID in the ledger. Through C5 the repository holds the
+immutable bindings, the three fixed clone targets — `ConditionalVestingEscrowV1`,
+`SubjectSplitterV1`, and `PaymentReceiverV1` — the one shared `RegentFeeHook`, the one shared
+`RegentLBPStrategy`, and the one `RegentsAutolaunchFactoryV1` that deploys and binds both of them
+and creates every launch. Under separate read-only authority, the Revstake external state was
+observed on Base at block `50541328`, and the identity, proxy, controller, header and gas-method
+subset again at block `50541628`, against the Revstake source authority
 `7d564cec735c3b1b928ec4e2ede0b244682d105b`. The live staking contract's mutable
 `paused()` is not re-read there and must be read again immediately before any separately authorized
 deployment. `docs/audit/fork-authority-and-state-inventory.md` section 2.1 states that limitation in
@@ -44,9 +40,9 @@ full. Deployment and a signed ceremony remain outside this packet.
 3. **External deployed contracts.** REGENT, USDC, the CCA factory, PoolManager,
    PositionManager, and live staking are code this repository does not own. Their runtime truth
    — deployed code, code hash, proxy shape, implementation identity, getter results, and cold
-   state — is unproven until the authorized fork gate runs (`DEP-040` through `DEP-051`). No
-   hermetic test can reach any of it. Code this repository *does* own, including the clone
-   implementations and their clones, is proved hermetically instead (`DEP-060`).
+   state — was observed read-only on Base at the two committed headers (`DEP-040` through
+   `DEP-051`). Code this repository *does* own, including the clone implementations and their
+   clones, is pinned by its compiled code identity in the release manifest instead (`DEP-060`).
 4. **Governance.** The Regent Safe may pause and unpause new launches, and nothing else
    (`FAC-007`, `FAC-019`).
 5. **Recovery.** There is no recovery authority. Anyone may move forced ETH and unsupported ERC20s
@@ -139,7 +135,7 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Class | Concrete attempt | Answered by |
 | --- | --- | --- |
 | Dependency substitution | build against a moving branch, a look-alike commit, a copied `lib/` tree without git metadata, or a closure missing a nested dependency | `DEP-001`–`DEP-008` |
-| Compiler or setting drift | different solc, optimizer runs, re-enabled metadata, or an environment override of the fuzz portfolio | `DEP-009`, `DEP-010`, `DEP-014`, `DEP-015` |
+| Compiler or setting drift | different solc, optimizer runs, re-enabled metadata, or an environment override of the offline or FFI setting | `DEP-009`, `DEP-010`, `DEP-014` |
 | Frozen surface drift | a hand-edited ABI, a stale release manifest, or a recompiled runtime that no longer matches the reviewed bytes | `DEP-016` |
 | Authority forgery in the frozen literals | edited address, code hash, chain, or selector in a manifest, fixture, or binding source; a binding renamed onto another binding's value | `DEP-011`, `DEP-012`, `DEP-029` |
 | Interface-derived ABI | a selector taken from a vendored interface that omits or misstates the implementation | `DEP-013`, `ABI-001` |
@@ -189,11 +185,10 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Recovery abuse | recovering a core token, staked principal, an unclaimed claim, or the carried remainder; recovering to a caller-chosen destination or keeping any part of the recovered balance; sending ordinary ETH to create recoverable balance | `RCV-008`, `RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`, `SPL-019` |
 | Malicious token | a token that reverts, lies about transfers, or breaks solvency accounting | `SPL-012`, `RCV-011`, `RCV-012` |
 | Gas exhaustion | a terminal transaction that cannot fit in a Base block, or a gas figure measured without the intrinsic and calldata cost | `GAS-003`, `GAS-004`, `GAS-005`, `GAS-006` |
-| Hook callback cost drift | a fee callback whose cold cost is not measured against a genuine control, so a swap becomes quietly more expensive than anyone recorded | `GAS-007` measures and publishes it; it asserts no absolute callback limit, because none exists in v4, in the pinned closure, or in a founder requirement. The only absolute gas limit is the 14,000,000 complete-transaction ceiling (`GAS-003`–`GAS-006`) |
+| Hook callback cost drift | a fee callback whose cold cost is not measured against a genuine control, so a swap becomes quietly more expensive than anyone recorded | `GAS-007`. No absolute callback limit exists in v4, in the pinned closure, or in a founder requirement; the only absolute gas limit is the 14,000,000 complete-transaction ceiling (`GAS-003`–`GAS-006`) |
 | Obsolete surface survival | a Safe, ERC-8004, registry, flush, or retry interface left in the frozen ABI | `ABI-009` |
 | Silent topic re-layout | an event whose indexed flag moves from one argument to another, leaving the signature, the topic and the indexed count unchanged while every watcher's topic filter breaks | `ABI-007`, `ABI-010` |
 | Return-shape drift | a reordered, renamed, added or rewidened field in a returned struct, which no function selector records and every positional decoder breaks on | `ABI-011` |
-| Evidence laundering | a mock closing a deployed-runtime, proxy, getter, cold-state, intrinsic, calldata, or complete-transaction gas claim; a placeholder test closing a future claim; a product claim borrowing the gate-dependency evidence class; an overloaded or duplicated test identity collapsing two claims into one | ledger evidence classes, gate-aware activation, and compiled-listing multiset reconciliation, all enforced by `bin/check-requirements.py` |
 | Build laundering | editing `foundry.toml` and the frozen fixture together so the two repository copies agree on a setting the specification never granted | the gate parses the governing `SPEC.md` build line and compares it against both copies and against the produced artifacts (`DEP-009`) |
 | Analysis narrowing | a valid detector, severity, or production-source exclusion in `slither.config.json` or on the Slither command line; a duplicate finding hidden under one disposition row; a hidden triage database | the gate pins the configuration and the argv to an exact allowed shape, reconciles the run's detector count against the pinned binary's registered portfolio, and reconciles every result fingerprint one-for-one against a visible row |
 
@@ -202,7 +197,7 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 These are not defects. Each is a behavior the frozen specification chooses, recorded here so a
 reviewer meets it as a decision rather than as a surprise.
 
-| Accepted consequence | What it means in practice | Where it is proved |
+| Accepted consequence | What it means in practice | Requirement |
 | --- | --- | --- |
 | One block prevents atomic value extraction, and nothing more | A stake still credits in the same block and still earns from the very next recognition, and the `claimable` views report that earning at once. The one thing the account cannot do is take value out: unstake, partial or complete, `claim`, and `claimAll` all need a later block than that account's own latest stake, and a further stake resets the delay for the account's whole position and for everything it has already accrued. Delaying only the principal would not have been enough — a claim is value leaving too, so a funded position could otherwise have staked, recognized revenue against its own coverage, and claimed the share, all atomically. With every exit delayed, that whole round trip fails inside one transaction, because financing such a position is only free when the value returns in the same transaction. It is deliberately not a cooldown, an epoch, a queue, or any form of time weighting, and it is not what bounds anyone's earnings. A holder who genuinely funds SUBJECT and holds it across a block boundary is a legitimate staker and is meant to earn; what bounds what it earns is the fixed-supply fraction — its stake as a share of the complete 100 billion SUBJECT supply — so buying a larger share of the net means buying a larger share of the supply, at its price, and holding it. | `SPL-009`, `SPL-005`, `SPL-013` |
 | Permissionless surplus-recognition ordering | Anyone may call `recognizeSurplusRevenue`, so the block in which a bare transfer becomes revenue is chosen by an untrusted caller, and therefore so is the stake set that shares it. A caller may still put itself into the stake set first and take the resulting share — but only its supply-coverage share of that recognition, and only by leaving both the principal and the claim standing into a later block. Recognition still skims exactly once, still delivers everything the staked supply does not cover to the treasury in the same transaction, and still cannot relabel principal, unclaimed liability, or the carried remainder. | `SPL-011`, `SPL-009`, `SPL-005`, `SPL-008` |
@@ -221,14 +216,14 @@ reviewer meets it as a decision rather than as a surprise.
 | PositionManager balance gifts stay where they are | The pinned position plan closes with `SETTLE(CONTRACT_BALANCE)` on both pool currencies, which would settle the *shared* PositionManager's whole balance and hand the surplus back to the migrating launch. Graduation replaces those two settlement amounts with the exact amounts it transfers in, so REGENT or SUBJECT another v4 user left at the PositionManager is never settled, never becomes a launch's credit, and never reaches its treasury or escrow. The consequence, named rather than fixed: such a gift is not recoverable by anyone through Regent, exactly like the hook's and the strategy's. Sweeping it would mean paying one launch's treasury with value it did not fund. | `MIG-022`, `MIG-017`, `DEP-046` |
 | Checkpoint exhaustion is an upstream liveness condition | If the auction's tick book is large enough that its final checkpoint will not fit in one migration, the migration reverts and remembers nothing. The resolution is upstream and permissionless: anyone calls the auction's own `forceIterateOverTicks` to advance the book, then anyone calls `migrate` again. There is deliberately no attempt counter, progress record, partial migration, or retry mode inside the strategy, because any of those would be exactly the committed technical-failure state the specification forbids. | `STR-004` |
 | One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
-| Every SUBJECT grants Permit2 an infinite allowance forever | The pinned UERC20 is a Solady ERC20, which reports `type(uint256).max` as every holder's allowance to the canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`) and cannot have it revoked. Every Autolaunch SUBJECT therefore lets Permit2 move any holder's balance on that holder's own signed authority, including the balances held by escrow, the strategy, the splitter, and the receivers. This is upstream token behavior the specification adopts by pinning that factory, not a Regent decision, and no Regent contract ever signs a Permit2 authorization. Allowance-cleanup proofs are therefore scoped to the spenders Regent actually names — the escrow, the strategy, the splitter, and the launcher — rather than asserting that a SUBJECT allowance is universally zero. | `FAC-027`, `MIG-016` |
+| Every SUBJECT grants Permit2 an infinite allowance forever | The pinned UERC20 is a Solady ERC20, which reports `type(uint256).max` as every holder's allowance to the canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`) and cannot have it revoked. Every Autolaunch SUBJECT therefore lets Permit2 move any holder's balance on that holder's own signed authority, including the balances held by escrow, the strategy, the splitter, and the receivers. This is upstream token behavior the specification adopts by pinning that factory, not a Regent decision, and no Regent contract ever signs a Permit2 authorization. Allowance cleanup is therefore scoped to the spenders Regent actually names — the escrow, the strategy, the splitter, and the launcher — rather than a claim that a SUBJECT allowance is universally zero. | `FAC-027`, `MIG-016` |
 | Regent custody contracts do not implement ERC-1271 | Neither the factory nor the strategy, escrow, splitter, or receivers implements `isValidSignature`, so none of them can ever produce a valid contract signature. In particular none of them can authorize a Permit2 transfer of its own balance, which is what closes the consequence above: the infinite Permit2 allowance is unusable against Regent custody because Regent custody can never sign for it. Nothing in the design needs contract signatures, and adding them would create a new authority surface over custody. | `MIG-016`, `FAIL-005` |
-| The creator chooses the required raise, and the floor raise's economics were measured, not assumed | Any positive required raise up to `MAX_REACHABLE_RAISE` is admitted; there is no governance minimum. A one-wei raise is a creator's choice the design accepts, and the reference outcome — the floor raise of 10,000,000 REGENT, the whole auction allocation at the fixed floor price — really does resolve: measured against the real pinned auction and `PositionPlanner`, a single bid of exactly the floor raise sells the whole allocation, clears at the one price where that raise buys the whole allocation (`2^96 / 1000` rounded up, one Q96 unit above the rounded-down floor constant), migrates in both PoolKey orderings and at both bid-price endpoints — the floor price and the highest on-grid price — and the full-range position's exact REGENT and SUBJECT consumption is asserted. `NoFullRangePosition()` is not reachable inside the admitted range. | `FAC-023`, `STR-014` |
+| The creator chooses the required raise | Any positive required raise up to `MAX_REACHABLE_RAISE` is admitted; there is no governance minimum. A one-wei raise is a creator's choice the design accepts, and the reference outcome — the floor raise of 10,000,000 REGENT, the whole auction allocation at the fixed floor price — resolves: against the real pinned auction and `PositionPlanner`, a single bid of exactly the floor raise sells the whole allocation, clears at the one price where that raise buys the whole allocation (`2^96 / 1000` rounded up, one Q96 unit above the rounded-down floor constant), and migrates in both PoolKey orderings and at both bid-price endpoints — the floor price and the highest on-grid price. `NoFullRangePosition()` is not reachable inside the admitted range. | `FAC-023`, `STR-014` |
 | Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
 
-## 9. Explicitly out of scope for this proof packet
+## 9. Explicitly out of scope for this packet
 
-Read-only Base discovery and fork execution occurred at the two committed headers against the final
+Read-only Base discovery and observation occurred at the two committed headers against the final
 C10 source authority. No provider write, contract deployment, signature, broadcast transaction,
 wallet action, secret access,
 production-data mutation, admission decision, or value movement occurred. Deployment-time

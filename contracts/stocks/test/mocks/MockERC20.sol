@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {ERC20} from "solady/tokens/ERC20.sol";
 
-/// @notice A plain mintable ERC-20 standing in for USDC and REGENT at their frozen addresses in
-///         hermetic tests. Not evidence about the deployed tokens.
+/// @notice A plain mintable ERC-20 standing in for USDG and the stocks in the Robinhood lab. Not
+///         evidence about the deployed tokens.
 contract MockERC20 is ERC20 {
     string private _name;
     string private _symbol;

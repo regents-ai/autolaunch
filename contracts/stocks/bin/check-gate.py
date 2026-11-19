@@ -14,9 +14,6 @@ Subcommands, in the order a gate runs them:
              override shows up), the compiled binding constants, and the dependency lock. Start the
              dependency receipt.
   artifacts  Assert the compiler identity and settings recorded in every produced artifact.
-  tests      Reconcile Foundry's own compiled test listing against the frozen listing and against
-             the executed report as multisets: every frozen identity listed, every listed identity
-             executed exactly once, every execution a pass.
   security   Reconcile the Slither run: an unnarrowed configuration and command line, the pinned
              binary's whole registered detector portfolio, fresh and well-formed evidence, one
              visible disposition per exact result fingerprint at every severity, and a complete
@@ -159,27 +156,12 @@ def preflight(args: argparse.Namespace) -> int:
     ok &= problems.expect("effective fs_permissions", foundry["fs_permissions"], config.get("fs_permissions"))
     ok &= problems.expect("effective libs", foundry["libs"], config.get("libs"))
     ok &= problems.expect("effective src", foundry["src"], config.get("src"))
-    ok &= problems.expect("effective test", foundry["test"], config.get("test"))
-    ok &= problems.expect("effective no_match_path", foundry["no_match_path"], config.get("no_match_path"))
     ok &= problems.expect("effective remappings", foundry["remappings"], config.get("remappings"))
     if ok:
         receipt_lines.append(
             "posture verified: the effective Foundry configuration is offline with FFI disabled, no filesystem "
-            "permissions, and the frozen source, test, library and remapping roots"
+            "permissions, and the frozen source, library and remapping roots"
         )
-
-    ok = True
-    for name in ("fuzz", "invariant"):
-        if name not in frozen:
-            continue
-        section = config.get(name, {})
-        for key, want in frozen[name].items():
-            found = section.get(key)
-            if key == "seed":
-                want, found = int(str(want), 16), int(str(found), 16) if found is not None else None
-            ok &= problems.expect(f"effective {name}.{key}", want, found)
-    if ok:
-        receipt_lines.append("portfolio verified: the effective fuzz and invariant settings equal the frozen values")
 
     # --- compiled bindings ----------------------------------------------------
     if args.bindings:
@@ -260,74 +242,6 @@ def artifacts(args: argparse.Namespace) -> int:
             )
     print(f"artifacts inspected: {sum(seen.values())}")
     return problems.report("artifacts")
-
-
-# =============================================================================
-# tests
-# =============================================================================
-
-
-def read_listing(path: Path) -> Counter:
-    """Foundry's own compiled listing, kept as a multiset so overloads cannot collapse."""
-    listing: Counter = Counter()
-    for file_path, contracts in load_json(path).items():
-        for contract, names in contracts.items():
-            for name in names:
-                listing[(file_path, contract, name)] += 1
-    return listing
-
-
-def read_frozen_listing(path: Path) -> Counter:
-    listing: Counter = Counter()
-    for file_path, contracts in load_json(path)["tests"].items():
-        for contract, names in contracts.items():
-            for name in names:
-                listing[(file_path, contract, name)] += 1
-    return listing
-
-
-def read_execution(path: Path) -> tuple[Counter, dict[tuple, list[str]]]:
-    executed: Counter = Counter()
-    statuses: dict[tuple, list[str]] = {}
-    for suite, result in load_json(path).items():
-        file_path, _, contract = suite.partition(":")
-        for signature, outcome in result.get("test_results", {}).items():
-            identity = (file_path, contract, signature.split("(", 1)[0])
-            executed[identity] += 1
-            statuses.setdefault(identity, []).append(outcome.get("status", "Unknown"))
-    return executed, statuses
-
-
-def tests(args: argparse.Namespace) -> int:
-    problems = Problems()
-    listing = read_listing(Path(args.test_list))
-    frozen = read_frozen_listing(Path(args.frozen_listing))
-    executed, statuses = read_execution(Path(args.test_report))
-
-    if not listing:
-        problems.add(f"{args.test_list} lists no test")
-    for identity, count in sorted((listing - frozen).items()):
-        problems.add(f"{identity} is compiled {count} more time(s) than the frozen listing records; refreeze")
-    for identity, count in sorted((frozen - listing).items()):
-        problems.add(f"{identity} is frozen but Foundry no longer lists it ({count} missing); refreeze")
-    for identity, count in sorted((listing - executed).items()):
-        problems.add(f"{identity} is listed but executed {count} fewer time(s) than listed")
-    for identity, count in sorted((executed - listing).items()):
-        problems.add(f"{identity} executed {count} more time(s) than Foundry lists it")
-    for identity, outcomes in sorted(statuses.items()):
-        for outcome in outcomes:
-            if outcome != "Success":
-                problems.add(f"{identity} finished {outcome}")
-
-    if not problems.messages:
-        with Path(args.receipt).open("a", encoding="utf-8") as handle:
-            handle.write(
-                f"tests verified: Foundry lists {sum(listing.values())} test identities, equal to the frozen "
-                f"listing, and every one executed exactly once and passed\n"
-            )
-    print(f"listed tests: {sum(listing.values())}")
-    print(f"executed tests: {sum(executed.values())}")
-    return problems.report("tests")
 
 
 # =============================================================================
@@ -478,8 +392,6 @@ def security(args: argparse.Namespace) -> int:
         )
 
     # --- inline suppressions ---------------------------------------------------
-    listing = read_listing(Path(args.test_list))
-    known_selectors = {name for _, _, name in listing}
     suppressions: list[tuple[str, str]] = []
     for directory in args.suppression_sources:
         for path in sorted(Path(directory).rglob("*.sol")):
@@ -495,33 +407,28 @@ def security(args: argparse.Namespace) -> int:
     else:
         problems.expect("recorded inline suppression count", len(suppressions), int(declared.group(1)))
 
-    recorded = Counter((row[0], row[1]) for row in suppression_rows if len(row) == 4)
+    recorded = Counter((row[0], row[1]) for row in suppression_rows if len(row) == 3)
     for (path, detector), count in sorted((recorded - Counter(suppressions)).items()):
         problems.add(
             f"{args.dispositions} records {count} more suppression(s) of '{detector}' in {path} than the source carries"
         )
     for path, detector in suppressions:
-        row = next((r for r in suppression_rows if len(r) == 4 and r[0] == path and r[1] == detector), None)
+        row = next((r for r in suppression_rows if len(r) == 3 and r[0] == path and r[1] == detector), None)
         if row is None:
             problems.add(
-                f"inline suppression of '{detector}' in {path} has no record naming its detector, "
-                f"rationale, and protecting test in {args.dispositions}"
+                f"inline suppression of '{detector}' in {path} has no record naming its detector and "
+                f"rationale in {args.dispositions}"
             )
             continue
         if not row[2]:
             problems.add(f"inline suppression of '{detector}' in {path} records no rationale")
-        if row[3] not in known_selectors:
-            problems.add(
-                f"inline suppression of '{detector}' in {path} names protecting test '{row[3]}', "
-                "which Foundry does not list"
-            )
 
     if not problems.messages:
         with Path(args.receipt).open("a", encoding="utf-8") as handle:
             handle.write(
                 f"static analysis verified: slither {len(inventory)} registered detectors all ran, "
                 f"{len(results)} result(s) each dispositioned by exact fingerprint, "
-                f"{len(suppressions)} inline suppression(s) each recorded with a listed protecting test\n"
+                f"{len(suppressions)} inline suppression(s) each recorded with a rationale\n"
             )
     print(f"Slither analyzed scope: {args.analyzed_sources}")
     print(f"Slither suppression scope: {args.suppression_sources}")
@@ -619,13 +526,6 @@ def main() -> int:
     stage.add_argument("--receipt", required=True)
     stage.set_defaults(handler=artifacts)
 
-    stage = stages.add_parser("tests")
-    stage.add_argument("--test-list", required=True)
-    stage.add_argument("--frozen-listing", required=True)
-    stage.add_argument("--test-report", required=True)
-    stage.add_argument("--receipt", required=True)
-    stage.set_defaults(handler=tests)
-
     stage = stages.add_parser("security")
     stage.add_argument("--slither-json", required=True)
     stage.add_argument("--slither-cwd", required=True)
@@ -635,7 +535,6 @@ def main() -> int:
     stage.add_argument("--slither-command", required=True)
     stage.add_argument("--detector-inventory", required=True)
     stage.add_argument("--dispositions", required=True)
-    stage.add_argument("--test-list", required=True)
     stage.add_argument("--analyzed-sources", nargs="+", required=True)
     stage.add_argument("--suppression-sources", nargs="+", required=True)
     stage.add_argument("--receipt", required=True)

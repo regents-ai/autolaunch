@@ -41,9 +41,8 @@ status of each claim.
 | `src/StocksBindings.sol` | The frozen Base bindings this component compiles against, copied from `contracts/v1`, plus canonical Permit2. |
 | `src/routes/` | `IStockRoute` implementations: `AerodromeStockRouteV2`, the production route (one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed), and the lab-only `FixtureStockRoute`. |
 | `src/fixtures/` | `FixtureStockToken` and `FixtureStockCatalog`: the ERC-20 the local fork installs at the catalog addresses, and the catalog itself. Lab-only. |
-| `test/` | Hermetic suite: real PoolManager, PositionManager, CCA factory, UERC20 factory and Permit2 bytecode at their frozen addresses; USDC, REGENT and live staking are named doubles; the splitter and the locker are the real contracts. |
-| `test/fork/` | The local Base-fork suite (`FOUNDRY_PROFILE=fork`), against chain truth on the lab fork. |
-| `SECURITY.md` | The invariant list and the test that proves each one. |
+| `test/mocks/MockERC20.sol` | The mintable ERC-20 the Robinhood lab script (`../robinhood/script/DeployRobinhoodLab.s.sol`) imports. |
+| `SECURITY.md` | The invariant list and where each one is enforced. |
 | `script/DeployStocksLab.s.sol` | Deploys the graph onto the local Base fork and logs `REGENT_STOCKS_LAB_<NAME>: 0x…` lines. |
 | `bin/local-stocks-lab.py` | Extends a running `contracts/v1/bin/local-base-lab.py` fork with the Stocks graph, fixtures, funding and `stocks-site-config.json`. |
 | `dependencies.json`, `bootstrap-deps.py` | Export the pinned dependencies from a hydrated Autolaunch checkout into `lib/` (ignored). |
@@ -53,8 +52,7 @@ status of each claim.
 Every term lives only in `StocksPreset.sol`. The values marked **founder decision 2026-09-09**
 began as single bounded proposals, because the Stocks decision record the September 8 brief refers
 to was never found; the founder accepted all of them on 9 September 2026, on the basis that the step
-schedule keeps about 30% of the auction supply in the final block as Agent's does (29.88%, proven in
-`StocksPreset.t.sol`). No value was copied from Agent merely because it was nearby; where a value is
+schedule keeps about 30% of the auction supply in the final block as Agent's does (29.88%). No value was copied from Agent merely because it was nearby; where a value is
 shared it is because the same pinned dependency imposes it.
 
 | Term | Value | Provenance |
@@ -64,7 +62,7 @@ shared it is because the same pinned dependency imposes it.
 | Auction inventory | `4 * (S0 / 5)` = 800,000,000 × 10^18 | Brief P04, exact |
 | Migration reserve | `S0 / 5` = 200,000,000 × 10^18 | Brief P04, exact |
 | Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count founder decision 2026-09-09 |
-| Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule, proven by test |
+| Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule |
 | Start lead | `START_LEAD_BLOCKS` 300 (ten minutes at 2 s blocks): every auction opens exactly 300 blocks after its creation block; the launcher does not choose it; the opening block is in the launch record and the `StockLaunchCreated` event | Founder decision 2026-09-21 |
 | Claim delay | 64 blocks after end | Same pinned CCA convention as Agent |
 | Migration delay | 128 blocks after end | Same pinned CCA convention as Agent |
@@ -82,7 +80,7 @@ shared it is because the same pinned dependency imposes it.
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decision 2026-09-09 |
 | Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: (1) full range, funded by the whole reserve and the STOCK it pairs at the clearing price; (2) one-sided STOCK, holding every remaining unit of net STOCK | Brief P13 "all-net-STOCK liquidity", exact; see the design note below |
 | One-sided STOCK position geometry | From the tick-spacing boundary adjacent to the initial price out to the last usable tick on the STOCK side of the book (below the price when STOCK is currency1, above it when STOCK is currency0) | Founder decision 2026-09-09 (the width; the side follows from the price) |
-| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT lane of the pool's hook; proven `< sqrt(clearingPrice)` base units, zero at every fixture price | Founder decision 2026-09-09 (the destination) |
+| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT lane of the pool's hook; `< sqrt(clearingPrice)` base units | Founder decision 2026-09-09 (the destination) |
 | LP custody | both position NFTs minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
 
 ### Design note on the two positions
@@ -98,11 +96,10 @@ spacing) to the min or max usable tick, weighted 100% of the remaining STOCK and
 contains only STOCK at the initial price, so the planner's liquidity math places the whole remainder
 except the floor-then-round-up residue of one position, which is strictly below `sqrt(clearingPrice)`
 STOCK base units per NEW base unit — below one unit for every price the CCA's floor and the pool's
-decimals make plausible (`testFuzz_graduation_locks_all_net_stock_at_any_clearing_price` proves the
-bound at every bid-grid price up to 656× the fixture floor; the observed remainder is zero). Both
+decimals make plausible. Both
 positions are minted in one PositionManager call with exact settlement amounts. When less than a
 quarter sells the full range is STOCK-bound, takes the whole raise itself, and the reserve it cannot
-pair is retired with the unsold NEW (`test_graduation_with_less_than_a_quarter_sold_both_orderings`).
+pair is retired with the unsold NEW.
 The second position is the first liquidity a NEW seller meets and moves the price down through a
 STOCK-only book; that geometry (and the accrual of the residue to the REGENT lane) was the founder's
 decision of 9 September 2026.
@@ -193,8 +190,6 @@ have neither):
 
 Verified on Base on 2026-09-19: every pool is a clone of one Slipstream implementation with
 `token0 == USDC`, every feed reports 8 decimals, and the pool prices sat within 0.2% of the feeds.
-`test/fork/AerodromeStockRouteFork.t.sol` re-checks all ten bindings and swaps through the live
-AAPLc pool whenever it is run against Base itself.
 
 ## Money and custody rules the implementation must prove
 
@@ -231,9 +226,6 @@ AAPLc pool whenever it is run against Base itself.
 cd contracts/stocks
 python3 bootstrap-deps.py /path/to/hydrated/autolaunch/checkout   # once; fills lib/
 forge build
-forge test --fuzz-runs 64
-FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:PORT --fuzz-runs 64   # against the lab
-FOUNDRY_PROFILE=fork forge test --fork-url https://base-rpc.publicnode.com --match-contract AerodromeStockRouteForkTest   # route against Base itself
 ```
 
 ### The gate
@@ -241,11 +233,12 @@ FOUNDRY_PROFILE=fork forge test --fork-url https://base-rpc.publicnode.com --mat
 `bin/gate.sh` is the one required check before a change is proposed. It is offline and proves,
 in order: the frozen tool and build identity (`requirements/frozen-identity.json` against
 `forge --version`, `slither --version` and `forge config --json`), `forge fmt --check`, a clean
-`forge build --sizes` whose artifacts carry the frozen compiler identity, the frozen release surface
+`forge build --sizes` over the paths `bin/freeze.py paths` lists (the package's own roots and the
+pinned dependency sources `requirements/freeze.json` names) whose artifacts carry the frozen
+compiler identity, the frozen release surface
 (`bin/freeze.py check` reconciles `abi/` and `reports/frozen/` byte for byte against the fresh
-build, the dependency snapshot under `lib/` against `reports/frozen/dependency-closure.json`, and
-the compiled test listing against `reports/frozen/test-listing.json`), the whole hermetic test
-portfolio, Slither with every detector on and every result dispositioned in
+build, and the dependency snapshot under `lib/` against `reports/frozen/dependency-closure.json`),
+Slither with every detector on and every result dispositioned in
 `docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and
 a receipt under `reports/generated/`, which is never committed.
 
@@ -261,14 +254,10 @@ cd contracts/stocks && bin/gate.sh
 ```
 
 `bin/freeze.py write` regenerates the frozen release surface after an intended production change.
-It runs `forge clean`, `forge build` and `forge test --list --json` and rewrites `abi/` and
+It runs `forge clean` and the same build and rewrites `abi/` and
 `reports/frozen/`; review the diff, then run the gate. The freeze pins every production contract's
 runtime and creation code, its ABI and selectors, the clone template the launchpad stamps, the
 hook flags the deploy script mines for, and the content digest of every dependency.
-
-`test/fork/ForkAddresses.sol` pins the lab run it was written against; a restarted lab needs those
-addresses updated. The route suite skips on the lab (chain id 31337) and the lifecycle suite skips
-on Base itself, so each fork command runs only the tests that fit its chain.
 
 The fork lab (`bin/local-stocks-lab.py`) requires an active `contracts/v1/bin/local-base-lab.py`
 run and writes `stocks-site-config.json` (and its own `stocks-state.json`) next to that run's
