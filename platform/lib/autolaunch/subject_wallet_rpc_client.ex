@@ -35,7 +35,7 @@ defmodule Autolaunch.SubjectWalletRpcClient do
          {:ok, total_staked} <- uint(address, :total_staked, [], block, opts),
          {:ok, staked_of} <- uint(address, :staked_of, [signer], block, opts),
          {:ok, claimable} <-
-           per_asset(bound, &uint(address, :claimable, [signer, &1], block, opts)) do
+           per_asset(bound, &uint(address, :claimable, [&1, signer], block, opts)) do
       {:ok,
        Map.merge(bound, %{total_staked: total_staked, staked_of: staked_of, claimable: claimable})}
     end

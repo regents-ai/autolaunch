@@ -1,5 +1,5 @@
 {
-  "total": 553,
+  "total": 554,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1204,39 +1204,39 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/payment_card_test.exs",
-      "line": 133,
+      "line": 162,
       "test_name": "a Revstake launch's payment review comes from its own record and the real reader",
       "keep_because": "The payment card reads the launch's token, splitter, receiver and treasury from the strategy's record and every balance and allowance through the production Base reader, then builds the approval and the payment. It fails if the card goes back to a stored subject or the reader misreads a binding.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+      "source_sha256": "e03b1a5120e1b881fd779c9639d39b168431248df6b2c55222a0c7041debf0b1"
     },
     {
       "id": 134,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/payment_card_test.exs",
-      "line": 157,
+      "line": 186,
       "test_name": "a receiver whose money goes anywhere but the launch's treasury is refused",
       "keep_because": "A receiver whose beneficiary is not the launch's treasury is never reviewed.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+      "source_sha256": "e03b1a5120e1b881fd779c9639d39b168431248df6b2c55222a0c7041debf0b1"
     },
     {
       "id": 135,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch/payment_card_test.exs",
-      "line": 171,
+      "line": 200,
       "test_name": "a deployment on another network refuses a Base launch's payment review",
       "keep_because": "A review is sent on the deployment's network, so it is built only for a launch on that network (the A02 to-do).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+      "source_sha256": "e03b1a5120e1b881fd779c9639d39b168431248df6b2c55222a0c7041debf0b1"
     },
     {
       "id": 138,
@@ -7191,6 +7191,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c3b7e9473b20fda1d7af486792b6f422a0b6eb47faee1459ac5d863334ddb60b"
+    },
+    {
+      "id": 732,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 146,
+      "test_name": "the reader asks the splitter what the wallet may claim of each asset, the token then the wallet",
+      "keep_because": "Review of the payment card's Base reader (19 Nov 2026): it asked the revenue splitter what the wallet may claim with the wallet first and the asset second, the reverse of the contract's claimable(token, account), so every amount read back as 0. Now it asks the token then the wallet, against a chain that answers only in the contract's order, with a different amount for each asset. It fails if the order is reversed again or any asset's amount is not its own.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e03b1a5120e1b881fd779c9639d39b168431248df6b2c55222a0c7041debf0b1"
     }
   ],
   "legacy_folders_to_remove": [

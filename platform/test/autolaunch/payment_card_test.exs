@@ -11,7 +11,14 @@ defmodule Autolaunch.PaymentCardTest do
 
   import AutolaunchWeb.SessionAuthorityHelpers, only: [leased: 1]
 
-  alias Autolaunch.{BaseRpcStub, LabAbi, SubjectWalletActions, TestSupport}
+  alias Autolaunch.{
+    BaseRpcStub,
+    LabAbi,
+    SubjectWalletActions,
+    SubjectWalletRpcClient,
+    TestSupport
+  }
+
   alias Autolaunch.Chain.{Abi, SubjectAbi}
 
   @auction "0x" <> String.duplicate("a1", 20)
@@ -126,11 +133,30 @@ defmodule Autolaunch.PaymentCardTest do
         {{asset, Chain.erc20("balance_of"), Chain.arg(holder)}, 50 * @usdc_unit}
       end
     )
-    |> Map.merge(
-      for asset <- [@token, usdc, regent], into: %{} do
-        {{@splitter, Chain.read(:claimable), Chain.arg(wallet) <> Chain.arg(asset)}, 0}
-      end
-    )
+    # The splitter answers what an account may claim of a token only as its
+    # contract takes them: the token, then the account.
+    |> Map.merge(%{
+      {@splitter, Chain.read(:claimable), Chain.arg(@token) <> Chain.arg(wallet)} => 3,
+      {@splitter, Chain.read(:claimable), Chain.arg(usdc) <> Chain.arg(wallet)} =>
+        12 * @usdc_unit,
+      {@splitter, Chain.read(:claimable), Chain.arg(regent) <> Chain.arg(wallet)} => 5
+    })
+  end
+
+  test "the reader asks the splitter what the wallet may claim of each asset, the token then the wallet",
+       %{auction: auction, wallet: wallet} do
+    Chain.install(chain(wallet, auction))
+
+    assert {:ok, %{splitter: %{claimable: claimable}}} =
+             SubjectWalletRpcClient.snapshot(%{
+               splitter: @splitter,
+               receiver: @receiver,
+               signer: wallet,
+               token: String.downcase(Abi.usdc_address()),
+               spender: @receiver
+             })
+
+    assert claimable == %{subject: 3, usdc: 12 * @usdc_unit, regent: 5}
   end
 
   test "a Revstake launch's payment review comes from its own record and the real reader",
