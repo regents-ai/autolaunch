@@ -118,9 +118,14 @@ defmodule AutolaunchWeb.PublicDocuments do
   # A section's title, from its own heading.
   section = fn guide -> hd(Regex.run(~r/^## (.+)$/m, guide, capture: :all_but_first)) end
 
-  # What both agent bid features prepare, each on its own chain.
+  # What both agent bid features prepare, each on its own chain, what agent
+  # finishes and agent staking prepare, and how the guides name the bids on a
+  # chain whose agent bids are off.
   @bid_for "a bid on a %{chains} auction, and its return and claim"
   @bid_of "a bid on a %{chains} auction, and of its return and claim"
+  @bids_stay "%{chains} bids"
+  @finish_for "the finish of an ended auction"
+  @stake_on "a stake, unstake or claim on a launched token"
 
   # Each agent feature that prepares a person's wallet steps, in the order the
   # guides hold their sections: the switch it follows
@@ -136,6 +141,8 @@ defmodule AutolaunchWeb.PublicDocuments do
   # `chain`s joined (`%{chains}`). `takes` are the words it takes out of the
   # guides' lists of what stays with the person, and `stays` how a guide names
   # its operations, when at all, while it is off and another feature is on.
+  # `your_for` and `your_stays` are `for` and `stays` as the skill says them
+  # to the agent, of "your person".
   @agent_steps [
     %{
       feature: "agent_bids",
@@ -143,10 +150,12 @@ defmodule AutolaunchWeb.PublicDocuments do
       section: section.(@agent_bids_guide),
       chain: "Base",
       for: @bid_for,
+      your_for: @bid_for,
       step: "the steps",
       of: @bid_of,
       takes: ["bidding", "settlement", "bid"],
-      stays: "%{chains} bids"
+      stays: @bids_stay,
+      your_stays: @bids_stay
     },
     %{
       feature: "agent_robinhood_bids",
@@ -154,10 +163,12 @@ defmodule AutolaunchWeb.PublicDocuments do
       section: section.(@agent_robinhood_bids_guide),
       chain: "Robinhood Chain",
       for: @bid_for,
+      your_for: @bid_for,
       step: "the steps",
       of: @bid_of,
       takes: ["bidding", "settlement", "bid"],
-      stays: "%{chains} bids"
+      stays: @bids_stay,
+      your_stays: @bids_stay
     },
     %{
       feature: "agent_launches",
@@ -165,32 +176,38 @@ defmodule AutolaunchWeb.PublicDocuments do
       section: section.(@agent_launches_guide),
       chain: nil,
       for: "the launch of the person's saved draft",
+      your_for: "your person's launch from their saved draft",
       step: "the launch step",
       of: "the person's saved draft",
       takes: ["launch submission", "launch"],
-      stays: "the person's launches"
+      stays: "the person's launches",
+      your_stays: "your person's launches"
     },
     %{
       feature: "agent_finish",
       guide: @agent_finish_guide,
       section: section.(@agent_finish_guide),
       chain: nil,
-      for: "the finish of an ended auction",
+      for: @finish_for,
+      your_for: @finish_for,
       step: "the finish step",
       of: "an ended auction",
       takes: [],
-      stays: nil
+      stays: nil,
+      your_stays: nil
     },
     %{
       feature: "agent_staking",
       guide: @agent_stake_guide,
       section: section.(@agent_stake_guide),
       chain: nil,
-      for: "a stake, unstake or claim on a listed token",
+      for: @stake_on,
+      your_for: @stake_on,
       step: "the steps",
-      of: "a stake, unstake or claim on a listed token",
+      of: @stake_on,
       takes: ["staking", "claims"],
-      stays: nil
+      stays: nil,
+      your_stays: nil
     }
   ]
 
@@ -209,15 +226,23 @@ defmodule AutolaunchWeb.PublicDocuments do
   ]
   @person_controls ["Wallet", "bid", "launch"]
 
+  # The width the skill's sentence made from the switches breaks at
+  # (`wrapped/1`): the skill's own lines break by hand at about a hundred
+  # columns, and at 102 that sentence keeps the lines it had with agent bids
+  # and agent launches on. `whole/1` joins a name's words with the no-break
+  # space.
+  @skill_width 102
+  @whole "\u00A0"
+
   # The guides' sentences on the person's launch of a draft an agent filled in,
   # each as it reads without agent launches, as before them, and while the
-  # site offers them, as `launching/1` words them.
+  # site offers them, as `launching/2` words them.
   @launching [
     {"{{launching_draft}}",
      "Your person then opens the create page, sees every field you set marked at the top of the form, and signs the launch.",
-     "Your person then opens the create page, sees every field you set marked at the top of the form, and signs the launch, or you prepare its launch step for their own wallet to sign and send (see Agent launches)."},
+     "Your person then opens the create page, sees every field you set marked at the top of the form, and signs the launch, or you prepare its launch step for their own wallet to sign and send (see #{section.(@agent_launches_guide)})."},
     {"{{launching_skill}}", "your person\nsees every field you set on the create page and signs.",
-     "your person\nsees every field you set on the create page and signs, or you prepare the launch step for\ntheir own wallet to sign (see Agent launches)."}
+     "your person\nsees every field you set on the create page and signs, or you prepare the launch step for\ntheir own wallet to sign (see #{section.(@agent_launches_guide)})."}
   ]
 
   @needs %{
@@ -766,7 +791,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{earn}}\n", earn())
     |> agent_sections(on)
     |> agent_sentences(on)
-    |> launching()
+    |> launching(on)
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -866,14 +891,18 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The parts the sentences are made of. Features that prepare the same thing
   # are one item, their chains joined; `step` is the one item's own while it
   # is alone. `bids` are the bid features on, for the bid card's sentence, and
-  # `stays` how the guides name the off features' operations, if at all.
+  # `stays` how the guides name the off features' operations, if at all;
+  # `your_for` and `your_stays` are the skill's.
   defp said({offered, others}) do
+    sections = Enum.map(offered, & &1.section)
+
     items =
       offered
       |> Enum.chunk_by(& &1.for)
       |> Enum.map(fn [first | _] = same ->
         %{
           for: chained(same, first.for, " or "),
+          your_for: chained(same, first.your_for, " or "),
           steps: "#{first.step} of " <> chained(same, first.of, " or "),
           step: first.step
         }
@@ -882,17 +911,25 @@ defmodule AutolaunchWeb.PublicDocuments do
     %{
       items: items,
       for: listed(Enum.map(items, &("for " <> &1.for))),
+      your_for: listed(Enum.map(items, &("for " <> &1.your_for))),
       steps: listed(Enum.map(items, & &1.steps)),
       step: if(match?([_one], items), do: hd(items).step, else: "the steps"),
-      see: listed(Enum.map(offered, & &1.section)),
+      sections: sections,
+      see: listed(sections),
       taken: Enum.flat_map(offered, & &1.takes),
       bids: Enum.filter(offered, &(&1.for == @bid_for)),
-      stays:
-        others
-        |> Enum.filter(& &1.stays)
-        |> Enum.chunk_by(& &1.stays)
-        |> Enum.map(fn [first | _] = same -> chained(same, first.stays, " and ") end)
+      stays: stayed(others, :stays),
+      your_stays: stayed(others, :your_stays)
     }
+  end
+
+  # How the guides name the off features' operations, by `key`: features that
+  # name them alike are named once, their chains joined.
+  defp stayed(others, key) do
+    others
+    |> Enum.filter(& &1[key])
+    |> Enum.chunk_by(& &1[key])
+    |> Enum.map(fn [first | _] = same -> chained(same, first[key], " and ") end)
   end
 
   # The words of features that say the same thing on different chains, with
@@ -910,23 +947,22 @@ defmodule AutolaunchWeb.PublicDocuments do
       "#{listed(@person_controlled -- said.taken)} remain person-controlled. #{up(said.for)}, " <>
         "a paired agent prepares #{said.step} through the signed interface, and the person's " <>
         "own wallet signs and sends #{each(said.step)} (see #{said.see})" <>
-        stays(said, "stay on the site's pages") <> "."
+        stays(said.stays, "stay on the site's pages") <> "."
 
   defp sentence("skill", %{items: []}),
     do:
       "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; " <>
         "no agent tool or command\ndoes them."
 
-  # Its last two lines break once: inside the launch's words when they are
-  # named, otherwise before the sections.
-  defp sentence("skill", said) do
-    for = yours(up(said.for))
-
-    "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, " <>
-      "which signs every step.\n#{for}, you can prepare #{said.step}" <>
-      if(for =~ "\n", do: " ", else: "\n") <>
-      "(see #{said.see})" <> yours(stays(said, "stay on the site's pages")) <> "."
-  end
+  defp sentence("skill", said),
+    do:
+      "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, " <>
+        "which signs every step.\n" <>
+        wrapped(
+          "#{up(said.your_for)}, you can prepare #{said.step} " <>
+            "(see#{@whole}#{listed(Enum.map(said.sections, &whole/1))})" <>
+            stays(said.your_stays, "stay on the site's pages") <> "."
+        )
 
   defp sentence("card", %{bids: []}), do: "No agent command claims, withdraws or\n   bids."
 
@@ -965,7 +1001,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       "Reads are public; bidding, launching, trading and staking need the person's own " <>
         "wallet, which signs every step. A paired agent can prepare #{said.steps}" <>
         if(said.steps =~ ", and ", do: ",", else: "") <>
-        " for that wallet" <> stays(said, "go through the person-controlled interface") <> "."
+        " for that wallet" <>
+        stays(said.stays, "go through the person-controlled interface") <> "."
 
   defp sentence("docs", %{items: []}),
     do:
@@ -978,7 +1015,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       "Bidding, claiming, launching, trading and staking happen with the person's own " <>
         "wallet, and every step asks the wallet holder to confirm. A paired agent can " <>
         "prepare #{said.steps} (see #{said.see})" <>
-        stays(said, "happen on the website, through the person-controlled interface") <> "."
+        stays(said.stays, "happen on the website, through the person-controlled interface") <> "."
 
   defp sentence("website", %{items: []}),
     do:
@@ -1006,25 +1043,37 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   # The off features' operations a sentence names as staying with the person,
   # with what they do there; nothing when there are none.
-  defp stays(%{stays: []}, _where), do: ""
-  defp stays(%{stays: stays}, where), do: "; #{listed(stays)} #{where}"
+  defp stays([], _where), do: ""
+  defp stays(stays, where), do: "; #{listed(stays)} #{where}"
 
   defp up("for " <> rest), do: "For " <> rest
 
   defp each("the steps"), do: "each one"
   defp each(_one_step), do: "it"
 
-  # The skill speaks to the agent of its person as "your person", and names the
-  # launch of their draft "your person's launch from their saved draft", its
-  # line broken where the skill's lines break.
-  defp yours(words) do
+  # Words broken into lines at the skill's width, each line holding as many
+  # words as fit, and each name kept `whole/1` on one line, as is "(see" with
+  # the first section it points to.
+  defp wrapped(words) do
     words
-    |> String.replace(
-      "the launch of the person's saved draft",
-      "your person's launch\nfrom their saved draft"
-    )
-    |> String.replace("the person's", "your person's")
+    |> String.split(" ")
+    |> Enum.reduce([], fn
+      word, [] ->
+        [word]
+
+      word, [line | lines] ->
+        if String.length(line) + 1 + String.length(word) <= @skill_width,
+          do: [line <> " " <> word | lines],
+          else: [word, line | lines]
+    end)
+    |> Enum.reverse()
+    |> Enum.join("\n")
+    |> String.replace(@whole, " ")
   end
+
+  # A name, such as a section's title, its words joined by a no-break space
+  # that `wrapped/1` does not break at and gives back as a space.
+  defp whole(name), do: String.replace(name, " ", @whole)
 
   # Names in a sentence: "A", "A and B", "A, B and C", with a comma before the
   # last "and" when a name has commas of its own, so the last reads apart.
@@ -1039,11 +1088,11 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   # Each sentence on the person's launch of a draft an agent filled in, as it
   # reads with agent launches off or on.
-  defp launching(markdown) do
-    on? = "agent_launches" in ToolManifest.features()
+  defp launching(markdown, on) do
+    on? = "agent_launches" in on
 
-    Enum.reduce(@launching, markdown, fn {mark, off, on}, text ->
-      String.replace(text, mark, if(on?, do: on, else: off))
+    Enum.reduce(@launching, markdown, fn {mark, off_words, on_words}, text ->
+      String.replace(text, mark, if(on?, do: on_words, else: off_words))
     end)
   end
 
