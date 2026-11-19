@@ -170,7 +170,8 @@ paths:
       description: The wallet steps for one Isolated Exposure to After-hours Stocks action, built from the chain at the latest block,
         for one of the person's own wallets (`signer`, or the wallet they signed in with). The site only
         prepares; the wallet's own key signs and sends each step. An action the chain's current state
-        makes certain to fail answers 200 with `blocked`, and its steps. Changes nothing.
+        makes certain to fail answers 200 with `blocked`, and its steps; a buy or sell with no pool
+        (`no_liquidity`) or whose quote less 2% comes to nothing (`too_small`) has none. Changes nothing.
       security:
       - SiwaProof: []
       parameters:

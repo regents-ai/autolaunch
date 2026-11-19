@@ -8,7 +8,9 @@ defmodule Autolaunch.CoveredCalls.Signer do
 
   A paired agent's steps also need the person to hold a verified wallet now
   (`verified/1`); the account that answers is the one `wallet/2` then takes, so
-  each agent call reads it once.
+  each agent call reads it once. `step_wallet/2` is that rule for the steps of
+  covered calls, After-hours and Earn, which a person signed in here and a
+  paired agent both ask for.
   """
 
   alias Autolaunch.Accounts
@@ -52,6 +54,18 @@ defmodule Autolaunch.CoveredCalls.Signer do
   end
 
   def wallet(_actor, _candidate), do: {:error, :authentication_required}
+
+  @doc """
+  The wallet a step is prepared for, as `wallet/2` takes it; for a paired
+  agent, only while its person holds a verified wallet now (`verified/1`), from
+  that one read of the account.
+  """
+  @spec step_wallet(term(), String.t() | nil) :: {:ok, String.t()} | {:error, atom()}
+  def step_wallet(%Agent{} = agent, candidate) do
+    with {:ok, account} <- verified(agent), do: wallet(account, candidate)
+  end
+
+  def step_wallet(actor, candidate), do: wallet(actor, candidate)
 
   defp account(id) do
     case Accounts.points_account(id, actor: %System{}) do
