@@ -48,6 +48,8 @@ defmodule Autolaunch.CoveredCalls.Answer do
 
   @doc "A market's book as every agent surface answers it."
   def book({:ok, book}) do
+    linked? = desk_market?(book.market)
+
     {:ok,
      %{
        symbol: book.market.symbol,
@@ -59,9 +61,10 @@ defmodule Autolaunch.CoveredCalls.Answer do
        multiplier: book.multiplier,
        multiplier_change_at: book.effective_at,
        reference_price: book.price,
-       listings: Enum.map(book.listings, &listing(&1, book.now)),
+       expiries: Terms.expiries(book.now),
+       listings: Enum.map(book.listings, &listing(&1, book.now, linked?)),
        listings_total: book.listings_total,
-       bids: Enum.map(book.bids, &bid(&1, book.now)),
+       bids: Enum.map(book.bids, &bid(&1, book.now, linked?)),
        bids_total: book.bids_total
      }}
   end
@@ -70,6 +73,8 @@ defmodule Autolaunch.CoveredCalls.Answer do
 
   @doc "A wallet's listings and holdings on a market as every agent surface answers them."
   def positions({:ok, positions}) do
+    linked? = desk_market?(positions.market)
+
     {:ok,
      %{
        symbol: positions.market.symbol,
@@ -78,12 +83,12 @@ defmodule Autolaunch.CoveredCalls.Answer do
        now: positions.now,
        read_at: positions.read_at,
        unit: positions.unit,
-       sold: Enum.map(positions.sold, &listing(&1, positions.now)),
+       sold: Enum.map(positions.sold, &listing(&1, positions.now, linked?)),
        holdings: Enum.map(positions.holdings, &holding(&1, positions.now)),
        bids:
          Enum.map(
            positions.bids,
-           &(&1 |> bid(positions.now) |> Map.put(:refundable, &1.refundable))
+           &(&1 |> bid(positions.now, linked?) |> Map.put(:refundable, &1.refundable))
          ),
        balance: positions.balance
      }}
@@ -114,7 +119,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
   defp blocked(nil), do: nil
   defp blocked(reason), do: %{code: reason, message: Map.fetch!(@blocked, reason)}
 
-  defp listing(listing, now) do
+  defp listing(listing, now, linked?) do
     listing
     |> Map.take([
       :id,
@@ -133,6 +138,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
       exercise_closes_at: listing.expiry + Terms.exercise_window(),
       strike_due: Terms.strike_due(listing)
     })
+    |> offer_link(:listing, linked?)
   end
 
   # Calls held, with the terms a holder acts on: the strike to pay, and the
@@ -148,7 +154,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
     })
   end
 
-  defp bid(bid, now) do
+  defp bid(bid, now, linked?) do
     bid
     |> Map.take([
       :id,
@@ -161,5 +167,24 @@ defmodule Autolaunch.CoveredCalls.Answer do
       :min_sale
     ])
     |> Map.merge(%{stage: Terms.bid_stage(bid, now), available: Terms.available(bid)})
+    |> offer_link(:bid, linked?)
   end
+
+  # The browser desk opens the first configured market.
+  defp desk_market?(%{symbol: symbol, contract: contract}) do
+    match?(
+      {:ok, %{markets: [%{symbol: ^symbol, contract: ^contract} | _]}},
+      Deployment.current()
+    )
+  end
+
+  defp offer_link(offer, kind, true) do
+    Map.put(
+      offer,
+      :url,
+      AutolaunchWeb.Endpoint.url() <> "/stock/covered-call?#{kind}=#{offer.id}"
+    )
+  end
+
+  defp offer_link(offer, _kind, false), do: offer
 end

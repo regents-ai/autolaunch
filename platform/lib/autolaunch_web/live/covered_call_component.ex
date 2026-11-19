@@ -710,7 +710,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
+      ["Strike", "#{F.unit_price(facts.strike_per_token)} per #{symbol}"],
       ["Opens", F.expiry(facts.expiry)],
       ["Closes", F.window_closes(facts.expiry)],
       ["Premium", "#{F.usd(premium)} if all sell"],
@@ -742,8 +742,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:bid, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
-      ["Premium", "#{F.usd(facts.premium_per_token)} per #{symbol}"],
+      ["Strike", "#{F.unit_price(facts.strike_per_token)} per #{symbol}"],
+      ["Premium", "#{F.unit_price(facts.premium_per_token)} per #{symbol}"],
       ["You pay", "#{F.usd_due(facts.escrow)}, held until a seller sells to you"],
       ["Fills", "Not guaranteed"],
       ["To exercise", F.usd_due(F.total(facts.amount, facts.strike_per_token, unit))],
@@ -798,7 +798,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp done_lines(:list, facts, %{unit: unit, symbol: symbol}),
     do: [
-      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window(facts.expiry)}"
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.unit_price(facts.strike_per_token)}, #{F.window(facts.expiry)}"
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),
@@ -819,7 +819,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp done_lines(:bid, facts, %{unit: unit, symbol: symbol}),
     do: [
-      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window(facts.expiry)}"
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.unit_price(facts.strike_per_token)}, #{F.window(facts.expiry)}"
     ]
 
   defp done_lines(:sell_to_bid, facts, %{unit: unit, symbol: symbol}),

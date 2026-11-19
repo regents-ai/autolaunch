@@ -304,6 +304,10 @@ components:
         id:
           type: integer
           description: The listing's number on this market.
+        url:
+          type: string
+          format: uri
+          description: The website link to this listing, when its market is available on the desk.
         seller:
           type: string
           description: The wallet that made the listing.
@@ -365,6 +369,10 @@ components:
         id:
           type: integer
           description: The bid's number on this market.
+        url:
+          type: string
+          format: uri
+          description: The website link to this bid, when its market is available on the desk.
         bidder:
           type: string
           description: The wallet that made the bid; the calls sold into it are its.
@@ -420,6 +428,10 @@ components:
         id:
           type: integer
           description: The bid's number on this market.
+        url:
+          type: string
+          format: uri
+          description: The website link to this bid, when its market is available on the desk.
         bidder:
           type: string
           description: The wallet that made the bid; the calls sold into it are its.
@@ -479,6 +491,7 @@ components:
           - multiplier
           - multiplier_change_at
           - reference_price
+          - expiries
           - listings
           - listings_total
           - bids
@@ -522,6 +535,11 @@ components:
                     type: integer
                   updated_at:
                     type: integer
+            expiries:
+              type: array
+              description: Available expiries for new listings and bids, in Unix seconds.
+              items:
+                type: integer
             listings:
               type: array
               maxItems: 50

@@ -11,6 +11,20 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
   @stocks @source |> File.read!() |> Jason.decode!() |> Map.fetch!("stocks")
   @chains [base: "Base", robinhood: "Robinhood"]
 
+  alias Autolaunch.Search
+
+  @doc "The canonical directory search parameters, without empty or unknown values."
+  def filters(params) do
+    %{
+      q: Search.normalize(params["q"]),
+      chain: choice(params["chain"], ~w(base robinhood)),
+      availability: choice(params["availability"], ~w(available soon feed_required))
+    }
+    |> Map.reject(fn {_key, value} -> value == "" end)
+  end
+
+  defp choice(value, allowed), do: if(value in allowed, do: value, else: "")
+
   @doc "The catalog's identities and dated observations."
   def stocks, do: @stocks
 
@@ -31,6 +45,37 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
         feed_required: sorted(grouped, "feed_required")
       }
     end)
+  end
+
+  @doc "Filters the published directory without changing its groups or their order."
+  def search(query, network, availability) do
+    terms = query |> String.downcase() |> String.split()
+
+    for %{chain: chain} = column <- chains(), network in ["", Atom.to_string(chain)] do
+      %{
+        column
+        | available: matching(column.available, terms, availability in ["", "available"]),
+          eligible: matching(column.eligible, terms, availability in ["", "soon"]),
+          feed_required:
+            matching(column.feed_required, terms, availability in ["", "feed_required"])
+      }
+    end
+  end
+
+  defp matching(stocks, terms, true), do: Enum.filter(stocks, &matches?(&1, terms))
+  defp matching(_stocks, _terms, false), do: []
+
+  defp matches?(_stock, []), do: true
+
+  defp matches?(stock, terms) do
+    fields =
+      stock
+      |> Map.take(~w(name symbol ticker chain token_address))
+      |> Map.values()
+      |> Enum.filter(&is_binary/1)
+      |> Enum.map(&String.downcase/1)
+
+    Enum.all?(terms, fn term -> Enum.any?(fields, &String.contains?(&1, term)) end)
   end
 
   @doc """

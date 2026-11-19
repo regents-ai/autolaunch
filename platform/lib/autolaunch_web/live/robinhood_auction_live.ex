@@ -39,15 +39,16 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch}
-  alias AutolaunchWeb.{LabMarket, Paths, UsdValue}
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   def mount(%{"auction_id" => id}, _session, socket),
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), outbid: nil, launched_token: nil)
+       |> assign(open?: Lab.configured?(), record_id: id, outbid: nil, launched_token: nil)
        |> LabMarket.subscribe_auction(id, "robinhood")
+       |> LiveListings.subscribe()
        |> LabMarket.assign_robinhood_stale()
        |> assign(
          reading: id |> LabMarket.reading() |> elem(0),
@@ -145,6 +146,23 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   def handle_info(%{topic: "public:auction_market:" <> _id, payload: reading}, socket),
     do: {:noreply, assign(socket, :reading, LabMarket.newer(socket.assigns.reading, reading))}
+
+  # A finish can be recorded at the same rollup block this page already shows.
+  def handle_info({:autolaunch_listings_changed, auction_id}, socket) do
+    if auction_id == socket.assigns.record_id,
+      do: {:noreply, LiveListings.schedule(socket)},
+      else: {:noreply, socket}
+  end
+
+  def handle_info(:reread_listings, socket) do
+    before = socket.assigns.launch
+    socket = socket |> LiveListings.taken() |> reload_launch()
+
+    case {before, socket.assigns.launch} do
+      {%{state: state}, %{state: state}} -> {:noreply, socket}
+      _changed -> {:noreply, load_snapshot(socket, false)}
+    end
+  end
 
   # The bid panel found one of the wallet's bids outbid, or none any more.
   def handle_info({:robinhood_outbid, outbid}, socket),

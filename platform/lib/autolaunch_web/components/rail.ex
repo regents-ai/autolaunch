@@ -172,9 +172,13 @@ defmodule AutolaunchWeb.Components.Rail do
   end
 
   defp views(%{path: "/stocks"}) do
-    if Autolaunch.CoveredCalls.Deployment.enabled?(),
-      do: [%{label: "Covered calls", path: ~p"/stock/covered-call", covers: []}],
-      else: []
+    for {enabled?, label, path} <- [
+          {Autolaunch.CoveredCalls.Deployment.enabled?(), "Covered calls",
+           ~p"/stock/covered-call"},
+          {Autolaunch.Exposure.Deployment.enabled?(), "After-hours", ~p"/stock/isolated-afters"}
+        ],
+        enabled?,
+        do: %{label: label, path: path, covers: []}
   end
 
   defp views(_item), do: []

@@ -240,6 +240,8 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert listing["stage"] == "open"
     assert listing["available"] == 8 * @token
     assert listing["seller"] == @seller
+    assert %{path: "/stock/covered-call", query: "listing=1"} = URI.parse(listing["url"])
+    assert expiry() in book["data"]["expiries"]
 
     quote =
       conn
@@ -514,6 +516,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
     assert %{"id" => 1, "bidder" => ^wallet, "stage" => "open", "min_sale" => @token} = open
     assert open["available"] == 6 * @token
+    assert %{path: "/stock/covered-call", query: "bid=1"} = URI.parse(open["url"])
 
     [own] = positions.() |> json_response(200) |> get_in(["data", "bids"])
     assert Enum.sort(Map.keys(own)) == documented_keys("CoveredCallOwnBid")

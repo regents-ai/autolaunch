@@ -46,13 +46,13 @@ defmodule AutolaunchWeb.Components.StockLists do
                   <span class="market-list__name">
                     <strong>{@symbol} call</strong>
                     <small>{StockIdentity.words(:base)}</small>
-                    <small>Strike {CoveredCallsFormat.usd(listing.strike_per_token)}</small>
+                    <small>Strike {CoveredCallsFormat.unit_price(listing.strike_per_token)}</small>
                   </span>
                 </span>
               </.link>
             </th>
             <td data-label="Premium">
-              {CoveredCallsFormat.usd(listing.premium_per_token)} <small>per {@symbol}</small>
+              {CoveredCallsFormat.unit_price(listing.premium_per_token)} <small>per {@symbol}</small>
             </td>
             <td data-label="Exercise">{CoveredCallsFormat.window(listing.expiry)}</td>
             <td data-label="Available">
@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Components.StockLists do
               <.link
                 navigate={"/stock/covered-call?listing=#{listing.id}"}
                 class="rg-button rg-button--secondary"
-                aria-label={"Buy #{@symbol} calls at #{CoveredCallsFormat.usd(listing.strike_per_token)}"}
+                aria-label={CoveredCallsFormat.offer_label("Buy", @symbol, listing)}
               >
                 Buy
               </.link>

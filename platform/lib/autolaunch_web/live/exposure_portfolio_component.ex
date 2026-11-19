@@ -3,8 +3,8 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
   The portfolio's Isolated Exposure to After-hours Stocks: for each series the site offers, what
   the signed-in wallet holds of its two tokens and what they are worth at the
   series' last price, each read now from the chain
-  (`Autolaunch.Exposure.exposure_holdings/3`), with a link to the series'
-  Redeem tab. Series the wallet holds nothing of are left out.
+  (`Autolaunch.Exposure.exposure_holdings/3`), with a link to the series or
+  its Redeem tab when the position can redeem. Series the wallet holds nothing of are left out.
   """
   use AutolaunchWeb, :live_component
 
@@ -24,8 +24,15 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
 
     if socket.assigns.read_for == socket.assigns.current_human_id,
       do: {:ok, socket},
-      else: {:ok, socket |> assign(read_for: socket.assigns.current_human_id) |> read()}
+      else:
+        {:ok,
+         socket
+         |> assign(read_for: socket.assigns.current_human_id, holdings: AsyncResult.loading())
+         |> read()}
   end
+
+  @impl true
+  def handle_event("retry_holdings", _params, socket), do: {:noreply, read(socket)}
 
   @impl true
   def handle_async(:holdings, {:ok, read}, socket),
@@ -37,41 +44,68 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
   defp read(socket) do
     actor = %Human{human_account_id: socket.assigns.current_human_id}
 
-    start_async(socket, :holdings, fn ->
-      {:ok, %{series: all}} = Deployment.current()
-
-      all
-      |> Enum.reverse()
-      |> Enum.map(&Exposure.exposure_holdings(&1, %{}, actor: actor))
-      |> Enum.reduce_while({:ok, []}, fn
-        {:ok, holding}, {:ok, kept} -> {:cont, {:ok, [holding | kept]}}
-        {:error, error}, _kept -> {:halt, {:error, Exposure.reason(error)}}
-      end)
-      |> case do
-        {:ok, kept} -> {:ok, kept |> Enum.reverse() |> Enum.filter(&held?/1)}
-        error -> error
-      end
-    end)
+    socket
+    |> assign(holdings: AsyncResult.loading(socket.assigns.holdings, true))
+    |> start_async(:holdings, fn -> read_positions(actor) end)
   end
+
+  defp read_positions(actor) do
+    with {:ok, %{series: all}} <- Deployment.current() do
+      {kept, unread} =
+        Enum.reduce(all, {[], 0}, fn address, counts ->
+          count_holding(Exposure.exposure_holdings(address, %{}, actor: actor), counts)
+        end)
+
+      {:ok, kept, unread, length(all)}
+    end
+  end
+
+  defp count_holding({:ok, holding}, {kept, unread}) do
+    if held?(holding), do: {[holding | kept], unread}, else: {kept, unread}
+  end
+
+  defp count_holding({:error, _reason}, {kept, unread}), do: {kept, unread + 1}
 
   defp held?(holding), do: holding.overnight + holding.session > 0
 
   @impl true
   def render(assigns) do
+    {positions, unread, total} =
+      case assigns.holdings.result do
+        {:ok, positions, unread, total} -> {positions, unread, total}
+        _no_read -> {[], 0, 0}
+      end
+
+    assigns = assign(assigns, positions: positions, unread: unread, total: total)
+
     ~H"""
     <section id={@id} class="portfolio__section" aria-labelledby={"#{@id}-title"}>
       <h2 id={"#{@id}-title"} class="portfolio__title">Isolated Exposure to After-hours Stocks</h2>
-      <p
-        :if={@holdings.failed || match?({:error, _}, @holdings.result)}
+      <div
+        :if={@holdings.failed || match?({:error, _}, @holdings.result) || @unread > 0}
         class="portfolio__hint"
-        role="alert"
       >
-        Your After-hours and Market-hours tokens couldn't be read just now.
-      </p>
+        <span role="alert">
+          <%= if @unread > 0 && @unread < @total && !@holdings.failed do %>
+            Some series couldn't be read. Showing the positions that loaded.
+          <% else %>
+            Your After-hours and Market-hours tokens couldn't be read just now.
+          <% end %>
+        </span>
+        <button
+          type="button"
+          class="rg-button rg-button--secondary"
+          phx-click="retry_holdings"
+          phx-target={@myself}
+          disabled={!!@holdings.loading}
+        >
+          Retry
+        </button>
+      </div>
       <div :if={@holdings.loading} class="market-list__scroll" aria-busy="true">
         <span class="loading-block"></span>
       </div>
-      <div :if={match?({:ok, [_ | _]}, @holdings.result)} class="market-list__scroll">
+      <div :if={@positions != []} class="market-list__scroll">
         <table class="market-list__table exposure__table">
           <caption class="visually-hidden">Your After-hours and Market-hours tokens</caption>
           <thead>
@@ -80,11 +114,11 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <th scope="col">After-hours</th>
               <th scope="col">Market-hours</th>
               <th scope="col">Value</th>
-              <th scope="col"><span class="visually-hidden">Redeem</span></th>
+              <th scope="col"><span class="visually-hidden">Action</span></th>
             </tr>
           </thead>
           <tbody>
-            <tr :for={holding <- elem(@holdings.result, 1)} id={"#{@id}-#{holding.series.address}"}>
+            <tr :for={holding <- @positions} id={"#{@id}-#{holding.series.address}"}>
               <td data-label="Series">
                 {holding.series.stock.symbol} to {F.moment(List.last(holding.series.boundaries))}
               </td>
@@ -97,19 +131,20 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <td data-label="Value">{value(holding)}</td>
               <td class="exposure__row-action">
                 <.link
-                  navigate={
-                    ~p"/stock/isolated-afters?#{[series: holding.series.address, tab: "redeem"]}"
-                  }
+                  navigate={series_path(holding)}
                   class="rg-button rg-button--secondary"
                 >
-                  Redeem
+                  {if redeemable?(holding), do: "Redeem", else: "View series"}
                 </.link>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div :if={@holdings.result == {:ok, []}} class="market-list__scroll market-list__empty">
+      <div
+        :if={match?({:ok, [], 0, _}, @holdings.result)}
+        class="market-list__scroll market-list__empty"
+      >
         <h2>No tokens yet</h2>
         <p>After-hours and Market-hours tokens you mint or buy appear here.</p>
         <.link navigate={~p"/stock/isolated-afters"} class="rg-button rg-button--secondary">
@@ -118,6 +153,15 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
       </div>
     </section>
     """
+  end
+
+  defp redeemable?(%{redeemable: %{overnight: overnight, session: session}}),
+    do: overnight > 0 or session > 0
+
+  defp series_path(holding) do
+    query = [series: holding.series.address]
+    query = if redeemable?(holding), do: query ++ [tab: "redeem"], else: query
+    ~p"/stock/isolated-afters?#{query}"
   end
 
   # Before the first close no price has been applied, so the tokens have no value

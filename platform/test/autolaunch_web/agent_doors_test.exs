@@ -753,6 +753,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       "autolaunch_after_hour_stocks_list" => nil,
       "autolaunch_after_hour_stocks_series" => %{series: series},
       "autolaunch_my_after_hour_stocks" => %{series: series},
+      "autolaunch_after_hour_stocks_prepare" => %{series: series, kind: "mint", amount: 1},
       "earn_products" => nil,
       "earn_quote" => deposit,
       "earn_positions" => nil,
@@ -774,7 +775,6 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       for %{"surfaces" => %{"hosted_mcp" => true}} = row <- Capabilities.operations(), do: row
 
     assert Enum.sort(Map.keys(inputs)) == Enum.sort(Enum.map(hosted, & &1["hosted_tool"]))
-    assert length(hosted) == 35
 
     # Each switch's tools are called in turn, by their caller (`caller/3`); every
     # call answers.
@@ -793,12 +793,46 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         end
       end)
 
-    assert length(called) == 35
-
     # The ones that write: a draft save, a launch's review the site keeps, and a
     # connected app's identity, pairing and check-in.
     assert for({name, false} <- called, do: name) ==
              ~w(autolaunch_revstake_draft_save autolaunch_memestock_draft_save prepare_launch register_identity pair_identity check_in)
+  end
+
+  test "Exposure preparation gives the signed route's steps and refusals and follows its gates" do
+    ExposureChain.install()
+    agent = paired_agent()
+    series = ExposureChain.series()
+    path = "/api/agent/v1/after-hour-stocks/#{series}/steps"
+    name = "autolaunch_after_hour_stocks_prepare"
+    input = %{kind: "mint", amount: 1}
+
+    assert name in tool_names(agent)
+
+    for {body, expected} <- [
+          {input, 200},
+          {Map.put(input, :signer, "0x1234567890123456789012345678901234567890"), 403},
+          {%{input | amount: "1"}, 422},
+          {%{input | amount: 2 ** 256}, 422},
+          {Map.put(input, :extra, true), 422}
+        ] do
+      route = http(:post, path, body, agent)
+      assert route.status == expected
+
+      assert unclocked(tool(agent, name, Map.put(body, :series, series))) ==
+               unclocked(answer(route))
+    end
+
+    Application.put_env(:autolaunch, :prelaunch_read_only, true)
+    assert http(:post, path, input, agent).status == 503
+    refute name in tool_names(agent)
+    assert %{"error" => _} = json(mcp(agent, call(name, Map.put(input, :series, series))))
+
+    Application.put_env(:autolaunch, :prelaunch_read_only, false)
+    Application.put_env(:autolaunch, :exposure, :off)
+    assert http(:post, path, input, agent).status == 404
+    refute name in tool_names(agent)
+    assert %{"error" => _} = json(mcp(agent, call(name, Map.put(input, :series, series))))
   end
 
   test "with Exposure on its three reads answer as their routes do; off, none is listed or run" do

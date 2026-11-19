@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.EarnLiveTest do
     assert has_element?(view, "#earn-aave-usdc-terms .earn__rate", "4.68%")
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(900 * @unit))
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(50_000_000 * @unit))
-    assert has_element?(view, "#earn-aave-usdc-terms div", "Capacity")
+    assert has_element?(view, "#earn-aave-usdc-terms dt", "Remaining deposit capacity")
     assert has_element?(view, "#earn-aave-usdc-terms", usdc(100 * @unit))
     assert has_element?(view, "#earn-aave-usdc .earn__status[data-status=open]")
     assert has_element?(view, "#earn-aave-usdc .earn__block", "Read at block 32")
