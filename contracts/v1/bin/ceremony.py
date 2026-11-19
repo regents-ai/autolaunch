@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """The post-ceremony tool for the Autolaunch Base contracts, run from `contracts/v1`.
 
-`bin/deployment-gate.sh` renders, prepares and rehearses the packet and never touches a receipt.
-This tool is the other half, after the founder has sent the five creations by hand:
+This tool runs after the founder has sent the five creations by hand:
 
   record       Verifies the five confirmed Base transaction hashes against the installed packet —
                sender, nonce, order, zero value, the exact initcode, the created address, success —
@@ -17,9 +16,6 @@ This tool is the other half, after the founder has sent the five creations by ha
 The chain is read through `cast` with the endpoint under `REGENT_BASE_RPC_URL`, the same variable
 the `base` alias in `foundry.toml` resolves. Its value is never printed or written. Nothing here
 signs, broadcasts, funds or moves value, and the tool refuses to run beside signing authority.
-
-The gate imports `verify_manifest` from here, so the manifest's two admitted states — the empty
-record, or a deployed record of the installed packet — are defined once.
 """
 
 from __future__ import annotations
@@ -34,8 +30,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Neither this tool nor the gate that imports it may leave a bytecode cache in the tree: the
-# required gate proves the checkout is one clean physical Git object, ignored files included.
+# This tool may not leave a bytecode cache in the tree: the required gate proves the checkout is
+# one clean physical Git object, ignored files included.
 sys.dont_write_bytecode = True
 
 

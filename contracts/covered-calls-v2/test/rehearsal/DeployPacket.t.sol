@@ -14,7 +14,7 @@ import {WeeklyExpiry} from "../doubles/WeeklyExpiry.sol";
 ///         claimed and the strike collected, the 1% fees landing in staking. Run only by
 ///         `deploy/rehearse.sh` (profile `rehearsal`).
 /// @dev    Foundry's local B20 lacks the Cobalt `effectiveAt()` read live on Base, so it stands in
-///         its mainnet value (0, nothing scheduled), as CoveredCallsV1's rehearsal and fork suite do.
+///         its mainnet value (0, nothing scheduled), as CoveredCallsV1's rehearsal does.
 contract DeployPacketRehearsal is Test {
     /// An AMZNc/USDC pool holding AMZNc, used only to fund the test seller.
     address internal constant AMZNC_HOLDER = 0x532e0F46d1e528507FC9454d5847C231f23bDDf6;

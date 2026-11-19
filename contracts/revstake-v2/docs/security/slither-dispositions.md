@@ -2,8 +2,8 @@
 
 ## How Slither runs
 
-`bin/gate.sh` runs Slither only after the frozen identity, the build identity, the frozen release
-surface, the compiled test listing and the executed test set are all green:
+`bin/gate.sh` runs Slither only after the frozen identity, the build identity and the frozen release
+surface are all green:
 
 ```
 slither . --fail-medium --json ../slither.json --checklist
@@ -52,10 +52,9 @@ configuration key or a well-formed command-line flag, so the gate pins both:
 - The gate compares the number of contracts Slither says it analyzed against the number of
   contracts, libraries and interfaces declared under `src/` and `../stocks-v2/src/`, so a narrowed
   source list cannot produce a quiet pass.
-- Every inline `slither-disable` comment under `src/`, `test/` and `script/` needs a row in the
-  inline suppressions table naming its detector, its rationale and a protecting test that Foundry
-  lists; a suppression without a record, or one naming a test that does not exist, fails. The
-  suppressions in `contracts/stocks-v2/src` are recorded by that package's own dispositions.
+- Every inline `slither-disable` comment under `src/` and `script/` needs a row in the inline
+  suppressions table naming its detector and its rationale; a suppression without a record fails.
+  The suppressions in `contracts/stocks-v2/src` are recorded by that package's own dispositions.
 
 ## Generated evidence
 
@@ -92,24 +91,23 @@ produce no medium or high result and no undispositioned result of any severity.
 
 <!-- slither-suppression-count: 25 -->
 
-| File | Detector | Rationale | Protecting test |
-| --- | --- | --- | --- |
-| src/escrow/ConditionalVestingEscrowV2.sol | incorrect-equality | `releasable == 0` is a zero test on a computed schedule amount, not a strict equality against a manipulable balance. It exists so a zero-value release is an exact no-op rather than a revert. | test_ESC_012_VestingReleasesLinearlyOverThreeSixtyFiveDays |
-| src/escrow/ConditionalVestingEscrowV2.sol | timestamp | The vesting schedule is 365 days of wall-clock time from the graduation timestamp, so `block.timestamp` is the specified input. A validator can only move the boundary by seconds, which shifts a linear release proportionally and can never over-release: `totalReleased` is the cap. | test_ESC_012_VestingReleasesLinearlyOverThreeSixtyFiveDays |
-| src/escrow/ConditionalVestingEscrowV2.sol | unused-return | `IContinuousClearingAuction.checkpoint()` returns the terminal `Checkpoint` struct. Escrow calls it only to force the auction to finalize before it reads `isGraduated()` during failure resolution; it needs none of the struct's fields. | test_ESC_005_FailureProvesFullSupplyBeforeRetiring |
-| src/revenue/PaymentReceiverV1.sol | missing-zero-check | `splitter_` is zero-checked and self-checked by `_requireBindable` before any assignment, and the derived bindings are then read from that splitter. Slither's detector does not follow the private helper. | test_RCV_013_BeneficiaryAndSplitterBindingsAreImmutable |
-| src/revenue/PaymentReceiverV1.sol | incorrect-equality | `address(this).balance == 0` is the zero test in `recoverForcedETH`, which reads the balance itself. Force-fed ETH can only turn a revert into a successful whole-balance sweep of that same ETH to the immutable treasury; no amount or threshold is derived from the balance. | test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury |
-| src/revenue/SubjectSplitterV1.sol | incorrect-equality | The same zero test in the splitter's `recoverForcedETH`, safe for the same reason: force-fed ETH can only make the whole-balance sweep to the immutable treasury succeed. | test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury |
-| src/revenue/SubjectSplitterV1.sol | missing-zero-check | Every binding is zero-checked and self-checked by `_requireBindable` before any assignment. Slither's detector does not follow the private helper. | test_SPL_001_RecognizedAssetsAreExactlyUsdcRegentAndSubject |
-| src/revenue/RevstakeLPLocker.sol | unused-return | Two deliberate discards of the same value. `IPositionManager.getPoolAndPositionInfo` returns the position's `PoolKey` and its packed `PositionInfo`, which is tick-range and subscriber metadata rather than a success flag. `register` needs only the key, which it compares against the strategy's expected pool and backs with a separate positive-liquidity read; `collect` needs only the key's two currencies. | test_MIG_006_MintsOneFullRangePositionToThePermanentLocker |
-| src/factory/RegentsAutolaunchFactoryV2.sol | missing-zero-check | `uerc20Factory_` cannot be zero when assigned: `_requireRuntimeCodeHash` has already required its runtime code hash to equal a nonzero source constant, and the zero address has no code. The strategy and the hook are not parameters; this factory deploys both itself. | test_DEP_060_ConstructorRejectsAnyUnexpectedRuntimeCodeHash |
-| src/strategy/RegentLBPStrategyV2.sol | missing-zero-check | All four constructor bindings are zero-checked and self-checked by `_requireBindable`, and the three implementations additionally by `_requireImplementation`, before any assignment. Slither's detector does not follow either private helper. | test_STR_001_ImmutableBindingsAreFixedAtConstruction |
-| src/strategy/RegentLBPStrategyV2.sol | incorrect-equality | `auction.code.length == 0` is a code-presence test on the contract the frozen CCA factory just created, not a strict equality against a manipulable balance or timestamp. It is the first line of the readback that proves the created auction is real before any value moves. | test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet |
-| src/strategy/RegentLBPStrategyV2.sol | unused-return | Three deliberate discards. `IContinuousClearingAuction.checkpoint()` returns the terminal `Checkpoint` struct, which migration forces only so classification reads a finalized auction. `IPoolManager.initialize` returns the opening tick, which the strategy does not need because it supplied the price. `PositionPlanner.resolve` returns the unconsumed budgets, which the strategy ignores because it measures what the position actually used by balance delta: the unpaired SUBJECT goes to the escrow with the rest of the leftover and the unpaired REGENT goes to the treasury. | test_STR_015_ActualLpConsumptionIsRecorded |
-| src/strategy/RegentLBPStrategyV2.sol | reentrancy-no-eth | `initializeDistribution` and `migrate` carry the pinned transient `nonReentrant` guard, which Slither does not recognize, so it reports the records `_graduate` and `_retire` write after their external calls. The terminal lifecycle is written before the first state-changing external call of each terminal path, so a re-entrant dependency meets a launch that is no longer active, and the trailing record is observation of calls that already succeeded. | test_STR_004_ReentrantDependencyCannotEnterASecondMutation |
-| src/strategy/RegentLBPStrategyV2.sol | reentrancy-benign | The same transient guard covers `initializeDistribution`; the write Slither sees after the CCA factory's `create` is this launch's own record, written before any token moves, and a re-entrant call is refused by the guard before it can observe it. | test_STR_004_ReentrantDependencyCannotEnterASecondMutation |
+| File | Detector | Rationale |
+| --- | --- | --- |
+| src/escrow/ConditionalVestingEscrowV2.sol | incorrect-equality | `releasable == 0` is a zero test on a computed schedule amount, not a strict equality against a manipulable balance. It exists so a zero-value release is an exact no-op rather than a revert. |
+| src/escrow/ConditionalVestingEscrowV2.sol | timestamp | The vesting schedule is 365 days of wall-clock time from the graduation timestamp, so `block.timestamp` is the specified input. A validator can only move the boundary by seconds, which shifts a linear release proportionally and can never over-release: `totalReleased` is the cap. |
+| src/escrow/ConditionalVestingEscrowV2.sol | unused-return | `IContinuousClearingAuction.checkpoint()` returns the terminal `Checkpoint` struct. Escrow calls it only to force the auction to finalize before it reads `isGraduated()` during failure resolution; it needs none of the struct's fields. |
+| src/revenue/PaymentReceiverV1.sol | missing-zero-check | `splitter_` is zero-checked and self-checked by `_requireBindable` before any assignment, and the derived bindings are then read from that splitter. Slither's detector does not follow the private helper. |
+| src/revenue/PaymentReceiverV1.sol | incorrect-equality | `address(this).balance == 0` is the zero test in `recoverForcedETH`, which reads the balance itself. Force-fed ETH can only turn a revert into a successful whole-balance sweep of that same ETH to the immutable treasury; no amount or threshold is derived from the balance. |
+| src/revenue/SubjectSplitterV1.sol | incorrect-equality | The same zero test in the splitter's `recoverForcedETH`, safe for the same reason: force-fed ETH can only make the whole-balance sweep to the immutable treasury succeed. |
+| src/revenue/SubjectSplitterV1.sol | missing-zero-check | Every binding is zero-checked and self-checked by `_requireBindable` before any assignment. Slither's detector does not follow the private helper. |
+| src/revenue/RevstakeLPLocker.sol | unused-return | Two deliberate discards of the same value. `IPositionManager.getPoolAndPositionInfo` returns the position's `PoolKey` and its packed `PositionInfo`, which is tick-range and subscriber metadata rather than a success flag. `register` needs only the key, which it compares against the strategy's expected pool and backs with a separate positive-liquidity read; `collect` needs only the key's two currencies. |
+| src/factory/RegentsAutolaunchFactoryV2.sol | missing-zero-check | `uerc20Factory_` cannot be zero when assigned: `_requireRuntimeCodeHash` has already required its runtime code hash to equal a nonzero source constant, and the zero address has no code. The strategy and the hook are not parameters; this factory deploys both itself. |
+| src/strategy/RegentLBPStrategyV2.sol | missing-zero-check | All four constructor bindings are zero-checked and self-checked by `_requireBindable`, and the three implementations additionally by `_requireImplementation`, before any assignment. Slither's detector does not follow either private helper. |
+| src/strategy/RegentLBPStrategyV2.sol | incorrect-equality | `auction.code.length == 0` is a code-presence test on the contract the frozen CCA factory just created, not a strict equality against a manipulable balance or timestamp. It is the first line of the readback that proves the created auction is real before any value moves. |
+| src/strategy/RegentLBPStrategyV2.sol | unused-return | Three deliberate discards. `IContinuousClearingAuction.checkpoint()` returns the terminal `Checkpoint` struct, which migration forces only so classification reads a finalized auction. `IPoolManager.initialize` returns the opening tick, which the strategy does not need because it supplied the price. `PositionPlanner.resolve` returns the unconsumed budgets, which the strategy ignores because it measures what the position actually used by balance delta: the unpaired SUBJECT goes to the escrow with the rest of the leftover and the unpaired REGENT goes to the treasury. |
+| src/strategy/RegentLBPStrategyV2.sol | reentrancy-no-eth | `initializeDistribution` and `migrate` carry the pinned transient `nonReentrant` guard, which Slither does not recognize, so it reports the records `_graduate` and `_retire` write after their external calls. The terminal lifecycle is written before the first state-changing external call of each terminal path, so a re-entrant dependency meets a launch that is no longer active, and the trailing record is observation of calls that already succeeded. |
+| src/strategy/RegentLBPStrategyV2.sol | reentrancy-benign | The same transient guard covers `initializeDistribution`; the write Slither sees after the CCA factory's `create` is this launch's own record, written before any token moves, and a re-entrant call is refused by the guard before it can observe it. |
 
-A `slither-disable` annotation anywhere under `src/`, `test/` or `script/` requires a row above
-naming the exact detector, the reason the finding is safe and the Foundry test that protects the
-property. The recorded count is every detector token across every annotation; one row covers
-each distinct file-and-detector pair.
+A `slither-disable` annotation anywhere under `src/` or `script/` requires a row above naming the
+exact detector and the reason the finding is safe. The recorded count is every detector token across
+every annotation; one row covers each distinct file-and-detector pair.

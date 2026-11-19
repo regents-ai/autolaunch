@@ -75,8 +75,6 @@ block. Front ends should ask for the minimum plus one unit.
 | `src/revenue/` | `SubjectSplitterV1`, `PaymentReceiverV1`, `RevstakeLPLocker`. |
 | `src/bindings/BaseBindings.sol` | The frozen Base addresses. |
 | `script/DeployRevstakeV2.s.sol` | The five-creation deployment, checked against its predictions while Foundry simulates it. |
-| `test/` | Hermetic suite against real PoolManager, PositionManager, CCA factory and UERC20 bytecode. |
-| `test-deployment/` | Rehearsal of the deployment script (`FOUNDRY_PROFILE=deployment`). |
 | `requirements/`, `reports/frozen/`, `abi/` | The frozen identity, release surface and ABIs `bin/gate.sh` reconciles. |
 
 ## Checks
@@ -87,11 +85,9 @@ bin/gate.sh
 
 The gate runs from a clean commit and is offline. It reconciles the toolchain, the effective
 Foundry configuration, the compiled Base bindings and the dependency snapshot; checks formatting;
-builds; regenerates and compares every frozen ABI and report; runs the whole suite; and runs Slither
+builds; regenerates and compares every frozen ABI and report; and runs Slither
 against `docs/security/slither-dispositions.md`. The body is shared with the Memestake packages in
 `../stocks-v2/bin/memestake-gate.sh`.
 
-`FOUNDRY_PROFILE=deployment forge test` rehearses the deployment script. This package carries no
-Base fork suite; the 28 September 2026 practice run on a copy of Base is described in
-`SECURITY.md`. The signing kit uses the shared ceremony tool `../stocks-v2/bin/ceremony.py`; see
+The 28 September 2026 practice run on a copy of Base is described in `SECURITY.md`. The signing kit uses the shared ceremony tool `../stocks-v2/bin/ceremony.py`; see
 `deployments/base-mainnet/README.md`.

@@ -380,7 +380,7 @@ def run_checked(
 
 def compile_lab(root: Path) -> None:
     run_checked(
-        ["forge", "build", "--offline", "--skip", "test", "--skip", "**/*.t.sol"],
+        ["forge", "build", "--offline"],
         root,
         environment=forge_environment(),
     )

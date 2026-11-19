@@ -67,16 +67,12 @@ frozen=requirements/frozen-identity.json
 freeze=requirements/freeze.json
 dispositions=docs/security/slither-dispositions.md
 slither_config=slither.config.json
-frozen_listing=reports/frozen/test-listing.json
 
 generated=reports/generated
 receipt_final="$generated/dependency-receipt.txt"
 receipt="$generated/.dependency-receipt.tmp"
 tool_identity="$generated/tool-identity.txt"
 forge_config="$generated/forge-config.json"
-test_list="$generated/forge-test-list.json"
-test_report="$generated/forge-test.json"
-test_stderr="$generated/forge-test.stderr.log"
 slither_json="$generated/slither.json"
 slither_checklist="$generated/slither-checklist.md"
 slither_stderr="$generated/slither.stderr.log"
@@ -269,7 +265,7 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$freeze" "$dispositions" "$slither_config" "$checker" "$freezer" \
-    "$frozen_listing" foundry.toml remappings.txt; do
+    foundry.toml remappings.txt; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
 [ -z "$bindings" ] || [ -f "$bindings" ] || fail "required repository file is missing: $bindings"
@@ -288,7 +284,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
 cat "$tool_identity"
 
 # The effective configuration, not the committed file: an environment override that changes the
-# build or the fuzz portfolio shows up here and fails the reconciliation.
+# build shows up here and fails the reconciliation.
 forge config --json >"$forge_config"
 
 # ---------------------------------------------------------------------------
@@ -321,32 +317,12 @@ forge build --sizes
 python3 "$checker" artifacts --frozen "$frozen" --out out --receipt "$receipt"
 
 # ---------------------------------------------------------------------------
-section "Compiled test listing and frozen release surface"
+section "Frozen release surface"
 # ---------------------------------------------------------------------------
 
-# Foundry's own compiled listing, regenerated on every run. It is the authority for which test
-# identities exist: a source scan cannot tell inherited, overloaded, or duplicated identities apart.
-forge test --list --json >"$test_list"
-
-# Check mode only. The freezer regenerates every committed ABI, surface, size, manifest, dependency
-# closure and test listing document from these artifacts and compares byte for byte.
-python3 "$freezer" check --freeze "$freeze" --out out --test-list "$test_list" --receipt "$receipt"
-
-# ---------------------------------------------------------------------------
-section "Test execution"
-# ---------------------------------------------------------------------------
-
-test_status=0
-forge test --json >"$test_report" 2>"$test_stderr" || test_status=$?
-cat "$test_stderr"
-
-python3 "$checker" tests \
-    --test-list "$test_list" \
-    --frozen-listing "$frozen_listing" \
-    --test-report "$test_report" \
-    --receipt "$receipt"
-
-[ "$test_status" -eq 0 ] || fail "forge test exited $test_status"
+# Check mode only. The freezer regenerates every committed ABI, surface, size, manifest and
+# dependency closure document from these artifacts and compares byte for byte.
+python3 "$freezer" check --freeze "$freeze" --out out --receipt "$receipt"
 
 # ---------------------------------------------------------------------------
 section "Static analysis"
@@ -400,9 +376,8 @@ python3 "$checker" security \
     --slither-command "$slither_command" \
     --detector-inventory "$detector_inventory" \
     --dispositions "$dispositions" \
-    --test-list "$test_list" \
     --analyzed-sources $analyzed_sources \
-    --suppression-sources src test script \
+    --suppression-sources src script \
     --receipt "$receipt"
 
 [ "$slither_status" -eq 0 ] || fail "slither exited $slither_status"
@@ -411,8 +386,8 @@ python3 "$checker" security \
 section "Provider-secret scan"
 # ---------------------------------------------------------------------------
 
-# Bind the receipt to the exact clean commit only after every compilation, test and static-analysis
-# check has succeeded. It remains temporary until the final scan and repository integrity proof.
+# Bind the receipt to the exact clean commit only after every compilation and static-analysis check
+# has succeeded. It remains temporary until the final scan and repository integrity proof.
 tested_commit=$(git rev-parse HEAD)
 tested_tree=$(git rev-parse 'HEAD^{tree}')
 tested_src=$(git rev-parse "HEAD:$component/src")

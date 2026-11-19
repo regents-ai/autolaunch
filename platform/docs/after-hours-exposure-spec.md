@@ -8,8 +8,8 @@ built (switched off), CLI not built.
 **Source idea:** "Isolated Exposure Tokens", The Standard Reserve, October 2026.
 
 This document is written for an independent reviewer. Section 9 lists the questions we most want a
-second opinion on. The complete Solidity source (contracts, deploy scripts, tests and test doubles)
-is reproduced in the appendix exactly as it is in the repository.
+second opinion on. The complete Solidity source (contracts and deploy scripts) is reproduced in
+the appendix exactly as it is in the repository.
 
 ---
 
@@ -30,7 +30,7 @@ day). Isolated Exposure to After-hours Stocks splits one stock token, for a fixe
   or liquidation.
 - At the end of the term, each leg redeems on its own for its ledger's fraction of the stock.
 
-The paper's worked example runs unchanged in the contract (`test_WorkedExample`):
+The paper's worked example runs unchanged in the contract:
 
 | Print | Price P | OVERNIGHT N | SESSION S |
 | --- | --- | --- | --- |
@@ -136,7 +136,7 @@ ReentrancyGuard, Ownable) and forge-std, from the pinned `contracts/stocks-v2/li
 | `ChainlinkPrintOracleV2` | Turns one fixed phase of one Chainlink feed into append-only open/close prints, with each print's source round. | None. |
 | `IFinalizedPrintOracle` | The narrow interface the series reads: `getPrint(feedId, scheduledAt, isOpen) → (priceWad, observedAt, finalizedAt)`. | — |
 
-Gas (mock suite, indicative): `settle` ≈ 50k, `redeem` ≈ 59k, first `mint` for a new holder ≈ 203k,
+Gas (indicative): `settle` ≈ 50k, `redeem` ≈ 59k, first `mint` for a new holder ≈ 203k,
 `createSeries` ≈ 2.4M (simulated on Base for the 11-print series).
 
 ## 4. Prices: `ChainlinkPrintOracleV2`
@@ -165,9 +165,9 @@ aggregator beside the old one and later pointing the proxy at it; the switch tim
 chain, and the new aggregator can already hold rounds from before the switch. If the oracle followed
 the proxy, the print for a 09:30 open could be the old aggregator's value when recorded at 10:31 and
 the new one's when recorded after an 11:00 switch, whichever came first. With the phase pinned, a
-print is a pure function of one aggregator's history (`test_ProxySwitchDoesNotChangeAPrint`). On the
-real feed, phase 1 and phase 2 both published for nine days in August 2026; the fork suite records a
-moment in that overlap from phase 2 only (`test_fork_overlapGivesOnePrintOnThePinnedPhase`).
+print is a pure function of one aggregator's history. On the real feed, phase 1 and phase 2 both
+published for nine days in August 2026; an oracle pinned to phase 2 records a moment in that overlap
+from phase 2 only.
 
 **Retirement and staleness.** When Chainlink retires the pinned aggregator it stops updating but
 stays readable. For up to 84 hours its frozen last value is still used, so moves in that time are not
@@ -197,16 +197,16 @@ open or close next to the feed value and report the per-leg divergence.
 
 ### 5.1 Invariants and why they hold
 
-| # | Invariant | Why it holds | Evidence |
-| --- | --- | --- | --- |
-| I1 | `N + S = P` and `0 ≤ N ≤ P` | S is derived; every transition sets N ∈ [0, p] (2.2). | `testFuzz_LedgersAlwaysSumToPrice`, `invariant_LedgersStayWithinPrice` |
-| I2 | While not ended: `supply(OVERNIGHT) = supply(SESSION) = A` | Mint adds `assets` to all three; pre-end redemption is pairs only and subtracts `o` from all three. | `invariant_PairsMatchBackingWhileLive` |
-| I3 | After the end: `supplyN·N + supplyS·S ≤ A·P` | At the end both supplies equal A and `N+S=P`, so equality; each redemption reduces A by its exact-or-rounded-down claim, so the inequality is preserved. | `invariant_ClaimsNeverExceedAccounted`, `testFuzz_ClaimsNeverExceedBacking` |
-| I4 | Without issuer seizure: `balance ≥ A` | Deposits must arrive exactly; payouts never exceed owed; donations only add. | `invariant_FullyBackedUnlessSeized`, `invariant_StockConserved` |
-| I5 | Splitting a redemption never pays more | Floor on each piece; pairs exact. | `testFuzz_SplittingNeverPaysMore` |
-| I6 | A print cannot be skipped, replayed, reordered or chosen | `settle` takes no input; index is `settled`; oracle keyed by exact (T, isOpen); oracle records once. | `test_PrintsApplyOnlyInOrder`, oracle `test_TooEarlyAndOnlyOnce` |
-| I7 | An available timely print can never be overridden by the timeout | `endOnMissingPrint` reverts if the eligible print exists; the gas floor prevents starving the read. | `test_TimelyPrintBlocksTimeoutHoweverLateItIsApplied`, `testFuzz_LowGasCannotFakeAnOutage` (25k–400k gas) |
-| I8 | One moment has exactly one recordable Chainlink print, whenever it is recorded | One pinned phase; rules 1–2 of section 4. | `test_ProxySwitchDoesNotChangeAPrint`, `test_RefusesARoundThatWasNotInForce`, fork `test_fork_overlapGivesOnePrintOnThePinnedPhase` |
+| # | Invariant | Why it holds |
+| --- | --- | --- |
+| I1 | `N + S = P` and `0 ≤ N ≤ P` | S is derived; every transition sets N ∈ [0, p] (2.2). |
+| I2 | While not ended: `supply(OVERNIGHT) = supply(SESSION) = A` | Mint adds `assets` to all three; pre-end redemption is pairs only and subtracts `o` from all three. |
+| I3 | After the end: `supplyN·N + supplyS·S ≤ A·P` | At the end both supplies equal A and `N+S=P`, so equality; each redemption reduces A by its exact-or-rounded-down claim, so the inequality is preserved. |
+| I4 | Without issuer seizure: `balance ≥ A` | Deposits must arrive exactly; payouts never exceed owed; donations only add. |
+| I5 | Splitting a redemption never pays more | Floor on each piece; pairs exact. |
+| I6 | A print cannot be skipped, replayed, reordered or chosen | `settle` takes no input; index is `settled`; oracle keyed by exact (T, isOpen); oracle records once. |
+| I7 | An available timely print can never be overridden by the timeout | `endOnMissingPrint` reverts if the eligible print exists; the gas floor prevents starving the read. |
+| I8 | One moment has exactly one recordable Chainlink print, whenever it is recorded | One pinned phase; rules 1–2 of section 4. |
 
 ### 5.2 Threats considered
 
@@ -214,7 +214,7 @@ open or close next to the feed value and report the per-leg divergence.
 | --- | --- |
 | Front-running a known print by minting/redeeming | Pairs are value-neutral at every moment; single-leg redemption only after the end. No value leaks through the vault (only through external pools, by design). |
 | Keeper choosing an allocation by delay | Prints are deterministic from Chainlink history; recording is permissionless and once-only; the timeout cannot override a timely print. |
-| Griefing with low gas | 105k floor before a 100k-budget read; fuzzed. |
+| Griefing with low gas | 105k floor before a 100k-budget read. |
 | Malicious/broken oracle reply | Fixed-size buffer, exact-length check, bounded gas; treated as missing. |
 | Reentrancy | `mint`/`redeem` are `nonReentrant`, effects before the external transfer; oracle read is `staticcall`; legs have no hooks. |
 | Rounding drain | Pairs exact; remainders floor; claims never use remaining supply as a denominator. Dust stays in the vault. |
@@ -222,12 +222,12 @@ open or close next to the feed value and report the per-leg divergence.
 | Failing token transfers | Solady SafeTransferLib reverts on false/failed; burns and accounting revert with the payout. A failing `balanceOf` reverts (plain interface call), never reads as an empty vault. |
 | Issuer seizure from the vault | Pro-rata cut on every later redemption; minting blocked while short; no race. A holder who redeems during a shortfall keeps the cut even if stock is later returned (disclosed). |
 | Issuer pause / blocklist | Payout only to `msg.sender`, so a blocklisted holder cannot redeem until unblocked; nothing is burned on a refused transfer. Legs remain transferable (accepted and disclosed by Sean). An issuer blocklist on the vault itself freezes all exits (disclosed). |
-| Oversupply / bad factory input | Constructor validates schedule shape, report delay (0 < d ≤ 7 days) and nonzero cap. Calendar correctness (holidays, DST) is the Safe's responsibility; the first series' times were generated from the New York calendar and are asserted in the fork rehearsal. |
+| Oversupply / bad factory input | Constructor validates schedule shape, report delay (0 < d ≤ 7 days) and nonzero cap. Calendar correctness (holidays, DST) is the Safe's responsibility; the first series' times were generated from the New York calendar. |
 | Factory owner | Can only list new series; cannot touch existing ones. |
 | Permit2 default allowance | Disabled on legs. |
 | Feed migration or proxy switch | Phase pinned at deploy (section 4). |
-| Stopped or retired feed | Values older than 84 hours are refused and the keeper ends the series at its last values once the deadline passes (`test_RefusesARoundOlderThanTheStalenessLimit`, `test_KeeperEndsTheSeriesOnADeadFeed`); a holiday weekend still prices (`test_HolidayWeekendGapStillPrices`). |
-| Keeper picking the wrong round | The oracle verifies the round; the keeper's search is fuzzed against a linear scan (`testFuzz_KeeperFindsTheRoundInForce`) and runs on the real feed in the fork suite. |
+| Stopped or retired feed | Values older than 84 hours are refused and the keeper ends the series at its last values once the deadline passes; a holiday weekend still prices. |
+| Keeper picking the wrong round | The oracle verifies the round. |
 
 ### 5.3 Accepted limits
 
@@ -245,25 +245,9 @@ open or close next to the feed value and report the per-leg divergence.
 
 ### 5.4 Verification performed
 
-- Offline gate (`contracts/exposure/bin/gate.sh`, Foundry 1.5.1): 56 checks — 36 series unit/fuzz,
-  5 invariants (256 runs × 128 calls over mint, redeem, transfers, prints, missed prints, donations,
-  seizures), 14 oracle and keeper, 1 factory. Fuzz runs 1,024 per property.
-- Mutation check (re-run 29 Oct on the final code): seven deliberate bugs planted one at a time in
-  the series (overdrawn depletion, skipped depletion, oversized oracle reply accepted, no seizure
-  cut, single legs before the end, late print accepted, legs burned for nothing); each made at least
-  one test fail.
-- Base fork (Foundry 1.8.6 `anvil --network base`, block 53,209,576), 7 tests on the real AMZNc B20
-  token and real AMZN Chainlink feed: a series over 23–28 Oct 2026 real prices (ends 126.31992499 /
-  126.60757501 at 252.9275; each leg redeems for exactly its share); real 2-for-1 multiplier change;
-  real issuer blocklisting and transfer pause; a moment in the August feed overlap priced from the
-  pinned phase only; and a full rehearsal of deployment, the Safe's `createSeries` call as printed,
-  the Friday sitting (first print, minting, both Aerodrome pools landing 50 minutes after simulation,
-  and Aerodrome refusing them after the deadline), and the closing sitting through maturity, with the
-  week's feed rounds stood in on the pinned phase.
 - Independent reviews: three agent reviews (code; economics against the paper; the Chainlink reader),
   an outside second look at the full bundle, and an agent review of the pinned-phase oracle (which
-  set the 84-hour limit, the keeper's dead-feed handling and the deploy-time phase check). Every
-  finding acted on has a lasting test.
+  set the 84-hour limit, the keeper's dead-feed handling and the deploy-time phase check).
 - Deployed bytecode checked against the build: factory byte-for-byte.
 
 ## 6. Deployment and the first series
@@ -311,5 +295,5 @@ routes above once the switch is on; until then the guides' Agent access table sh
 
 ## Source
 
-The complete Solidity source is in `contracts/exposure/` (`src/`, `script/`, `test/`). The review
+The complete Solidity source is in `contracts/exposure/` (`src/`, `script/`). The review
 bundle sent outside the repository appends every file verbatim.

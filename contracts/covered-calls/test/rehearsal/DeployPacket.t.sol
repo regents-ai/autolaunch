@@ -12,7 +12,7 @@ import {WeeklyExpiry} from "../doubles/WeeklyExpiry.sol";
 ///         call's life with the real AMZNc, Base USDC and live REGENT staking, the 1% fee landing in
 ///         staking. Run only by `deploy/rehearse.sh` (profile `rehearsal`).
 /// @dev    Foundry's local B20 lacks the Cobalt `effectiveAt()` read live on Base since then, so it
-///         stands in its mainnet value (0, nothing scheduled), as the fork suite does.
+///         stands in its mainnet value (0, nothing scheduled).
 contract DeployPacketRehearsal is Test {
     /// An AMZNc/USDC pool holding AMZNc, used only to fund the test seller.
     address internal constant AMZNC_HOLDER = 0x532e0F46d1e528507FC9454d5847C231f23bDDf6;

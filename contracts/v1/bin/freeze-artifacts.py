@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Deterministic freezer for the autolaunch-contracts release surface.
 
-Every committed file under `abi/`, every frozen report the Solidity ABI tests read, and
+Every committed file under `abi/`, the frozen ABI surface and size reports, and
 `contracts/autolaunch-release-manifest.json` is *generated* from the exact compiler
 artifacts in `out/`. Nothing here is hand written, and nothing here restates a value the
 compiler already decided.
@@ -17,9 +17,7 @@ Two modes:
          contracts the frozen `final_source_delta` record names — each with a written
          reason, and each of which must really differ — to have moved, and exactly the
          contracts that record names as added since the capture to exist beside it, and
-         appends its own
-         verified receipt line so deleting the gate's freezer invocation makes the ledger
-         reconciliation fail for `DEP-016`.
+         appends its own verified receipt line.
 
 The keccak-256 used for selectors and event topics is implemented here rather than
 imported, so the gate needs no package. It is not trusted on its word: every function
@@ -413,8 +411,7 @@ def abi_surface_document(entries: dict[str, dict], consumed: dict[str, dict]) ->
             "The frozen external surface of every Regent production contract, derived from the "
             "compiler artifacts. Selectors and event topics are keccak over the canonical "
             "signature, so a changed integer width, a renamed field, a reordered tuple, or a "
-            "changed indexed flag all change the recorded line. test/abi/** reads this file as "
-            "its authority and reconciles every line against compiler truth."
+            "changed indexed flag all change the recorded line."
         ),
         "contracts": {name: surface_entry(name, entries[name]) for name in PRODUCTION_CONTRACTS},
         "consumed": consumed,

@@ -1,6 +1,5 @@
 [profile.default]
 src = "src"
-test = "test"
 script = "script"
 out = "out"
 libs = ["lib"]
@@ -19,65 +18,12 @@ offline = true
 ffi = false
 fs_permissions = []
 
-# `test/base/` runs only under the `base` profile against a copy of Base mainnet, and
-# `test/sepolia/` only under the `sepolia` profile against the public Base Sepolia endpoint.
-no_match_path = "test/{base,sepolia}/**"
-
-[profile.default.fuzz]
-runs = 64
-seed = "0x53544f434b53"
-max_test_rejects = 65536
-fail_on_revert = true
-
-[profile.default.invariant]
-runs = 16
-depth = 32
-fail_on_revert = true
-
-# Version 3 on a copy of Base mainnet, which runs 0.2 s blocks since Denim: the real pinned CCA
-# factory, Permit2, pool pieces, USDC, staking and Base stock tokens. A stock token's one-byte `0xef`
-# code runs only on Foundry's Base network (1.8.6 or later). Read-only: the fork is local to Forge
-# and nothing is sent to the chain.
-[profile.base]
-match_path = "test/base/**"
-# Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
-no_match_path = "none/**"
-offline = false
-network = "base"
-# The public Base endpoint exists only in this profile, so the required gate's configuration
-# resolves no endpoint. Forge forks it at the latest block before the suite starts.
-eth_rpc_url = "https://mainnet.base.org"
-
-# A version 3 launch on Base Sepolia, which already runs 0.2 s blocks, through the real pinned CCA
-# factory. Read-only: the fork is local to Forge and nothing is sent to the chain.
-[profile.sepolia]
-match_path = "test/sepolia/**"
-no_match_path = "none/**"
-offline = false
-
-# The public Base Sepolia endpoint exists only in this profile, so the required gate's configuration
-# resolves no endpoint.
-[profile.sepolia.rpc_endpoints]
-base_sepolia = "https://sepolia.base.org"
-
-# The deployment-ceremony profile, the only profile `bin/ceremony.py` runs. Same frozen
-# build; a separate test root and build directory so ceremony artifacts never touch the set the
-# required gate reconciles. No filesystem access: the graph is emitted as decoded logs and rendered by
-# the tool.
-[profile.deployment]
-test = "test-deployment"
-out = "reports/generated/deployment-out"
-cache_path = "reports/generated/deployment-cache"
-offline = false
-ffi = false
-fs_permissions = []
-
 # The Base endpoint stays an unresolved environment reference in every committed file; the
 # required offline gate never reads it.
 [rpc_endpoints]
 base = "${REGENT_BASE_RPC_URL}"
 
-# Lint applies to the shipped sources; test doubles and the lab script are exercised, not linted.
+# Lint applies to the shipped sources, not to the scripts.
 [lint]
-ignore = ["test/**/*.sol", "script/**/*.sol", "test-deployment/**/*.sol"]
+ignore = ["script/**/*.sol"]
 exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]

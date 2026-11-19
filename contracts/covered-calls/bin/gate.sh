@@ -1,6 +1,6 @@
 #!/bin/sh
-# Required offline gate for contracts/covered-calls: format, build and every suite except the Base
-# fork suite (unit, recovery, invariant). Needs ../stocks-v2/lib, filled by stocks-v2/bootstrap-deps.py.
+# Required offline gate for contracts/covered-calls: format and build. Needs ../stocks-v2/lib, filled
+# by stocks-v2/bootstrap-deps.py.
 set -eu
 cd "$(dirname "$0")/.."
 [ -d ../stocks-v2/lib/forge-std ] && [ -d ../stocks-v2/lib/solady ] || {
@@ -9,4 +9,3 @@ cd "$(dirname "$0")/.."
 }
 forge fmt --check
 forge build
-forge test

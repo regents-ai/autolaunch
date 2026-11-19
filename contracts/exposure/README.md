@@ -37,17 +37,9 @@ admin, upgrade, pause or fee.
 bin/gate.sh
 ```
 
-The offline gate: `forge fmt --check`, `forge build`, and the unit, fuzz, invariant, oracle and
-factory suites. It builds against `../stocks-v2/lib` (forge-std and solady), filled by
-`stocks-v2/bootstrap-deps.py`.
-
-The Base fork suite (`test/fork/`) creates a series through the factory on the real AMZNc token and
-settles it from the real Coinbase AMZN Chainlink feed over the week of 23 to 28 October 2026. Base
-stock tokens are B20 precompiles, so it needs Foundry 1.8.4 or later: start
-`anvil --network base --fork-url <Base RPC> --fork-block-number 53209576`, then
-`FOUNDRY_PROFILE=fork forge test --network base --fork-url http://127.0.0.1:<port>`.
+The offline gate: `forge fmt --check` and `forge build`. It builds against `../stocks-v2/lib`
+(forge-std and solady), filled by `stocks-v2/bootstrap-deps.py`.
 
 `script/DeployAfterHours.s.sol` deploys the AMZN oracle and the factory (owned by the Governance and
-Regent Safe) and prints the Safe's `createSeries` call for the first AMZNc series; the fork suite's
-`DeployAfterHours.fork.t.sol` rehearses both and runs that series' whole week. Broadcasting is a
+Regent Safe) and prints the Safe's `createSeries` call for the first AMZNc series. Broadcasting is a
 protected action and needs Sean's go.

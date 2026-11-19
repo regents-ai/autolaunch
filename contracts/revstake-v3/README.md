@@ -34,8 +34,7 @@ served launches before it, version 3 serves them after it.
 
 The escrow, splitter and payment receiver are reused: the factory accepts only implementations
 whose runtime code hashes match version 2's, so a version 3 deployment points it at version 2's
-deployed implementations. Their sources here are byte-identical copies, kept so the tests build
-them. The escrow already vests on `block.timestamp` (365 days from the graduation timestamp) and is
+deployed implementations. Their sources here are byte-identical copies. The escrow already vests on `block.timestamp` (365 days from the graduation timestamp) and is
 unaffected by the block time. The splitter's rule that an unstake waits for the next block is about
 ordering, not time, and is unchanged.
 
@@ -140,20 +139,10 @@ react inside it, which only makes the single block harder to manipulate.
 ## Layout
 
 The layout is version 2's, with `src/factory/RegentsAutolaunchFactoryV3.sol` and
-`src/strategy/RegentLBPStrategyV3.sol` in place of the version 2 factory and strategy. Tests
-changed or added:
-
-| Path | Proves |
-| --- | --- |
-| `test/strategy/RegentLBPStrategy.t.sol` | The new constants (`STR-005` to `STR-008`, `STR-013`) and the frozen 152-byte schedule. |
-| `test/strategy/RegentLBPStrategySchedule.t.sol` | The schedule equals version 2 at every version 2 step boundary and stays within 26,144 mps of it at every 2-second mark and, by fuzzing, at any block; and a version 3 launch's auction from the pinned CCA reports exactly what a version 2 auction from the same factory reports at every boundary, ten times as many blocks in. |
-| `test/strategy/V2Schedule.sol` | Version 2's schedule, kept only as the reference, and the schedule arithmetic the tests use. |
-| `test/invariant/handlers/LifecycleHandler.sol` | The lifecycle invariants now move the chain at five blocks a second. |
-| `test/sepolia/AutolaunchSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): a launch through the real pinned CCA factory (code hash checked against `BaseBindings`) and Permit2 opens 10 minutes after launch, releases version 3's amount at 24 hours, ends after 48 hours, claims after 128 s, migrates at 256 s and not one block earlier, graduates, and vests the escrow half at half a year and all at a year. |
-| `test/base/AutolaunchBaseCopy.t.sol` | On a copy of Base mainnet, with the real pinned CCA factory, Permit2, PoolManager, PositionManager, REGENT and version 2's deployed UERC20 factory, escrow, splitter and receiver implementations: the copy makes five blocks a second; a launch opens 3,000 blocks (ten minutes) after it is created, has released within 0.26% of version 2's amount at 24 hours, runs two days, claims after 128 s, migrates at 256 s and not one block earlier into a real pool with liquidity, and vests the escrow over a year; a raise one unit short fails and refunds in full; one checkpoint across all nineteen steps costs about 212,000 gas. |
+`src/strategy/RegentLBPStrategyV3.sol` in place of the version 2 factory and strategy.
 
 The deployment kit follows version 2's, for the one creation version 3 makes:
-`script/DeployRevstakeV3.s.sol`, its suites in `test-deployment/`, the frozen release surface in
+`script/DeployRevstakeV3.s.sol`, the frozen release surface in
 `requirements/`, `reports/frozen/` and `abi/`, the gate `bin/gate.sh`, `SECURITY.md`, and
 `deployments/base-mainnet/`, whose `README.md` describes the ceremony. The ceremony tool is
 `../stocks-v3/bin/ceremony.py`, shared with Base Memestake version 3.
@@ -163,21 +152,10 @@ The deployment kit follows version 2's, for the one creation version 3 makes:
 ```sh
 cd contracts/revstake-v3          # with ../stocks-v3/lib in place
 forge build
-forge test                                     # hermetic, offline
-FOUNDRY_PROFILE=sepolia forge test             # Base Sepolia fork, public endpoint, read-only
-FOUNDRY_PROFILE=base forge test                # Base mainnet copy, public endpoint, read-only
 ./bin/gate.sh                                  # the required gate, offline, on a clean commit
 python3 ../stocks-v3/bin/ceremony.py render    # the deployment packet, offline
 ```
 
-`foundry.toml` sets `isolate = false`: each test runs as one transaction, as under the frozen Forge
-1.5.1. Newer Forge isolates every top-level call by default, which spends a deployer nonce per call
-and breaks the fixtures' address predictions.
-
-The Sepolia profile forks `https://sepolia.base.org` inside Forge; nothing is signed or sent. The
-pool pieces, REGENT, USDC and REGENT staking are built fresh at their Base mainnet addresses, which
-hold nothing usable on Sepolia; the CCA factory and Permit2 are Sepolia's own.
-
-The base profile forks `https://mainnet.base.org` at its latest block inside Forge; nothing is
-signed or sent. It needs Foundry 1.8.6 or later and takes about seven minutes on the public
-endpoint.
+`foundry.toml` sets `isolate = false`: top-level calls share one transaction, as under the frozen
+Forge 1.5.1. Newer Forge isolates every top-level call by default, which spends a deployer nonce per
+call and breaks address predictions.

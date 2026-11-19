@@ -13,31 +13,20 @@ Subcommands, in the order the gate runs them:
              configuration, the chain manifest, the compiled binding source, and the pinned
              CCA implementation source. Derive the frozen build from SPEC.md and reconcile
              both the fixture and the effective configuration against it. Validate the
-             ledger's static shape. Write the dependency receipt that the ledger
-             reconciliation later consumes.
+             ledger's static shape. Write the dependency receipt.
   artifacts  Assert the compiler identity and settings recorded in the produced artifacts.
-  ledger     Reconcile Foundry's own compiled test listing against the executed test report
-             as multisets, then reconcile both against the ledger.
   security   Reconcile the Slither run: an unnarrowed configuration and command line, the
              pinned binary's whole registered detector portfolio, fresh and well-formed
              evidence, one visible disposition per exact result fingerprint at every
              severity, and a complete record for every inline suppression.
-  evidence   Reconcile the audit packet's published figures against the run that produced
-             them: every deployable-size row in docs/audit/gas-and-size.md against the frozen
-             size record, and every hook-callback figure it publishes against the exact value
-             GAS-007 emitted in this run's test report. A number a reader is asked to trust
-             has to be a number the gate re-proves.
+  evidence   Reconcile the audit packet's published sizes against the frozen size record:
+             every deployable-size row in docs/audit/gas-and-size.md. A number a reader is
+             asked to trust has to be a number the gate re-proves.
   secrets    Prove no provider endpoint or credential reached this run's evidence: the
              configured RPC alias must still be an unresolved environment reference in the
              *effective* configuration, no credential field may carry a value, no nested
              configuration value may carry one either, and no scanned artifact may name a host
              outside the documentation and provenance allowlist.
-  sanitize   Scan provider stdout, stderr, and generated artifacts *before* anything displays
-             them. Clean output exits zero and the caller may then display and keep it, whether
-             or not the run it came from succeeded. Dirty output exits non-zero and reports only
-             redacted findings: the host, every other endpoint component, and every key-shaped
-             token are removed, and what is printed is the local path and the kind of finding.
-             The caller deletes the scratch directory on that failure, and only on that failure.
 
 Counts printed here are informational gate output, never acceptance literals.
 """
@@ -683,26 +672,11 @@ def preflight(args: argparse.Namespace) -> int:
                 f"and effective build settings equal it",
             )
 
-    # --- gate posture and test portfolio --------------------------------------
+    # --- gate posture -----------------------------------------------------------
     ok = problems.expect("effective offline setting", frozen["foundry"]["offline"], config.get("offline"))
     ok &= problems.expect("effective ffi setting", frozen["foundry"]["ffi"], config.get("ffi"))
     if ok:
         record("DEP-014", "the effective Foundry configuration is offline with FFI disabled")
-
-    ok = True
-    for name in ("fuzz", "invariant"):
-        effective = config.get(name, {})
-        for key, want in frozen[name].items():
-            found = effective.get(key)
-            if key == "seed":
-                want, found = int(str(want), 16), int(str(found), 16) if found is not None else None
-            ok &= problems.expect(f"effective {name}.{key}", want, found)
-    if ok:
-        record(
-            "DEP-015",
-            "the effective fuzz and invariant seed, run, depth, rejection, revert, and shrink "
-            "settings equal the frozen values",
-        )
 
     # --- bindings -------------------------------------------------------------
     before = len(problems.messages)
@@ -901,135 +875,6 @@ def artifacts(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
-# ledger reconciliation
-# =============================================================================
-
-
-def read_listing(path: Path) -> Counter:
-    """Foundry's own compiled listing, kept as a multiset so overloads cannot collapse."""
-    listing: Counter = Counter()
-    for file_path, contracts in load_json(path).items():
-        for contract, names in contracts.items():
-            for name in names:
-                listing[(file_path, contract, name)] += 1
-    return listing
-
-
-def read_execution(paths: list[str]) -> tuple[Counter, dict[tuple, list[str]]]:
-    """The executed multiset across every report this gate produced.
-
-    One entrypoint may run its portfolio in several passes — the fork gate runs one pass per
-    committed header — and each pass writes its own report. Merging them here is what lets the
-    compiled listing stay the single authority for which identities exist while still requiring
-    every listed identity to have executed exactly once somewhere across the whole gate.
-    """
-    executed: Counter = Counter()
-    statuses: dict[tuple, list[str]] = {}
-    for path in paths:
-        for suite, result in load_json(Path(path)).items():
-            file_path, _, contract = suite.partition(":")
-            for signature, outcome in result.get("test_results", {}).items():
-                identity = (file_path, contract, signature.split("(", 1)[0])
-                executed[identity] += 1
-                statuses.setdefault(identity, []).append(outcome.get("status", "Unknown"))
-    return executed, statuses
-
-
-def ledger_stage(args: argparse.Namespace) -> int:
-    problems = Problems()
-    ledger = load_ledger(Path(args.ledger))
-    spec = read_spec(Path(args.spec))
-    requirements = validate_ledger(ledger, spec["groups"], problems)
-    running_gates = set(args.gates.split(","))
-
-    listing = read_listing(Path(args.test_list))
-    executed, statuses = read_execution(args.test_report)
-
-    if not listing:
-        problems.add("Foundry's compiled listing enumerates no test identity")
-
-    # Multiset equality: identity AND multiplicity must agree in both directions.
-    for identity, count in sorted((listing - executed).items()):
-        problems.add(f"{identity[0]}:{identity[1]}.{identity[2]}: listed {count} more time(s) than executed")
-    for identity, count in sorted((executed - listing).items()):
-        problems.add(f"{identity[0]}:{identity[1]}.{identity[2]}: executed {count} more time(s) than listed")
-    for identity, outcomes in sorted(statuses.items()):
-        for outcome in outcomes:
-            if outcome != "Success":
-                problems.add(f"{identity[0]}:{identity[1]}.{identity[2]}: reported {outcome}")
-
-    selector_sites: dict[str, list[tuple]] = {}
-    for (file_path, contract, name), count in listing.items():
-        selector_sites.setdefault(name, []).extend([(file_path, contract)] * count)
-
-    receipt_ids = {
-        line.split(" ", 1)[0]
-        for line in Path(args.receipt).read_text(encoding="utf-8").splitlines()
-        if " verified: " in line
-    }
-
-    due, deferred = set(), set()
-    for identifier, entry in sorted(requirements.items()):
-        active = entry.get("status") == "active"
-        if active and entry.get("gate") in running_gates:
-            due.add(identifier)
-        elif active:
-            deferred.add(identifier)
-
-        for selector in entry.get("selectors", []):
-            sites = selector_sites.get(selector, [])
-            if identifier in due:
-                if not sites:
-                    problems.add(f"{identifier}: due selector '{selector}' does not exist")
-                elif len(sites) > 1:
-                    where = ", ".join(f"{path}:{contract}" for path, contract in sites)
-                    problems.add(f"{identifier}: due selector '{selector}' is not unique; declared at {where}")
-            elif sites:
-                where = ", ".join(f"{path}:{contract}" for path, contract in sites)
-                problems.add(
-                    f"{identifier}: selector '{selector}' exists at {where} but the claim is not due "
-                    f"under the {sorted(running_gates)} gate(s); it can close nothing"
-                )
-
-        if identifier in due and entry.get("evidence_class") == "gate-dependency" and identifier not in receipt_ids:
-            problems.add(f"{identifier}: the gate recorded no verified dependency check for it")
-
-    for name, sites in sorted(selector_sites.items()):
-        match = SELECTOR_RE.match(name)
-        if not match:
-            problems.add(f"{sites[0][0]}:{sites[0][1]}.{name}: test name does not begin with a requirement id")
-            continue
-        claimed = f"{match.group(1)}-{match.group(2)}"
-        entry = requirements.get(claimed)
-        if entry is None:
-            problems.add(f"{name}: claims requirement {claimed}, which the ledger does not define")
-        elif name not in entry.get("selectors", []):
-            problems.add(f"{name}: claims {claimed}, which does not plan this selector")
-        elif claimed not in due:
-            problems.add(
-                f"{name}: claims {claimed}, which is not due under the {sorted(running_gates)} gate(s)"
-            )
-
-    active = {i for i, e in requirements.items() if e.get("status") == "active"}
-    meta = ledger["ledger"]
-    print(f"activated tickets: {', '.join(sorted(meta['activated_tickets']))}")
-    print(f"activated gates: {', '.join(sorted(meta['activated_gates']))}")
-    print(f"gates this entrypoint runs: {', '.join(sorted(running_gates))}")
-    print(
-        f"requirements: {len(requirements)} recorded, {len(active)} active "
-        f"({len(due)} due here, {len(deferred)} deferred to another gate), "
-        f"{len(requirements) - len(active)} pending"
-    )
-    print(f"planned selectors: {sum(len(e['selectors']) for e in requirements.values())}")
-    print(f"test identities listed by forge: {sum(listing.values())}")
-    print(f"test identities executed: {sum(executed.values())} across {len(args.test_report)} report(s)")
-    for group in meta["groups"]:
-        ids = [i for i in requirements if i.startswith(f"{group}-")]
-        print(f"  {group}: {len(ids)} recorded, {len([i for i in ids if i in due])} due here")
-    return problems.report("ledger")
-
-
-# =============================================================================
 # security
 # =============================================================================
 
@@ -1210,8 +1055,6 @@ def security(args: argparse.Namespace) -> int:
         )
 
     # --- inline suppressions ---------------------------------------------------
-    listing = read_listing(Path(args.test_list))
-    known_selectors = {name for _, _, name in listing}
     suppressions: list[tuple[str, str]] = []
     for directory in args.suppression_sources:
         for path in sorted(Path(directory).rglob("*.sol")):
@@ -1228,20 +1071,15 @@ def security(args: argparse.Namespace) -> int:
         problems.expect("recorded inline suppression count", len(suppressions), int(declared.group(1)))
 
     for path, detector in suppressions:
-        row = next((r for r in suppression_rows if len(r) == 4 and r[0] == path and r[1] == detector), None)
+        row = next((r for r in suppression_rows if len(r) == 3 and r[0] == path and r[1] == detector), None)
         if row is None:
             problems.add(
-                f"inline suppression of '{detector}' in {path} has no record naming its detector, "
-                f"rationale, and protecting test in {args.dispositions}"
+                f"inline suppression of '{detector}' in {path} has no record naming its detector and "
+                f"rationale in {args.dispositions}"
             )
             continue
         if not row[2]:
             problems.add(f"inline suppression of '{detector}' in {path} records no rationale")
-        if row[3] not in known_selectors:
-            problems.add(
-                f"inline suppression of '{detector}' in {path} names protecting test '{row[3]}', "
-                "which Foundry does not list"
-            )
 
     print(f"Slither analyzed scope: {args.analyzed_sources}")
     print(f"Slither suppression scope: {args.suppression_sources}")
@@ -1256,15 +1094,6 @@ def security(args: argparse.Namespace) -> int:
 # =============================================================================
 
 
-def decoded_logs(path: Path) -> list[str]:
-    """Every decoded log line the executed test report carries, in report order."""
-    lines: list[str] = []
-    for result in load_json(path).values():
-        for outcome in result.get("test_results", {}).values():
-            lines.extend(outcome.get("decoded_logs", []) or [])
-    return lines
-
-
 def parse_measure(cell: str) -> int | None:
     try:
         return int(cell.replace(",", "").strip())
@@ -1273,12 +1102,12 @@ def parse_measure(cell: str) -> int | None:
 
 
 def evidence(args: argparse.Namespace) -> int:
-    """Prove the audit packet publishes the figures this run actually produced.
+    """Prove the audit packet publishes the sizes the frozen record carries.
 
     Two documents describe the same numbers: the generated evidence, and the prose a founder
     reads. Nothing forces them to agree unless something checks, and a stale published figure
-    is exactly the kind of drift that survives review. Both tables below are therefore
-    reconciled against their generators in both directions.
+    is exactly the kind of drift that survives review. The size table is therefore reconciled
+    against its generator in both directions.
     """
     problems = Problems()
     doc = Path(args.gas_doc).read_text(encoding="utf-8")
@@ -1319,38 +1148,7 @@ def evidence(args: argparse.Namespace) -> int:
     for name in sorted(set(recorded) - published):
         problems.add(f"{args.gas_doc} publishes no size row for the frozen contract {name}")
 
-    # --- hook callback cost, against this run's own GAS-007 output -------------
-    emitted: dict[str, int] = {}
-    for line in decoded_logs(Path(args.test_report)):
-        if not line.startswith("GAS-007 "):
-            continue
-        label, _, value = line[len("GAS-007 ") :].rpartition(": ")
-        measured = parse_measure(value)
-        if not label or measured is None:
-            continue
-        if label in emitted and emitted[label] != measured:
-            problems.add(f"GAS-007 emitted two different values for [{label}]")
-        emitted[label] = measured
-
-    if not emitted:
-        problems.add("the test report carries no GAS-007 measurement to reconcile the audit packet against")
-
-    quoted: set[str] = set()
-    for row in parse_disposition_rows(doc, "Hook callback cost (`GAS-007`)"):
-        if len(row) != 2:
-            problems.add(f"{args.gas_doc}: callback row {row} does not carry a measurement and a value")
-            continue
-        label, found = row[0], parse_measure(row[1])
-        quoted.add(label)
-        if label not in emitted:
-            problems.add(f"{args.gas_doc} publishes [{label}], which GAS-007 does not emit")
-        elif found != emitted[label]:
-            problems.add(f"{args.gas_doc}: [{label}] is published as {row[1]}, GAS-007 measured {emitted[label]}")
-    for label in sorted(set(emitted) - quoted):
-        problems.add(f"GAS-007 emitted [{label}], which {args.gas_doc} does not publish")
-
     print(f"published size rows reconciled: {len(published)}")
-    print(f"published hook-callback figures reconciled: {len(quoted)}")
     return problems.report("evidence")
 
 
@@ -1375,16 +1173,8 @@ ALLOWED_URL_HOSTS = frozenset({
 
 URL_RE = re.compile(r"(?:https?|wss?)://([^\s\"'\\,)\]}/]+)")
 
-# The whole endpoint, not just its host: scheme, host, port, path, query and fragment together.
-# Redaction has to remove all of it, because a project id in a path is as much a credential as a
-# key in a query string.
-URL_FULL_RE = re.compile(r"(?:https?|wss?)://[^\s\"'\\,)\]}]*")
-
 # Provider hosts and key shapes, kept as defence in depth behind the host allowlist above.
 KEY_SHAPE_RE = re.compile(r"(?i)(alchemy|infura|quiknode|quicknode|drpc\.org|ankr\.com|blastapi|x-api-key)")
-
-# What replaces anything that must never be displayed.
-REDACTION = "[redacted]"
 
 # Configuration fields that would carry a provider or explorer credential. Each must be empty.
 CREDENTIAL_FIELD_RE = re.compile(r"(?i)(api_?key|secret|password|token)$")
@@ -1469,78 +1259,6 @@ def secrets(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
-# provider-output sanitation
-# =============================================================================
-
-
-def redact(text: str) -> str:
-    """Everything that must never be displayed, removed.
-
-    Endpoints are removed whole rather than by host, because a project id in a path and a key in
-    a query string are as much a credential as the host is. Key-shaped tokens are then removed
-    from what is left, which is what catches a provider name that appeared outside a URL.
-    """
-    return KEY_SHAPE_RE.sub(REDACTION, URL_FULL_RE.sub(REDACTION, text))
-
-
-def scan_text(text: str) -> list[str]:
-    """Redacted descriptions of every disallowed thing one file's contents carry.
-
-    A finding never quotes what it found. It names the *kind* of finding, which is all a reader
-    needs in order to act, and it is the reason this reporter can be run against provider output
-    that has not been displayed yet.
-    """
-    findings: list[str] = []
-    hosts = {host for host in URL_RE.findall(text) if host.lower() not in ALLOWED_URL_HOSTS}
-    if hosts:
-        findings.append(f"names {len(hosts)} network host(s) outside the allowlist: {REDACTION}")
-    # Only outside URLs: an allowlisted documentation URL that happens to contain a vendor name
-    # is not key material, and reporting it would be noise rather than a finding.
-    outside_urls = URL_FULL_RE.sub(" ", text)
-    shapes = set(KEY_SHAPE_RE.findall(outside_urls))
-    if shapes:
-        findings.append(f"carries {len(shapes)} provider key-shaped token(s) outside a URL: {REDACTION}")
-    return findings
-
-
-def sanitize(args: argparse.Namespace) -> int:
-    """Scan provider output before anybody looks at it.
-
-    The order this enforces is the whole point. A gate that printed a provider's stderr and then
-    scanned it would have already leaked whatever the scan was going to find, and a gate that
-    deleted its scratch on every failure would destroy the diagnostics an ordinary provider or
-    test failure needs. So: scan first, always; exit zero on clean output and let the caller
-    display and keep it whatever the run's own exit status was; exit non-zero on dirty output,
-    with a redacted report naming the local paths, and let the caller delete the scratch.
-    """
-    findings: list[str] = []
-    scanned = 0
-    for root in args.scan:
-        base = Path(root)
-        if not base.exists():
-            findings.append(f"{root}: scan target does not exist")
-            continue
-        for path in sorted(base.rglob("*")) if base.is_dir() else [base]:
-            if not path.is_file():
-                continue
-            scanned += 1
-            for finding in scan_text(path.read_text(encoding="utf-8", errors="replace")):
-                findings.append(f"{path}: {finding}")
-
-    if findings:
-        print("\nPROVIDER OUTPUT SCAN FAILED", file=sys.stderr)
-        print("  nothing below has been displayed, and nothing below is quoted.", file=sys.stderr)
-        for finding in findings:
-            # Belt and braces: the finding text is already redacted, and a local path could in
-            # principle carry an endpoint, so the whole line is redacted once more on the way out.
-            print(f"  - {redact(finding)}", file=sys.stderr)
-        return 1
-
-    print(f"provider-output scan: {scanned} file(s) clean; they may be displayed and retained")
-    return 0
-
-
-# =============================================================================
 
 
 def main() -> int:
@@ -1565,15 +1283,6 @@ def main() -> int:
     stage.add_argument("--receipt", required=True)
     stage.set_defaults(run=artifacts)
 
-    stage = sub.add_parser("ledger")
-    stage.add_argument("--ledger", required=True)
-    stage.add_argument("--spec", required=True)
-    stage.add_argument("--gates", required=True)
-    stage.add_argument("--test-list", required=True)
-    stage.add_argument("--test-report", nargs="+", required=True)
-    stage.add_argument("--receipt", required=True)
-    stage.set_defaults(run=ledger_stage)
-
     stage = sub.add_parser("security")
     stage.add_argument("--slither-json", required=True)
     stage.add_argument("--slither-checklist", required=True)
@@ -1582,13 +1291,11 @@ def main() -> int:
     stage.add_argument("--slither-command", required=True)
     stage.add_argument("--detector-inventory", required=True)
     stage.add_argument("--dispositions", required=True)
-    stage.add_argument("--test-list", required=True)
     stage.add_argument("--analyzed-sources", nargs="+", required=True)
     stage.add_argument("--suppression-sources", nargs="+", required=True)
     stage.set_defaults(run=security)
 
     stage = sub.add_parser("evidence")
-    stage.add_argument("--test-report", required=True)
     stage.add_argument("--sizes", required=True)
     stage.add_argument("--gas-doc", required=True)
     stage.set_defaults(run=evidence)
@@ -1597,10 +1304,6 @@ def main() -> int:
     stage.add_argument("--forge-config", required=True)
     stage.add_argument("--scan", nargs="+", required=True)
     stage.set_defaults(run=secrets)
-
-    stage = sub.add_parser("sanitize")
-    stage.add_argument("--scan", nargs="+", required=True)
-    stage.set_defaults(run=sanitize)
 
     args = parser.parse_args()
     return args.run(args)

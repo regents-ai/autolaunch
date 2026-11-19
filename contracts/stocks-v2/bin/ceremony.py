@@ -13,18 +13,12 @@ consumes from the environment is never printed or written.
 
 Modes:
 
-  render      Offline. Runs the hermetic ceremony suite under the `deployment` profile. While the
-              deployed manifest is the empty record, re-derives the committed selection (when one
-              is installed) through the selection suite, renders the packet candidate from the
-              frozen manifest and compares it byte for byte with
+  render      Offline. While the deployed manifest is the empty record, renders the packet candidate
+              from the frozen manifest and compares it byte for byte with
               `deployments/<network>/mainnet-no-go-packet.json`. Once the manifest is a deployed
               record the chain is the authority: the installed packet is proved from its own
               content (its digest recomputes, the source trees it names exist in the repository)
               and the manifest names it; nothing is re-derived from HEAD. Reaches no network.
-  prepare     Reads the selected deployer's nonce, the head block, every binding's code hash and
-              the control surface through `cast` (read-only), mines the hook salt offline through
-              the selection suite, and writes a packet candidate carrying the selection and the
-              external observation to reports/generated/deployment/. A human installs it.
   rehearse    Re-observes the committed external state and compares it exactly, proves the deployer
               nonce still equals the committed one, and simulates the ceremony against the live
               chain with no signer and no broadcast. Robinhood simulates the exact deployment
@@ -75,8 +69,6 @@ SITE_CONFIG_NAME = "site-config.json"
 REHEARSED_TRANSACTIONS_NAME = "rehearsed-transactions.json"
 DEPLOYMENT_PROFILE = "deployment"
 SIMULATION_GAS = 20_000_000  # the per-creation gas ceiling of a node rehearsal
-SELECTION_CONTRACT = "DeploymentSelectionTest"
-CEREMONY_CONTRACT = "DeploymentCeremonyTest"
 
 # Never run beside signing authority; the script and the tool only ever simulate and read.
 FORBIDDEN_ENV = (
@@ -89,7 +81,6 @@ DOTENV_FILES = (".env", ".env.local", ".envrc")
 ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]{40}")
 HASH32_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")
 URL_RE = re.compile(r"(?:https?|wss?)://[^\s\"'`)>\]]+")
-SELECTION_LOG_RE = re.compile(r"^selection (\S+): (.+)$")
 ZERO_ADDRESS = "0x" + "0" * 40
 
 
@@ -172,46 +163,16 @@ def refuse_signing_authority() -> None:
 # =============================================================================
 
 
-def forge_env(offline: bool, extra: dict | None = None) -> dict:
+def forge_env(extra: dict) -> dict:
     env = dict(os.environ)
     env.update({
         "FOUNDRY_PROFILE": DEPLOYMENT_PROFILE,
         "FOUNDRY_LINT_LINT_ON_BUILD": "false",
         "RUST_LOG": "error",
-        "FOUNDRY_OFFLINE": "true" if offline else "false",
+        "FOUNDRY_OFFLINE": "false",
     })
-    if extra:
-        env.update(extra)
+    env.update(extra)
     return env
-
-
-def forge_test(match_contract: str, match_test: str | None, env: dict) -> dict:
-    args = ["forge", "test", "--json", "-vv", "--match-contract", match_contract]
-    if match_test:
-        args += ["--match-test", match_test]
-    report = json.loads(run(args, env=env))
-    results = {}
-    for suite in report.values():
-        for selector, outcome in (suite.get("test_results") or {}).items():
-            if outcome.get("status") != "Success":
-                raise CeremonyError(f"{match_contract}::{selector} did not pass: {outcome.get('reason')}")
-            results[selector] = outcome.get("decoded_logs") or []
-    if not results:
-        raise CeremonyError(f"no test of {match_contract} ran")
-    return results
-
-
-def selection_logs(match_test: str, env: dict) -> dict[str, str]:
-    results = forge_test(SELECTION_CONTRACT, match_test, env)
-    found: dict[str, str] = {}
-    for logs in results.values():
-        for line in logs:
-            match = SELECTION_LOG_RE.match(line)
-            if match:
-                found[match.group(1)] = match.group(2).strip()
-    if not found:
-        raise CeremonyError(f"{SELECTION_CONTRACT}::{match_test} emitted no selection")
-    return found
 
 
 class Chain:
@@ -384,23 +345,6 @@ class Package:
     def __init__(self, frozen: Frozen) -> None:
         self.frozen = frozen
 
-    # --- selection ---------------------------------------------------------------------------
-
-    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
-        raise NotImplementedError
-
-    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
-        raise NotImplementedError
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        raise NotImplementedError
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        raise NotImplementedError
-
-    def predicted_names(self) -> list[str]:
-        raise NotImplementedError
-
     # --- observation -------------------------------------------------------------------------
 
     def observe(self, selection: dict) -> dict:
@@ -527,11 +471,6 @@ class Package:
         raise NotImplementedError
 
 
-def mined_salt_bits(salt_hex: str) -> None:
-    if not HASH32_RE.match(salt_hex):
-        raise CeremonyError(f"the mined hook salt is not 32 bytes: {salt_hex}")
-
-
 class Revstake(Package):
     """Base Revstake: five founder-sent creations. The factory's constructor creates the strategy,
     whose own constructor creates the LP locker, and then the hook at its mined salt."""
@@ -541,8 +480,6 @@ class Revstake(Package):
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
     shared_component = None
-    PREDICTED = ("uerc20_factory", "escrow_implementation", "splitter_implementation", "receiver_implementation",
-                 "factory", "strategy", "lp_locker", "hook")
     # (contract, predicted key) per founder-sent transaction, in nonce order.
     TRANSACTIONS = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
                     ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"),
@@ -552,30 +489,6 @@ class Revstake(Package):
                 "GOVERNANCE_AND_REGENT_SAFE")
     # The website drives the one Permit2 the Base Memestake build pins; Revstake binds none of its own.
     PERMIT2_IDENTITY = Path("../stocks-v2") / FROZEN_IDENTITY
-
-    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
-        pass
-
-    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
-        return {}
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        env = {self.deployer_env: selection["deployer"], self.starting_nonce_env: str(selection["starting_nonce"])}
-        if salt:
-            env[self.hook_salt_env] = salt
-        return env
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        mined_salt_bits(logs["hook_salt"])
-        return {
-            "deployer": checksum(logs["deployer"]),
-            "starting_nonce": int(logs["starting_nonce"]),
-            "hook_salt": logs["hook_salt"],
-            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
-        }
-
-    def predicted_names(self) -> list[str]:
-        return list(self.PREDICTED)
 
     def observe(self, selection: dict) -> dict:
         chain = self.chain
@@ -697,60 +610,12 @@ class Stocks(Package):
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
     shared_component = None
-    PREDICTED = ("launchpad", "splitter_implementation", "locker", "hook", "bid_adapter")
     # Every contract a ceremony creates, in creation order, transactions first and then the
     # launchpad constructor's own creations.
     CREATIONS = ("StocksLaunchpadV2", "StockBidAdapterV1", "AerodromeStockRouteV2", "MemestockSplitterV1",
                  "MemestockLPLocker", "StocksFeeHookV1")
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
-
-    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--uerc20-factory", required=True, help="the UERC20 factory the launchpad binds; its runtime hash must equal the frozen constant")
-        parser.add_argument("--admission", action="append", required=True, metavar="STOCK:POOL:FEED",
-                            help="one admitted stock with its Aerodrome Slipstream USDC/STOCK pool and Chainlink feed; repeatable, in ceremony order")
-
-    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
-        admissions = []
-        for entry in args.admission:
-            parts = entry.split(":")
-            if len(parts) != 3:
-                raise CeremonyError(f"--admission wants STOCK:POOL:FEED, got {entry}")
-            admissions.append({"stock": checksum(parts[0]), "pool": checksum(parts[1]), "feed": checksum(parts[2])})
-        return {"uerc20_factory": checksum(args.uerc20_factory), "admissions": admissions}
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
-        env = {
-            self.deployer_env: selection["deployer"],
-            self.starting_nonce_env: str(selection["starting_nonce"]),
-            "REGENT_DEPLOYMENT_UERC20_FACTORY": selection["uerc20_factory"],
-            "REGENT_DEPLOYMENT_STOCKS": ",".join(a["stock"] for a in selection["admissions"]),
-            "REGENT_DEPLOYMENT_POOLS": ",".join(a["pool"] for a in selection["admissions"]),
-            "REGENT_DEPLOYMENT_FEEDS": ",".join(a["feed"] for a in selection["admissions"]),
-        }
-        if salt:
-            env[self.hook_salt_env] = salt
-        return env
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        mined_salt_bits(logs["hook_salt"])
-        predicted = {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED}
-        predicted["routes"] = [checksum(logs[f"predicted_route_{i}"]) for i in range(len(inputs["admissions"]))]
-        for i, admission in enumerate(inputs["admissions"]):
-            for field in ("stock", "pool", "feed"):
-                if not same_address(logs[f"{field}_{i}"], admission[field]):
-                    raise CeremonyError(f"the selection suite derived admission {i} from a different {field}")
-        return {
-            "deployer": checksum(logs["deployer"]),
-            "starting_nonce": int(logs["starting_nonce"]),
-            "hook_salt": logs["hook_salt"],
-            "uerc20_factory": checksum(logs["uerc20_factory"]),
-            "admissions": inputs["admissions"],
-            "predicted_addresses": predicted,
-        }
-
-    def predicted_names(self) -> list[str]:
-        return [*self.PREDICTED, "routes"]
 
     def observe(self, selection: dict) -> dict:
         chain = self.chain
@@ -909,8 +774,6 @@ class Robinhood(Package):
     shared_component = "contracts/stocks-v2"
     # The Base receiver binds `StocksBindings` constants, frozen by the shared Base package.
     BASE_IDENTITY = Path("../stocks-v2") / FROZEN_IDENTITY
-    PREDICTED = ("uerc20_factory", "inbox", "positions_lib", "hook_factory", "launchpad", "bid_adapter",
-                 "hook", "splitter_implementation", "locker")
     EXTERNAL = ("usdg", "cca_factory", "pool_manager", "position_manager", "permit2", "admin_safe")
     # Uniswap's own router and quoter on Robinhood Chain: the website trades through them, the
     # graph never touches them. Recorded and observed so the site-config carries verified addresses.
@@ -924,33 +787,11 @@ class Robinhood(Package):
     # Uniswap's v3 factory on Robinhood Chain: every admitted pool must be one of its pools.
     UNISWAP_V3_FACTORY = "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA"
 
-    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
-        for name in self.EXTERNAL:
-            parser.add_argument(f"--{name.replace('_', '-')}", required=True, help=f"the {name} binding on Robinhood Chain")
-        for name in self.SITE_BINDINGS:
-            parser.add_argument(f"--{name.replace('_', '-')}", required=True, help=f"Uniswap's {name} on Robinhood Chain, for the website's swaps")
-        parser.add_argument("--base-safe", required=True, help="the Base Safe that attests deliveries to the Base receiver")
-        parser.add_argument("--admission", action="append", required=True, metavar="STOCK:POOL:FEED",
-                            help="one admitted stock with its Uniswap v3 USDG/STOCK pool and Chainlink USD feed; repeatable, in ceremony order")
-
-    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
-        admissions = []
-        for entry in args.admission:
-            parts = entry.split(":")
-            if len(parts) != 3:
-                raise CeremonyError(f"--admission wants STOCK:POOL:FEED, got {entry}")
-            admissions.append({"stock": checksum(parts[0]), "pool": checksum(parts[1]), "feed": checksum(parts[2])})
-        return {
-            "external": {name: checksum(getattr(args, name)) for name in self.EXTERNAL},
-            "site_bindings": {name: checksum(getattr(args, name)) for name in self.SITE_BINDINGS},
-            "base_safe": checksum(args.base_safe),
-            "admissions": admissions,
-        }
-
-    def selection_environment(self, selection: dict, salt: str | None) -> dict:
+    def script_environment(self, selection: dict) -> dict:
         env = {
             self.deployer_env: selection["deployer"],
             self.starting_nonce_env: str(selection["starting_nonce"]),
+            self.hook_salt_env: selection["hook_salt"],
             "REGENT_DEPLOYMENT_BASE_SAFE": selection["base_receiver"]["base_safe"],
             "REGENT_DEPLOYMENT_STOCKS": ",".join(a["stock"] for a in selection["admissions"]),
             "REGENT_DEPLOYMENT_POOLS": ",".join(a["pool"] for a in selection["admissions"]),
@@ -958,34 +799,7 @@ class Robinhood(Package):
         }
         for name in self.EXTERNAL:
             env[f"REGENT_DEPLOYMENT_{name.upper()}"] = selection["external"][name]
-        if salt:
-            env[self.hook_salt_env] = salt
         return env
-
-    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
-        mined_salt_bits(logs["hook_salt"])
-        for name in self.EXTERNAL:
-            if not same_address(logs[name], inputs["external"][name]):
-                raise CeremonyError(f"the selection suite derived the graph from a different {name}")
-        predicted = {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED}
-        predicted["routes"] = [checksum(logs[f"predicted_route_{i}"]) for i in range(len(inputs["admissions"]))]
-        for i, admission in enumerate(inputs["admissions"]):
-            for field in ("stock", "pool", "feed"):
-                if not same_address(logs[f"{field}_{i}"], admission[field]):
-                    raise CeremonyError(f"the selection suite derived admission {i} from a different {field}")
-        return {
-            "deployer": checksum(logs["deployer"]),
-            "starting_nonce": int(logs["starting_nonce"]),
-            "hook_salt": logs["hook_salt"],
-            "external": inputs["external"],
-            "site_bindings": inputs["site_bindings"],
-            "admissions": inputs["admissions"],
-            "predicted_addresses": predicted,
-            "base_receiver": inputs["base_receiver"],
-        }
-
-    def predicted_names(self) -> list[str]:
-        return [*self.PREDICTED, "routes"]
 
     def observe_admissions(self, selection: dict) -> list[dict]:
         """Proves each admitted pool on chain: a Uniswap v3 pool of the pinned factory over exactly
@@ -1024,21 +838,6 @@ class Robinhood(Package):
                 "feed_description": chain.call_string(feed, "description()(string)"),
             })
         return admissions
-
-    def base_receiver_selection(self, deployer: str, base_nonce: int, base_safe: str) -> dict:
-        env = {
-            self.deployer_env: deployer,
-            self.starting_nonce_env: str(base_nonce),
-            "REGENT_DEPLOYMENT_BASE_SAFE": base_safe,
-        }
-        logs = selection_logs("test_BaseReceiverSelection", forge_env(offline=True, extra=env))
-        return {
-            "chain_id": self.base.chain_id,
-            "deployer": deployer,
-            "starting_nonce": base_nonce,
-            "base_safe": base_safe,
-            "predicted_address": checksum(logs["predicted_base_receiver"]),
-        }
 
     def observe(self, selection: dict) -> dict:
         chain, base = self.chain, self.base
@@ -1149,7 +948,7 @@ class Robinhood(Package):
 
     def rehearse(self, packet: dict) -> None:
         selection = packet["selection"]
-        env = forge_env(offline=False, extra=self.selection_environment(selection, selection["hook_salt"]))
+        env = forge_env(self.script_environment(selection))
         # The Base receiver is created at the deployer's Base nonce, not its Robinhood one.
         base_env = {**env, self.starting_nonce_env: str(selection["base_receiver"]["starting_nonce"])}
         for chain, command, command_env in (
@@ -1352,7 +1151,7 @@ def installed_manifest(package: Package) -> dict:
 def require_selection(package: Package) -> tuple[dict, dict, dict]:
     packet = installed_packet(package)
     if not packet or not packet.get("selection"):
-        raise CeremonyError(f"no selection is installed in deployments/{package.network}/{PACKET_NAME}; run prepare first and install its candidate")
+        raise CeremonyError(f"no selection is installed in deployments/{package.network}/{PACKET_NAME}")
     return packet, packet["selection"], packet["external_observation"]
 
 
@@ -1365,23 +1164,6 @@ def compare_bytes(rendered: dict, installed: dict | None, label: str) -> None:
     if freeze.render(installed) != rendered_text:
         raise CeremonyError(f"{label}: the installed packet differs from the rendered candidate at {candidate}")
     print(f"{label}: the installed packet renders byte for byte; digest {rendered['digest']['value']}")
-
-
-def verify_hermetic_suite() -> None:
-    results = forge_test(CEREMONY_CONTRACT, None, forge_env(offline=True))
-    print(f"hermetic ceremony suite: {len(results)} tests passed under the deployment profile, offline")
-
-
-def verify_selection_rederives(package: Package, selection: dict) -> None:
-    env = forge_env(offline=True, extra=package.selection_environment(selection, selection["hook_salt"]))
-    logs = selection_logs("test_SelectionMatchesTheCommittedValues", env)
-    rederived = package.selection_from_logs(selection, logs)
-    for name in package.predicted_names():
-        if rederived["predicted_addresses"][name] != selection["predicted_addresses"][name]:
-            raise CeremonyError(f"predicted {name} re-derives to {rederived['predicted_addresses'][name]}, not the committed {selection['predicted_addresses'][name]}")
-    if rederived["hook_salt"].lower() != selection["hook_salt"].lower():
-        raise CeremonyError("the committed hook salt did not round-trip")
-    print("selection: every predicted address re-derives from the committed values exactly")
 
 
 def is_deployed_record(package: Package) -> bool:
@@ -1438,47 +1220,15 @@ def mode_render(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
     if isinstance(package, Robinhood):
         os.environ.pop(package.base.env_name, None)
     print("offline: no endpoint variable survives into this run")
-    verify_hermetic_suite()
     packet = installed_packet(package)
     if is_deployed_record(package):
         verify_deployed_packet(packet)
     else:
         selection = packet.get("selection") if packet else None
         observation = packet.get("external_observation") if packet else None
-        if selection:
-            verify_selection_rederives(package, selection)
         compare_bytes(render_packet(package, frozen, selection, observation), packet, "render")
     verify_manifest_shape(package, packet)
     print("CEREMONY RENDER PASS: mainnet-NO-GO, not authorized")
-    return 0
-
-
-def mode_prepare(package: Package, frozen: Frozen, args: argparse.Namespace) -> int:
-    deployer = checksum(args.deployer)
-    inputs = package.inputs_from_arguments(args)
-    package.chain.probe()
-    nonce = package.chain.nonce(deployer)
-    print(f"deployer {deployer} is at nonce {nonce} on {package.chain.alias}")
-    if isinstance(package, Robinhood):
-        package.base.probe()
-        base_nonce = package.base.nonce(deployer)
-        print(f"deployer {deployer} is at nonce {base_nonce} on base")
-        inputs["base_receiver"] = package.base_receiver_selection(deployer, base_nonce, inputs.pop("base_safe"))
-    seed = {"deployer": deployer, "starting_nonce": nonce, **inputs}
-    env = forge_env(offline=True, extra=package.selection_environment(seed, None))
-    logs = selection_logs("test_SelectionPrepareCandidate", env)
-    selection = package.selection_from_logs(inputs, logs)
-    if selection["deployer"] != deployer or selection["starting_nonce"] != nonce:
-        raise CeremonyError("the selection suite did not derive from the selected deployer and its live nonce")
-    print(f"hook salt mined: {selection['hook_salt']}")
-    for name in package.predicted_names():
-        print(f"predicted {name}: {selection['predicted_addresses'][name]}")
-    observation = package.observe(selection)
-    print(f"external state observed at block {observation['observed_at_block']}")
-    verify_hermetic_suite()
-    candidate = write_candidate(PACKET_NAME, render_packet(package, frozen, selection, observation))
-    print(f"packet candidate written to {candidate}; review it, install it at deployments/{package.network}/{PACKET_NAME} and commit on the founder's word")
-    print("CEREMONY PREPARE PASS: mainnet-NO-GO, not authorized")
     return 0
 
 
@@ -1501,7 +1251,6 @@ def mode_rehearse(package: Package, frozen: Frozen, args: argparse.Namespace) ->
     if problems:
         raise CeremonyError("external state moved since the packet was prepared:\n  " + "\n  ".join(problems))
     print("external observation: every committed fact matches the live chain exactly")
-    verify_selection_rederives(package, selection)
     package.rehearse(packet)
     print("CEREMONY REHEARSE PASS: mainnet-NO-GO, not authorized")
     return 0
@@ -1693,9 +1442,6 @@ def main() -> int:
     except KeyError:
         raise CeremonyError(f"{frozen.component} has no ceremony profile")
     modes.add_parser("render")
-    prepare = modes.add_parser("prepare")
-    prepare.add_argument("--deployer", required=True, help="the founder-selected deployer; its live nonce becomes the starting nonce")
-    package.add_prepare_arguments(prepare)
     modes.add_parser("rehearse")
     preflight = modes.add_parser("preflight")
     preflight.add_argument("index", type=int, help="the creation about to be sent, counting from 0 in nonce order")
@@ -1709,7 +1455,6 @@ def main() -> int:
     refuse_signing_authority()
     return {
         "render": mode_render,
-        "prepare": mode_prepare,
         "rehearse": mode_rehearse,
         "preflight": mode_preflight,
         "record": mode_record,

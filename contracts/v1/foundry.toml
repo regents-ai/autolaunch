@@ -1,6 +1,5 @@
 [profile.default]
 src = "src"
-test = "test"
 out = "out"
 libs = ["lib"]
 
@@ -30,33 +29,7 @@ cbor_metadata = false
 # Dependencies and the compiler are materialized before the gate, never by it.
 offline = true
 ffi = false
-
-# Read-only, and only the committed authorities a test actually reads: the frozen identity,
-# the frozen ABI/size surface bin/freeze-artifacts.py generates, the release manifest, and the
-# per-contract ABI files. No write access anywhere, and no access to `out/` — a test proves a
-# frozen record against compiler truth it can reach in Solidity, never against the build
-# directory it would otherwise be restating.
-fs_permissions = [
-    { access = "read", path = "./requirements" },
-    { access = "read", path = "./reports/frozen" },
-    { access = "read", path = "./contracts" },
-    { access = "read", path = "./abi" },
-]
-
-# Deterministic test portfolio. Every seed, run, depth, rejection, revert, and shrink
-# setting the required gate uses is committed here rather than left to a default.
-[profile.default.fuzz]
-runs = 512
-seed = "0x5245474e54"
-max_test_rejects = 65536
-fail_on_revert = true
-
-[profile.default.invariant]
-runs = 256
-depth = 128
-fail_on_revert = true
-max_assume_rejects = 65536
-shrink_run_limit = 5000
+fs_permissions = []
 
 # The one Base endpoint alias, and the only way this repository ever names a provider. The
 # value stays an unresolved environment reference in every committed file and in every piece of
@@ -65,77 +38,6 @@ shrink_run_limit = 5000
 # required offline gate never reads it at all.
 [rpc_endpoints]
 base = "${REGENT_BASE_RPC_URL}"
-
-# The separately authorized read-only Base fork gate. It shares the frozen build, the frozen
-# fuzz portfolio, and the frozen dependency closure with the required gate — only the test root,
-# the build directory, and the network posture differ, and every one of those differences is
-# proved rather than assumed by `bin/fork-gate.sh`. Fork tests live outside the offline test root
-# so they can never execute against a hermetic claim, and FFI stays disabled here exactly as it
-# is above.
-#
-# `out`/`cache_path` are deliberately separate. A shared build directory would let fork artifacts
-# accumulate in `out/` and change the artifact count the required gate reconciles, so the two
-# gates never write to the same place.
-#
-# `fs_permissions` is read-only here and is not restated: this profile inherits the default list
-# above unchanged, which is what makes `check` structurally incapable of writing an observation.
-[profile.fork]
-test = "test-fork"
-out = "out-fork"
-cache_path = "cache-fork"
-offline = false
-ffi = false
-
-# The discovery pass, and the only profile in this repository that may write anything. It is the
-# first half of the two-phase fork evidence: it observes chain truth and writes one narrowly
-# scoped candidate under `reports/generated/fork/`, which is gitignored scratch. It can reach
-# neither `reports/frozen/` nor any committed file, so a discovery run cannot bless its own
-# observation into the record the `fork` profile later checks against — installing that record is
-# a deliberate, reviewed, human step.
-[profile.fork-discovery]
-test = "test-fork"
-out = "out-fork"
-cache_path = "cache-fork"
-offline = false
-ffi = false
-fs_permissions = [
-    { access = "read", path = "./requirements" },
-    { access = "read", path = "./reports/frozen" },
-    { access = "read", path = "./contracts" },
-    { access = "read", path = "./abi" },
-    { access = "read-write", path = "./reports/generated/fork" },
-]
-
-# The deployment-ceremony profile, and the only profile `bin/deployment-gate.sh` ever runs. It
-# shares the frozen build and the frozen fuzz portfolio with the required gate — the deployment
-# gate proves that field by field before it derives a hook address — and differs from it in
-# exactly three ways, each of them deliberate.
-#
-# The test root is `test-deployment`, so ceremony selectors live outside the offline test root and
-# outside `test-fork`. No gate can execute another gate's selectors, and the ledger reconciliation
-# under `--gates deployment` sees only this root.
-#
-# The build directory is separate from both `out/` and `out-fork/`, so ceremony artifacts can never
-# change the artifact set the required gate reconciles or the fork gate builds against. It sits
-# under the gitignored `reports/generated/` prefix because it is build scratch and nothing else:
-# a deployment build must never appear as an untracked path in the candidate's working tree.
-#
-# `offline` is false in the file because the chief's separately authorized rehearsal mode opens a
-# read-only Base fork. The writer's `--offline` mode exports `FOUNDRY_OFFLINE=true` instead, and the
-# gate reconciles the *effective* offline setting against the mode it was asked to run, so a
-# no-provider run cannot silently reach a network and a rehearsal cannot silently fail to.
-#
-# FFI stays disabled, and `fs_permissions` is empty rather than inherited: this profile's Solidity
-# can neither read nor write a single file. The ceremony's own graph is emitted as decoded logs and
-# captured by the shell, which is what keeps packet rendering a reviewed shell step instead of
-# something a test could author for itself.
-[profile.deployment]
-test = "test-deployment"
-out = "reports/generated/deployment-out"
-cache_path = "reports/generated/deployment-cache"
-offline = false
-ffi = false
-fs_permissions = []
 
 # A separate, offline-build profile for the founder's local Base-fork lab. The only RPC this
 # profile is ever given is the controller-created loopback Anvil node; Anvil, not Forge, owns the

@@ -119,10 +119,7 @@ leaves `settle` too little to forward to the price recorder, and it reverts `Ora
 (rehearsed on a Base copy on 30 Oct, at the relaunched series `0xcae5…dfa0`). Wallets that estimate
 with `eth_estimateGas`, as the page's do, are not affected.
 
-The agent prepares and starts each step; the wallet password and the funds are Sean's. The fork
-rehearsal (`DeployAfterHours.fork.t.sol`) runs this whole table on a Base fork: deploy, the Safe's
-call as printed, the Friday sitting with both pools opened at the right USDC amounts, and the
-closing sitting through to maturity.
+The agent prepares and starts each step; the wallet password and the funds are Sean's.
 
 ## 6. The site (`Autolaunch.Exposure`, built 29 October 2026)
 
@@ -163,38 +160,10 @@ USDC with liquidity someone provides and can withdraw, because both legs expire 
 zero. The forever-locked Memestake liquidity pattern does not fit here. Any trading fee goes to
 REGENT staking through the existing `depositUSDC` path; the vault itself takes nothing.
 
-## 8. Tests and evidence (28 October 2026)
+## 8. Evidence (28 October 2026)
 
-- `contracts/exposure/bin/gate.sh` (Foundry 1.5.1): 56 checks pass.
-  - 36 series tests: the worked example, mixed and pair redemptions, minting mid-term, both
-    depletion directions and exact zero, maturity, missing first close, missing, late and misdated
-    prints, six kinds of broken oracle (revert, short, long, dirty, gas burn, oversized reply), the
-    deposit cap, donations, seizure, total seizure and refill, a failing balance read, fee-taking
-    and false-returning tokens, stock going only to the redeemer, construction. Fuzz (1,024 runs
-    each): ledgers always sum to the price; claims never exceed what was deposited; splitting a
-    redemption never pays more; low gas never fakes an outage.
-  - 5 invariants over 256 runs × 128 random calls (mint, redeem, transfers, prints, missed prints,
-    donations, seizures): pairs equal backing while live; ledgers within price; claims never exceed
-    accounted stock after the end; every raw unit accounted for; fully backed unless seized.
-  - 14 Chainlink oracle and keeper tests (the pinned phase, the round in force and its source, rounds
-    superseded, later or missing, a round exactly at the moment, a quiet weekend, a proxy switch not
-    changing a print, the 84-hour staleness limit and a holiday weekend, the keeper on a dead feed, the one-hour wait, record once, bad answers, the
-    keeper's round search fuzzed, a series settling end to end) and 1 factory test.
-  - Six deliberate bugs planted one at a time in the series (overdrawn depletion, skipped
-    depletion, oversized oracle reply accepted, no seizure cut, single legs before the end, late
-    print accepted): each made at least one test fail.
-- Base fork (Foundry 1.8.6, `anvil --network base --fork-block-number 53209576`): 7 tests pass on the
-  real AMZNc token and the real AMZN Chainlink feed, through the factory:
-  - This week for real: Friday 23 Oct close $247.93375 to Wednesday 28 Oct close $252.9275, seven
-    prints found and recorded from the live feed's rounds. After-hours ends at $126.31992499 and
-    Market-hours at $126.60757501, and each redeems apart for exactly its share of the stock.
-  - A real 2-for-1 multiplier change leaves the raw backing intact; a real blocklisting stops the
-    holder redeeming until unblocked and burns nothing; a real transfer pause delays mint and
-    redeem while prints keep applying.
-  - The feed's own August overlap: an old-feed round that would have priced a moment at $275.13 is
-    refused, and the new feed's $274.475 is the only print.
 - Three independent reviews (code, economics against the paper, and the Chainlink reader). Fixed
-  from them, each with a lasting test: stock goes only to the redeeming account; a failing balance
+  from them: stock goes only to the redeeming account; a failing balance
   read or a total seizure can no longer burn legs for nothing; the legs give Permit2 no standing
   allowance; overlapping Chainlink feeds give one print, not two to choose from; a proxy moved to a
   feed with no rounds yet no longer stalls recording. No

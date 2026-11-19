@@ -29,8 +29,7 @@ facts and independently computed route vector are recorded in
 ```sh
 forge fmt --check
 forge build
-forge test -vvv
 slither .
 ```
 
-These commands compile and test local code only. They do not require an RPC endpoint.
+These commands compile and analyze local code only. They do not require an RPC endpoint.

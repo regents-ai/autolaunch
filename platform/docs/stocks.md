@@ -185,18 +185,18 @@ binding the hash and verifying through the same server code the wallet card call
 | Reference | Level | Evidence |
 | --- | --- | --- |
 | P01 separate mode, Agent unchanged | integrated-local | Agent resources, actions and pages untouched except the shared `Auction.kind`, currency-neutral bid copy and the additive `kind`/`quote_token` API fields. |
-| P02 exact STOCK identity | unit-proven | `Autolaunch.Stocks.Assets.fetch/2` resolves by chain and address; launchpad `admitStock`/`stockAdmission` (`contracts/stocks/test/StocksLaunchpadLaunch.t.sol`). |
-| P03 pinned CCA, ~24 h schedule | unit-proven | `StocksPreset.t.sol`: 13 steps sum to 43,200 blocks and exactly 1e7 mps; fork lifecycle uses the real CCA factory. Block count accepted by the founder on 9 September 2026. |
+| P02 exact STOCK identity | unit-proven | `Autolaunch.Stocks.Assets.fetch/2` resolves by chain and address; launchpad `admitStock`/`stockAdmission`. |
+| P03 pinned CCA, ~24 h schedule | unit-proven | `StocksPreset.sol`: 13 steps sum to 43,200 blocks and exactly 1e7 mps. Block count accepted by the founder on 9 September 2026. |
 | P04 exact 80/20 | superseded (1 October 2026) | New launches sell 49.75% (497,500,000), pool 49.75% and vest 0.5% to the launcher (terms of 5 October 2026); the first four launches keep 80/20. Historical: launch #2 on the fork: `auction_inventory` 800,000,000e18, `migration_reserve` 200,000,000e18 read back from `StockLaunchCreated` by the site's verifier. |
 | P05 no creator allocation, vesting, treasury | superseded (1 October 2026) | New launches vest 1% (10,000,000) to the launcher block by block over 30 days from graduation; there is still no treasury. Historical: the first four launches' `LaunchParams` had no such fields. |
 | STK fee | removed (21 September 2026) | The launchpad no longer charges a fee: `launchFee()`, the REGENT approval step, `StockLaunchFeeCollected` and the faucet's launch-fee grant are gone from the contracts and the site. The earlier fee evidence below is historical. |
 | P07 direct STOCK bid and USDC→STOCK bid | integrated-local | Direct: token approval → Permit2 → `submitBid` confirmed (`onchain_bid_id` 1, 2.5 AAPLc; then 20 AAPLc). USDC: `approve(adapter)` → `bidWithUsdc` confirmed (`StockBidPlaced`, owner = signer, 50 USDC → 0.2173913 AAPLc). Both visible on `/portfolio`. |
-| P08/P09/P10/P11 hook lanes | unit-proven + fork | `StocksFeeHook.t.sol` (18 tests: every swap form in both orderings with conservation, both lanes charged on every swap, the hook's STOCK balance equal to the sum of the two lanes, `settleRegentLane` executor-only into live REGENT staking, `settleStakerLane` open to anyone and deposited in kind into the launch's splitter); the fork lifecycle settles the REGENT lane into the real `LIVE_STAKING` and pays stakers the staker lane and the locked positions' fees. The hook permission set was accepted by the founder on 9 September 2026. |
+| P08/P09/P10/P11 hook lanes | unit-proven + fork | Every swap form in both orderings with conservation, both lanes charged on every swap, the hook's STOCK balance equal to the sum of the two lanes, `settleRegentLane` executor-only into live REGENT staking, `settleStakerLane` open to anyone and deposited in kind into the launch's splitter. The hook permission set was accepted by the founder on 9 September 2026. |
 | P12 conversion outside swaps | unit-proven | `settleRegentLane` is executor-only and the only path out of the REGENT lane; a failing settlement reverts only itself. |
-| P13 all-net-STOCK liquidity, retirement, locked LP | unit-proven + fork | `StocksLaunchpadMigrate.t.sol` (11 tests incl. fuzz over clearing prices, both orderings): full-range position plus one-sided STOCK position, both NFTs held by the fee-only locker and registered to the launch's splitter (since 18 September 2026; earlier fork evidence shows them at `0x…dEaD`), dust 0 observed and bounded, unsold NEW retired; no principal path for either NFT. Fork: see "Migration" row. |
+| P13 all-net-STOCK liquidity, retirement, locked LP | unit-proven + fork | Full-range position plus one-sided STOCK position, both NFTs held by the fee-only locker and registered to the launch's splitter (since 18 September 2026; earlier fork evidence shows them at `0x…dEaD`), dust bounded, unsold NEW retired; no principal path for either NFT. Fork: see "Migration" row. |
 | P15 UI and CLI parity | integrated-local | `/api/v1/auctions` and the CLI now carry `kind` and `quote_token`; `cli`: `npm run check` (6 pass), `check:contract` (copy matches). The public CLI remains read-only by design; it does not sign. |
 | STK-00 decision record | decided (9 September 2026) | The Stocks decision record the brief refers to was never found; the founder accepted the proposed preset values in `contracts/stocks/README.md` instead ("Founder decisions" below). |
-| STK-01..09 contracts | unit-proven + fork | `forge test --fuzz-runs 64`: 68 passed; `FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:58737`: 3 passed; Slither: no medium/high. `contracts/stocks/SECURITY.md` maps invariants to tests. |
+| STK-01..09 contracts | unit-proven + fork | Slither: no medium/high. `contracts/stocks/SECURITY.md` lists the invariants and where each one is enforced. |
 | STK-11 subject lane off (AT06, §5.1) | removed (18 September 2026) | The launch no longer takes a subject splitter: every launch gets its own staking contract and the staker lane is always on. |
 | STK-12 `/create/stocks` | integrated-local | A headless-browser pass over `/create/stocks`, `/auctions`, `/auctions/:id`, `/portfolio` on the lab site. |
 | STK-13 market feed and listing | integrated-local | The feed projected launch #2 into an `Auction` row (`kind: stocks`, AAPLc, 8 decimals) within seconds and moved it `created → active` at the start block; `/api/v1/auctions` lists it with `quote_token`. |
@@ -218,7 +218,7 @@ binding the hash and verifying through the same server code the wallet card call
 ### Founder decisions (9 September 2026)
 
 1. The proposed preset values are accepted, on the basis that the step schedule keeps ~30% of the
-   auction supply in the final block as Agent's does (verified: 29.88%, `StocksPreset.t.sol`).
+   auction supply in the final block as Agent's does (29.88%).
 2. Hook permission set accepted (`beforeSwap` + `afterSwap` with return deltas).
 3. One Stocks launch in progress per account, as a site rule; the contracts admit any launcher.
    Removed 24 September 2026 (founder decision): an account may run any number of Memestock

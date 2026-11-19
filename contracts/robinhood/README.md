@@ -37,20 +37,11 @@ protocol USDG stays in `RobinhoodProtocolRevenueInboxV1`.
 | `RobinhoodPositionsLib` | Linked library carrying the position planner (EIP-170). Must be deployed and linked before the launchpads. |
 | `fixtures/FixtureUsdgStockRoute` | Lab-only fixed-price USDG/STOCK route. Never a production binding. |
 
-## Building and testing
+## Building
 
 ```bash
 FOUNDRY_OFFLINE=true forge build --sizes
-FOUNDRY_OFFLINE=true forge test
-FOUNDRY_PROFILE=fork forge test --fork-url robinhood    # the production route against Robinhood Chain itself
 ```
-
-`test/fork/` runs only under the `fork` profile, against Robinhood Chain through the `robinhood`
-alias in `foundry.toml` (resolved from `REGENT_ROBINHOOD_RPC_URL`, which is never written down); the
-default profile and the gate exclude it. It binds the route to the live AAPL, TSLA and SNDK pools,
-buys and sells a thousand dollars of each through the real pools and issuer tokens, and shows a
-fifty-thousand-dollar purchase on the thin SNDK pool refused by a 95%-of-quote minimum and executed
-at a zero minimum.
 
 Libraries resolve from `../stocks/lib`; the package installs nothing of its own. forge 1.4's lint
 pre-pass cannot follow those `../stocks/lib` imports and fails a build that touched any file, while
@@ -63,8 +54,8 @@ controller always does).
 Base package (`../stocks/bin/memestake-gate.sh`) and proves the same things in the same order: the
 frozen tool and build identity in `requirements/frozen-identity.json`, formatting, a clean build
 whose artifacts carry the frozen compiler identity, the frozen release surface under `abi/` and
-`reports/frozen/` (`../stocks/bin/freeze.py check` against `requirements/freeze.json`), the whole
-hermetic test portfolio, Slither with every detector on and every result dispositioned in
+`reports/frozen/` (`../stocks/bin/freeze.py check` against `requirements/freeze.json`), Slither
+with every detector on and every result dispositioned in
 `docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and
 a receipt under `reports/generated/`, which is never committed.
 
@@ -114,7 +105,7 @@ decimals, matching cross-bindings). None is known at build time.
 5. The splitter is created at graduation as a clone of an implementation the launchpad deploys in its constructor; the launch record's `splitter` is the only splitter provenance, and the hook and the locker accept a splitter only from the launchpad.
 6. There is no payment-receiver clone and no administrator: both lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
 7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).
-8. The auction block schedule is the Base Stocks schedule scaled twentyfold for 0.1-second blocks: start lead 6,000, duration 864,000, claim delay 1,280, migration delay 2,560, and a thirteen-step release vector whose scheduled steps each last twenty times the Base blocks at a twentieth of the Base rate (`RobinhoodPreset.t.sol` proves the sums). Because a per-block rate is a whole number of mps, dividing by twenty rounds each step's rate, so the per-step releases differ slightly from Base's (founder, 21 September 2026: accepted as is). For reference:
+8. The auction block schedule is the Base Stocks schedule scaled twentyfold for 0.1-second blocks: start lead 6,000, duration 864,000, claim delay 1,280, migration delay 2,560, and a thirteen-step release vector whose scheduled steps each last twenty times the Base blocks at a twentieth of the Base rate. Because a per-block rate is a whole number of mps, dividing by twenty rounds each step's rate, so the per-step releases differ slightly from Base's (founder, 21 September 2026: accepted as is). For reference:
 
    | Step | Base blocks (2 s) | Base release | Robinhood blocks (0.1 s) | Robinhood release |
    |---|---|---|---|---|
@@ -137,7 +128,7 @@ decimals, matching cross-bindings). None is known at build time.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
 11. The position planner lives in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
 12. The splitter's exit rule ("nothing leaves an account in its own stake block") reads the chain's native `block.number`, which on this Arbitrum Orbit rollup is the Ethereum block the rollup last observed, while the launchpad and the auction count Robinhood blocks through `BlockNumberish`. A staker therefore waits until the next Ethereum block, about twelve seconds, before claiming or unstaking (verified read-only on chain 4663 on 21 September 2026: a contract saw block 26,027,887 while `ArbSys.arbBlockNumber()` returned 69,038,732). The founder kept the rule as is and had this documented (21 September 2026). The local lab, a plain Anvil chain, does not reproduce this.
-13. Stock routes. `UniswapV3StockRouteV1` is the production route, one per admitted stock, created by the deployment ceremony after the bid adapter and admitted by the Safe. It executes directly on the stock's Uniswap v3 USDG/STOCK pool (the Robinhood pools sort USDG and the stock either way; the route reads the order once at construction), quotes from the stock's Chainlink USD feed and refuses a quote from a feed older than seven days (the feeds hold the last close over weekends and holidays, so a shorter bound would stop every Monday morning). `swapExactIn` never reads the feed: the price control is the minimum each caller sets, and nothing in the route refuses an execution under the feed. The executor's minimum is what protects REGENT's share, so the executor key must be kept safe and sales should be split in thin markets; the website offers bidders a minimum at 95% of the Chainlink price. Every Robinhood stock has eighteen decimals; the hermetic suite, the lab and the fixtures use eighteen decimals throughout, and `RobinhoodEighteenDecimalLifecycle.t.sol` walks a whole launch through the production route in both currency orders. `test/fork/UniswapV3StockRouteFork.t.sol` bought and sold a thousand dollars of AAPL, TSLA and SNDK through the live pools on 23 September 2026 (largest shortfall against the feed: 1.28% on the thin SNDK sale) and showed a fifty-thousand-dollar SNDK purchase refused by a 95%-of-quote minimum and, at a zero minimum, executed 74% under the feed (6.86 shares delivered against 26.43 quoted).
+13. Stock routes. `UniswapV3StockRouteV1` is the production route, one per admitted stock, created by the deployment ceremony after the bid adapter and admitted by the Safe. It executes directly on the stock's Uniswap v3 USDG/STOCK pool (the Robinhood pools sort USDG and the stock either way; the route reads the order once at construction), quotes from the stock's Chainlink USD feed and refuses a quote from a feed older than seven days (the feeds hold the last close over weekends and holidays, so a shorter bound would stop every Monday morning). `swapExactIn` never reads the feed: the price control is the minimum each caller sets, and nothing in the route refuses an execution under the feed. The executor's minimum is what protects REGENT's share, so the executor key must be kept safe and sales should be split in thin markets; the website offers bidders a minimum at 95% of the Chainlink price. Every Robinhood stock has eighteen decimals; the lab and the fixtures use eighteen decimals throughout. A read-only simulation against Robinhood Chain on 23 September 2026 bought and sold a thousand dollars of AAPL, TSLA and SNDK through the live pools (largest shortfall against the feed: 1.28% on the thin SNDK sale) and showed a fifty-thousand-dollar SNDK purchase refused by a 95%-of-quote minimum and, at a zero minimum, executed 74% under the feed (6.86 shares delivered against 26.43 quoted).
 14. The issuer's powers over the stock tokens. The Robinhood stock tokens are the issuer's upgradeable contracts. One issuer key can replace the token code for every stock at once, pause all transfers, block any address from sending or receiving, burn any holder's balance (neither the pause nor the blocklist stops a burn), and rename a token, with no delay and no on-chain notice before it happens (verified on chain 4663 on 23 September 2026: every issuer role is held by a single externally owned key; 175 addresses are blocked, all of them wallets and none of them contracts; the global pause was used once, before launch). Any of these powers used against the launchpad, the hook, the locker, a splitter, a route or a pool would stall bids, settlements and fee collection for every market on that stock until the issuer reversed it; balances would stay where they are, a burn being the issuer's alone. The pools trade against these tokens around the clock today, and nothing in the graph can be blocked for being a contract. Accepted as a known limit (recorded 23 September 2026 on the chief engineer's instruction; the founder's own word on it is not yet on file).
 15. Thin pools. Several USDG pools are thin (SNDK, INTC and MSTR at the time of writing: more than 1% of price impact on a ten-thousand-dollar trade, and the SNDK pool cannot fill fifty thousand dollars near the feed price). Nothing in the route refuses such a fill on its own; the caller's minimum does. The executor settles the protocol lane in pieces small enough for the pool at hand rather than in one call, with a minimum chosen from the quote every time, and the website should size bids the same way.
 
