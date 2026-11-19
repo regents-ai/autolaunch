@@ -1,5 +1,5 @@
 {
-  "total": 557,
+  "total": 560,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -632,13 +632,13 @@
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_render_test.exs",
-      "line": 81,
+      "line": 84,
       "test_name": "RENDER_HONOURS_SAVED_SPACE: a video made past the line is served but not saved",
       "keep_because": "A share video rendered while the saved videos hold just under the saved space is saved; one rendered at or past it is still made and handed over once, but not saved (Sentinel's ask before v154, 19 Oct 2026). The real render runs from a queued request on a stored running auction, with only the chain node, ffmpeg and the space stood in, which filling 5 GB by hand cannot match. It fails if the render ignores the space check (saved always true) or ignores the configured space (the 5 GB constant put back): both mutations failed it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "0b4b6737efa8c1afc60274ae0308a2f5eb6d73949d1d08c24bb0d61f28b05a4e"
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
     },
     {
       "id": 77,
@@ -7243,6 +7243,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 737,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_render_test.exs",
+      "line": 110,
+      "test_name": "a render that fails on both tries marks its request failed and is saved once",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): a background job's first failed attempt that Oban tries again is no longer saved as a crash. The share video render allows two tries and marks its request failed on the second, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a render that kept failing was never saved at all. The real render job runs through Oban's executor with a stand-in encoder that always stops early. It fails if the first failed try is saved, or if after the second the request is not marked failed, the job does not end failed, or not exactly one crash, marked attempt 2, is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
+    },
+    {
+      "id": 738,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_render_test.exs",
+      "line": 125,
+      "test_name": "a render that fails once and then succeeds is not saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): a background job's first failed attempt that Oban tries again is no longer saved as a crash. The share video render allows two tries and marks its request failed on the second, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a render that kept failing was never saved at all. With a stand-in encoder that stops early only on the first try, the real render job's retry makes and stores the video. It fails if the healed first failure is saved, or if the retry does not leave the request ready with its video.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
+    },
+    {
+      "id": 739,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stock_candidate_read_market_test.exs",
+      "line": 61,
+      "test_name": "a read job that fails moves the row's turn on and is saved as a crash",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the stock candidate read has one try and an error action that moves the row's turn on, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a chain answer in another shape was never saved at all. The real read job runs through Oban's executor against a node that answers in another shape. It fails if the row's turn does not move on, the job does not end failed, or no crash is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f25b9cf88b61b3b312d6202bfc8b74b40755513526232dec9b58a1b8b6ae31e2"
     }
   ],
   "legacy_folders_to_remove": [

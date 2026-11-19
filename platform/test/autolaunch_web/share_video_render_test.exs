@@ -2,19 +2,22 @@ defmodule AutolaunchWeb.ShareVideoRenderTest do
   @moduledoc """
   A share video made while the saved videos hold less than the site's saved
   space is saved; one made at or past it is still made and handed over once,
-  but not saved.
+  but not saved. A render that fails on both tries marks its request failed
+  and is saved as a crash once; one that fails once and then succeeds is not
+  saved.
 
   The render runs for real, from a request asked for through
   `AutolaunchWeb.ShareVideo.fetch/5` and its queued job, on a stored running
   auction. Only three things stand in: the auction's chain is a node started
   here that answers the two reads its story makes, `ffmpeg` is a script that
-  takes every frame and writes a fixed small MP4, and the saved space is set
-  small for this case.
+  takes every frame and writes a fixed small MP4 (or stops early, as an
+  encoder that fails does), and the saved space is set small for this case.
   """
   use Autolaunch.DataCase, async: false
 
   alias Autolaunch.TestSupport
   alias AutolaunchWeb.ShareVideo
+  alias ErrorTracker.{Error, Occurrence}
 
   @moduletag :capture_log
 
@@ -75,7 +78,7 @@ defmodule AutolaunchWeb.ShareVideoRenderTest do
       actor: %Autolaunch.Actors.System{}
     )
 
-    %{auction: auction, now: now}
+    %{auction: auction, now: now, dir: dir}
   end
 
   test "RENDER_HONOURS_SAVED_SPACE: a video made past the line is served but not saved",
@@ -102,8 +105,66 @@ defmodule AutolaunchWeb.ShareVideoRenderTest do
     end
   end
 
+  # Each try runs the real render job through Oban's executor, with the crash
+  # saving the site attaches at start.
+  test "a render that fails on both tries marks its request failed and is saved once",
+       %{auction: auction, now: now, dir: dir} do
+    stop_early(dir, :always)
+    assert {:waiting, _ahead} = ShareVideo.fetch(auction, :auction, nil, nil, now)
+
+    assert %{failure: 1} = render()
+    assert [] = stored(auction)
+    assert Repo.all(Error) == []
+
+    assert %{discard: 1} = render_retry()
+    assert [%{state: "failed"}] = stored(auction)
+    assert [%Error{kind: "Elixir.Ash.Error.Unknown"}] = Repo.all(Error)
+    assert [%Occurrence{context: %{"job.attempt" => 2}}] = Repo.all(Occurrence)
+  end
+
+  test "a render that fails once and then succeeds is not saved",
+       %{auction: auction, now: now, dir: dir} do
+    stop_early(dir, :once)
+    assert {:waiting, _ahead} = ShareVideo.fetch(auction, :auction, nil, nil, now)
+
+    assert %{failure: 1} = render()
+    assert %{success: 1} = render_retry()
+    assert [%{state: "ready", mp4: @mp4}] = stored(auction)
+    assert Repo.all(Error) == []
+  end
+
   # Runs the queued render jobs, as the site's share-video queue does.
   defp render, do: Oban.drain_queue(queue: :share_videos)
+
+  # Runs a render waiting for its second try now, not after its backoff.
+  defp render_retry, do: Oban.drain_queue(queue: :share_videos, with_scheduled: true)
+
+  # The stand-in ffmpeg stops before it has taken every frame, as an encoder
+  # that fails does: on every render, or on the first only and then it writes
+  # the fixed MP4 as before.
+  defp stop_early(dir, :always) do
+    File.write!(Path.join(dir, "ffmpeg"), """
+    #!/bin/sh
+    head -c 1000 > /dev/null
+    exit 3
+    """)
+  end
+
+  defp stop_early(dir, :once) do
+    stopped = Path.join(dir, "stopped")
+
+    File.write!(Path.join(dir, "ffmpeg"), """
+    #!/bin/sh
+    if [ ! -e "#{stopped}" ]; then
+      touch "#{stopped}"
+      head -c 1000 > /dev/null
+      exit 3
+    fi
+    cat > /dev/null
+    for out; do :; done
+    cat "#{dir}/made.mp4" > "$out"
+    """)
+  end
 
   defp space(bytes), do: Application.put_env(:autolaunch, :share_video_saved_bytes, bytes)
 
