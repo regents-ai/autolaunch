@@ -66,6 +66,20 @@ defmodule AutolaunchWeb.ToolManifest do
   @external_resource @agent_payment_path
   @agent_payment @agent_payment_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
 
+  # Each feature's tools, in the order the page is handed them.
+  @page_tools [
+    {"covered_calls", @covered_calls},
+    {"exposure", @exposure},
+    {"earn", @earn},
+    {"agent_bids", @agent_bids},
+    {"agent_robinhood_bids", @agent_robinhood_bids},
+    {"agent_launches", @agent_launches},
+    {"agent_finish", @agent_finish},
+    {"agent_staking", @agent_stake},
+    {"agent_swaps", @agent_swap},
+    {"agent_payments", @agent_payment}
+  ]
+
   @doc "The features that are on, by name."
   def features do
     [
@@ -101,16 +115,6 @@ defmodule AutolaunchWeb.ToolManifest do
   @doc "The tools the page is handed beside the ones its script already knows: none while every feature is off."
   def page_tools do
     on = features()
-
-    if("covered_calls" in on, do: @covered_calls, else: []) ++
-      if("exposure" in on, do: @exposure, else: []) ++
-      if("earn" in on, do: @earn, else: []) ++
-      if("agent_bids" in on, do: @agent_bids, else: []) ++
-      if("agent_robinhood_bids" in on, do: @agent_robinhood_bids, else: []) ++
-      if("agent_launches" in on, do: @agent_launches, else: []) ++
-      if("agent_finish" in on, do: @agent_finish, else: []) ++
-      if("agent_staking" in on, do: @agent_stake, else: []) ++
-      if("agent_swaps" in on, do: @agent_swap, else: []) ++
-      if("agent_payments" in on, do: @agent_payment, else: [])
+    for {feature, tools} <- @page_tools, feature in on, tool <- tools, do: tool
   end
 end
