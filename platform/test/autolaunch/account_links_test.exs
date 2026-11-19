@@ -26,6 +26,7 @@ defmodule Autolaunch.AccountLinksTest do
     {:ok, refreshed} = linked(github.subject)
     assert %{username: "renamed", display_name: "Renamed"} = refreshed
     assert DateTime.after?(refreshed.verified_at, link.verified_at)
+    assert DateTime.after?(refreshed.updated_at, link.updated_at)
     assert refreshed.inserted_at == link.inserted_at
 
     # Another sign-in put a different GitHub account in its place meanwhile.
@@ -84,6 +85,10 @@ defmodule Autolaunch.AccountLinksTest do
 
       assert {:error, %Ash.Error.Forbidden{}} =
                Accounts.refresh_linked_identity(link, refresh, actor: actor)
+
+      # The sign-in's own refresh refuses them too, rather than writing nothing.
+      assert {:error, %Ash.Error.Forbidden{}} =
+               VerifiedSession.refresh_linked_social(link, refresh, actor)
     end
 
     assert linked(github.subject) == {:ok, link}

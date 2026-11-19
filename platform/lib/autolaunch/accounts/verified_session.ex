@@ -179,7 +179,8 @@ defmodule Autolaunch.Accounts.VerifiedSession do
         metadata: %{}
       },
       actor: actor,
-      bulk_options: [strategy: :atomic, return_errors?: true]
+      # Anyone but the site is refused, not counted as a link that is gone.
+      bulk_options: [strategy: :atomic, return_errors?: true, authorize_with: :error]
     )
     |> case do
       %Ash.BulkResult{status: :success} -> :ok

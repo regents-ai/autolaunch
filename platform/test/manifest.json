@@ -7450,20 +7450,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "554fb495cd62bd882c3c4f0a2266f416f3154c6bb4ae8332fc410c390140ef6c"
+      "source_sha256": "4fe58ff970ce80c5ba466b314221afce259c6cb7375aab4c0bac508ec43ddae4"
     },
     {
       "id": 750,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch/account_links_test.exs",
-      "line": 62,
+      "line": 63,
       "test_name": "a signed-in person, or no one, may not list what Points reads or refresh a link",
       "keep_because": "A signed-in person, even for their own link, and a request with no actor are both refused on the reads the Points start run uses (accounts made before a time, accounts by Privy id, links made before a time, the holder of an X account, profile X connections made before a time) and on refreshing a link, which stays unchanged.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "554fb495cd62bd882c3c4f0a2266f416f3154c6bb4ae8332fc410c390140ef6c"
+      "source_sha256": "4fe58ff970ce80c5ba466b314221afce259c6cb7375aab4c0bac508ec43ddae4"
     }
   ],
   "legacy_folders_to_remove": [
