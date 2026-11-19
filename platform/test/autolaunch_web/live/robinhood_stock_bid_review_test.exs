@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
   person's open wallet, never the auction it bids on. The page's wallet sends
   every step from the review's signer, so a review naming the auction sent
   nothing (agent Robinhood bids rehearsal on the Robinhood lab, 18 Nov 2026).
+  An approval sent from a review the panel has since built again moves the
+  panel on once it lands.
 
   Robinhood Chain is `Autolaunch.RobinhoodBidChain`.
   """
@@ -12,8 +14,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
   import Autolaunch.BidFixture, only: [bidder: 1, system: 0]
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{Accounts, RobinhoodBidChain}
+  alias Autolaunch.{Accounts, BaseRpcStub, RobinhoodBidChain}
   alias RegentChain.Address
+
+  @approval_hash "0x" <> String.duplicate("a", 64)
 
   setup :bidder
 
@@ -216,6 +220,87 @@ defmodule AutolaunchWeb.RobinhoodStockBidReviewTest do
 
     render_hook(panel, "prepare_and_send", %{"form" => inputs})
     assert_reply(view, %{send: "usdg_approval"})
+  end
+
+  # The panel builds its review again once it is ten minutes old, and a person
+  # who pressed Approve USDG meanwhile, and confirmed it in the wallet only
+  # afterwards, reports it against the review it was sent from.
+  test "an approval sent from the review the panel replaced still moves it on to the bid once it lands",
+       %{conn: conn, account: account, wallet: wallet} do
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live_isolated(__MODULE__.Panel, session: %{"account_id" => account.id, "observed" => 50})
+
+    panel = with_target(view, "#bid")
+    render_hook(panel, "onchain_active_wallet", %{"address" => wallet})
+
+    render_hook(panel, "bid_form_changed", %{
+      "amount" => "12.5",
+      "basis" => "price",
+      "price" => "3"
+    })
+
+    render_async(view)
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{
+        id: first_id,
+        chain: %{chain_id: chain_id},
+        steps: [%{step: "usdg_approval"} = approval, %{step: "usdg_bid"}]
+      }
+    })
+
+    # The review is ten minutes old and the stock's quote has moved since, so
+    # the review built again is a new one that still asks for the approval.
+    RobinhoodBidChain.put(%{quote: 9 * 10 ** 20})
+
+    Phoenix.LiveView.send_update(view.pid, AutolaunchWeb.RobinhoodStockBidComponent,
+      id: "bid",
+      refresh_review: first_id
+    )
+
+    render_async(view)
+
+    assert_push_event(view, "onchain-steps:review", %{
+      review: %{id: second_id, steps: [%{step: "usdg_approval"}, %{step: "usdg_bid"}]}
+    })
+
+    assert second_id != first_id
+
+    # Approve USDG was pressed from the first review before the second one
+    # reached the page; the wallet reports it now, against the first.
+    RobinhoodBidChain.put(%{
+      quote: 9 * 10 ** 20,
+      usdg_allowance: 100 * 10 ** 6,
+      transactions: %{
+        @approval_hash => %{
+          "hash" => @approval_hash,
+          "chainId" => "0x" <> Integer.to_string(chain_id, 16),
+          "from" => wallet,
+          "to" => approval.to,
+          "input" => approval.data,
+          "value" => "0x0"
+        }
+      },
+      receipts: %{@approval_hash => BaseRpcStub.receipt(@approval_hash, "0x64", [])}
+    })
+
+    render_hook(panel, "step_sent", %{
+      "review_id" => first_id,
+      "step" => "usdg_approval",
+      "transaction_hash" => @approval_hash
+    })
+
+    render_async(view)
+
+    # Once it lands, the review on the page asks only for the bid.
+    assert_push_event(view, "onchain-steps:review", %{review: %{steps: [%{step: "usdg_bid"}]}})
+    assert has_element?(view, ~s|#bid [data-onchain-step="usdg_bid"]:not([disabled])|, "Place bid")
+    refute has_element?(view, ~s|#bid [data-onchain-step="usdg_approval"]|)
   end
 
   # From its end block on, by its clock, the auction refuses a bid

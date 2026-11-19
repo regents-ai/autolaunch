@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.OnchainSteps do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias AutolaunchWeb.{ReadFailedError, ReadFailure}
-  alias RegentChain.{Address, Outcome, Presses}
+  alias RegentChain.{Address, Outcome, Presses, Review}
 
   @recheck_ms 2_000
 
@@ -236,6 +236,21 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc "Whether the step `name` is an approval kept from an earlier review, so it shows as done."
   def approved?(%{approved: approved}, name), do: Enum.any?(approved, &(&1.step == name))
+
+  @doc """
+  Whether the review on the page still asks for the approval `entry` landed,
+  which the same wallet sent from a review the page has since built again: the
+  press reached the server after the new review, against the review it was
+  sent from. The panel then builds its review again from the chain, which now
+  holds the approval, so the button moves on.
+  """
+  def asked_again?(
+        %{review: %{signer: signer} = review} = assigns,
+        %{name: name, review: %{signer: signer}}
+      ),
+      do: Review.find(review, name) != nil and not approved?(assigns, name)
+
+  def asked_again?(_assigns, _another_wallets_entry), do: false
 
   @doc """
   The step a press sends when the server builds its review (`prepare_and_send`):
