@@ -1,11 +1,11 @@
 defmodule Autolaunch.StakeChain do
   @moduledoc """
-  The staking of two graduated Base launches for one test, a Revstake one and
-  a Memestock one on the second Memestock launchpad, on a chain double that
-  answers every read the token page's Stake and Claim views make at the
-  latest block (0x20), by the function called and what it is asked about.
-  Both launches trade the same token (`subject/0`) and stake it in the same
-  staking contract (`splitter/0`):
+  The staking and trading of two graduated Base launches for one test, a
+  Revstake one and a Memestock one on the second Memestock launchpad, on a
+  chain double that answers every read the token page's Stake and Claim views
+  and its swap panel make at the latest block (0x20), by the function called
+  and what it is asked about. Both launches trade the same token
+  (`subject/0`) and stake it in the same staking contract (`splitter/0`):
 
     * the Revstake launch: the strategy's record of the migrated launch (its
       locked position, `lp_token_id/0`), the pool, and the LP locker's
@@ -24,8 +24,13 @@ defmodule Autolaunch.StakeChain do
       `allowance` to the staking contract, what it has `staked` (everything
       staked there) and what it can claim of each asset (`claimable`, by
       asset: `:dollar`, USDC; `:token`; and `:currency`, REGENT on the
-      Revstake launch and the stock on the Memestock one). Any other wallet
-      holds, has staked and can claim nothing.
+      Revstake launch and the stock on the Memestock one). Its `balance` and
+      `allowance` are the same of every asset and to every spender, Permit2
+      among them, and Permit2 lets Uniswap's router take `permit2` of
+      whatever it spends (`amount` until `expiration`). Any other wallet
+      holds, has staked, can claim and has allowed nothing;
+    * Uniswap's quoter, whose quote for any trade on either pool is
+      `swap_quote` of what it buys.
 
   Every other request goes to `Autolaunch.BaseRpcStub`. `install/1` points the
   site's Base client at it and `put/1` replaces what it answers mid-test, each
@@ -104,7 +109,9 @@ defmodule Autolaunch.StakeChain do
             claimable: %{dollar: 0, token: 0, currency: 0},
             lanes: [0, 0, 0],
             converter: @executor,
-            quote: 0
+            quote: 0,
+            permit2: %{amount: 0, expiration: 0},
+            swap_quote: 0
           },
           Map.new(overrides)
         )
@@ -164,7 +171,14 @@ defmodule Autolaunch.StakeChain do
       {"accrued(bytes32)", fn [@memestock_pool_id] -> stake.lanes end},
       {"settled(bytes32)", fn [@memestock_pool_id] -> [0, 0, 0, 0] end},
       {"executor()", fn _none -> [word(stake.converter)] end},
-      {"quoteExactIn(address,address,uint256)", fn _sale -> [stake.quote] end}
+      {"quoteExactIn(address,address,uint256)", fn _sale -> [stake.quote] end},
+      # The swap panel's Permit2 and quoter.
+      {"allowance(address,address,address)",
+       fn [owner, _token, _router] ->
+         [own([owner], stake.permit2.amount), own([owner], stake.permit2.expiration), 0]
+       end},
+      {"quoteExactInputSingle(((address,address,uint24,int24,address),bool,uint128,bytes))",
+       fn _trade -> [stake.swap_quote, 0] end}
     ]
   end
 

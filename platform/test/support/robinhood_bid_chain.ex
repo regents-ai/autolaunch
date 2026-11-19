@@ -27,6 +27,13 @@ defmodule Autolaunch.RobinhoodBidChain do
   claim `claimable` of each asset (`:dollar`, USDG; `:token`; `:currency`, the
   stock); any other wallet holds, has staked and can claim nothing.
 
+  The token page's swap panel reads the same wallet too: it holds
+  `stock_balance` of the stock and lets every spender take `stock_allowance`
+  of it, as it does `token_allowance` of the token, and the deployment's
+  Permit2 lets its router take `permit2` of whatever the wallet spends
+  (`amount` until `expiration`). The deployment's quoter quotes any trade on
+  the pool at `swap_quote` of what it buys.
+
   `install/1` points the site at it and `put/1` replaces what it answers
   mid-test, each as overrides over the defaults; both are undone when the test
   exits. Prices are Q96, the stock's
@@ -178,7 +185,11 @@ defmodule Autolaunch.RobinhoodBidChain do
         token_balance: 0,
         token_allowance: 0,
         staked: 0,
-        claimable: %{dollar: 0, token: 0, currency: 0}
+        claimable: %{dollar: 0, token: 0, currency: 0},
+        stock_balance: 0,
+        stock_allowance: 0,
+        permit2: %{amount: 0, expiration: 0},
+        swap_quote: 0
       },
       Application.get_env(:autolaunch, __MODULE__, %{})
     )
@@ -237,9 +248,21 @@ defmodule Autolaunch.RobinhoodBidChain do
   defp contract(@auction, _config), do: :auction
   defp contract(@route, _config), do: :route
   defp contract(@token, _config), do: :token
+  defp contract(@stock, _config), do: :stock
   defp contract(@splitter, _config), do: :splitter
 
+  # The swap panel's quoter and Permit2, then the deployment's other contracts.
   defp contract(address, config) do
+    {:ok, swap} = Lab.swap_addresses(config)
+
+    cond do
+      address == swap.quoter -> :quoter
+      address == Lab.address!(config, :permit2) -> :permit2
+      true -> deployed(address, config)
+    end
+  end
+
+  defp deployed(address, config) do
     {:ok, v1} = Lab.contracts(config, :v1)
 
     cond do
@@ -321,6 +344,29 @@ defmodule Autolaunch.RobinhoodBidChain do
       selector == LabAbi.selector("allowance(address,address)") ->
         uint(own(arguments, state.token_allowance))
     end
+  end
+
+  defp read(:stock, selector, arguments, state) do
+    cond do
+      selector == LabAbi.selector("balanceOf(address)") ->
+        uint(own(arguments, state.stock_balance))
+
+      selector == LabAbi.selector("allowance(address,address)") ->
+        uint(own(arguments, state.stock_allowance))
+    end
+  end
+
+  defp read(:permit2, selector, [owner, _token, _router], state) do
+    if selector == LabAbi.selector("allowance(address,address,address)"),
+      do: words([own([owner], state.permit2.amount), own([owner], state.permit2.expiration), 0])
+  end
+
+  defp read(:quoter, selector, _trade, state) do
+    if selector ==
+         LabAbi.selector(
+           "quoteExactInputSingle(((address,address,uint24,int24,address),bool,uint128,bytes))"
+         ),
+       do: words([state.swap_quote, 0])
   end
 
   # Both pool slots the site reads answer one word: a price of one stock per

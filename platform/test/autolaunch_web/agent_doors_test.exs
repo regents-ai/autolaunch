@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
 
   @moduletag :capture_log
   @commands Path.expand("../../../cli/commands.json", __DIR__)
-  @features ~w(covered_calls exposure earn agent_bids agent_robinhood_bids agent_launches agent_finish agent_staking)
+  @features ~w(covered_calls exposure earn agent_bids agent_robinhood_bids agent_launches agent_finish agent_staking agent_swaps)
   @who %{"public" => "Yes", "signed_agent" => "Signed agent", "paired_agent" => "Paired agent"}
   @requires %{"none" => "Yes", "siwa" => "Signed agent", "siwa_and_pairing" => "Paired agent"}
   @lists %{"autolaunch_auctions" => "/api/v1/auctions", "autolaunch_tokens" => "/api/v1/tokens"}
@@ -145,6 +145,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
           ["agent_launches"],
           ["agent_finish"],
           ["agent_staking"],
+          ["agent_swaps"],
           @features
         ],
         connector? <- [false, true] do
@@ -764,6 +765,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       "prepare_launch" => %{draft: draft.id},
       "prepare_finish" => %{auction_id: robinhood.id},
       "prepare_stake" => %{token_id: token.id, kind: "claim"},
+      "prepare_swap" => %{token_id: token.id, direction: "buy", amount: "1"},
       "register_identity" => nil,
       "get_identity" => nil,
       "pair_identity" => %{code: code.code, name: "Claude", harness: "claude"},
@@ -774,7 +776,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
       for %{"surfaces" => %{"hosted_mcp" => true}} = row <- Capabilities.operations(), do: row
 
     assert Enum.sort(Map.keys(inputs)) == Enum.sort(Enum.map(hosted, & &1["hosted_tool"]))
-    assert length(hosted) == 35
+    assert length(hosted) == 36
 
     # Each switch's tools are called in turn, by their caller (`caller/3`); every
     # call answers.
@@ -793,7 +795,7 @@ defmodule AutolaunchWeb.AgentDoorsTest do
         end
       end)
 
-    assert length(called) == 35
+    assert length(called) == 36
 
     # The ones that write: a draft save, a launch's review the site keeps, and a
     # connected app's identity, pairing and check-in.
@@ -997,6 +999,10 @@ defmodule AutolaunchWeb.AgentDoorsTest do
   # A Base Revstake launch's staking, on whose token the bidder's wallet holds
   # and has staked nothing.
   defp chain("agent_staking"), do: StakeChain.install()
+
+  # The same launch's pool, in which the bidder's wallet holds 1 of what it
+  # spends and the quoter quotes 1 of what it buys.
+  defp chain("agent_swaps"), do: StakeChain.install(%{balance: 10 ** 18, swap_quote: 10 ** 18})
 
   # A saved bid of the bid fixture's bidder on `auction`, on chain as bid 7.
   defp bid_position!(auction) do
