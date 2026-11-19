@@ -69,7 +69,7 @@ defmodule Autolaunch.Exposure.Series do
       argument :session, :integer, constraints: [min: 0, max: @uint256_max]
 
       run fn input, %{actor: actor} ->
-        with {:ok, signer} <- Signer.wallet(actor, input.arguments[:signer]),
+        with {:ok, signer} <- Signer.step_wallet(actor, input.arguments[:signer]),
              {:ok, prepared} <- input.arguments |> Map.drop([:signer]) |> Steps.prepare(signer) do
           {:ok, Map.put(prepared, :signer, signer)}
         end
