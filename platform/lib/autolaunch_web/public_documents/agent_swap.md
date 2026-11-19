@@ -1,4 +1,3 @@
-
 ## Agent swaps
 
 A paired agent can have its person's buy or sell of a listed token prepared for one of the person's own wallets, exactly as the token page's swap panel offers it. The site only prepares it: your person's own wallet signs and sends each step. Autolaunch never holds a key and never signs or sends anything.
