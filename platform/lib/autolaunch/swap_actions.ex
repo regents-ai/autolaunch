@@ -9,9 +9,11 @@ defmodule Autolaunch.SwapActions do
   enable. Nothing is written anywhere. The chain is the only record of a
   trade: the page reads what the swap paid from its receipt.
 
-  Every review binds to one of the wallets of the account the session lease
-  names, read inside the lease at call time: the page's active wallet must be
-  one the account links, never a guess.
+  `prepare/3` binds every review it makes to one of the wallets of the account
+  the session lease names, read inside the lease at call time: the page's
+  active wallet must be one the account links, never a guess. `review/2`
+  checks nothing about the wallet it is given, so its caller must already have
+  proved that wallet is one of the acting person's own.
 
   The quote comes from Uniswap's quoter through the pool's own hook, so it is
   already net of the pool's fees; nothing is subtracted from it a second time.
@@ -37,8 +39,10 @@ defmodule Autolaunch.SwapActions do
   @commands "0x10"
   @v4_actions "0x060c0f"
   # Price protection: how far below today's quote the trade may settle, in
-  # hundredths of a percent. The trader chooses between 1% and 10%.
+  # hundredths of a percent. The trader chooses between 1% and 10%, starting
+  # from 6%.
   @protection_range 100..1_000
+  @default_protection "6"
   # The router refuses the swap once this many seconds have passed since the review.
   @deadline_seconds 900
   # A Permit2 allowance is granted for thirty minutes, so one granted by a
@@ -129,14 +133,29 @@ defmodule Autolaunch.SwapActions do
   decimal places.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(
+  def prepare(request, address, opts) do
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once it has proved `signer` is one of the
+  acting account's own wallets, with the latest block the pool was read at
+  (`block`) and when its steps stop being good (`expires_at`, Unix seconds):
+  the swap's deadline, or the Permit2 allowance it spends running out first.
+  It checks nothing about `signer` itself, so its caller must have proved it
+  is one of the acting person's own wallets. A price protection out of range,
+  or an amount that is not a decimal above zero, is refused before any chain
+  is read; only the pool names how many places and how much its side takes.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(
         %{launch: launch, direction: direction, amount: amount, protection: protection},
-        address,
-        opts
+        signer
       )
       when direction in [:buy, :sell] do
     with {:ok, protection} <- protection(protection),
-         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+         :ok <- typed(amount),
          {:ok, pool} <- pool(launch),
          {:ok, venue} <- venue(pool),
          trade <- trade(pool, direction),
@@ -149,7 +168,11 @@ defmodule Autolaunch.SwapActions do
     end
   end
 
-  def prepare(_request, _address, _opts), do: unavailable(:invalid_direction)
+  def review(_request, _signer), do: unavailable(:invalid_direction)
+
+  @doc "The price protection a trade takes when the trader names none, in percent."
+  @spec default_protection() :: String.t()
+  def default_protection, do: @default_protection
 
   @doc """
   Today's quote for an amount, for anyone looking at the form: what the pool
@@ -328,6 +351,18 @@ defmodule Autolaunch.SwapActions do
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
 
+  # A typed amount's own form, before any chain is read: a decimal above zero,
+  # read as `amount_in/2` reads it.
+  defp typed(value) when is_binary(value) do
+    case Amounts.decimal_ratio(value) do
+      {:ok, 0, _scale} -> unavailable(:amount_required)
+      {:ok, _numerator, _scale} -> :ok
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp typed(_value), do: unavailable(:amount_required)
+
   defp amount_in(value, decimals) when is_binary(value) do
     case Amounts.parse_units(value, decimals) do
       {:ok, amount} when amount in 1..@max_input -> {:ok, amount}
@@ -422,13 +457,18 @@ defmodule Autolaunch.SwapActions do
 
   defp build(trade, limits, snapshot, pool, venue) do
     %{amount_in: amount_in, min_out: min_out} = limits
-    deadline = System.os_time(:second) + @deadline_seconds
+
+    {steps, expires_at} =
+      reviewed_steps(trade, amount_in, min_out, System.os_time(:second), snapshot, venue)
 
     %{
       chain: venue.network,
-      steps: reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue),
-      facts: review(trade, limits, snapshot, pool),
+      block: pool.block.number,
+      expires_at: expires_at,
+      steps: steps,
+      facts: facts(trade, limits, snapshot, pool),
       context: %{
+        token: pool.token.address,
         direction: trade.direction,
         buy: trade.buy.address,
         buy_symbol: trade.buy.symbol,
@@ -441,7 +481,7 @@ defmodule Autolaunch.SwapActions do
   end
 
   # The few figures the form shows beside the wallet steps.
-  defp review(
+  defp facts(
          trade,
          %{amount_in: amount_in, min_out: min_out, protection: protection},
          snapshot,
@@ -473,12 +513,20 @@ defmodule Autolaunch.SwapActions do
   defp fees(%{kind: :agent, lp_fee: lp_fee}, _trade),
     do: ["Trading fees, including the #{lp_fee} pool fee"]
 
-  # The reviewed sequence: the exact allowances the router still lacks, then the
-  # one swap they enable.
-  defp reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue) do
-    token_approval(trade, amount_in, snapshot, venue) ++
-      permit2_approval(trade, amount_in, deadline, snapshot, venue) ++
-      [Review.step("swap", venue.router, swap_data(venue, trade, amount_in, min_out, deadline))]
+  # The reviewed sequence, as of `now`: the exact allowances the router still
+  # lacks, then the one swap they enable; and when it stops being good, the
+  # swap's deadline or the end of the Permit2 allowance it spends, whichever
+  # comes first.
+  defp reviewed_steps(trade, amount_in, min_out, now, snapshot, venue) do
+    deadline = now + @deadline_seconds
+    {permit2, expiration} = permit2_approval(trade, amount_in, deadline, now, snapshot, venue)
+
+    steps =
+      token_approval(trade, amount_in, snapshot, venue) ++
+        permit2 ++
+        [Review.step("swap", venue.router, swap_data(venue, trade, amount_in, min_out, deadline))]
+
+    {steps, min(deadline, expiration)}
   end
 
   defp token_approval(_trade, amount, %{token_allowance: allowance}, _venue)
@@ -490,21 +538,23 @@ defmodule Autolaunch.SwapActions do
     [Review.step("token_approval", trade.sell.address, data)]
   end
 
-  # A standing Permit2 allowance is reused only if it outlives the deadline.
+  # A standing Permit2 allowance is reused only if it outlives the deadline;
+  # either way, with the time the allowance the swap spends runs out.
   defp permit2_approval(
          _trade,
          amount,
          deadline,
+         _now,
          %{permit2: %{amount: allowed, expiration: until}},
          _venue
        )
        when allowed >= amount and until >= deadline,
-       do: []
+       do: {[], until}
 
-  defp permit2_approval(trade, amount, _deadline, _snapshot, venue) do
-    until = System.os_time(:second) + @permit2_seconds
+  defp permit2_approval(trade, amount, _deadline, now, _snapshot, venue) do
+    until = now + @permit2_seconds
     data = Permit2Abi.encode_approve(trade.sell.address, venue.router, amount, until)
-    [Review.step("permit2_approval", venue.permit2, data)]
+    {[Review.step("permit2_approval", venue.permit2, data)], until}
   end
 
   defp swap_data(venue, trade, amount_in, min_out, deadline) do
