@@ -2,7 +2,7 @@
 
 ## 19 November 2026: Libraries
 
-- Nothing changes on the pages or for your agent. The site moves to newer releases of the libraries it keeps its records and rules with.
+- Nothing changes on the pages or for your agent. The site moves to newer releases of the libraries it keeps its records and rules with, and of the one that keeps open pages connected.
 
 ## 19 November 2026: Launches
 

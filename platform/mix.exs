@@ -81,12 +81,13 @@ defmodule Autolaunch.MixProject do
       {:ash, "~> 3.37"},
       {:assent, "== 0.3.2"},
       {:ash_phoenix, "~> 2.3.25"},
-      # ash_postgres main with #910 until a Hex release carries it: upserts use the
-      # repo's prefix, which picks each site's schema on the shared database. It
-      # stands in for the copy of 2.15.2 the shared libraries pin.
+      # The v2.16.0 release includes #910: upserts use the repo's prefix, which
+      # picks each site's schema on the shared database. Keep the Git pin so the
+      # required-fixes check can verify the patch in its history; it stands in for
+      # the copy of 2.15.2 the shared libraries pin.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
-       ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
+       ref: "e36aa20a9f000f3f3bd89b0816fa9460156cb13c",
        override: true},
       {:ash_oban, "~> 0.10.0"},
       {:ash_ai, "~> 1.5"},
