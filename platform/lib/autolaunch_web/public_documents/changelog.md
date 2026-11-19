@@ -9,6 +9,11 @@
 - When a token's pool has no liquidity, or an amount is too small for the pool to pay anything back, Buy or Sell and its approval can't be pressed, with the reason beside them, and your agent gets no steps for that trade. Before, such a trade could be sent with no least amount to receive, so it could return nothing.
 - Your agent now gets After-hours, Covered Calls and Earn steps only while your Regent account holds a verified wallet, as it already does for bids. Otherwise it is told `wallet_required` and asked to have you sign in with your wallet.
 
+## 19 November 2026: ENS
+
+- You can now connect an ENS name made of emoji or symbols under Socials, when your signed-in wallet controls it and it points to that wallet.
+- If your wallet's primary ENS name uses emoji or symbols, it now shows on your account and in Points from your next sign-in.
+
 ## 19 November 2026: Robinhood auctions
 
 - A Robinhood auction page now shows the token link when the launch graduates, even if you keep the auction page open.
