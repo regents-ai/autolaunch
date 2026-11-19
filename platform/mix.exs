@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  # The earlier pin e40068b3 plus one ens-only commit (branch
-  # eu/idna-8-on-autolaunch-pin-1119) that moves idna to 8.0.0 for EEF-CVE-2026-117678.
-  @elixir_utils_ref "eaef0b1d744f60ae07bf5302f21fa67a16e72fa1"
+  # Branch eu/points-review-on-autolaunch-pin-1119: the idna 8.0.0 fix line
+  # (EEF-CVE-2026-117678) plus the two Points review fixes.
+  @elixir_utils_ref "875dee08fd0a51a51d5c86b53268289260292835"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "69dbfface3fdc2ab728f8cc57cface25f9c7120c"
 
@@ -81,12 +81,13 @@ defmodule Autolaunch.MixProject do
       {:ash, "~> 3.37"},
       {:assent, "== 0.3.2"},
       {:ash_phoenix, "~> 2.3.25"},
-      # ash_postgres main with #910 until a Hex release carries it: upserts use the
-      # repo's prefix, which picks each site's schema on the shared database. It
-      # stands in for the copy of 2.15.2 the shared libraries pin.
+      # The v2.16.0 release includes #910: upserts use the repo's prefix, which
+      # picks each site's schema on the shared database. Keep the Git pin so the
+      # required-fixes check can verify the patch in its history; it stands in for
+      # the copy of 2.15.2 the shared libraries pin.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
-       ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
+       ref: "e36aa20a9f000f3f3bd89b0816fa9460156cb13c",
        override: true},
       {:ash_oban, "~> 0.10.0"},
       {:ash_ai, "~> 1.5"},

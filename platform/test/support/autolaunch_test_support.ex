@@ -7,7 +7,8 @@ defmodule Autolaunch.TestSupport do
   @doc """
   Writes one Auction through `record_launch_auction` as the system actor. An
   auction is one row per chain and contract address, written once, so each
-  call gets its own address unless the test names one.
+  call gets its own address unless the test names one, and its own token
+  address, which every launch records, unless the test names one.
   """
   def project_auction(opts \\ []) do
     opts = Map.new(opts)
@@ -35,7 +36,7 @@ defmodule Autolaunch.TestSupport do
         website: Map.get(opts, :website),
         image: Map.get(opts, :image),
         treasury_address: Map.get(opts, :treasury_address),
-        token_address: Map.get(opts, :token_address),
+        token_address: Map.get(opts, :token_address) || unique_address(),
         contracts_version: Map.get(opts, :contracts_version, :v2)
       },
       actor: %System{}

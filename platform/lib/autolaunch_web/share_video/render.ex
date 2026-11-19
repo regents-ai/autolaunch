@@ -5,7 +5,8 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   space the site saves them in (`:share_video_saved_bytes` in the
   application's config, 5 GB), a new one is still made but not saved: it is
   handed over once and then let go. A video that cannot be made fails the
-  render, and the trigger marks the request failed.
+  render as a server fault, so the failure is saved as a crash once the
+  render is not tried again, and the trigger marks the request failed.
 
   Each video made reports what it took as `[:autolaunch, :share_video,
   :rendered]`: the milliseconds, the MP4's bytes and the most memory the BEAM
@@ -13,6 +14,7 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   """
   use Ash.Resource.Change
 
+  alias Ash.Error.Unknown.UnknownError
   alias Autolaunch.Actors.System
   alias AutolaunchWeb.Paths
   alias AutolaunchWeb.ShareVideo.{Film, MarketFilm, MarketStory, Story}
@@ -35,7 +37,10 @@ defmodule AutolaunchWeb.ShareVideo.Render do
       |> Ash.Changeset.force_change_attribute(:state, :ready)
     else
       {:error, reason} ->
-        Ash.Changeset.add_error(changeset, "share video #{request.key}: #{inspect(reason)}")
+        Ash.Changeset.add_error(
+          changeset,
+          UnknownError.exception(error: "share video #{request.key}: #{inspect(reason)}")
+        )
     end
   end
 

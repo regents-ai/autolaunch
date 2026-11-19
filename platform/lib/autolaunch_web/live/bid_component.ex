@@ -707,7 +707,11 @@ defmodule AutolaunchWeb.BidComponent do
   defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
     do: socket |> OnchainSteps.approval_landed(entry) |> rebuilt(nil)
 
-  defp confirmed(socket, _earlier_review), do: socket
+  # An approval pressed while the review was being built again lands against
+  # the review the wallet sent it from (`OnchainSteps.asked_again?/2`).
+  defp confirmed(socket, entry) do
+    if OnchainSteps.asked_again?(socket.assigns, entry), do: rebuilt(socket, nil), else: socket
+  end
 
   defp step_reverted(%{assigns: %{review: %{id: id}}} = socket, %{name: name, review: %{id: id}}),
     do: rebuilt(socket, reverted_copy(name))

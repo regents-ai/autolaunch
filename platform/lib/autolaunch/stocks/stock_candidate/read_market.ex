@@ -28,13 +28,16 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   now and then), or a chain read failing (a node timing out, rate limiting or
   refusing the call), is one warning line and writes nothing more; the chain
   reads are counted as "stock candidates" in the chain-failure figures, so a
-  failure that lasts shows there. An answer in another shape fails the action. Either way the row is read again when its turn comes.
+  failure that lasts shows there. An answer in another shape fails the action
+  as a server fault, so it is saved as a crash. Either way the row is read
+  again when its turn comes.
   """
 
   use Ash.Resource.Change
 
   require Logger
 
+  alias Ash.Error.Unknown.UnknownError
   alias Autolaunch.AuctionFinish.Launchpads
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.LabAbi
@@ -83,7 +86,10 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
           changeset
 
         {:error, reason} ->
-          Ash.Changeset.add_error(changeset, "stock candidate read failed: #{inspect(reason)}")
+          Ash.Changeset.add_error(
+            changeset,
+            UnknownError.exception(error: "stock candidate read failed: #{inspect(reason)}")
+          )
       end
     end)
   end

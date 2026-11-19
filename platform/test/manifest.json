@@ -1,5 +1,5 @@
 {
-  "total": 555,
+  "total": 565,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -131,20 +131,20 @@
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 27,
       "group": "Receipt evidence and durable settlement",
       "framework": "exunit",
       "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 145,
+      "line": 146,
       "test_name": "a later invalid resource refuses and rolls the whole launch projection back",
       "keep_because": "A failed multi-record launch projection rolls back instead of leaving partial financial records.",
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 39,
@@ -632,13 +632,13 @@
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_render_test.exs",
-      "line": 81,
+      "line": 84,
       "test_name": "RENDER_HONOURS_SAVED_SPACE: a video made past the line is served but not saved",
       "keep_because": "A share video rendered while the saved videos hold just under the saved space is saved; one rendered at or past it is still made and handed over once, but not saved (Sentinel's ask before v154, 19 Oct 2026). The real render runs from a queued request on a stored running auction, with only the chain node, ffmpeg and the space stood in, which filling 5 GB by hand cannot match. It fails if the render ignores the space check (saved always true) or ignores the configured space (the 5 GB constant put back): both mutations failed it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "0b4b6737efa8c1afc60274ae0308a2f5eb6d73949d1d08c24bb0d61f28b05a4e"
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
     },
     {
       "id": 77,
@@ -2283,13 +2283,13 @@
       "group": "Receipt evidence and durable settlement",
       "framework": "exunit",
       "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 66,
+      "line": 67,
       "test_name": "a bid receipt checked again after the bid settled leaves its standing and amounts",
       "keep_because": "The page's bid receipt once wrote the bid back to active with blank settlement amounts when checked after the bid had been exited and claimed. The case fails if a repeated receipt changes a settled bid's status, times or amounts.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "702bc5b6e4a2b95d0394816f4b2884f8c6029ac15f7628ba68a7f840eb747676"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 221,
@@ -6040,13 +6040,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 79,
+      "line": 83,
       "test_name": "a bid's review on the auction page is for the person's open wallet, in any letter case: the same wallet again keeps it, and another of theirs gets its own",
       "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing; the panel also withdrew that review at its next wallet report, since its signer was never the open wallet. The review is for the person's open wallet, reported checksummed and kept lowercase, with the steps the bid action prepares for it; the same wallet reported again keeps it, and another wallet the account links gets its own. It fails if the review names any other signer, or is withdrawn or built again for the same wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 585,
@@ -6196,39 +6196,39 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 122,
+      "line": 126,
       "test_name": "two clock steps before the auction starts the bid is held on its button, saying when bidding opens, and one step before it comes back",
       "keep_because": "Bid follow-ups (18 Nov 2026): before a Robinhood auction's start the page offered an enabled Place bid, which the auction refuses (AuctionNotStarted). Its clock never runs back and a bid sent now lands at that clock or later, so while even the clock's next step is before the start block the bid stays on its button, disabled, with \"Bidding opens at block N.\" above it, and a press that builds the review again hands nothing out to send; once the page reads the clock one step before the start, where the bid may land in time, the review is built again and the bid can be sent. It fails if the bid is pressable two steps before the start, a press hands it out, or it stays held one step before the start.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 597,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 204,
+      "line": 208,
       "test_name": "before the auction starts its USDG approval is still sent, and only the bid is held",
       "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: only the press certain to fail is held. A USDG approval to the bid adapter succeeds whatever the auction's clock, so before the start the approval is still offered and a press sends it, while the words say when bidding opens. It fails if the approval is held or a press does not send it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 598,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 223,
+      "line": 314,
       "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
       "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 599,
@@ -6391,13 +6391,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 178,
+      "line": 182,
       "test_name": "while a held bid is reviewed again at a new clock reading, its summary stays on the page",
       "keep_because": "Bid follow-ups review (18 Nov 2026): a Robinhood bid held as not started is reviewed again at each new reading of the auction's clock, and its summary blanked on every reading until the new review came back, so it flickered with the clock. It fails if the held review's summary leaves the page while the new one is on its way.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
     },
     {
       "id": 620,
@@ -7194,6 +7194,136 @@
     },
     {
       "id": 681,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/swap_approval_test.exs",
+      "line": 71,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the swap once it lands",
+      "keep_because": "Agent finish and staking journeys on a copy of Base (18 Nov 2026): the swap panel built its review again when the first approval landed, and the next approval, pressed meanwhile and reported against the review it was sent from, was ignored once it landed, so the panel kept asking for it. It now moves on to the swap.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6bfc8240b59c0380f3f1072f71622e19d9f46ceff0cd18d80e321f5620390bfa"
+    },
+    {
+      "id": 682,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_approval_test.exs",
+      "line": 154,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the bid once it lands",
+      "keep_because": "The swap panel's replaced-review approval fault (18 Nov 2026), on the Base bid panel: a Permit2 approval pressed before the panel built its review again, and landing after, now moves it on to the bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "48c6ca4e58aa7c8a05bc7f7e0e589937da2127a029ad527b7ce42346b8c92521"
+    },
+    {
+      "id": 683,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 228,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the bid once it lands",
+      "keep_because": "The swap panel's replaced-review approval fault (18 Nov 2026), on the Robinhood bid panel: a USDG approval pressed before the panel built its review again, and landing after, now moves it on to the bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9679e9d9c1c9cf0a65914cb99948dd46288f1f610cf3472c1ae915e62b318fba"
+    },
+    {
+      "id": 733,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 24,
+      "test_name": "a job with tries left is saved from its second failed attempt, not its first",
+      "keep_because": "Sentinel, 19 Nov 2026: the stock admissions job's first attempt failed on one chain read during a deploy, Oban tried it again seconds later and it ran cleanly, yet the failed attempt was saved as a crash and raised an alert. A real job run through Oban's executor with three attempts allowed saves nothing after its first failed attempt and one crash, marked attempt 2, after its second. It fails if a first failed attempt that will be tried again is saved, or if a second failed attempt is not.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 734,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 37,
+      "test_name": "a job whose only attempt failed is saved",
+      "keep_because": "Sentinel, 19 Nov 2026: the stock admissions job's first attempt failed on one chain read during a deploy, Oban tried it again seconds later and it ran cleanly, yet the failed attempt was saved as a crash and raised an alert. A job with no try left is still saved on its one failed attempt. It fails if the rule that hides a retried first attempt also hides a job whose only or last attempt failed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 735,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 49,
+      "test_name": "a server fault is saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the saved-errors rule changed for jobs only. A server fault in a request, reported the way a crash in a matched route is, is still saved with its path. It fails if a request's server fault stops being saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 736,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/error_ignorer_test.exs",
+      "line": 59,
+      "test_name": "an address nobody serves is not saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the saved-errors rule changed for jobs only. A visit to an address the site does not serve, which anyone can make, is still not saved, so nobody can fill the table. It fails if a below-500 visitor error is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fde8690b8de9dc954b842e0b34ce599f1bc6cd222e032fc8cf2db8489c76adfd"
+    },
+    {
+      "id": 737,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_render_test.exs",
+      "line": 110,
+      "test_name": "a render that fails on both tries marks its request failed and is saved once",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): a background job's first failed attempt that Oban tries again is no longer saved as a crash. The share video render allows two tries and marks its request failed on the second, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a render that kept failing was never saved at all. The real render job runs through Oban's executor with a stand-in encoder that always stops early. It fails if the first failed try is saved, or if after the second the request is not marked failed, the job does not end failed, or not exactly one crash, marked attempt 2, is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
+    },
+    {
+      "id": 738,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_render_test.exs",
+      "line": 125,
+      "test_name": "a render that fails once and then succeeds is not saved",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): a background job's first failed attempt that Oban tries again is no longer saved as a crash. The share video render allows two tries and marks its request failed on the second, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a render that kept failing was never saved at all. With a stand-in encoder that stops early only on the first try, the real render job's retry makes and stores the video. It fails if the healed first failure is saved, or if the retry does not leave the request ready with its video.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f411e0250f1f3dd333e30614c45760ab4cfab3034801e54c25c308c1137fc0c9"
+    },
+    {
+      "id": 739,
+      "group": "Saved errors",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/stock_candidate_read_market_test.exs",
+      "line": 61,
+      "test_name": "a read job that fails moves the row's turn on and is saved as a crash",
+      "keep_because": "Sentinel, 19 Nov 2026 (retried job attempts): the stock candidate read has one try and an error action that moves the row's turn on, which ended its job as done, and its failure was raised as invalid input, which is never saved; so a chain answer in another shape was never saved at all. The real read job runs through Oban's executor against a node that answers in another shape. It fails if the row's turn does not move on, the job does not end failed, or no crash is saved.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f25b9cf88b61b3b312d6202bfc8b74b40755513526232dec9b58a1b8b6ae31e2"
+    },
+    {
+      "id": 740,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_guide_sentences_test.exs",
@@ -7206,7 +7336,7 @@
       "source_sha256": "2c44e36dd735eda3c1b8eaec151139fc7c18571f76ea7c64ac592385addb2acb"
     },
     {
-      "id": 682,
+      "id": 741,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_guide_sentences_test.exs",
