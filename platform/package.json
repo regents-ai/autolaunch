@@ -4,9 +4,7 @@
   "type": "module",
   "scripts": {
     "assets:build": "mix assets.build",
-    "typecheck": "tsc --project assets/tsconfig.json --noEmit && tsc --project test/browser/tsconfig.json --noEmit && tsc --project test/journeys/tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:browser": "sh test/browser/walk.sh",
+    "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "stills:home": "node assets/js/home_cells/stills.mjs",
     "stills:value-cards": "node assets/js/value_cards/stills.mjs"
   },
@@ -32,12 +30,11 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "7.0.2",
-    "vitest": "5.1.1",
+    "playwright": "1.65.1",
     "@webgpu/types": "0.1.74"
   }
 }

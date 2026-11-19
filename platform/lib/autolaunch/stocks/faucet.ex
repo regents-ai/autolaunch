@@ -203,9 +203,8 @@ defmodule Autolaunch.Stocks.Faucet do
   defp rpc(rpc_url) do
     fn method, params ->
       request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
-      client = Application.get_env(:autolaunch, :autolaunch_lab_http_client, Req)
 
-      case client.post(rpc_url,
+      case Req.post(rpc_url,
              json: request,
              connect_options: [transport_opts: [inet6: true]],
              receive_timeout: @timeout,

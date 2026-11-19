@@ -29,9 +29,7 @@ defmodule Autolaunch.DexScreener do
   end
 
   defp read(network, pool_id) do
-    client = Application.get_env(:autolaunch, :autolaunch_market_http_client, Req)
-
-    case client.get("#{@api}/#{network}/#{pool_id}",
+    case Req.get("#{@api}/#{network}/#{pool_id}",
            connect_options: [timeout: 1_500],
            receive_timeout: 2_000,
            retry: false,

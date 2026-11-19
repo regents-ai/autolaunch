@@ -3,7 +3,7 @@ defmodule Autolaunch.Earn.SharedTerms do
   Each product's market as one reading every visitor shares: the page and its
   Refresh, `GET /api/v1/earn/products` and the agent tools all read it
   (`Autolaunch.Earn.Product`'s `:terms`). A reading is kept for ten seconds
-  (`:earn_terms_kept_ms`; 0 keeps nothing, as the tests run), and wherever it
+  (`:earn_terms_kept_ms`; 0 keeps nothing), and wherever it
   is shown it names the block it was read at, so it never passes for a newer
   one. A position, a quote and a step's build read the chain at the latest
   block every time.

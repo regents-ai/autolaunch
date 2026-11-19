@@ -81,8 +81,7 @@ export function press(event: MouseEvent) {
 // drops in, and leaves again when it closes. A page that redraws an open one
 // closes and reopens it within one moment, which reports it as having been open
 // all along, so it does not move again. Once it rests where it opens, moved or
-// not, it carries `data-settled`, so whatever measures it, such as the browser
-// walk, knows when.
+// not, it carries `data-settled`, so whatever measures it knows when.
 function toggle(event: Event) {
   if (!(event instanceof ToggleEvent) || !(event.target instanceof HTMLElement)) return
   const {target} = event

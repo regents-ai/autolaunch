@@ -563,9 +563,9 @@ defmodule Autolaunch do
 
       define :project_lab_subject, action: :project_lab
 
-      # Only 490.8.2/.3 projection and the deterministic browser fixture write
-      # the canonical receiver, so it is a named SystemActor-only setter rather
-      # than another positional import argument.
+      # Only 490.8.2/.3 projection writes the canonical receiver, so it is a
+      # named SystemActor-only setter rather than another positional import
+      # argument.
       define :set_subject_canonical_receiver,
         action: :set_canonical_receiver,
         args: [:canonical_receiver_address]

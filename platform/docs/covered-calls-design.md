@@ -451,26 +451,6 @@ What remains unbounded, and what it costs an attacker:
   tests are kept in `test/CoveredCallsV1.ordering.t.sol`. Its main informational point, that a
   seller's `owed` figure omits the after-window return until they claim, is answered by the
   `claimable` read, which every page and tool uses.
-- Site, 28 Oct 2026:
-  - `test/journeys/covered_calls.spec.ts`, at 390 and 1280 against the journeys' copy of Base with
-    `CoveredCallsV1` deployed: list, buy (the seller receives the premium less exactly 1%), stop
-    selling, exercise while the issuer has transfers paused, a stock collection refused during
-    the pause with the words shown, the strike collected during the pause, both sides' stock
-    collected after it. 2 passed.
-  - 27 ExUnit cases: `autolaunch/covered_calls/terms_test.exs` (four properties),
-    `autolaunch/covered_calls/steps_test.exs`, `autolaunch_web/live/covered_calls_live_test.exs`,
-    `autolaunch_web/controllers/covered_calls_routes_test.exs`; `public_tools_features.test.ts`.
-  - The journey found one design flaw, fixed: the portfolio row's own "Stop selling" button opened
-    a panel holding a second "Stop selling", so the first press sent nothing. (Since the switch-on
-    on 29 October, each row's button opens the review over it, as Claim rewards does, and the
-    wallet button there is named for its step: "Confirm stop", "Confirm collection".)
-  - Screenshots at 390 then found the Buy panel inside a sideways-scrolling table, its buttons off
-    the screen (the journey's clicks scroll, so it had passed). The panel now sits below the list
-    and, on a phone, each listing is a block of labelled figures. The journey now checks every
-    wallet button is wholly on screen; that check failed on the old layout ("Approve USDC", "Buy
-    calls") and passes on the new.
-  - The journey moved the copy's clock and so broke the Memestock auction journey run after it;
-    it now restores the copy (snapshot and revert). Full journeys: 14 passed.
 - On Base itself, 29 Oct 2026: `contracts/covered-calls/deploy/dry-run.py` simulates a whole
   listing's life on the deployed contract on top of the latest Base block (`eth_simulateV1`,
   nothing sent), with the real AMZNc, so the newer `effectiveAt()` read no local fork runs is
@@ -488,8 +468,7 @@ What remains unbounded, and what it costs an attacker:
    (base-anvil) would also cover the newer `effectiveAt()` read. Installing either on the Mac
    changes the shared toolchain, so that waits for the toolchain owner.
 3. **Deployment.** Done: AMZNc's `CoveredCallsV1` is on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`; `contracts/covered-calls/deploy/deployed.json`). Switching covered calls on is a separate release. `CoveredCallsV2`, which the site now reads, is on Base at `0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6` (13 November 2026, block 56,749,573; `contracts/covered-calls-v2/deploy/deployed.json`). The release that moves the site to it copies `contracts/covered-calls-v2/deploy/site-markets.json` to `platform/deployment/covered-calls.json`, and the release check refuses a covered-calls description that names any other contract.
-4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
-   (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
-   cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
+4. **Follow-ups outside this lane.** The admitted Memestake AMZNc route uses the thin pool
+   (section 1).
 5. **Gaps.** The regents CLI for every covered-call action (a No in the guides' Agent access
    table; `operations/FEATURES.md`).

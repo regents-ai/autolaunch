@@ -42,26 +42,6 @@ if config_env() == :dev and Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.
   end
 end
 
-# The browser walk's server (playwright.config.ts) writes its lines in production's
-# shape to a file, which test/browser/visits.spec.ts reads to replay a visit. The
-# tests print only warnings (config/test.exs); the walk's server writes its visit
-# lines too.
-if config_env() == :test and System.get_env("AUTOLAUNCH_WALK") == "true" do
-  config :logger, level: :info
-
-  config :logger, :default_handler,
-    config: [file: String.to_charlist(Path.expand("../tmp/walk-lines.jsonl", __DIR__))],
-    formatter: LoggerJSON.Formatters.Basic.new(metadata: AutolaunchWeb.VisitLog.fields())
-end
-
-# A lab site taking real sign-ins has nothing to verify them with unless both
-# public inputs are present, so it stops at boot rather than at the first
-# Sign in press.
-if System.get_env("AUTOLAUNCH_LAB_AUTH") == "privy" and
-     (System.get_env("PRIVY_APP_ID") in [nil, ""] or privy_verification_key in [nil, ""]) do
-  raise "AUTOLAUNCH_LAB_AUTH=privy needs PRIVY_APP_ID and PRIVY_VERIFICATION_KEY (a PEM public key)"
-end
-
 x_oauth_client_id =
   case System.get_env("X_OAUTH_CLIENT_ID") do
     value when is_binary(value) ->
@@ -106,8 +86,7 @@ migrating? = System.get_env("AUTOLAUNCH_RELEASE_COMMAND") == "migrate"
 
 # One deployment description per network, in the shape the lab controllers
 # write and the contracts thread writes at mainnet deployment, loaded in every
-# environment. A network whose variable is unset keeps whatever the
-# environment's own config says, which outside ExUnit is no deployment. The
+# environment. A network whose variable is unset has no deployment. The
 # migration boot reads none: it starts neither the web nor the chain reads.
 deployment_path = fn name ->
   case {migrating?, System.get_env(name)} do

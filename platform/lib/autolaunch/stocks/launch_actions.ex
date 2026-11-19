@@ -274,8 +274,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc """
   Everything the chain will execute, from the preset and the admitted STOCK's
-  decimals, on either chain's launchpad. Exposed so the review page and its
-  test can state exactly the same numbers.
+  decimals, on either chain's launchpad. Exposed so the review page can state
+  exactly the same numbers.
   """
   def executable(snapshot) do
     with :ok <- admitted(snapshot) do

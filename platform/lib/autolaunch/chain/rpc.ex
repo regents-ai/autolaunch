@@ -141,19 +141,12 @@ defmodule Autolaunch.Chain.Rpc do
   defp answer(method, params, opts) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
 
-    client =
-      Application.get_env(
-        :autolaunch,
-        Keyword.get(opts, :client_key, :wallet_http_client),
-        Req
-      )
-
     rpc_url =
       Keyword.get_lazy(opts, :rpc_url, fn ->
         Application.fetch_env!(:autolaunch, :base_read_rpc_url)
       end)
 
-    case client.post(rpc_url,
+    case Req.post(rpc_url,
            json: request,
            # Fly private-network names (.internal) publish only AAAA records;
            # inet6 makes Mint try IPv6 first and still fall back to IPv4. Req

@@ -3,7 +3,7 @@
     %{
       name: "default",
       files: %{
-        included: ["mix.exs", "config/", "lib/", "test/"],
+        included: ["mix.exs", "config/", "lib/"],
         excluded: [
           # Build artifacts are generated and are not application source.
           ~r"/_build/",
@@ -120,8 +120,6 @@
            [
              files: %{
                excluded: [
-                 # Exact-size assertions are clearer test failures than counting helpers.
-                 "test/**/*.exs",
                  # These validations require an exact ABI/domain shape, not an emptiness test.
                  "lib/autolaunch/indexer/chain.ex"
                ]

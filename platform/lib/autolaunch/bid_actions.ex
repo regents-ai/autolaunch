@@ -120,7 +120,7 @@ defmodule Autolaunch.BidActions do
          {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, balances} <-
            chain(
-             chain_client().balances(%{
+             LabBidChainClient.balances(%{
                auction: auction_address,
                signer: signer,
                usdc: usdc_bids?(auction)
@@ -184,7 +184,7 @@ defmodule Autolaunch.BidActions do
          {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, snapshot} <-
            chain(
-             chain_client().snapshot(%{
+             LabBidChainClient.snapshot(%{
                auction: auction_address,
                signer: signer,
                max_price_q96: max_price_q96
@@ -490,10 +490,6 @@ defmodule Autolaunch.BidActions do
   # A Stocks auction takes USDC wherever this site has the Stocks deployment.
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
   defp usdc_bids?(_auction), do: false
-
-  # The Base reads (`Autolaunch.LabBidChainClient`), or the answers a test installed.
-  defp chain_client,
-    do: Application.get_env(:autolaunch, :autolaunch_bid_chain_client, LabBidChainClient)
 
   defp chain({:ok, value}), do: {:ok, value}
   defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)

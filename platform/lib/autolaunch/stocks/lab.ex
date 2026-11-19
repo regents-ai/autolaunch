@@ -1,8 +1,7 @@
 defmodule Autolaunch.Stocks.Lab do
   @moduledoc """
   The Base Stocks deployment description, as
-  `contracts/stocks-v3/bin/ceremony.py site-config` writes it for Base mainnet
-  and the agent journeys write it for their copy of Base.
+  `contracts/stocks-v3/bin/ceremony.py site-config` writes it for Base mainnet.
   `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` names the file.
 
   It extends the Base deployment (`Autolaunch.Lab`) and is refused unless it
@@ -172,7 +171,6 @@ defmodule Autolaunch.Stocks.Lab do
     [
       rpc_url: config.rpc_url,
       expected_chain_id: config.chain_id,
-      client_key: :autolaunch_lab_http_client,
       log_scope: scope
     ]
   end

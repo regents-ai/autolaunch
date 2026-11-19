@@ -4,7 +4,7 @@ import {base, robinhood, type Chain} from "viem/chains"
 import {viemChain, type StepChain} from "./wallet_actions/send_step"
 
 // Privy's own Base, carrying Privy's node for the Privy wallet. Privy 3.51.1
-// lists Base, and the unit test holds it to that.
+// lists Base.
 const privyBase = SUPPORTED_CHAINS.find(chain => chain.id === base.id)!
 
 /**

@@ -248,16 +248,13 @@ defmodule Autolaunch.BidSettlementActions do
 
   # Chain snapshot
 
-  # The fork's reading (`LabBidSettlementChainClient`), or the answers a test installed.
+  # The fork's reading (`LabBidSettlementChainClient`).
   defp snapshot(auction_address, bid_id, signer) do
-    client =
-      Application.get_env(
-        :autolaunch,
-        :autolaunch_bid_settlement_chain_client,
-        LabBidSettlementChainClient
-      )
-
-    case client.snapshot(%{auction: auction_address, bid_id: bid_id, signer: signer}) do
+    case LabBidSettlementChainClient.snapshot(%{
+           auction: auction_address,
+           bid_id: bid_id,
+           signer: signer
+         }) do
       {:ok, snapshot} -> {:ok, snapshot}
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)

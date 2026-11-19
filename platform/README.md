@@ -48,8 +48,8 @@ that prefix and name no other schema, except where a record points at a person's
 shared Regent account, `regent_names.platform_human_users`. Autolaunch keeps no
 account table of its own: every Regent site reads and writes that one row per
 person (`Autolaunch.Accounts.HumanAccount`). `mix autolaunch.schema.create`
-creates the schema on a freshly created database (the `setup` and `test` aliases
-run it between creating the database and migrating), and the release's
+creates the schema on a freshly created database (the `db.setup` alias runs it
+between creating the database and migrating), and the release's
 `/app/bin/migrate` creates it the same way, so a new database needs no separate
 initialisation. The shared account table and Regents' identity, agents and
 Points tables live in their own schemas; `mix autolaunch.shared.migrate`
@@ -98,7 +98,7 @@ The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, r
 `npm ci` against the platform lockfile (React, Privy, and the TypeScript
 tooling the browser bundle needs), creates the `autolaunch_dev` database on loopback
 PostgreSQL, and builds the assets. A clean checkout can run `npm ci` on its own
-before `npm run typecheck` or `npm test`.
+before `npm run typecheck`.
 
 ## Repository layout
 
@@ -110,7 +110,6 @@ contracts/              The OpenAPI contract; the chain-contract manifest and ru
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
-test/                   The kept Elixir cases; assets/test/ the kept TypeScript cases (see test/README.md)
 scripts/                The release build-context assembler
 rel/                    Release overlays: the migrate and pending-migrations commands
 ```
@@ -124,22 +123,11 @@ mix precommit
 ```
 
 `mix precommit` (also `make check-platform` from the repository root) compiles with warnings
-as errors, checks unused dependency locks and formatting, runs Credo in strict mode and
-Sobelow, holds the compile-connected `xref` graph under its limit, runs the test suite with
-warnings as errors, verifies the Ash codegen is up to date, refreshes the shared libraries'
-assets, then runs the TypeScript check, the Vitest suite and the browser walk.
-
-| Command | What it does |
-| --- | --- |
-| `npm run typecheck` | Type-checks the TypeScript assets. |
-| `npm test` | Runs the Vitest unit suite. |
-| `npm run test:browser` | Runs the browser walk on its own server and database. |
-
-The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test`
-ending. Setting it is required, not advisory, whenever more than one test run can happen on a
-machine: every writer and every working tree gives it its own value, an underscore followed by
-a short id, so that the runs use separate databases. `MIX_TEST_PARTITION=_regent_uiq_2` gives
-the database `autolaunch_regent_uiq_2_test`.
+as errors, checks unused dependency locks, the Hex audit and formatting, runs Credo in strict
+mode and Sobelow, holds the compile-connected `xref` graph under its limit, verifies the Ash
+codegen and the usage-rules block are up to date, refreshes the shared libraries' assets, then
+type-checks the TypeScript assets (`npm run typecheck`). It needs no database, chain or
+running server.
 
 ## Local Base-fork lab
 
@@ -160,8 +148,7 @@ Covered calls (`/stock/covered-call`, the portfolio's Covered calls section and 
 tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 `AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=/abs/path/covered-calls.json` is required, naming one
 `CoveredCallsV2` contract per stock on the Base description's chain (`chain_id` and `markets` of
-`symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
-(`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
+`symbol`, `stock`, `contract`, `feed`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 
 Isolated Exposure to After-hours Stocks (`/stock/isolated-afters`, the portfolio's section and their
 agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
@@ -258,7 +245,7 @@ libraries from GitHub, for the target Linux architecture. Host caches, native bi
 and the deployment descriptions are excluded (`.dockerignore`). The Fly configuration is
 `fly.toml`; the deploy script names the app.
 
-The Platform GitHub workflow compiles, checks and tests the application and builds the
+The Platform GitHub workflow compiles and checks the application and builds the
 Linux release image (without pushing) whenever application or blog files change.
 
 ```sh
@@ -267,7 +254,7 @@ docker build --platform linux/arm64 -f platform/Dockerfile -t autolaunch-candida
 
 Run it from the repository root, and use `amd64` for an x86 Linux image. The build
 needs network access for locked packages and build tools. Build and run the exact
-image before release; local source tests alone do not verify Linux native
+image before release; local source checks alone do not verify Linux native
 dependencies or production sign-in.
 
 ### Creator connections and bid activity

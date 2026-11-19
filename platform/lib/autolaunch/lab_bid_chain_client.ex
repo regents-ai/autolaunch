@@ -13,9 +13,6 @@ defmodule Autolaunch.LabBidChainClient do
   block (`end_block`), and a tick below the bid's price for the canonical call
   (`Autolaunch.Chain.CcaLists.tick_hint/4`). There is no partial answer: a
   review is derived from one snapshot or from none.
-
-  A test answers both callbacks itself, installed under
-  `:autolaunch_bid_chain_client` (`Autolaunch.BidActions`).
   """
 
   alias Autolaunch.{BidPrice, Lab, LabAbi, LabRpc}
@@ -45,13 +42,7 @@ defmodule Autolaunch.LabBidChainClient do
           block: Rpc.block()
         }
 
-  @callback balances(map()) :: {:ok, map()} | {:error, atom()}
-  @callback snapshot(%{
-              auction: String.t(),
-              signer: String.t(),
-              max_price_q96: pos_integer()
-            }) :: {:ok, snapshot()} | {:error, atom()}
-
+  @spec balances(map()) :: {:ok, map()} | {:error, atom()}
   def balances(%{auction: auction, signer: signer, usdc: usdc?}) do
     with {:ok, held} <- currency_balance(auction, signer),
          {:ok, usdc_balance} <- usdc_balance(usdc?, signer, held.block, held.opts) do
@@ -68,6 +59,11 @@ defmodule Autolaunch.LabBidChainClient do
     end
   end
 
+  @spec snapshot(%{
+          auction: String.t(),
+          signer: String.t(),
+          max_price_q96: pos_integer()
+        }) :: {:ok, snapshot()} | {:error, atom()}
   def snapshot(%{auction: auction, signer: signer, max_price_q96: max_price}) do
     with {:ok,
           %{

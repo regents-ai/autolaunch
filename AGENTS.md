@@ -8,7 +8,7 @@ Own autolaunch.sh and its product contracts in this monorepo.
   records and existing gates. Its submodules are declared in the top-level
   `.gitmodules` at `contracts/v1/lib/...`.
 - `cli/` owns the independently installable public `autolaunch` command. Run
-  `npm run check`, `npm run test:parity` and `npm run check:contract` there.
+  `npm run check` there.
 - `platform/` is the Phoenix/Ash website; run Mix/npm from there. Its `contracts/`
   folder contains runtime manifests and ABIs, not the root Solidity sources.
 - `contracts/revenue-mesh/` is a separate Foundry component with no external

@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.PrivySessionController do
 
   def create(conn, _untrusted_params) do
     with {:ok, pair} <- session_pair(conn),
-         {:ok, verified} <- verifier().verify_session_pair(pair),
+         {:ok, verified} <- Privy.verify_session_pair(pair),
          {:ok, account, identity_conflicts} <- establish(verified) do
       sync_shared_profile(verified)
       bind(conn, account, identity_conflicts)
@@ -244,8 +244,6 @@ defmodule AutolaunchWeb.PrivySessionController do
   defp lifecycle_error(conn, error), do: conn |> put_status(:conflict) |> json(%{error: error})
 
   defp drop_session(conn), do: configure_session(conn, drop: true)
-
-  defp verifier, do: Application.get_env(:autolaunch, :privy_verifier, Privy)
 
   defp session_payload(nil),
     do: %{

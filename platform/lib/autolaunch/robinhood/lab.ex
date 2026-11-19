@@ -176,7 +176,6 @@ defmodule Autolaunch.Robinhood.Lab do
     [
       rpc_url: config.rpc_url,
       expected_chain_id: config.chain_id,
-      client_key: :autolaunch_lab_http_client,
       log_scope: "autolaunch robinhood lab"
     ]
   end

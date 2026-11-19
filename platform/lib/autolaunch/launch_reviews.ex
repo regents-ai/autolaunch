@@ -14,7 +14,7 @@ defmodule Autolaunch.LaunchReviews do
   """
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.{LabProjection, LaunchChainClient, LaunchedDrafts, LaunchOperation}
+  alias Autolaunch.{LabProjection, LaunchedDrafts, LaunchOperation}
   alias Autolaunch.Stocks.LabLaunchChainClient
   alias Autolaunch.Stocks.LabProjection, as: StocksLabProjection
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
@@ -130,6 +130,6 @@ defmodule Autolaunch.LaunchReviews do
   defp resource(:launch), do: LaunchOperation
   defp resource(:stocks_launch), do: StocksLaunchOperation
 
-  defp client(:launch), do: LaunchChainClient.module()
+  defp client(:launch), do: Autolaunch.LabLaunchChainClient
   defp client(:stocks_launch), do: LabLaunchChainClient
 end

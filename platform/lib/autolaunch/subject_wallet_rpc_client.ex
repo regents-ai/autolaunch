@@ -1,23 +1,24 @@
 defmodule Autolaunch.SubjectWalletRpcClient do
   @moduledoc """
+  The one Base boundary a subject wallet action has.
+
   The payment card's Base reads, all at one latest block: the splitter's own
   bindings, treasury and total stake; the payment receiver's bindings,
   economics, note and the three balances waiting at it; the wallet's three
   balances; and the allowance between the wallet and the spender a payment
-  needs.
+  needs. There is no partial answer: a review is derived from one snapshot or
+  from none.
 
   It reads; it never decides. `Autolaunch.SubjectWalletActions` proves every
   binding against the launch's own record before any review exists.
   """
-
-  @behaviour Autolaunch.SubjectWalletChainClient
 
   alias Autolaunch.Chain.{Abi, Rpc, SubjectAbi}
   alias Autolaunch.{Lab, LabRpc}
 
   @assets [:subject, :usdc, :regent]
 
-  @impl true
+  @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(request) do
     with {:ok, config} <- Lab.current(),
          opts = LabRpc.opts(config, "autolaunch payment card"),

@@ -63,7 +63,6 @@ defmodule Autolaunch.Chain.CcaSettlement do
   @type venue :: %{
           abi: [map()],
           rpc_url: String.t(),
-          client_key: atom(),
           block: %{number: non_neg_integer(), hash: String.t()},
           opts: keyword()
         }
@@ -124,7 +123,7 @@ defmodule Autolaunch.Chain.CcaSettlement do
   @spec graduated(String.t(), %{number: non_neg_integer()}, keyword()) ::
           {:ok, boolean()} | {:error, atom()}
   def graduated(auction, block, opts) do
-    venue = %{rpc_url: opts[:rpc_url], client_key: opts[:client_key], block: block}
+    venue = %{rpc_url: opts[:rpc_url], block: block}
 
     calls = [
       %{to: auction, data: LabAbi.selector("checkpoint()")},
@@ -439,8 +438,6 @@ defmodule Autolaunch.Chain.CcaSettlement do
   # block, each answered with its status, return data and logs. The node's own
   # error message is never shown; a malformed answer is an unavailable chain.
   defp simulate_calls(venue, calls) do
-    client = Application.get_env(:autolaunch, venue.client_key, Req)
-
     request = %{
       jsonrpc: "2.0",
       id: 1,
@@ -451,7 +448,7 @@ defmodule Autolaunch.Chain.CcaSettlement do
       ]
     }
 
-    case client.post(venue.rpc_url,
+    case Req.post(venue.rpc_url,
            json: request,
            connect_options: [transport_opts: [inet6: true]],
            receive_timeout: @simulate_timeout,

@@ -1,8 +1,9 @@
--- Tables this repository reads but does not own, in the shape the local test
--- suite and the staging bootstrap run on. Production has the real table:
+-- Tables this repository reads but does not own, in the shape the local
+-- database and the staging bootstrap run on. Production has the real table:
 -- regent_names.platform_human_users is owned by the platform. Nothing here
 -- runs against production.
--- Every statement is idempotent, so the fixture can load this file on every run.
+-- Every statement is idempotent, so `mix autolaunch.shared.migrate` can load
+-- this file on every run.
 CREATE SCHEMA IF NOT EXISTS regent_names;
 CREATE TABLE IF NOT EXISTS regent_names.platform_human_users (
     id bigserial PRIMARY KEY,

@@ -184,7 +184,7 @@ binding the hash and verifying through the same server code the wallet card call
 
 | Reference | Level | Evidence |
 | --- | --- | --- |
-| P01 separate mode, Agent unchanged | integrated-local | Agent resources, actions and pages untouched except the shared `Auction.kind`, currency-neutral bid copy and the additive `kind`/`quote_token` API fields; Agent tests unchanged (`mix test`: 39 tests, the 2 `PrivySessionControllerTest` failures are pre-existing on `origin/main` and unrelated). |
+| P01 separate mode, Agent unchanged | integrated-local | Agent resources, actions and pages untouched except the shared `Auction.kind`, currency-neutral bid copy and the additive `kind`/`quote_token` API fields. |
 | P02 exact STOCK identity | unit-proven | `Autolaunch.Stocks.Assets.fetch/2` resolves by chain and address; launchpad `admitStock`/`stockAdmission` (`contracts/stocks/test/StocksLaunchpadLaunch.t.sol`). |
 | P03 pinned CCA, ~24 h schedule | unit-proven | `StocksPreset.t.sol`: 13 steps sum to 43,200 blocks and exactly 1e7 mps; fork lifecycle uses the real CCA factory. Block count accepted by the founder on 9 September 2026. |
 | P04 exact 80/20 | superseded (1 October 2026) | New launches sell 49.75% (497,500,000), pool 49.75% and vest 0.5% to the launcher (terms of 5 October 2026); the first four launches keep 80/20. Historical: launch #2 on the fork: `auction_inventory` 800,000,000e18, `migration_reserve` 200,000,000e18 read back from `StockLaunchCreated` by the site's verifier. |
@@ -194,13 +194,11 @@ binding the hash and verifying through the same server code the wallet card call
 | P08/P09/P10/P11 hook lanes | unit-proven + fork | `StocksFeeHook.t.sol` (18 tests: every swap form in both orderings with conservation, both lanes charged on every swap, the hook's STOCK balance equal to the sum of the two lanes, `settleRegentLane` executor-only into live REGENT staking, `settleStakerLane` open to anyone and deposited in kind into the launch's splitter); the fork lifecycle settles the REGENT lane into the real `LIVE_STAKING` and pays stakers the staker lane and the locked positions' fees. The hook permission set was accepted by the founder on 9 September 2026. |
 | P12 conversion outside swaps | unit-proven | `settleRegentLane` is executor-only and the only path out of the REGENT lane; a failing settlement reverts only itself. |
 | P13 all-net-STOCK liquidity, retirement, locked LP | unit-proven + fork | `StocksLaunchpadMigrate.t.sol` (11 tests incl. fuzz over clearing prices, both orderings): full-range position plus one-sided STOCK position, both NFTs held by the fee-only locker and registered to the launch's splitter (since 18 September 2026; earlier fork evidence shows them at `0x…dEaD`), dust 0 observed and bounded, unsold NEW retired; no principal path for either NFT. Fork: see "Migration" row. |
-| P15 UI and CLI parity | integrated-local | `/api/v1/auctions` and the CLI now carry `kind` and `quote_token`; `cli`: `npm run check` (6 pass), `test:parity` (1 pass), `check:contract` (copy matches). The public CLI remains read-only by design; it does not sign. |
+| P15 UI and CLI parity | integrated-local | `/api/v1/auctions` and the CLI now carry `kind` and `quote_token`; `cli`: `npm run check` (6 pass), `check:contract` (copy matches). The public CLI remains read-only by design; it does not sign. |
 | STK-00 decision record | decided (9 September 2026) | The Stocks decision record the brief refers to was never found; the founder accepted the proposed preset values in `contracts/stocks/README.md` instead ("Founder decisions" below). |
 | STK-01..09 contracts | unit-proven + fork | `forge test --fuzz-runs 64`: 68 passed; `FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:58737`: 3 passed; Slither: no medium/high. `contracts/stocks/SECURITY.md` maps invariants to tests. |
-| STK-10 Stocks draft (AT11) | unit-proven | `test/autolaunch/stocks/launch_draft_test.exs`: another account can neither read nor update a draft. |
-| STK-11 launch review (AT09) | unit-proven (8-field tuple, 21 September 2026) | `launch_actions_test.exs` proves the exact `launch((string,string,string,string,string,address,uint256,uint128))` calldata: the snapped floor, the creator's required raise in stock base units, one step only, and the refusals (`floor_price_too_low`, `required_raise_invalid`, `launches_paused`, `stock_not_admitted`). Earlier fork evidence (launch #2 on the 11-field tuple) predates the launch-terms change. |
 | STK-11 subject lane off (AT06, §5.1) | removed (18 September 2026) | The launch no longer takes a subject splitter: every launch gets its own staking contract and the staker lane is always on. |
-| STK-12 `/create/stocks` | integrated-local | `stocks_create_live_test.exs` (autosave; stock change clears amounts) plus a headless-browser pass over `/create/stocks`, `/auctions`, `/auctions/:id`, `/portfolio` on the lab site. |
+| STK-12 `/create/stocks` | integrated-local | A headless-browser pass over `/create/stocks`, `/auctions`, `/auctions/:id`, `/portfolio` on the lab site. |
 | STK-13 market feed and listing | integrated-local | The feed projected launch #2 into an `Auction` row (`kind: stocks`, AAPLc, 8 decimals) within seconds and moved it `created → active` at the start block; `/api/v1/auctions` lists it with `quote_token`. |
 | Launch fee (STK-05, decision 5) | superseded (fee removed 21 September 2026) | Historical: launch #1 on the third deployment: two steps (REGENT `approve(launchpad, 100,000)` then `launch` with `expectedLaunchFee`), both sent from the signer and verified by the site; `launch_fee` decoded from `StockLaunchFeeCollected`; the real staking contract's `totalFundedRegent` rose by exactly 100,000 REGENT and the launchpad holds 0 REGENT. |
 | STK-14 faucet | integrated-local | REGENT (+1,000 from the Safe's forked balance), AAPLc (+100 fixture mint) and USDC (+1,000 from the Morpho holder) each landed in one press with the new balance read back. |
@@ -210,7 +208,6 @@ binding the hash and verifying through the same server code the wallet card call
 | Settlement: graduated auction, bid above the final price (Stocks) | integrated-local | Bid #1 on launch #2 (max 0.00003 > 0.00002): review `exitBid(1)` then `claimTokens(1)`; exit `0xe107432d…70bf6` → refund 0, 600,000.0000004872 SGRAD filled → `claimable` (card: "Your bid was fully spent; nothing to return"); claim `0xfd8f1092…9db7ac` → 600,000 SGRAD → `claimed`. |
 | Settlement: Agent auction paid in REGENT | integrated-local | Agent launch #3 ("Settle Agent", 150 REGENT at 0.0011, floor and final price 0.001, 100 REGENT minimum; `migrate(auction)` on the strategy → graduated). Review `exitBid(0)` then `claimTokens(0)`; exit `0x9aa37f15…f97d` → refund 0 REGENT, 150,000 SAGT filled; claim `0x0c4272fc…f5f1` → 150,000 SAGT → `claimed`. Same actions, currency-neutral review (`currency_symbol` REGENT, 18 decimals). |
 | Settlement: position freshness | integrated-local | Within one poll after each end block the feeds moved all four positions `active → returnable` from `bids(bidId)`; after the verified exits and claims they read `returned`/`claimed` with the recorded amounts. While another lab user mines thousands of blocks per second, block-hash-anchored reads answer `BlockOutOfRangeError` and a poll is skipped (both feeds retry; the Agent feed's `graduated` state for launch #3 lagged the chain during the shared mining window). |
-| Settlement: unit | unit-proven | `bid_settlement_actions_test.exs` (5 tests): failed auction → single `exitBid(id)` step; graduated with max price above the final price → `exit` then `claim`; exited with fill after the claim block → `claim` only; `auction_not_ended` and `claim_not_open` refusals; another account's position → `not_your_bid`. |
 | Migration (STK-05 on the fork, observed by the site) | integrated-local | Launch #1 on the redeployed graph: 22.71739129 AAPLc raised across the three site bids; `advance --to migration` then `migrate --launch 1` → `Graduated`. `lpStockUsed` 2,271,739,129 = the whole raise (all net STOCK locked; <25% sold so the full-range position took it all and no one-sided position was needed), `lpNewUsed` ≈ 2.27M NEW, LP NFT 3017409 owned by `0x…dEaD`, 995,456,521.74 unsold NEW retired to `0x…dEaD`, launchpad holds 0 NEW and 0 STOCK. The site's feed moved the auction to `graduated` and `/api/v1/auctions` reports it. Bid claims after graduation are not yet exposed in the portfolio (see remaining work). |
 | Pool page, both kinds (STK-14 pool UI) | integrated-local (10 September 2026, partition `_pool_lab`, port 4080, fork head ≈ 51,238,483) | Agent launch "Pool Agent" (PAGT) created through `Autolaunch.LaunchActions` (500,000 REGENT fee approval + launch), 150 REGENT bid, mined to its migration block and graduated by `strategy.migrate(auction)` (`0x07d40f86…c70a`): REGENT/PAGT pool `0xf2bfe8f4…1203`, LP NFT 3017414 at `0x…dEaD` with 149.999… REGENT and 150,000 PAGT, splitter `0xca960bec…6578`. Stocks launch #4 "Pool Apple Pair" (PAPL, fee administrator `0x1111…1111`, lane off) created through `Stocks.LaunchActions` (approval `0x8a4c6ea7…9117`, launch `0x9d2201a3…6f40`), 12 AAPLc bid, `migrate --launch 4` (`0x4aac0761…8b3e`): AAPLc/PAPL pool `0x0df62e2b…941e`, LP NFT 3017413 at `0x…dEaD` with 11.99999999 AAPLc and 1,199,999.999 PAPL, no one-sided position, 997,600,000.000995… PAPL retired. Both feeds projected the `Token` rows at graduation; `/tokens` lists both and `/tokens/:id#pool` renders every field above (price at graduation 0.00000999… AAPLc per PAPL and 0.000999… REGENT per PAGT from `finalSqrtPriceX96`; current price, tick and liquidity from `extsload`; owners read back as `0x…dEaD`). Four swaps per pool through a `PoolSwapTest` router (`0x96F2AE08…347D`, deployed with `forge create --unlocked` from the lab deployer): the Agent page counts 4 trades and 0.262234837456109564 REGENT + 332.798595160161002643 PAGT per lane from `SwapFeeSettled`; the Stocks page counts 4 trades, REGENT bucket accrued/settled and the subject bucket 0.09233961 AAPLc. Screenshots: `artifacts/autolaunch-pool-lab/shots/`. |
 | STK-14 fee administration | removed (18 September 2026) | The Memestock cutover made both hook lanes always on with no administrator: `configureSubject`, `proposeFeeAdministrator`, `acceptFeeAdministrator`, the fee-administration card and the `stock_fee_admin_operations` table are gone from the contracts and the site. The fork evidence of 10 September 2026 (launch #4, administrator `0x1111…1111`, handed to `0x2222…2222`) is historical. |
@@ -254,23 +251,24 @@ python3 bootstrap-deps.py /Users/sean/Documents/regent/repos/autolaunch
 forge build
 python3 bin/local-stocks-lab.py --agent-lab-dir /Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab deploy --force
 
-# website: own partition, both lab configs, read-only off via the serve script
+# website: the development environment with both lab configs
 cd ../../platform
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-  MIX_TEST_PARTITION=_stocks_lab2 AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
+mix db.setup
+PORT=4060 AUTOLAUNCH_LAUNCHES_OPEN=true \
+  PRIVY_APP_ID=<the Privy app id> \
+  PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-key.pem)" \
   AUTOLAUNCH_BASE_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
   AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \
-  AUTOLAUNCH_BASE_DEPLOYMENT_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
-  sh -c 'mix db.setup && mix run --no-start --no-halt /Users/sean/Documents/regent/artifacts/autolaunch-stocks-lab/serve.exs'
+  AUTOLAUNCH_BASE_DEPLOYMENT_ID=stocks-2026-09-09 \
+  mix phx.server
 ```
 
-Add `AUTOLAUNCH_LAB_AUTH=privy`, the real `PRIVY_APP_ID` and `PRIVY_VERIFICATION_KEY` (public PEM)
-for real sign-in, on the port the Privy application allows. The serve script only flips
-`prelaunch_read_only` after checking the database and fork bindings, exactly as the Agent lab's
-does. `anvil_mine`, `local-stocks-lab.py advance --to start|end|claim|migration` and
-`migrate --launch N` move an auction through its life; Anvil mines only when asked.
+Open the site at `http://localhost:4060`, the origin the Privy application allows, as in
+[local-base-lab.md](local-base-lab.md). `anvil_mine`, `local-stocks-lab.py advance --to
+start|end|claim|migration` and `migrate --launch N` move an auction through its life; Anvil
+mines only when asked.
 
-The pool-page proof ran the same way on partition `_pool_lab` and port 4080 (scripts and
+The pool-page proof ran on 10 September 2026 on partition `_pool_lab` and port 4080 (scripts and
 screenshots in `artifacts/autolaunch-pool-lab/`: `serve.exs`, `e2e_launch.exs`, `e2e_bids.exs`,
 `mine_to.py`, `swaps.sh`, `e2e_fee_admin.exs`, `browse.mjs`, `browse_admin.mjs`). An Agent launch
 graduates only after `START_DELAY_BLOCKS + AUCTION_DURATION_BLOCKS + MIGRATION_DELAY_BLOCKS`

@@ -1,13 +1,28 @@
 defmodule Autolaunch.LabLaunchChainClient do
-  @moduledoc false
+  @moduledoc """
+  The one Base boundary a direct-wallet launch has.
 
-  @behaviour Autolaunch.LaunchChainClient
+  `snapshot/1` answers the whole reviewed question at one canonical safe block:
+  the admitted factory's identity and pause state, the reciprocal
+  factory/strategy binding, the strategy's bound fee hook, and the strategy's
+  founder-frozen launch terms. There is no partial answer: a review is derived
+  from one snapshot or from none.
+
+  `verify/2` is read-only: whether the transaction `hash` carried out a saved
+  review's launch step (`Autolaunch.LaunchOperation`), is still pending,
+  reverted, or created a launch other than the one reviewed.
+  """
 
   alias Autolaunch.Chain.{Abi, LaunchAbi}
   alias Autolaunch.{Lab, LabRpc}
   alias RegentChain.Address
 
-  @impl true
+  @type outcome :: %{
+          :outcome => :pending | :confirmed | :reverted | :unverified,
+          optional(:result) => map()
+        }
+
+  @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(_request) do
     with {:ok, config, block, opts} <- LabRpc.current([:factory, :strategy, :regent]),
          {:ok, paused} <- LabRpc.bool(config, :factory, "launchesPaused()", [], block, opts),
@@ -39,7 +54,7 @@ defmodule Autolaunch.LabLaunchChainClient do
     end
   end
 
-  @impl true
+  @spec verify(map(), String.t()) :: {:ok, outcome()} | {:error, atom()}
   def verify(%{"signer" => signer, "step" => step, "facts" => facts}, hash) do
     with {:ok, config} <- Lab.current(),
          {:ok, outcome} <- LabRpc.outcome(LabRpc.opts(config), signer, step, hash),

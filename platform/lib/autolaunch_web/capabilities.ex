@@ -19,8 +19,7 @@ defmodule AutolaunchWeb.Capabilities do
   the hosted server has, named after its row, run by a connected app and on no
   other surface. The hosted server serves those tools
   (`hosted_tools/0`); AshAi lists each to a caller only as its action's policies
-  allow. That each `cli` matches regents-cli's commands is checked by the tests,
-  which read `cli/commands.json`.
+  allow.
 
   The guides' Agent access table, their words on the hosted MCP server and the
   server's own instructions are made from the rows offered now

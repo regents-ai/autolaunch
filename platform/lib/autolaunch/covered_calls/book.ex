@@ -15,8 +15,7 @@ defmodule Autolaunch.CoveredCalls.Book do
   and it is counted for each expiry so the nearest Friday never hides a later
   one.
 
-  One reading per market is kept for five minutes (`:covered_calls_book_kept_ms`;
-  0 keeps nothing, as the tests run); a landed press on the chain
+  One reading per market is kept for five minutes; a landed press on the chain
   (`Autolaunch.ChainRefresh`) shortens that to ten seconds from when it was
   taken, so the next visit after a person acts reads again. A covered-call
   step that lands drops its market's reading at once (`expire/1`), so the page
@@ -60,17 +59,12 @@ defmodule Autolaunch.CoveredCalls.Book do
   alias Autolaunch.CoveredCalls.{Chain, Deployment, Quote, Terms}
 
   @read_timeout 15_000
+  @kept_ms 300_000
   @shown 50
   @table __MODULE__
 
-  @doc """
-  Starts the book. `:clock` answers the time in milliseconds a reading is kept
-  by; it is the system's steady clock unless a test holds the time still.
-  """
-  def start_link(options) do
-    clock = Keyword.get(options, :clock, fn -> System.monotonic_time(:millisecond) end)
-    GenServer.start_link(__MODULE__, clock, name: __MODULE__)
-  end
+  @doc "Starts the book."
+  def start_link(_options), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
 
   @doc """
   The shared reading of `symbol`'s market, at most five minutes old. A reading
@@ -135,21 +129,19 @@ defmodule Autolaunch.CoveredCalls.Book do
 
   @doc "Keeps each listing and bid of `book` (`Chain.book/4`) as read at its block (`kept/3`)."
   def keep(contract, book) do
-    if kept_ms() > 0 do
-      :ets.insert(
-        @table,
-        for(
-          {kind, owner, records} <- [
-            {:listing, :seller, book.listings},
-            {:bid, :bidder, book.bids}
-          ],
-          record <- records,
-          do:
-            {{contract, kind, record.id}, Map.fetch!(record, owner), state(record, book.now),
-             record}
-        )
+    :ets.insert(
+      @table,
+      for(
+        {kind, owner, records} <- [
+          {:listing, :seller, book.listings},
+          {:bid, :bidder, book.bids}
+        ],
+        record <- records,
+        do:
+          {{contract, kind, record.id}, Map.fetch!(record, owner), state(record, book.now),
+           record}
       )
-    end
+    )
 
     :ok
   end
@@ -220,11 +212,12 @@ defmodule Autolaunch.CoveredCalls.Book do
   # `kept` is each market's reading, and each single record read for a link
   # (keyed `{symbol, kind, id}`), with when it was taken and until when it is
   # good; `taking` the task whose reading will be kept for each; and `waiting`
-  # who each running task answers; `clock` the time they are kept by.
+  # who each running task answers. Times are the system's steady clock in
+  # milliseconds.
   @impl GenServer
-  def init(clock) do
+  def init(:ok) do
     :ets.new(@table, [:named_table, :ordered_set, :public, read_concurrency: true])
-    {:ok, %{kept: %{}, taking: %{}, waiting: %{}, clock: clock}}
+    {:ok, %{kept: %{}, taking: %{}, waiting: %{}}}
   end
 
   @impl GenServer
@@ -258,7 +251,7 @@ defmodule Autolaunch.CoveredCalls.Book do
   def handle_call({:read, key}, from, state) do
     case state.kept do
       %{^key => {reading, _taken_at, good_until}} ->
-        if good_until > state.clock.(),
+        if good_until > now_ms(),
           do: {:reply, {:ok, reading}, state},
           else: {:noreply, wait(state, key, from)}
 
@@ -297,13 +290,12 @@ defmodule Autolaunch.CoveredCalls.Book do
   defp taken(state, ref, result) do
     {waiting, others} = Map.pop(state.waiting, ref)
     key = Enum.find_value(state.taking, fn {key, taking} -> taking == ref && key end)
-    kept_ms = kept_ms()
 
     {answer, kept} =
       case result do
         {:ok, reading} ->
-          taken_at = state.clock.()
-          lifetime = reading_lifetime(reading, kept_ms)
+          taken_at = now_ms()
+          lifetime = reading_lifetime(reading)
 
           {{:ok, reading},
            if(key,
@@ -324,10 +316,10 @@ defmodule Autolaunch.CoveredCalls.Book do
     %{state | kept: kept, taking: Map.delete(state.taking, key), waiting: others}
   end
 
-  defp reading_lifetime(%{record: %{expiry: expiry}, now: now}, kept_ms) when expiry > now,
-    do: min(kept_ms, (expiry - now) * 1_000)
+  defp reading_lifetime(%{record: %{expiry: expiry}, now: now}) when expiry > now,
+    do: min(@kept_ms, (expiry - now) * 1_000)
 
-  defp reading_lifetime(_reading, kept_ms), do: kept_ms
+  defp reading_lifetime(_reading), do: @kept_ms
 
   defp take({symbol, kind, id}) do
     with {:ok, config} <- Deployment.current(),
@@ -374,5 +366,5 @@ defmodule Autolaunch.CoveredCalls.Book do
     end
   end
 
-  defp kept_ms, do: Application.get_env(:autolaunch, :covered_calls_book_kept_ms, 300_000)
+  defp now_ms, do: System.monotonic_time(:millisecond)
 end

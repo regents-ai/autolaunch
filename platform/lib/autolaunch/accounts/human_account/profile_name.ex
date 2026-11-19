@@ -14,8 +14,8 @@ defmodule Autolaunch.Accounts.HumanAccount.ProfileName do
 
   @impl true
   def calculate(accounts, _opts, _context) do
-    # Every profile names its Privy app, so a boot with no app configured (the
-    # test suite) has no names to read.
+    # Every profile names its Privy app, so a boot with no app configured has
+    # no names to read.
     app_ids = List.wrap(Autolaunch.Privy.app_id())
     people = Enum.map(accounts, & &1.privy_user_id)
 

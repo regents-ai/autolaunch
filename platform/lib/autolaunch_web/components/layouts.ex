@@ -13,23 +13,15 @@ defmodule AutolaunchWeb.Layouts do
   · no mainnet value", at the top of the screen above the header.
   """
   def lab_notice(assigns) do
-    assigns = assign(assigns, sign_in: sign_in_state(), open: !Autolaunch.Prelaunch.read_only?())
+    assigns = assign(assigns, open: !Autolaunch.Prelaunch.read_only?())
 
     ~H"""
     <p :if={Autolaunch.Lab.test_chain?()} class="autolaunch-lab-warning" role="status">
       {Autolaunch.Lab.label()} · test assets · no mainnet value<span :if={@open}>
-        · {@sign_in}
+        · sign in with Privy
       </span>
     </p>
     """
-  end
-
-  # Only the production verifier admits a real Privy sign-in; the fixture
-  # verifier has no interactive login at all.
-  defp sign_in_state do
-    if Application.get_env(:autolaunch, :privy_verifier, Autolaunch.Privy) == Autolaunch.Privy,
-      do: "sign in with Privy",
-      else: "sign-in unavailable"
   end
 
   attr :href, :string, required: true, doc: "the page's own address with its query"

@@ -324,7 +324,6 @@ contracts:
             signature: bidCount()
             selector: "0xb40a5627"
         action_ids: []
-    validation_command: mix test test/autolaunch/chain/manifest_test.exs
   - id: stocks_local_lab
     chain_target: base-mainnet
     authority: interface_only

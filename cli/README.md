@@ -68,11 +68,11 @@ Use an existing wallet or delegated wallet provider for endpoints that actually 
 
 ## Develop and verify
 
-`npm run check` runs syntax checks and standalone executable/packed-install HTTP fixtures. It needs Node and npm, but no dependencies, database or external API. `npm run test:parity` additionally uses this monorepo's existing browser adapter against the same local HTTP fixtures; this proves adapter parity, not native browser WebMCP support or production API health.
+`npm run check` runs the syntax checks and `npm run check:contract`. It needs Node and npm, but no dependencies, database or external API.
 
-The checks create disposable local servers and install directories and clean up only those resources. Packaging includes only the executable, source, contract documentation, README and license; it excludes tests, platform code and development configuration. Release only the reviewed artifact after registry authority is established.
+Packaging includes only the executable, source, contract documentation, README and license; it excludes platform code and development configuration. Release only the reviewed artifact after registry authority is established.
 
-The platform owns `platform/contracts/api-contract.openapiv3.yaml`; its reviewed copy ships as `docs/api-contract.openapiv3.yaml`. Run `npm run check:contract` in the monorepo to detect drift. The standalone build never requires the platform.
+The platform owns `platform/contracts/api-contract.openapiv3.yaml`; its reviewed copy ships as `docs/api-contract.openapiv3.yaml`. `npm run check:contract` in the monorepo detects drift. The standalone build never requires the platform.
 
 To try a local server, pass its loopback origin: `autolaunch auctions list --base-url http://127.0.0.1:<port>`.
 

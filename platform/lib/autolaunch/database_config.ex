@@ -7,8 +7,6 @@ defmodule Autolaunch.DatabaseConfig do
 
   def runtime_config!(environment, getenv \\ &System.get_env/1)
 
-  def runtime_config!(:test, _getenv), do: nil
-
   def runtime_config!(:prod, getenv) do
     require_deployment_role!(getenv)
 
@@ -39,7 +37,7 @@ defmodule Autolaunch.DatabaseConfig do
   The connection the site's listeners share (`Autolaunch.SharedChanges`): the
   serving login on the database's direct address, which the site already serves
   through, since a pooler drops `LISTEN`. Nil where the environment names no
-  database (the test environment sets its own).
+  database.
   """
   def notifications_config!(environment, getenv \\ &System.get_env/1) do
     case runtime_config!(environment, getenv) do
