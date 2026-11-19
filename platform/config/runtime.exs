@@ -92,7 +92,9 @@ config :autolaunch, :showcase, showcase
 # Opening: the site leaves read-only mode only when this is exactly `true`.
 # Unset keeps the fail-closed default; anything else stops the boot.
 case System.get_env("AUTOLAUNCH_LAUNCHES_OPEN") do
-  nil -> :ok
+  # A read-only site runs no jobs, so it offers nothing to Points; the start run
+  # records it once the site is open.
+  nil -> config :regent_points, approved_rules: []
   "true" -> config :autolaunch, :prelaunch_read_only, false
   other -> raise "AUTOLAUNCH_LAUNCHES_OPEN must be true or unset, got #{inspect(other)}"
 end
