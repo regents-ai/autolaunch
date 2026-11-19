@@ -71,11 +71,17 @@ defmodule Autolaunch.PointsAwardsTest do
     second = launch(account)
     drain()
 
-    assert [%{source_event_key: key, account_id: account_id, actor_kind: "human"}] =
-             events("autolaunch.first_launch")
+    # Both launches are recorded for the creator; the first earns, and the second
+    # ends capped with no entry of its own.
+    assert outcomes("autolaunch.first_launch") ==
+             Enum.sort([{first.id, :confirmed}, {second.id, :capped}])
 
-    assert key == first.id
-    assert account_id == account.id
+    assert Enum.all?(
+             events("autolaunch.first_launch"),
+             &(&1.account_id == account.id and &1.actor_kind == "human")
+           )
+
+    key = first.id
     assert [{^key, 25}] = earned("autolaunch.first_launch")
 
     # The second launch still earns the day's launch award, as its own action.
@@ -119,13 +125,17 @@ defmodule Autolaunch.PointsAwardsTest do
     assert :ok = LabProjection.project_graduated_token(auction)
     assert length(all_enqueued(queue: :points)) == queued
 
-    account |> launch(kind: :stocks, state: :graduated) |> graduate()
+    second = account |> launch(kind: :stocks, state: :graduated) |> graduate()
     drain()
 
     key = first.id
     assert [{^key, 25}] = earned("autolaunch.first_graduation")
-    assert [%{account_id: account_id}] = events("autolaunch.first_graduation")
-    assert account_id == account.id
+
+    # Both graduations are recorded for the creator; the second ends capped.
+    assert outcomes("autolaunch.first_graduation") ==
+             Enum.sort([{first.id, :confirmed}, {second.id, :capped}])
+
+    assert Enum.all?(events("autolaunch.first_graduation"), &(&1.account_id == account.id))
   end
 
   test "a launch from a wallet no account holds is saved and earns nothing" do

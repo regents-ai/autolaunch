@@ -17,9 +17,9 @@ config :ash_oban, pro?: false
 # (Autolaunch.ChainWatch makes sure each has its job every minute); the
 # default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
-# to read; Regent Points' checks and awards and its hourly start run, database
-# work only, one at a time (while no rule is approved only the start run is
-# queued there, and it stops at once). The finishing queue
+# to read; Regent Points' checks and awards and its start run, at most once a
+# day, database work only, one at a time (while no rule is approved only the
+# start run is queued there, and it records nothing). The finishing queue
 # stays paused unless the site has the finisher switched on (runtime.exs); its
 # jobs are unique, so a paused queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
@@ -48,8 +48,10 @@ config :autolaunch, Oban,
     crontab: [
       {"* * * * *", Autolaunch.ChainWatch},
       {"17 4 * * *", Autolaunch.ErrorPruner},
-      # What this site held from before the Points start earns at the start; an
-      # account another site already recorded for a rule is left out.
+      # At most once a day, records what no offer did for the account rules:
+      # from before the Points start it earns at the start, from after at its
+      # own time. Accounts and pairings are every Regent site's, so one made on
+      # another site may be recorded here; one any site recorded is left out.
       {"@hourly", RegentPoints.StartAwards},
       # One line for each kind of shared reading a producer rereads on notice.
       {"* * * * *", Autolaunch.SharedReading.Heal, args: %{kind: "points_board"}}
@@ -100,8 +102,8 @@ config :autolaunch, :admins, []
 
 # Earning is closed outside production: no start time and no rule approved
 # (config/prod.exs sets both). Each adapter is the site's check of one rule's
-# source, from its own saved records, or for the account rules from the shared
-# account and pairing rows every Regent site reads.
+# source, from its own saved records, and for an account or a pairing from the
+# shared rows every Regent site reads.
 config :regent_points,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,

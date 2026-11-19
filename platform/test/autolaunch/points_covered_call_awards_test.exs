@@ -139,8 +139,23 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     assert length(all_enqueued(queue: :points)) == 4
     drain()
 
+    # Each side of both sales is recorded for its account; each account's first
+    # earns, and the one after it ends capped with no entry of its own.
     assert Enum.sort(Enum.map(events(@covered), &{&1.account_id, &1.source_kind})) ==
-             Enum.sort([{seller.id, "covered_call_seller"}, {buyer.id, "covered_call_buyer"}])
+             Enum.sort([
+               {seller.id, "covered_call_seller"},
+               {seller.id, "covered_call_seller"},
+               {buyer.id, "covered_call_buyer"},
+               {buyer.id, "covered_call_buyer"}
+             ])
+
+    assert outcomes(@covered) ==
+             Enum.sort([
+               {fill.id, :confirmed},
+               {fill.id, :confirmed},
+               {sale.id, :capped},
+               {sale.id, :capped}
+             ])
 
     assert [{_, 25}, {_, 25}] = earned(@covered)
     assert rejections(fill.id) ++ rejections(sale.id) == []
@@ -158,8 +173,9 @@ defmodule Autolaunch.PointsCoveredCallAwardsTest do
     assert [%{id: id, seller: @seller, buyer: @seller}] = sales()
     drain()
 
-    seller_id = seller.id
-    assert [%{account_id: ^seller_id}] = events(@covered)
+    # Both sides are recorded for the one account; one earns, the other ends capped.
+    assert Enum.map(events(@covered), & &1.account_id) == [seller.id, seller.id]
+    assert outcomes(@covered) == [{id, :capped}, {id, :confirmed}]
     assert earned(@covered) == [{id, 25}]
     assert rejections(id) == []
   end

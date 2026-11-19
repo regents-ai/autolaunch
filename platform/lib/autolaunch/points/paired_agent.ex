@@ -5,7 +5,11 @@ defmodule Autolaunch.Points.PairedAgent do
   who made the pairing code.
 
   `existing/2` lists, for `RegentPoints.StartAwards`, each person's earliest
-  pairing made before the Points start that is still paired.
+  pairing made before `at`, the start run's own time, that is still paired.
+  Every Regent site shares the pairings, so the run can record a first pairing
+  made on another site that no site has recorded yet; it earns once either
+  way. One made before the Points start earns at the start, a later one at its
+  own time.
   """
 
   alias Autolaunch.Accounts
@@ -22,8 +26,8 @@ defmodule Autolaunch.Points.PairedAgent do
   end
 
   # Each page of people's accounts is read in one go.
-  def existing("agent.activated", starts_at) do
-    {:ok, pairings} = RegentAgents.pairings_held_from_before(starts_at)
+  def existing("agent.activated", at) do
+    {:ok, pairings} = RegentAgents.pairings_held_from_before(at)
 
     pairings
     |> Enum.chunk_every(@page)

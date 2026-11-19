@@ -4,9 +4,11 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  # Branch eu/points-review-on-autolaunch-pin-1119: the idna 8.0.0 fix line
-  # (EEF-CVE-2026-117678) plus the two Points review fixes.
-  @elixir_utils_ref "875dee08fd0a51a51d5c86b53268289260292835"
+  # Branch eu/points-second-on-autolaunch-pin-1119: the idna 8.0.0 fix line
+  # (EEF-CVE-2026-117678), the two Points review fixes, the start run that also
+  # records what came after the start, and an award waiting or refused no longer
+  # blocking a later offer.
+  @elixir_utils_ref "e6289fa94fb8c25ea3e105700f479e141a0e6c47"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "69dbfface3fdc2ab728f8cc57cface25f9c7120c"
 

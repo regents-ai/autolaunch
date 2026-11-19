@@ -414,11 +414,12 @@ defmodule Autolaunch.PointsTokenAwardsTest do
     assert Decimal.equal?(first.amount, Decimal.new(5 * Integer.pow(10, 18)))
     drain()
 
-    # Whichever of the two Points checks first earns it; the other records nothing.
+    # Both are recorded for the account; whichever Points checks first earns it,
+    # and the other ends capped with no entry of its own.
     assert [{key, 40}] = earned(@staked)
-    assert key in [first.id, second.id]
-    account_id = account.id
-    assert [%{account_id: ^account_id}] = events(@staked)
+    [other] = [first.id, second.id] -- [key]
+    assert outcomes(@staked) == Enum.sort([{key, :confirmed}, {other, :capped}])
+    assert Enum.map(events(@staked), & &1.account_id) == [account.id, account.id]
   end
 
   test "reading a stake again, or rebuilding after the chain changed, keeps it as first saved and offers nothing",

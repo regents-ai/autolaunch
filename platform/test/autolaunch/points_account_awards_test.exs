@@ -21,7 +21,8 @@ defmodule Autolaunch.PointsAccountAwardsTest do
   # account at sign-in, a GitHub or Farcaster account Privy lists at sign-in, the
   # person's own X connected with the Account page's X button, and a paired
   # agent. Each is offered inside the save that makes it and earns once, on this
-  # site or any other; what this site held before the start earns at the start.
+  # site or any other; the start run records what no offer did, earning at the
+  # start what came before it and at its own time what came after.
   # Autolaunch earns nothing outside production, so each test opens the rules it
   # needs, runs the real library's queue and reads what it wrote.
   use Autolaunch.DataCase, async: false
@@ -124,13 +125,19 @@ defmodule Autolaunch.PointsAccountAwardsTest do
     person = %RegentAgents.Person{privy_user_id: did}
     wallet = wallet()
 
+    # Two agents paired before either award is checked are both recorded; only
+    # the first earns, and the second ends capped with no entry of its own.
     first = pair(person, wallet, "First")
-    pair(person, wallet(), "Second")
+    second = pair(person, wallet(), "Second")
     assert length(offers("agent.activated")) == 2
     drain()
 
     assert awards(account.id) == [{"agent.activated", first.id}]
 
+    assert outcomes("agent.activated") ==
+             Enum.sort([{first.id, :confirmed}, {second.id, :capped}])
+
+    # Once it has earned, pairing again records nothing more.
     :ok = RegentAgents.unpair_agent(first, actor: person)
     pair(person, wallet, "First")
     assert [_offer] = offers("agent.activated")
@@ -138,14 +145,20 @@ defmodule Autolaunch.PointsAccountAwardsTest do
 
     assert awards(account.id) == [{"agent.activated", first.id}]
 
+    assert outcomes("agent.activated") ==
+             Enum.sort([{first.id, :confirmed}, {second.id, :capped}])
+
+    assert earned("agent.activated") == [{first.id, 25}]
+
     # The award's agent is the paired wallet, and the Points page names it.
-    assert [%{actor_kind: "agent", actor_id: ^wallet}] = events("agent.activated")
+    assert [%{actor_kind: "agent", actor_id: ^wallet}] =
+             for(%{processing_status: :confirmed} = event <- events("agent.activated"), do: event)
 
     assert {:ok, %{^wallet => "First"}} =
              Autolaunch.Points.Accounts.agent_names(account.id, [wallet])
   end
 
-  test "what this site held before the start earns at the start, once" do
+  test "the start run records what Points has not: from before the start at the start, from after it at its own time, once" do
     # Points has not started, and nothing is approved.
     open([])
     close()
@@ -156,7 +169,8 @@ defmodule Autolaunch.PointsAccountAwardsTest do
     x_user_id = x_user_id()
     connect_x(early, "profile", x_user_id)
     pairing = pair(%RegentAgents.Person{privy_user_id: did}, wallet(), "Early")
-    company = sign_in(did("company"), [])
+    company_did = did("company")
+    company = sign_in(company_did, [])
     connect_x(company, "company", x_user_id())
     recorded = sign_in(did("recorded"), [social(:github)])
     assert all_enqueued(queue: :points) == []
@@ -166,13 +180,24 @@ defmodule Autolaunch.PointsAccountAwardsTest do
     Process.sleep(1_000)
     start = DateTime.utc_now()
     Application.put_env(:regent_points, :starts_at, start)
+
+    # After the start, while no rule is approved, the company's owner links GitHub.
+    late = social(:github)
+    sign_in(company_did, [late])
+    {:ok, %{inserted_at: late_linked_at}} = linked(:github, late.subject)
+    assert all_enqueued(queue: :points) == []
+
     Application.put_env(:regent_points, :approved_rules, @rules)
 
     # Another site already recorded a GitHub account for this account.
     elsewhere = "github:" <> Ecto.UUID.generate()
     rewarded_elsewhere(recorded.id, "social.github", elsewhere)
 
+    # A second run before the first one's offers are checked offers them all again.
     assert :ok = StartAwards.perform(%Oban.Job{})
+    first_run = length(intake())
+    assert :ok = StartAwards.perform(%Oban.Job{})
+    assert length(intake()) == 2 * first_run
     drain()
 
     assert awards(early.id) == [
@@ -186,12 +211,33 @@ defmodule Autolaunch.PointsAccountAwardsTest do
         id == early.id,
         do: assert(DateTime.compare(at, start) == :eq)
 
-    assert awards(company.id) == [{"account.activated", to_string(company.id)}]
+    assert awards(company.id) == [
+             {"account.activated", to_string(company.id)},
+             {"social.github", "github:" <> late.subject}
+           ]
+
+    assert [%{source_action_at: late_at}] =
+             for(
+               %{account_id: id} = event <- events("social.github"),
+               id == company.id,
+               do: event
+             )
+
+    assert DateTime.compare(late_at, late_linked_at) == :eq
+    assert DateTime.after?(late_at, start)
 
     assert awards(recorded.id) == [
              {"account.activated", to_string(recorded.id)},
              {"social.github", elsewhere}
            ]
+
+    # Each account has one event and one entry for each rule, however many runs
+    # offered it, and no offer was refused.
+    assert length(events()) == length(Enum.uniq_by(events(), &{&1.account_id, &1.rule_id}))
+    assert RegentPoints.read_rejections!(actor: Store.system()) == []
+
+    entries = RegentPoints.read_entries!(actor: Store.system())
+    assert length(entries) == length(Enum.uniq_by(entries, &{&1.account_id, &1.rule_id}))
 
     # A later run finds every account already recorded and offers nothing more.
     assert :ok = StartAwards.perform(%Oban.Job{})

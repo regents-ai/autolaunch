@@ -9,8 +9,10 @@ defmodule Autolaunch.Points.LinkedSocial do
   An X account earns from the X connection the Account page makes
   (`Autolaunch.Points.ConnectedX`), never from a link Privy lists.
 
-  `existing/2` lists the links to the rule's provider made before the Points
-  start and still there, for `RegentPoints.StartAwards`.
+  `existing/2` lists this site's links to the rule's provider made before `at`,
+  the start run's own time, and still there, for `RegentPoints.StartAwards`.
+  One linked before the Points start earns at the start; a later one, such as
+  one linked while the rule was off, at its own time.
   """
 
   alias Autolaunch.Accounts
@@ -26,9 +28,8 @@ defmodule Autolaunch.Points.LinkedSocial do
     end
   end
 
-  def existing("social." <> provider, starts_at) do
-    for identity <-
-          Accounts.linked_identities_before!(provider, starts_at, actor: %System{}) do
+  def existing("social." <> provider, at) do
+    for identity <- Accounts.linked_identities_before!(provider, at, actor: %System{}) do
       {identity.human_account_id,
        %{
          source_app: Autolaunch.Points.source_app(),

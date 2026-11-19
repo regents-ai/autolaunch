@@ -12,9 +12,12 @@ defmodule Autolaunch.Points.AccountActivated do
   to half a second after the sign-in it can be ahead of the clock; the check
   then runs again later rather than turning the award down.
 
-  `existing/2` lists the accounts made before the Points start, for
-  `RegentPoints.StartAwards`, which leaves out every account another site
-  already recorded.
+  `existing/2` lists the accounts made before `at`, the start run's own time,
+  for `RegentPoints.StartAwards`, which leaves out every account any site
+  already recorded. The table holds every Regent site's accounts, so the run
+  can record one made on another site that no site has recorded yet; it earns
+  once either way. One made before the Points start earns at the start, a later
+  one at its own time.
   """
 
   alias Autolaunch.Accounts
@@ -32,8 +35,8 @@ defmodule Autolaunch.Points.AccountActivated do
     end
   end
 
-  def existing("account.activated", starts_at) do
-    for account <- Accounts.accounts_created_before!(starts_at, actor: %System{}) do
+  def existing("account.activated", at) do
+    for account <- Accounts.accounts_created_before!(at, actor: %System{}) do
       {account.id,
        %{source_app: "regents", source_kind: "account", source_event_key: to_string(account.id)}}
     end

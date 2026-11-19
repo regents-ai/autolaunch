@@ -73,6 +73,14 @@ defmodule Autolaunch.PointsTesting do
     |> Enum.map(&{Map.fetch!(keys, &1.event_id), div(&1.points_micro_delta, @unit)})
   end
 
+  @doc """
+  What became of each source the rule recorded, as `{source key, status}`,
+  sorted: a one-time rule's later offers are recorded too, and those after the
+  one that earned end `capped`.
+  """
+  def outcomes(rule),
+    do: rule |> events() |> Enum.map(&{&1.source_event_key, &1.processing_status}) |> Enum.sort()
+
   @doc "Every refusal Points saved for the source key, as `{rule, reason}`, sorted."
   def rejections(key) do
     RegentPoints.read_rejections!(actor: Store.system())

@@ -4,7 +4,7 @@
 
 - On Autolaunch you now also earn Points for your account, for linking X or GitHub on your Account page and for pairing your first agent.
 - Each earns once, and never twice across Regent sites: one that already earned on another Regent site earns nothing more here.
-- X and GitHub accounts you linked here before Points began count too.
+- X and GitHub accounts you linked here earlier count too.
 
 ## 19 November 2026: Trading
 

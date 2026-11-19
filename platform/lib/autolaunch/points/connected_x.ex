@@ -13,8 +13,11 @@ defmodule Autolaunch.Points.ConnectedX do
   has connected it, the one that connected it first, while it stays connected,
   is the one that earns; a connection removed before the check earns nothing.
 
-  `existing/2` lists the profile connections made before the Points start and
-  still connected, one for each X account, for `RegentPoints.StartAwards`.
+  `existing/2` lists this site's profile connections made before `at`, the
+  start run's own time, and still connected, one for each X account, for
+  `RegentPoints.StartAwards`. One connected before the Points start earns at
+  the start; a later one, such as one connected while the rule was off, at its
+  own time.
   """
 
   alias Autolaunch.Accounts
@@ -28,8 +31,8 @@ defmodule Autolaunch.Points.ConnectedX do
     end
   end
 
-  def existing("social.x", starts_at) do
-    starts_at
+  def existing("social.x", at) do
+    at
     |> Accounts.x_profiles_connected_before!(actor: %System{})
     |> Enum.uniq_by(& &1.x_user_id)
     |> Enum.map(fn connection ->

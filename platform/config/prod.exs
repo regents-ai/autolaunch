@@ -33,9 +33,13 @@ config :phoenix, :logger, false
 # source is built (config/config.exs names every adapter). The five account
 # actions (Sean's 31 a, 19 November) are offered for what is done on this site:
 # an account made at sign-in here, GitHub or Farcaster linked at sign-in, X
-# connected with the Account page's X button, and an agent paired here. What
-# this site's records held before the start earns at the start
-# (RegentPoints.StartAwards), unless another site already recorded it.
+# connected with the Account page's X button, and an agent paired here. At
+# most once a day the start run (RegentPoints.StartAwards) records what no
+# offer did: this site's links and X connections, and the accounts and first
+# pairings every Regent site shares, so it may record one made on another site
+# that no site has recorded yet. From before the start it earns at the start,
+# from after at its own time, and each earns once. A site still in read-only
+# mode approves no rule at all (config/runtime.exs).
 config :regent_points,
   starts_at: ~U[2026-11-16 17:00:00Z],
   approved_rules: ~w(
