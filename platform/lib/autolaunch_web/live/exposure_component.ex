@@ -43,6 +43,7 @@ defmodule AutolaunchWeb.ExposureComponent do
        refusal: nil,
        unsent: false,
        holdings: nil,
+       holdings_key: nil,
        refresh: nil,
        leg: nil
      )}
@@ -58,11 +59,17 @@ defmodule AutolaunchWeb.ExposureComponent do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket),
-    do: {:noreply, socket |> assign(active: OnchainSteps.active_wallet(params)) |> sync()}
+  def handle_event("onchain_active_wallet", params, socket) do
+    active = OnchainSteps.active_wallet(params)
+
+    if active == socket.assigns.active,
+      do: {:noreply, socket},
+      else: {:noreply, socket |> assign(active: active) |> sync()}
+  end
 
   def handle_event("change", params, socket),
-    do: {:noreply, socket |> assign(inputs: inputs(socket.assigns.kind, params)) |> sync()}
+    do:
+      {:noreply, socket |> assign(inputs: inputs(socket.assigns.kind, params)) |> prepare_form()}
 
   # A press made before the panel holds steps for the form as pressed: the steps
   # are built now and the pressed one handed back to send. When they can't be
@@ -121,8 +128,8 @@ defmodule AutolaunchWeb.ExposureComponent do
   def handle_async(:prepare, {:exit, _reason}, socket),
     do: {:noreply, assign(socket, refusal: :chain_unavailable)}
 
-  def handle_async(:holdings, {:ok, {signer, {:ok, holdings}}}, socket) do
-    if signer == signer(socket),
+  def handle_async(:holdings, {:ok, {key, {:ok, holdings}}}, socket) do
+    if key == socket.assigns.holdings_key,
       do: {:noreply, assign(socket, holdings: holdings)},
       else: {:noreply, socket}
   end
@@ -133,37 +140,16 @@ defmodule AutolaunchWeb.ExposureComponent do
     {:noreply,
      OnchainSteps.checked(socket, hash, result, fn socket, entry ->
        send(self(), {:exposure_changed, socket.assigns.series.address})
-       done(socket, entry.step.step)
-       socket |> read_holdings() |> sync()
+       done(entry.step.step)
+       sync(socket)
      end)}
   end
 
-  # A split or a redemption that landed tells the page what it moved, for its toast.
-  defp done(%{assigns: %{prepared: %{facts: facts}, series: series}}, step)
-       when step in ["buy", "sell", "mint", "redeem"],
-       do: send(self(), {:exposure_done, %{kind: step, lines: done_lines(step, facts, series)}})
+  # Confirm the landed step. The open form may be quoting a different trade now.
+  defp done(step) when step in ["buy", "sell", "mint", "redeem"],
+    do: send(self(), {:exposure_done, %{kind: step, lines: []}})
 
-  defp done(_socket, _step), do: :ok
-
-  defp done_lines("mint", %{amount: amount}, series) do
-    tokens = F.tokens(amount, series.stock.decimals)
-    ["You received #{tokens} #{series.overnight.symbol} and #{tokens} #{series.session.symbol}."]
-  end
-
-  defp done_lines("redeem", %{paid: paid}, series) when is_integer(paid),
-    do: ["You received #{F.tokens(paid, series.stock.decimals)} #{series.stock.symbol}."]
-
-  defp done_lines("redeem", _facts, _series), do: []
-
-  defp done_lines("buy", %{amount: amount, leg: leg}, series),
-    do: [
-      "You paid #{F.usdc(amount)} for #{Map.fetch!(series, leg).symbol}. What you received is in your wallet and portfolio."
-    ]
-
-  defp done_lines("sell", %{amount: amount, leg: leg}, series),
-    do: [
-      "You sold #{F.tokens(amount, series.stock.decimals)} #{Map.fetch!(series, leg).symbol} for USDC."
-    ]
+  defp done(_step), do: :ok
 
   @doc "The note a landed split or redemption leaves on the page, with View portfolio."
   attr :id, :string, required: true
@@ -204,14 +190,17 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   # The steps follow the wallet that may act and the form as it stands.
   defp sync(socket) do
-    socket = read_holdings(socket)
+    socket |> read_holdings() |> prepare_form()
+  end
 
+  defp prepare_form(socket) do
     case {signer(socket), request(socket.assigns)} do
       {signer, {:ok, request}} when is_binary(signer) ->
         %{inputs: inputs} = socket.assigns
         assigns = Map.take(socket.assigns, [:series, :kind, :current_human_id])
 
         socket
+        |> clear_review_for_other_signer(signer)
         |> assign(refusal: nil)
         |> start_async(:prepare, fn -> {inputs, signer, prepare(assigns, request, signer)} end)
 
@@ -225,19 +214,31 @@ defmodule AutolaunchWeb.ExposureComponent do
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
   end
 
+  defp clear_review_for_other_signer(%{assigns: %{review: %{signer: previous}}} = socket, signer)
+       when previous != signer,
+       do: socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
+
+  defp clear_review_for_other_signer(socket, _signer), do: socket
+
   # A panel with an amount shows what the wallet holds, read for the wallet that may act.
   defp read_holdings(%{assigns: %{kind: kind}} = socket)
        when kind in [:buy, :sell, :mint, :redeem] do
     case signer(socket) do
       nil ->
-        assign(socket, holdings: nil)
+        assign(socket, holdings: nil, holdings_key: nil)
 
       signer ->
         %{series: %{address: series}, current_human_id: human_id} = socket.assigns
+        key = {series, signer, human_id}
 
-        start_async(socket, :holdings, fn ->
+        socket =
+          if key == socket.assigns.holdings_key, do: socket, else: assign(socket, holdings: nil)
+
+        socket
+        |> assign(holdings_key: key)
+        |> start_async(:holdings, fn ->
           actor = %Human{human_account_id: human_id}
-          {signer, Exposure.exposure_holdings(series, %{wallet: signer}, actor: actor)}
+          {key, Exposure.exposure_holdings(series, %{wallet: signer}, actor: actor)}
         end)
     end
   end
@@ -516,6 +517,7 @@ defmodule AutolaunchWeb.ExposureComponent do
           autocomplete="off"
           spellcheck="false"
           placeholder="0"
+          phx-debounce="250"
           data-onchain-input={@name}
         />
         <span aria-hidden="true">{@unit}</span>

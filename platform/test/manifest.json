@@ -4642,7 +4642,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 477,
@@ -4655,7 +4655,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 478,
@@ -4668,7 +4668,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 479,
@@ -4681,7 +4681,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 480,
@@ -4694,7 +4694,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 481,
@@ -4707,7 +4707,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 482,
@@ -4720,33 +4720,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 483,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 809,
+      "line": 843,
       "test_name": "with Exposure on its three reads answer as their routes do; off, none is listed or run",
       "keep_because": "Exposure's hosted reads answer as their routes do while it is on, and are neither listed nor run while it is off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 484,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 880,
+      "line": 914,
       "test_name": "the guides and the server's instructions name every hosted tool a paired agent is served, and no other",
       "keep_because": "The guides and the hosted server's instructions name every hosted tool a paired agent is served and no other.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 485,
@@ -4759,7 +4759,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 486,
@@ -4772,7 +4772,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 487,
@@ -4785,7 +4785,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 488,
@@ -4798,7 +4798,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 489,
@@ -4811,7 +4811,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 490,
@@ -4824,20 +4824,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 491,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_doors_test.exs",
-      "line": 846,
+      "line": 880,
       "test_name": "Exposure on a deployment it cannot run on is refused in words, on the route and the tool alike",
       "keep_because": "A site started with an Exposure description on another chain than its Base deployment, or an empty Base deployment id, refuses the Exposure list on the route and the hosted tool with a 503 naming that fault, in the same code and words, a code the Exposure contract documents.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 492,
@@ -4863,7 +4863,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 494,
@@ -4876,7 +4876,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 495,
@@ -4889,7 +4889,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 496,
@@ -4902,7 +4902,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 497,
@@ -4915,7 +4915,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 499,
@@ -4928,7 +4928,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 498,
@@ -4941,7 +4941,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f273c75e01fb4f8f688953c03e3391f11610778e5f27a9802a6c3896e6bf3dc2"
+      "source_sha256": "ddb7f65594b572c616d7b3c0a9d1b462b02b588d2c223c4884cb918f49b8b743"
     },
     {
       "id": 500,

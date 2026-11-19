@@ -93,7 +93,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
   @doc "The refusal named `reason`, with its status and words."
   def refusal(reason) do
     {status, message} = Map.fetch!(@refusals, reason)
-    Refusal.new(status, Atom.to_string(reason), message)
+    Refusal.new(status, Atom.to_string(reason), message, amount_hint(reason))
   end
 
   @doc """
@@ -111,6 +111,12 @@ defmodule AutolaunchWeb.ExposureAnswer do
   end
 
   def prepare_input(_body), do: :error
+
+  defp amount_hint(reason) when reason in [:invalid_amount, :invalid_request],
+    do:
+      "Use micro-USDC (6 decimals) for a buy amount, raw leg units for sell and redeem, and raw stock units for mint."
+
+  defp amount_hint(_reason), do: nil
 
   defp prepare_field?({"kind", value}), do: is_binary(value)
   defp prepare_field?({"signer", value}), do: is_binary(value)

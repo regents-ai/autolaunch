@@ -282,9 +282,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The regents-cli release every public document names: the one these guides
   # were checked against, its source commit and its published wheel.
   @regents_cli %{
-    version: "1.10.32",
-    commit: "a972d344a1e8355e84d3a3632328871ebc0501bc",
-    wheel_sha256: "eba510861d58eb87361ef53b54bc4e9ec180c479ac7603ee92ec9285b61a66b0"
+    version: "1.10.33",
+    commit: "c12d8563c46e8b5229e32db76c1a104fb469b7b7",
+    wheel_sha256: "ceb6e1abc197da4517dfcfa6c9fee0681e4d775c0f07a2b9c5562087797a89a2"
   }
 
   # Where security reports go, as the About page publishes it.
@@ -374,6 +374,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document("/agents" <> _rest = path), do: AgentGuides.document(path)
 
+  def document("/stocks/" <> symbol) do
+    case Autolaunch.Stocks.UpcomingCatalog.stock(symbol) do
+      nil -> nil
+      {stock, chain} -> %{markdown: AutolaunchWeb.StockMarkdown.render(stock, chain)}
+    end
+  end
+
   def document(path) do
     case @paths do
       %{^path => name} -> %{markdown: markdown(name)}
@@ -409,6 +416,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   end
 
   @doc "Whether the page at `path` also answers as Markdown."
+  def markdown?("/stocks/" <> symbol),
+    do: Autolaunch.Stocks.UpcomingCatalog.stock(symbol) != nil
+
   def markdown?(path), do: Map.has_key?(@paths, path) or path in AgentGuides.paths()
 
   @doc """
@@ -1066,13 +1076,14 @@ defmodule AutolaunchWeb.PublicDocuments do
     end)
   end
 
-  # The fixed pages the sitemaps list, with covered calls and Earn while the site
+  # The fixed pages the sitemaps list, with covered calls, Exposure and Earn while the site
   # offers them.
   defp sitemap_pages do
     on = ToolManifest.features()
 
     @sitemap_pages ++
       if("covered_calls" in on, do: ["/stock/covered-call"], else: []) ++
+      if("exposure" in on, do: ["/stock/isolated-afters"], else: []) ++
       if("earn" in on, do: ["/earn"], else: []) ++ AgentGuides.paths()
   end
 

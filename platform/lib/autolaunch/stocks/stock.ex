@@ -19,7 +19,7 @@ defmodule Autolaunch.Stocks.Stock do
   after that with `:set_search_words`. A revoked stock keeps its row, so
   auctions already trading in it stay findable by its name.
 
-  Every half hour, each stock on a chain GeckoTerminal reports on whose
+  Every half hour, each admitted stock on a chain GeckoTerminal reports on whose
   volume has not been counted through yesterday is read again
   (`Autolaunch.Stocks.Stock.ReadWeeklyVolume`), one stock at a time.
   """
@@ -92,7 +92,7 @@ defmodule Autolaunch.Stocks.Stock do
         timeout :timer.minutes(15)
 
         where expr(
-                chain_id in ^Autolaunch.Stocks.GeckoTerminal.chain_ids() and
+                admitted == true and chain_id in ^Autolaunch.Stocks.GeckoTerminal.chain_ids() and
                   (is_nil(weekly_volume_through) or
                      weekly_volume_through < fragment("(now() AT TIME ZONE 'UTC')::date - 1"))
               )

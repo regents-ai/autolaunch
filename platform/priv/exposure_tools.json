@@ -8,6 +8,7 @@
       "input_schema": {
         "type": "object",
         "properties": {},
+        "required": [],
         "additionalProperties": false
       },
       "annotations": {
@@ -118,7 +119,7 @@
               "overnight",
               "session"
             ],
-            "description": "For buy and sell: overnight for the After-hours token, session for the Market-hours token."
+            "description": "For buy and sell: overnight for After-hours (after_hours in series reads), or session for Market-hours (market_hours in series reads)."
           },
           "amount": {
             "type": "integer",

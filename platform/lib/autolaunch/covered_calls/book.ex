@@ -303,6 +303,7 @@ defmodule Autolaunch.CoveredCalls.Book do
       case result do
         {:ok, reading} ->
           taken_at = state.clock.()
+          lifetime = reading_lifetime(reading, kept_ms)
 
           {{:ok, reading},
            if(key,
@@ -311,7 +312,7 @@ defmodule Autolaunch.CoveredCalls.Book do
                |> Map.reject(fn {_key, {_reading, _taken_at, good_until}} ->
                  good_until <= taken_at
                end)
-               |> Map.put(key, {reading, taken_at, taken_at + kept_ms}),
+               |> Map.put(key, {reading, taken_at, taken_at + lifetime}),
              else: state.kept
            )}
 
@@ -323,6 +324,11 @@ defmodule Autolaunch.CoveredCalls.Book do
     %{state | kept: kept, taking: Map.delete(state.taking, key), waiting: others}
   end
 
+  defp reading_lifetime(%{record: %{expiry: expiry}, now: now}, kept_ms) when expiry > now,
+    do: min(kept_ms, (expiry - now) * 1_000)
+
+  defp reading_lifetime(_reading, kept_ms), do: kept_ms
+
   defp take({symbol, kind, id}) do
     with {:ok, config} <- Deployment.current(),
          {:ok, %{contract: contract} = market} <- Deployment.market(symbol),
@@ -333,7 +339,7 @@ defmodule Autolaunch.CoveredCalls.Book do
         Map.put(%{listings: [], bids: [], now: block.timestamp}, many(kind), [record])
       )
 
-      {:ok, %{record: record, now: block.timestamp}}
+      {:ok, %{record: record, now: block.timestamp, read_at: DateTime.utc_now()}}
     end
   end
 

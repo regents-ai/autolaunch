@@ -50,14 +50,20 @@ defmodule AutolaunchWeb.EarnAnswer do
   @doc "Answers with the refusal named `reason`."
   def refuse(conn, reason) do
     {status, message} = Map.fetch!(@refusals, reason)
-    ApiError.send(conn, status, Atom.to_string(reason), message)
+    ApiError.send(conn, status, Atom.to_string(reason), message, amount_hint(reason))
   end
 
   @doc "The error document of the refusal named `reason`, as the routes send it."
   def body(reason) do
     {_status, message} = Map.fetch!(@refusals, reason)
-    ApiError.body(Atom.to_string(reason), message)
+    ApiError.body(Atom.to_string(reason), message, amount_hint(reason))
   end
+
+  defp amount_hint(reason) when reason in [:invalid_amount, :invalid_request],
+    do:
+      "Use the asset’s smallest units. For a full withdrawal, send everything as true and omit amount."
+
+  defp amount_hint(_reason), do: nil
 
   @doc """
   A quote's or step's request body as the action's product, kind and other

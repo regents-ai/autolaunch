@@ -25,10 +25,12 @@ check-required-fixes:
 	&& elixir _build/check_required_fixes.exs "ash-template $$rev" < _build/required-fixes.json
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
-REGENTS_CLI_REV := a972d344a1e8355e84d3a3632328871ebc0501bc
+REGENTS_CLI_REV := c12d8563c46e8b5229e32db76c1a104fb469b7b7
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
-	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml
+	  python -m regents_cli.check_commands cli/commands.json cli/docs/api-contract.openapiv3.yaml \
+	  platform/contracts/covered-calls.openapiv3.yaml platform/contracts/exposure.openapiv3.yaml \
+	  platform/contracts/earn.openapiv3.yaml
 # Fails unless the site is on the newest SIWA on both sides: the newest regents-cli
 # (the pin above, the documents and the journeys) and, at the elixir-utils commit
 # platform/mix.exs pins, the same SIWA library folder as on elixir-utils main (the

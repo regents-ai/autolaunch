@@ -153,13 +153,13 @@ defmodule AutolaunchWeb.ToolErrors do
 
   defp text({:error, refusal}), do: text(refusal)
 
-  defp text(%Refusal{code: code, message: message}),
-    do: Jason.encode!(ApiError.body(code, message))
+  defp text(%Refusal{code: code, message: message, hint: hint}),
+    do: Jason.encode!(ApiError.body(code, message, hint))
 end
 
 defimpl AshAi.ToToolError, for: AutolaunchWeb.Refusal do
-  def to_tool_error(%{code: code, message: message}),
-    do: Jason.encode!(AutolaunchWeb.ApiError.body(code, message))
+  def to_tool_error(%{code: code, message: message, hint: hint}),
+    do: Jason.encode!(AutolaunchWeb.ApiError.body(code, message, hint))
 end
 
 defimpl AshAi.ToToolError, for: Autolaunch.Agents.Connection.Refused do

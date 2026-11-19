@@ -9,11 +9,12 @@ defmodule Autolaunch.Exposure.Series do
     * `:holdings` — what a wallet of the acting account holds of a series
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
 
-  The hosted MCP tools run the three reads as `:list_answer`, `:series_answer`
-  and `:holdings_answer`: the same operation, answered with the `data` of the
+  The hosted MCP tools run the reads and step preparation as answer actions:
+  the same operation, answered with the `data` of the
   document its route sends (`AutolaunchWeb.ExposureAnswer.answer/2`), only
   while the site offers Exposure and never for a connected app calling as
-  itself; a holding only for a paired agent. No hosted tool prepares a step.
+  itself. Holdings and preparation require a paired agent, and preparation
+  also requires that prelaunch read-only mode has ended.
 
   Nothing is stored: the contracts are the record. The acting account comes
   from the actor the caller authenticated; a wallet named in the request is
@@ -26,7 +27,12 @@ defmodule Autolaunch.Exposure.Series do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.CoveredCalls.Signer
+  alias Autolaunch.Exposure
   alias Autolaunch.Exposure.{Chain, Deployment, Steps}
+  alias AutolaunchWeb.{ApiError, ExposureAnswer}
+
+  @series "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+  @uint256_max 2 ** 256 - 1
 
   actions do
     action :list, {:array, :map} do
@@ -58,9 +64,9 @@ defmodule Autolaunch.Exposure.Series do
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
       argument :signer, :string
       argument :leg, :atom, constraints: [one_of: [:overnight, :session]]
-      argument :amount, :integer, constraints: [min: 1]
-      argument :overnight, :integer, constraints: [min: 0]
-      argument :session, :integer, constraints: [min: 0]
+      argument :amount, :integer, constraints: [min: 1, max: @uint256_max]
+      argument :overnight, :integer, constraints: [min: 0, max: @uint256_max]
+      argument :session, :integer, constraints: [min: 0, max: @uint256_max]
 
       run fn input, %{actor: actor} ->
         with {:ok, signer} <- Signer.wallet(actor, input.arguments[:signer]),
@@ -103,6 +109,45 @@ defmodule Autolaunch.Exposure.Series do
         |> Autolaunch.Exposure.exposure_holdings(actor: actor)
         |> AutolaunchWeb.ExposureAnswer.answer(:holdings)
         |> AutolaunchWeb.ApiError.data()
+      end
+    end
+
+    action :prepare_exposure_answer, :map do
+      argument :series, :string,
+        allow_nil?: false,
+        constraints: [trim?: false],
+        description: @series
+
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
+
+      argument :signer, :string,
+        description: "One of my person's own wallets. Omit it to use their signed-in wallet."
+
+      argument :leg, :atom,
+        constraints: [one_of: [:overnight, :session]],
+        description: "For a buy or sell, the overnight or session token."
+
+      argument :amount, :integer,
+        constraints: [min: 1, max: @uint256_max],
+        description: "USDC micro-units for a buy, raw token units for a sell or mint."
+
+      argument :overnight, :integer,
+        constraints: [min: 0, max: @uint256_max],
+        description: "For redeem, the raw After-hours units to return."
+
+      argument :session, :integer,
+        constraints: [min: 0, max: @uint256_max],
+        description: "For redeem, the raw Market-hours units to return."
+
+      run fn %{arguments: %{series: series, kind: kind} = arguments}, context ->
+        series
+        |> Exposure.prepare_exposure(
+          kind,
+          Map.drop(arguments, [:series, :kind]),
+          Ash.Context.to_opts(context)
+        )
+        |> ExposureAnswer.answer(:prepare)
+        |> ApiError.data()
       end
     end
   end
@@ -164,16 +209,18 @@ defmodule Autolaunch.Exposure.Series do
     # The hosted MCP tools: only while the site offers Exposure, and never for
     # an app connected to a person's account calling as itself (its token is
     # for its identity tools alone; paired, it calls as its agent instead).
-    policy action([:list_answer, :series_answer, :holdings_answer]) do
+    policy action([:list_answer, :series_answer, :holdings_answer, :prepare_exposure_answer]) do
       forbid_unless Autolaunch.Exposure.Checks.Offered
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
     end
 
-    # A person's holding goes to the agent paired with them alone, as its door
-    # says, whoever else reaches the action (`Autolaunch.AgentAccount` alike).
-    policy action(:holdings_answer) do
+    policy action([:holdings_answer, :prepare_exposure_answer]) do
       authorize_if actor_attribute_equals(:role, :agent)
+    end
+
+    policy action(:prepare_exposure_answer) do
+      authorize_if Autolaunch.CoveredCalls.Checks.LaunchesOpen
     end
   end
 end

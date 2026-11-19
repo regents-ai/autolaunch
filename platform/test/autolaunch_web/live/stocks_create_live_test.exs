@@ -114,6 +114,46 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert html =~ "Review launch"
   end
 
+  test "a linked stock waits for confirmation before replacing a saved pair", %{
+    conn: conn,
+    account: account
+  } do
+    actor = %Human{human_account_id: account.id}
+    draft = Autolaunch.create_stocks_launch_draft!(%{}, actor: actor)
+
+    assert {:ok, _draft} =
+             Autolaunch.autosave_stocks_terms(draft, %{stock_address: @aapl}, actor: actor)
+
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/create?stock_chain=base&stock=#{@amzn}")
+
+    assert has_element?(view, "#memestock-linked-stock", "AMZNc on Base")
+    assert {:ok, %{stock_address: @aapl}} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+
+    view |> element("#memestock-linked-stock button", "Replace paired stock") |> render_click()
+
+    assert {:ok, %{stock_address: @amzn}} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+    refute has_element?(view, "#memestock-linked-stock")
+  end
+
+  test "a manual choice replaces the linked stock as the signed-out draft default", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/create?stock_chain=base&stock=#{@amzn}")
+    assert view |> element("#stocks-terms-stock_address-chosen-full") |> render() =~ @amzn
+
+    view
+    |> form("#stocks-terms", stock_draft: %{stock_address: @aapl})
+    |> render_change()
+
+    assert_patch(view, "/create")
+    assert view |> element("#stocks-terms-stock_address-chosen-full") |> render() =~ @aapl
+    assert_push_event(view, "keep_draft", %{values: %{"stock_address" => @aapl}})
+  end
+
   test "the picker gives every stock's own address, and the chosen stock's under the button",
        %{conn: conn, account: account} do
     session = signed_in_session(account.id)

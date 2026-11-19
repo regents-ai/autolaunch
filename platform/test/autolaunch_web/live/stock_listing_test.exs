@@ -68,4 +68,79 @@ defmodule AutolaunchWeb.StockListingTest do
     {404, _headers, _body} =
       assert_error_sent(404, fn -> get(conn, "/stocks/NOTASTOCK") end)
   end
+
+  test "stock Markdown uses the same catalog and keeps its dated pool observations", %{conn: conn} do
+    {stock, _chain} = UpcomingCatalog.stock("AAPLc")
+    conn = conn |> put_req_header("accept", "text/markdown") |> get("/stocks/AAPLc")
+    markdown = response(conn, 200)
+    assert markdown =~ "Token issuer: Coinbase"
+    assert markdown =~ stock["token_address"]
+    assert markdown =~ "Observed liquidity:"
+    assert markdown =~ hd(stock["pools"])["observed_at"]
+    assert Enum.any?(get_resp_header(conn, "vary"), &String.contains?(&1, "Accept"))
+  end
+
+  test "stock filters are shareable and retain the published availability groups", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/stocks")
+
+    view |> form("#stock-directory-filters", %{"q" => "apple"}) |> render_submit()
+    assert_patch(view, "/stocks?q=apple")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-base] a[href^='/stocks/AAPLc?']"
+           )
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-robinhood] a[aria-label='AAPL on Robinhood: stock details']"
+           )
+
+    render_patch(view, "/stocks?q=apple&chain=base&availability=available")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-base] a[href^='/stocks/AAPLc?']"
+           )
+
+    refute has_element?(view, "a[aria-label='AAPL on Robinhood: stock details']")
+    refute has_element?(view, "#upcoming-feed-required")
+    refute has_element?(view, "#upcoming-eligible")
+    refute has_element?(view, "#upcoming-available-robinhood")
+
+    render_patch(view, "/stocks?q=ASML&chain=robinhood")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-eligible-robinhood] a[href^='/stocks/ASML?']"
+           )
+
+    refute has_element?(view, "#upcoming-available a[href^='/stocks/ASML?']")
+
+    render_patch(view, "/stocks?q=unlisted-example")
+    assert has_element?(view, "#stock-directory-count", "No stocks match")
+    view |> element("#stock-directory-filters a", "Reset") |> render_click()
+    assert_patch(view, "/stocks")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-robinhood] a[aria-label='AAPL on Robinhood: stock details']"
+           )
+
+    assert has_element?(view, "#upcoming-feed-required")
+  end
+
+  test "a token address finds the stock detail without changing its network", %{conn: conn} do
+    {stock, _chain} = UpcomingCatalog.stock("AAPLc")
+    {:ok, view, _html} = live(conn, "/stocks?q=#{stock["token_address"]}")
+
+    assert has_element?(view, "#stock-directory-count", "1 stock")
+
+    assert has_element?(
+             view,
+             "[aria-labelledby=upcoming-available-base] a[href^='/stocks/AAPLc?']"
+           )
+
+    refute has_element?(view, "a[aria-label='AAPL on Robinhood: stock details']")
+  end
 end

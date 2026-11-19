@@ -19,7 +19,8 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.CoveredCallsLive =>
       ~w(refresh sell sell_expiry sell_strike sell_suggested bid bid_expiry bid_strike bid_suggested buy sale mode dismiss_done),
     AutolaunchWeb.ExposureLive => ~w(refresh tab leg dismiss_done),
-    AutolaunchWeb.EarnLive => ~w(refresh dismiss_done)
+    AutolaunchWeb.EarnLive => ~w(refresh dismiss_done),
+    AutolaunchWeb.UpcomingLive => ~w(filter)
   }
 
   @impl true
