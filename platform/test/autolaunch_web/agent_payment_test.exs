@@ -420,6 +420,54 @@ defmodule AutolaunchWeb.AgentPaymentTest do
     end
   end
 
+  test "the payment card checks the person, then the wallet, then what is paid, then the deployment, then the launch, so a payment's amount is refused before any chain is read",
+       %{listed: listed, opts: opts, wallet: wallet} do
+    memestock = memestock!()
+    keep_env(:autolaunch_base_deployment_id)
+
+    # Each case is wrong in its own check and in every later one: no person, a
+    # wallet that is not theirs, a kind the card has not, an asset that is
+    # none, an amount that is no decimal, a deployment that cannot be read and
+    # a launch that takes no payment.
+    restore = Application.fetch_env!(:autolaunch, :autolaunch_base_deployment_id)
+    unread = fn -> Application.put_env(:autolaunch, :autolaunch_base_deployment_id, "") end
+    read = fn -> Application.put_env(:autolaunch, :autolaunch_base_deployment_id, restore) end
+
+    cases = [
+      {[], @other, :bogus, %{"asset" => "nope", "amount" => "abc"}, unread,
+       :authentication_required},
+      {opts, @other, :bogus, %{"asset" => "nope", "amount" => "abc"}, unread, :wrong_signer},
+      {opts, wallet, :bogus, %{"asset" => "nope", "amount" => "abc"}, unread, :unknown_action},
+      {opts, wallet, :pay, %{"asset" => "nope", "amount" => "abc"}, unread, :unsupported_asset},
+      {opts, wallet, :pay, %{"asset" => "usdc", "amount" => "abc"}, unread, :invalid_amount},
+      {opts, wallet, :pay, %{"asset" => "usdc", "amount" => "1"}, unread, :chain_unavailable},
+      {opts, wallet, :pay, %{"asset" => "usdc", "amount" => "1"}, read, :subject_not_found}
+    ]
+
+    for {opts, signer, kind, params, deployment, reason} <- cases do
+      deployment.()
+
+      assert {:error, %Ash.Error.Invalid.Unavailable{reason: ^reason}} =
+               SubjectWalletActions.prepare(memestock.auction.id, signer, kind, params, opts),
+             "#{reason}"
+    end
+
+    # On a Revstake launch whose payment address is read from the chain, an
+    # amount that is no decimal is refused before that read.
+    chain_reads()
+
+    assert {:error, %Ash.Error.Invalid.Unavailable{reason: :invalid_amount}} =
+             SubjectWalletActions.prepare(
+               listed.auction.id,
+               wallet,
+               :pay,
+               %{"asset" => "usdc", "amount" => "abc"},
+               opts
+             )
+
+    assert chain_reads() == []
+  end
+
   test "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
        %{agent: agent} do
     hidden = token!(kind: :agent)

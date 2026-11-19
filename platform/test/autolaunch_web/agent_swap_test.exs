@@ -474,6 +474,43 @@ defmodule AutolaunchWeb.AgentSwapTest do
     end
   end
 
+  test "the swap panel checks the wallet, then the price protection, then the amount's form, then the pool, so an amount is refused before any chain is read",
+       %{listed: listed, opts: opts, wallet: wallet} do
+    not_open = token!(kind: :agent, state: :ended)
+
+    # Each case is wrong in its own check and in every later one: no person, a
+    # wallet that is not theirs, a protection out of range, an amount that is
+    # no decimal and a launch with no pool yet.
+    cases = [
+      {[], @other, %{protection: "0", amount: "abc"}, :authentication_required},
+      {opts, @other, %{protection: "0", amount: "abc"}, :wrong_signer},
+      {opts, wallet, %{protection: "0", amount: "abc"}, :protection_out_of_range},
+      {opts, wallet, %{protection: "6", amount: "abc"}, :invalid_decimal},
+      {opts, wallet, %{protection: "6", amount: "1"}, :swap_not_open}
+    ]
+
+    for {opts, signer, fields, reason} <- cases do
+      chain_reads()
+      input = Map.put(fields, :direction, "buy")
+
+      assert {:error, %Ash.Error.Invalid.Unavailable{reason: ^reason}} =
+               SwapActions.prepare(page_request(not_open, input), signer, opts),
+             "#{reason}"
+
+      assert chain_reads() == [], "#{reason}"
+    end
+
+    # On a token whose pool is read from the chain, an amount that is no
+    # decimal is refused before that read.
+    input = %{direction: "buy", amount: "abc"}
+    chain_reads()
+
+    assert {:error, %Ash.Error.Invalid.Unavailable{reason: :invalid_decimal}} =
+             SwapActions.prepare(page_request(listed, input), wallet, opts)
+
+    assert chain_reads() == []
+  end
+
   test "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
        %{agent: agent} do
     hidden = token!(kind: :agent)

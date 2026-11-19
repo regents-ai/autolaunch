@@ -1,5 +1,5 @@
 {
-  "total": 596,
+  "total": 598,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -7151,7 +7151,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 678,
@@ -7164,7 +7164,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 679,
@@ -7177,7 +7177,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 680,
@@ -7190,7 +7190,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 681,
@@ -7203,163 +7203,163 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 682,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 477,
+      "line": 514,
       "test_name": "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
       "keep_because": "A hidden token, a Robinhood Chain token the site did not launch and an id naming nothing are answered alike as token_not_found on both ways in, before any chain is read. It fails if a hidden token can be told from a missing one or the chain is read first.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 683,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 515,
+      "line": 552,
       "test_name": "only the person's own wallets are prepared for: another of theirs is, any other is refused, as is another person's agent naming theirs",
       "keep_because": "Only one of the person's own wallets is prepared for: another of theirs, named in any letter case, is used; any other wallet, and this person's wallet named by another person's agent, is refused wrong_signer. It fails if steps are prepared for a wallet the person does not hold.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 684,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 548,
+      "line": 585,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "The swap action runs only for a paired agent, a connected app calling as one included, and never for a person, a connected app on its own, the system or nobody. It fails if any other actor may run it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 685,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 562,
+      "line": 599,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent swaps contract lists is reached on the route and the hosted tool alike, in a status and code the contract documents; the account read and prelaunch refusals in their own cases. It fails if a code is unreachable, undocumented or differs between the two ways in.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 686,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 659,
+      "line": 696,
       "test_name": "switched on, the signed route refuses an unsigned request, an agent nobody paired, another's wallet and an id that is none, each in its own words, and answers a hidden token byte for byte as a missing one",
       "keep_because": "Switched on, the swap route refuses an unsigned request before the route reads anything, an unpaired agent, another person's wallet and an id that is none, each in its own words, and answers a hidden token byte for byte as a missing one. It fails if any of these is answered otherwise.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 687,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 714,
+      "line": 751,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "A paired agent whose person's account cannot be read is refused authentication_required and prepares nothing. It fails if a swap is prepared without the account.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 688,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 731,
+      "line": 768,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable",
       "keep_because": "When the person's account cannot be read as the request arrives, the route answers account_unavailable, as the contract documents. It fails if the route answers otherwise.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 689,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 743,
+      "line": 780,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required",
       "keep_because": "A person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both ways in, with or without a signer named. It fails if a swap is prepared for such a person.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 690,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 765,
+      "line": 802,
       "test_name": "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as swap_unavailable alike on both ways in",
       "keep_because": "A router, quoter or Permit2 with no code on the chain, a deployment description naming none of its contracts, which raises, a listing read that fails and any other error are logged by kind alone, never with the wallet, and answered swap_unavailable on both ways in. It fails if any is answered otherwise or logs the wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 691,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 828,
+      "line": 865,
       "test_name": "each reason the review, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is swap_unavailable",
       "keep_because": "Each reason the swap review, the listing, the wallet and the account name has one code, each code one status and the same words on both ways in, documented by the contract; any other reason is swap_unavailable. It fails if a reason maps to another code or a code is undocumented.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 692,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 876,
+      "line": 913,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "In prelaunch read-only mode the swap tool is not listed or run and the route answers prelaunch_read_only. It fails if steps can be prepared before the site opens.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 693,
       "group": "Agent swaps",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_swap_test.exs",
-      "line": 891,
+      "line": 928,
       "test_name": "switched on a paired agent lists the tool as read-only; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent is listed prepare_swap as read-only; off, it is not listed and any call to it, well formed or not, is answered exactly as one to a tool that does not exist. It fails if the tool shows or answers in its own words while off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 694,
@@ -7424,7 +7424,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 699,
@@ -7437,7 +7437,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 700,
@@ -7450,7 +7450,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 701,
@@ -7463,7 +7463,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 702,
@@ -7476,7 +7476,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 703,
@@ -7489,163 +7489,163 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 704,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 423,
+      "line": 471,
       "test_name": "a token the site does not list or show, and an id naming none, are answered alike as no token, before any chain is read",
       "keep_because": "A hidden token, a Robinhood Chain token the site did not launch and an id naming nothing are answered alike as token_not_found on both ways in, for a payment and a sweep, before any chain is read. It fails if a hidden token can be told from a missing one or the chain is read first.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 705,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 451,
+      "line": 499,
       "test_name": "only the person's own wallets are prepared for: another of theirs is, any other is refused, as is another person's agent naming theirs",
       "keep_because": "Only one of the person's own wallets is prepared for: another of theirs, named in any letter case, is used; any other wallet, and this person's wallet named by another person's agent, is refused wrong_signer. It fails if steps are prepared for a wallet the person does not hold.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 706,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 479,
+      "line": 527,
       "test_name": "the steps are prepared for the paired agent alone, a connected app calling as it included",
       "keep_because": "The payment action runs only for a paired agent, a connected app calling as one included, and never for a person, a connected app on its own, the system or nobody. It fails if any other actor may run it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 707,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 493,
+      "line": 541,
       "test_name": "every refusal is reached, named alike on both ways in, in a status and code the contract documents",
       "keep_because": "Every refusal the agent payments contract lists is reached on the route and the hosted tool alike, in a status and code the contract documents, among them a payment with no amount, a sweep with one and the card's own asset name; the account read and prelaunch refusals in their own cases. It fails if a code is unreachable, undocumented or differs between the two ways in.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 708,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 585,
+      "line": 633,
       "test_name": "switched on, the signed route refuses an unsigned request, an agent nobody paired, another's wallet and an id that is none, each in its own words, and answers a hidden token byte for byte as a missing one",
       "keep_because": "Switched on, the payment route refuses an unsigned request before the route reads anything, an unpaired agent, another person's wallet and an id that is none, each in its own words, and answers a hidden token byte for byte as a missing one. It fails if any of these is answered otherwise.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 709,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 639,
+      "line": 687,
       "test_name": "a paired agent whose person's account cannot be read prepares nothing",
       "keep_because": "A paired agent whose person's account cannot be read is refused authentication_required and prepares nothing. It fails if a payment is prepared without the account.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 710,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 657,
+      "line": 705,
       "test_name": "a paired agent whose person's account cannot be read as the request arrives is refused account_unavailable",
       "keep_because": "When the person's account cannot be read as the request arrives, the route answers account_unavailable, as the contract documents. It fails if the route answers otherwise.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 711,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 669,
+      "line": 717,
       "test_name": "a person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required",
       "keep_because": "A person whose wallet evidence has lapsed, or no longer holds together, is refused wallet_required on both ways in, with or without a signer named. It fails if a payment is prepared for such a person.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 712,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 688,
+      "line": 736,
       "test_name": "a read that fails, a raise, or a reason nobody named, is logged by kind alone and refused as payment_unavailable alike on both ways in",
       "keep_because": "A snapshot missing the wallet's balances, which raises, a listing read that fails, a snapshot failing for a reason the card does not name and any other error are logged by kind alone, never with the wallet, and answered payment_unavailable on both ways in. It fails if any is answered otherwise or logs the wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 713,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 771,
+      "line": 819,
       "test_name": "each reason the review, the listing, the wallet and the account give has one code, which both ways in answer in a status the contract documents; anything else is payment_unavailable",
       "keep_because": "Each reason the payment review, the listing, the wallet and the account name has one code, each code one status and the same words on both ways in, documented by the contract; any other reason is payment_unavailable. It fails if a reason maps to another code or a code is undocumented.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 714,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 827,
+      "line": 875,
       "test_name": "in prelaunch read-only mode the tool is not listed or run, and the route waits",
       "keep_because": "In prelaunch read-only mode the payment tool is not listed or run and the route answers prelaunch_read_only. It fails if steps can be prepared before the site opens.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 715,
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 841,
+      "line": 889,
       "test_name": "switched on a paired agent lists the tool as read-only and not idempotent; off, it is not listed, and a call to it is answered as one to no tool",
       "keep_because": "Switched on, a paired agent is listed prepare_payment as read-only; off, it is not listed and any call to it, well formed or not, is answered exactly as one to a tool that does not exist. It fails if the tool shows or answers in its own words while off.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 716,
@@ -7704,13 +7704,13 @@
       "group": "Agent payments",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_payment_test.exs",
-      "line": 746,
+      "line": 794,
       "test_name": "a launch on another network than the site's Base deployment is the site's own fault: payment_unavailable, logged by kind alone, as the page refuses it",
       "keep_because": "A Revstake launch on another network than the site's Base deployment is refused by the payment card's review as a network mismatch, and on both ways in as payment_unavailable, logged by kind alone. It fails if the mismatch is answered as a refusal the agent could act on, or goes unlogged.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "4e79f8a2de49094dc2915fc034468bf0161ff74466c869c876783b9219435a2e"
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     },
     {
       "id": 721,
@@ -7723,7 +7723,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 722,
@@ -7736,7 +7736,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
     },
     {
       "id": 723,
@@ -7749,7 +7749,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "956bf8096bfd5da4a6f253bc38addb35fc13adb36292ebc02e7ea0bd485e39f6"
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
+    },
+    {
+      "id": 724,
+      "group": "Agent swaps",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_swap_test.exs",
+      "line": 477,
+      "test_name": "the swap panel checks the wallet, then the price protection, then the amount's form, then the pool, so an amount is refused before any chain is read",
+      "keep_because": "The token page's swap panel (SwapActions.prepare/3) refuses in one order, each case wrong in its own check and every later one: no person, then a wallet not theirs, then a protection out of range, then an amount that is no decimal, then a launch with no pool, all before any chain is read; on a graduated token a bad amount is refused before the pool read. It fails if the order moves back, with the protection before the wallet or the amount after the pool read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71ca984d9bfc458caf5cddaad52b3d6a11a3879a6558c72cf8b779cd78d44c4f"
+    },
+    {
+      "id": 725,
+      "group": "Agent payments",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_payment_test.exs",
+      "line": 423,
+      "test_name": "the payment card checks the person, then the wallet, then what is paid, then the deployment, then the launch, so a payment's amount is refused before any chain is read",
+      "keep_because": "The token page's payment card (SubjectWalletActions.prepare/5) refuses in one order, each case wrong in its own check and every later one: no person, then a wallet not theirs, then a kind it has not, then an asset that is none, then an amount that is no decimal, then a deployment that cannot be read, then a launch that takes no payment; on a Revstake launch a bad amount is refused before its payment address is read from the chain. It fails if the order moves back, with an unknown kind before the person or the amount after the launch's chain read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "020d38bed493aa6d7520ed08248fde0748360376c748042a8169e52da38bca80"
     }
   ],
   "legacy_folders_to_remove": [
