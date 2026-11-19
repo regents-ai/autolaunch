@@ -4,11 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "e40068b39e45cc344140695cfad97790bf4da31c"
-  # The pin plus the ens commit that moves idna to 8.0.0 for EEF-CVE-2026-117678;
-  # fold back into the one ref when the whole pin next moves to an elixir-utils
-  # main that contains it.
-  @elixir_utils_ens_ref "eaef0b1d744f60ae07bf5302f21fa67a16e72fa1"
+  # The earlier pin e40068b3 plus one ens-only commit (branch
+  # eu/idna-8-on-autolaunch-pin-1119) that moves idna to 8.0.0 for EEF-CVE-2026-117678.
+  @elixir_utils_ref "eaef0b1d744f60ae07bf5302f21fa67a16e72fa1"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "69dbfface3fdc2ab728f8cc57cface25f9c7120c"
 
@@ -96,7 +94,7 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
-      {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ens_ref, sparse: "ens"},
+      {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       {:siwa,
        git: @elixir_utils,
        ref: @elixir_utils_ref,
