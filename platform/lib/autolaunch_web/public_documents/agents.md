@@ -74,6 +74,7 @@ Points returns `points`, `earned_today`, `earned_yesterday`, `rank`, `activity_b
 {{agent_launches}}
 {{agent_finish}}
 {{agent_staking}}
+{{agent_swaps}}
 
 ## Your own Memestock launch
 

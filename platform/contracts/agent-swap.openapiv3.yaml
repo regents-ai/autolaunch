@@ -1,0 +1,287 @@
+# Agent swaps, added to api-contract.openapiv3.yaml only while the site offers them
+# (AUTOLAUNCH_AGENT_SWAPS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json is
+# api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
+# path and component here is new; none replaces one.
+paths:
+  /api/agent/v1/tokens/{token_id}/swap/steps:
+    post:
+      operationId: autolaunch_swap_prepare
+      summary: Prepare a buy or sell
+      description: The wallet steps of one buy or sell of a token listed here, on Base or Robinhood
+        Chain, read from the token's pool at the latest block exactly as the token page's swap panel
+        reads it, for one of the person's own wallets (`signer`, or the wallet they signed in with).
+        `buy` spends `amount` of the pool's currency on the token; `sell` spends `amount` of the
+        token for the pool's currency. A token approval to Permit2 and a Permit2 allowance for the
+        router come first when the wallet lacks them, then the swap, which accepts no less than
+        `facts.minimum`. The site only prepares; the wallet's own key signs and sends each step, in
+        order, on the network `chain` names, before `expires_at`, and each step's data ends with the
+        site's Builder Code. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/AgentSwapTokenId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentSwapRequest'
+      responses:
+        '200':
+          description: The swap steps and the figures they were read with
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapStepsEnvelope'
+        '401':
+          description: Fresh request proof required, or the person's account could not be read
+            (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '404':
+          description: No token is listed here with that id (token_not_found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '409':
+          description: The person's account has no verified wallet to act with, or signer is not a
+            wallet address (wallet_required), the wallet holds less than amount
+            (amount_above_balance), or the pool cannot fill the amount now (quote_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '422':
+          description: An unknown field, a field that is not text or is longer than 128 characters, a
+            token id that is not one, a direction that is not buy or sell, or no amount
+            (invalid_request), an amount that is not a decimal above zero, has more decimal places
+            than the side it spends or is more than the pool takes at once (invalid_amount), or a
+            protection that is not a number from 1 to 10 (protection_out_of_range)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '503':
+          description: The pool or the person's account could not be read just now
+            (chain_unavailable, account_unavailable), the site could not prepare it just now
+            (swap_unavailable), or the site is not open yet (prelaunch_read_only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+components:
+  parameters:
+    AgentSwapTokenId:
+      name: token_id
+      in: path
+      required: true
+      description: The token's id exactly as autolaunch_tokens lists it.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AgentSwapRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - direction
+      - amount
+      properties:
+        direction:
+          type: string
+          enum:
+          - buy
+          - sell
+          description: buy spends the pool's currency on the token, sell spends the token for the
+            pool's currency.
+        amount:
+          type: string
+          maxLength: 128
+          description: How much the wallet spends, as a decimal in the units of the side it spends,
+            the pool's currency for buy and the token for sell.
+        protection:
+          type: string
+          maxLength: 128
+          description: Price protection in percent, a number from 1 to 10, rounded to two decimal
+            places, how far below today's quote the trade may settle. Leave it out for 6.
+        signer:
+          type: string
+          maxLength: 128
+          description: One of the person's own wallet addresses. Leave it out to use the wallet they
+            signed in with.
+    AgentSwapToken:
+      type: object
+      required:
+      - id
+      - address
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+    AgentSwapChain:
+      type: object
+      required:
+      - chain_id
+      - name
+      - rpc_url
+      description: The network the pool runs on and the steps are sent on, Base or Robinhood Chain.
+      properties:
+        chain_id:
+          type: integer
+        name:
+          type: string
+        rpc_url:
+          type: string
+    AgentSwapStep:
+      type: object
+      required:
+      - kind
+      - step
+      - to
+      - data
+      - value
+      properties:
+        kind:
+          type: string
+          enum:
+          - transaction
+        step:
+          type: string
+          description: token_approval when the wallet has not let Permit2 take amount, then
+            permit2_approval when Permit2 does not let the router take amount until after the swap's
+            deadline, then swap.
+          enum:
+          - token_approval
+          - permit2_approval
+          - swap
+        to:
+          type: string
+          description: The side spent for its approval, Permit2 for its allowance, Uniswap's router
+            for the swap.
+        data:
+          type: string
+          description: Ends with the site's Builder Code.
+        value:
+          type: string
+    AgentSwapAmount:
+      type: object
+      required:
+      - amount
+      - symbol
+      properties:
+        amount:
+          type: string
+          description: A decimal in the asset's own units.
+        symbol:
+          type: string
+    AgentSwapSteps:
+      type: object
+      required:
+      - direction
+      - signer
+      - token
+      - chain
+      - block
+      - expires_at
+      - steps
+      - facts
+      properties:
+        direction:
+          type: string
+          enum:
+          - buy
+          - sell
+        signer:
+          type: string
+        token:
+          $ref: '#/components/schemas/AgentSwapToken'
+        chain:
+          $ref: '#/components/schemas/AgentSwapChain'
+        block:
+          type: integer
+          description: The latest block the steps were read at.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the steps stop being good, the swap's deadline or the end of the Permit2
+            allowance it spends, whichever comes first. After it, prepare them again.
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSwapStep'
+        facts:
+          type: object
+          description: The trade as the pool quoted it at `block`, before any step is sent.
+          required:
+          - pay
+          - receive
+          - minimum
+          - protection
+          - fees
+          properties:
+            pay:
+              $ref: '#/components/schemas/AgentSwapAmount'
+            receive:
+              $ref: '#/components/schemas/AgentSwapAmount'
+            minimum:
+              $ref: '#/components/schemas/AgentSwapAmount'
+            protection:
+              type: string
+              description: The price protection applied, in percent.
+            fees:
+              type: array
+              description: The fees already inside the quote, one line each.
+              items:
+                type: string
+    AgentSwapStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AgentSwapSteps'
+    AgentSwapError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - invalid_request
+              - authentication_required
+              - agent_not_paired
+              - wrong_signer
+              - token_not_found
+              - wallet_required
+              - invalid_amount
+              - protection_out_of_range
+              - amount_above_balance
+              - quote_unavailable
+              - chain_unavailable
+              - swap_unavailable
+              - account_unavailable
+              - prelaunch_read_only
+            message:
+              type: string
+            hint:
+              type: string

@@ -107,6 +107,7 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 {{agent_launches}}
 {{agent_finish}}
 {{agent_staking}}
+{{agent_swaps}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment the token's staking received,

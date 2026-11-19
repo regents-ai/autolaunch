@@ -115,6 +115,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @agent_stake_guide_path
   @agent_stake_guide File.read!(@agent_stake_guide_path)
 
+  # Agent swaps' route and its components, and its section of the agent
+  # guides, added only while the site offers them.
+  @agent_swap_contract_path Path.expand("../../contracts/agent-swap.openapiv3.yaml", __DIR__)
+  @external_resource @agent_swap_contract_path
+  @agent_swap_contract YamlElixir.read_from_file!(@agent_swap_contract_path)
+  @agent_swap_guide_path Path.join(@directory, "agent_swap.md")
+  @external_resource @agent_swap_guide_path
+  @agent_swap_guide File.read!(@agent_swap_guide_path)
+
   # A section's title, from its own heading.
   section = fn guide -> hd(Regex.run(~r/^## (.+)$/m, guide, capture: :all_but_first)) end
 
@@ -190,6 +199,17 @@ defmodule AutolaunchWeb.PublicDocuments do
       step: "the steps",
       of: "a stake, unstake or claim on a listed token",
       takes: ["staking", "claims"],
+      stays: nil
+    },
+    %{
+      feature: "agent_swaps",
+      guide: @agent_swap_guide,
+      section: section.(@agent_swap_guide),
+      chain: nil,
+      for: "a buy or sell of a listed token",
+      step: "the steps",
+      of: "a buy or sell of a listed token",
+      takes: ["trading"],
       stays: nil
     }
   ]
@@ -1206,7 +1226,8 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"agent_robinhood_bids", @agent_robinhood_bids_contract},
       {"agent_launches", @agent_launches_contract},
       {"agent_finish", @agent_finish_contract},
-      {"agent_staking", @agent_stake_contract}
+      {"agent_staking", @agent_stake_contract},
+      {"agent_swaps", @agent_swap_contract}
     ]
     |> Enum.filter(fn {feature, _added} -> feature in on end)
     |> Enum.reduce(@contract, fn {_feature, added}, contract ->
