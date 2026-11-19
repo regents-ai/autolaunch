@@ -1,5 +1,5 @@
 {
-  "total": 553,
+  "total": 556,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -131,20 +131,20 @@
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 27,
       "group": "Receipt evidence and durable settlement",
       "framework": "exunit",
       "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 145,
+      "line": 146,
       "test_name": "a later invalid resource refuses and rolls the whole launch projection back",
       "keep_because": "A failed multi-record launch projection rolls back instead of leaving partial financial records.",
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 39,
@@ -2283,13 +2283,13 @@
       "group": "Receipt evidence and durable settlement",
       "framework": "exunit",
       "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 66,
+      "line": 67,
       "test_name": "a bid receipt checked again after the bid settled leaves its standing and amounts",
       "keep_because": "The page's bid receipt once wrote the bid back to active with blank settlement amounts when checked after the bid had been exited and claimed. The case fails if a repeated receipt changes a settled bid's status, times or amounts.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "702bc5b6e4a2b95d0394816f4b2884f8c6029ac15f7628ba68a7f840eb747676"
+      "source_sha256": "a5b5ed133a182f80200b2669b258ad2b9d76b5b61ba2a2ef4a8fb0ac174a40e0"
     },
     {
       "id": 221,
@@ -6040,13 +6040,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 79,
+      "line": 83,
       "test_name": "a bid's review on the auction page is for the person's open wallet, in any letter case: the same wallet again keeps it, and another of theirs gets its own",
       "keep_because": "Agent Robinhood bids rehearsal on the Robinhood lab (18 Nov 2026): the Robinhood auction page's bid review named the auction as its signer, and the page's wallet sends every step from the review's signer, so a press on Bid asked the wallet to send from the auction's address and a real wallet sent nothing; the panel also withdrew that review at its next wallet report, since its signer was never the open wallet. The review is for the person's open wallet, reported checksummed and kept lowercase, with the steps the bid action prepares for it; the same wallet reported again keeps it, and another wallet the account links gets its own. It fails if the review names any other signer, or is withdrawn or built again for the same wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     },
     {
       "id": 585,
@@ -6196,39 +6196,39 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 122,
+      "line": 126,
       "test_name": "two clock steps before the auction starts the bid is held on its button, saying when bidding opens, and one step before it comes back",
       "keep_because": "Bid follow-ups (18 Nov 2026): before a Robinhood auction's start the page offered an enabled Place bid, which the auction refuses (AuctionNotStarted). Its clock never runs back and a bid sent now lands at that clock or later, so while even the clock's next step is before the start block the bid stays on its button, disabled, with \"Bidding opens at block N.\" above it, and a press that builds the review again hands nothing out to send; once the page reads the clock one step before the start, where the bid may land in time, the review is built again and the bid can be sent. It fails if the bid is pressable two steps before the start, a press hands it out, or it stays held one step before the start.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     },
     {
       "id": 597,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 204,
+      "line": 208,
       "test_name": "before the auction starts its USDG approval is still sent, and only the bid is held",
       "keep_because": "Bid follow-ups (18 Nov 2026), house rule 11: only the press certain to fail is held. A USDG approval to the bid adapter succeeds whatever the auction's clock, so before the start the approval is still offered and a press sends it, while the words say when bidding opens. It fails if the approval is held or a press does not send it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     },
     {
       "id": 598,
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 223,
+      "line": 308,
       "test_name": "once Robinhood's clock reaches the end block the bid is held on its button: bidding has ended",
       "keep_because": "Bid follow-ups (18 Nov 2026): from its end block on, by its clock, the auction refuses a bid (AuctionIsOver) and the clock never runs back, while the auction's record can still say active. The bid stays on its button, disabled, with \"Bidding has ended.\" above it. It fails if the bid is pressable once the clock has reached the end block.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     },
     {
       "id": 599,
@@ -6391,13 +6391,13 @@
       "group": "Wallet actions",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
-      "line": 178,
+      "line": 182,
       "test_name": "while a held bid is reviewed again at a new clock reading, its summary stays on the page",
       "keep_because": "Bid follow-ups review (18 Nov 2026): a Robinhood bid held as not started is reviewed again at each new reading of the auction's clock, and its summary blanked on every reading until the new review came back, so it flickered with the clock. It fails if the held review's summary leaves the page while the new one is on its way.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "2a12e35aeb7c920223e120e0e241cac5afa99ae69e9b77893ae5e343cac1d99a"
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     },
     {
       "id": 620,
@@ -7191,6 +7191,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c3b7e9473b20fda1d7af486792b6f422a0b6eb47faee1459ac5d863334ddb60b"
+    },
+    {
+      "id": 681,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/swap_approval_test.exs",
+      "line": 71,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the swap once it lands",
+      "keep_because": "Agent finish and staking journeys on a copy of Base (18 Nov 2026): the swap panel built its review again when the first approval landed, and the next approval, pressed meanwhile and reported against the review it was sent from, was ignored once it landed, so the panel kept asking for it. It now moves on to the swap.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6bfc8240b59c0380f3f1072f71622e19d9f46ceff0cd18d80e321f5620390bfa"
+    },
+    {
+      "id": 682,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_approval_test.exs",
+      "line": 154,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the bid once it lands",
+      "keep_because": "The swap panel's replaced-review approval fault (18 Nov 2026), on the Base bid panel: a Permit2 approval pressed before the panel built its review again, and landing after, now moves it on to the bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "48c6ca4e58aa7c8a05bc7f7e0e589937da2127a029ad527b7ce42346b8c92521"
+    },
+    {
+      "id": 683,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/robinhood_stock_bid_review_test.exs",
+      "line": 228,
+      "test_name": "an approval sent from the review the panel replaced still moves it on to the bid once it lands",
+      "keep_because": "The swap panel's replaced-review approval fault (18 Nov 2026), on the Robinhood bid panel: a USDG approval pressed before the panel built its review again, and landing after, now moves it on to the bid.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2cd22ad0335dfdef63b3dd128a21c180a5844de08953d1bb1b42a9fedac1af3e"
     }
   ],
   "legacy_folders_to_remove": [
