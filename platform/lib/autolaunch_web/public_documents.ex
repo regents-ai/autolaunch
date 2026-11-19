@@ -917,11 +917,16 @@ defmodule AutolaunchWeb.PublicDocuments do
       "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet; " <>
         "no agent tool or command\ndoes them."
 
-  defp sentence("skill", said),
-    do:
-      "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, " <>
-        "which signs every step.\n#{yours(up(said.for))}, you can prepare #{said.step}\n" <>
-        "(see #{said.see})" <> yours(stays(said, "stay on the site's pages")) <> "."
+  # Its last two lines break once: inside the launch's words when they are
+  # named, otherwise before the sections.
+  defp sentence("skill", said) do
+    for = yours(up(said.for))
+
+    "Bidding, trading,\nclaiming, staking and settlement stay with your person's own wallet, " <>
+      "which signs every step.\n#{for}, you can prepare #{said.step}" <>
+      if(for =~ "\n", do: " ", else: "\n") <>
+      "(see #{said.see})" <> yours(stays(said, "stay on the site's pages")) <> "."
+  end
 
   defp sentence("card", %{bids: []}), do: "No agent command claims, withdraws or\n   bids."
 
@@ -1009,8 +1014,17 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp each("the steps"), do: "each one"
   defp each(_one_step), do: "it"
 
-  # The skill speaks to the agent of its person as "your person".
-  defp yours(words), do: String.replace(words, "the person's", "your person's")
+  # The skill speaks to the agent of its person as "your person", and names the
+  # launch of their draft "your person's launch from their saved draft", its
+  # line broken where the skill's lines break.
+  defp yours(words) do
+    words
+    |> String.replace(
+      "the launch of the person's saved draft",
+      "your person's launch\nfrom their saved draft"
+    )
+    |> String.replace("the person's", "your person's")
+  end
 
   # Names in a sentence: "A", "A and B", "A, B and C", with a comma before the
   # last "and" when a name has commas of its own, so the last reads apart.
