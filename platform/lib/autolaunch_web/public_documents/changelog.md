@@ -1,5 +1,10 @@
 # Changelog
 
+## 19 November 2026: ENS
+
+- You can now connect an ENS name made of emoji or symbols under Socials, when your signed-in wallet controls it and it points to that wallet.
+- If your wallet's primary ENS name uses emoji or symbols, it now shows on your account and in Points from your next sign-in.
+
 ## 19 November 2026: Robinhood auctions
 
 - A Robinhood auction page now shows the token link when the launch graduates, even if you keep the auction page open.
