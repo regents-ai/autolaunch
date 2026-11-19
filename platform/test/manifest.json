@@ -1,5 +1,5 @@
 {
-  "total": 565,
+  "total": 572,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -2062,78 +2062,78 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 68,
+      "line": 70,
       "test_name": "the first render carries the person's figures, open actions and place",
       "keep_because": "The Points page's first render already shows the person's total, today's points, their place, every action by its site, done or still open with where to do it, and their own row marked on the leaderboard; nothing waits on a second read.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 204,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 193,
+      "line": 195,
       "test_name": "two people with one name, level on points, each keep their own picture",
       "keep_because": "Names are not unique and many people share a place: two people with one name at one place each keep their own picture on the leaderboard.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 205,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 238,
+      "line": 240,
       "test_name": "a person with no name shows by their wallet, with its copy icon",
       "keep_because": "Another person with no name shows by their public wallet with its copy icon, and nothing else about their account, such as their Privy id, reaches the page.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 206,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 259,
+      "line": 261,
       "test_name": "a paired agent is answered with the page's figures",
       "keep_because": "A paired agent's Points answer carries the same total, place, actions by site and leaderboard the page shows, each leaderboard row with only its place, name or wallet and total.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 207,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 284,
+      "line": 286,
       "test_name": "a signed-out visitor is asked to sign in and gets nothing from the board",
       "keep_because": "A signed-out visitor is asked to sign in and gets no name, wallet or total from the leaderboard held for signed-in readers.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 208,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 302,
+      "line": 304,
       "test_name": "while the board is not read, the agent's whole answer is unavailable",
       "keep_because": "While the shared leaderboard is not read, a paired agent's Points answer is 503 account_unavailable rather than half an answer.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 209,
@@ -2868,26 +2868,26 @@
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 100,
+      "line": 102,
       "test_name": "every listed action shows under its site, offered only where this site earns it",
       "keep_because": "Every action a Points page lists shows under its site, whichever site earns it: a one-time action earned on any site is ticked, a daily one shows today's count, and the hidden rule never shows. It fails if an action this site does not earn is offered as left to do here, or if the agent's groups differ from the page's.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 267,
       "group": "Points",
       "framework": "exunit",
       "file": "test/autolaunch_web/points_page_test.exs",
-      "line": 151,
+      "line": 153,
       "test_name": "a daily action earned here counts today's times against its count and the limit",
       "keep_because": "A daily action this site earns stays to do until today's count is used or the shared daily limit is spent, and that limit shows on the page and in the agent's answer with what is used of it today.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ebc8b085a709fd7c6070d286c1fed09c1e7219ac6742dfa7505681a74c0bf02d"
+      "source_sha256": "af3e795cff8c80a390fde1a42110e160ff22724572a73076f181cd93cd35f815"
     },
     {
       "id": 268,
@@ -7347,6 +7347,97 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "2c44e36dd735eda3c1b8eaec151139fc7c18571f76ea7c64ac592385addb2acb"
+    },
+    {
+      "id": 742,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 44,
+      "test_name": "a new account earns once, and signing in again offers nothing",
+      "keep_because": "A sign-in that creates the shared Regent account offers Account activated once, under the Regents name every site gives it, and it earns once; signing in again to the same account offers nothing. It fails if a sign-in to an existing account offers the award again, or a new account is not offered.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 743,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 62,
+      "test_name": "a GitHub link earns once, a refresh offers nothing, and a Farcaster link earns once",
+      "keep_because": "A GitHub or Farcaster account Privy lists earns once when a sign-in first links it; a later sign-in with the same account only refreshes the link and offers nothing, an X account Privy lists offers nothing, and another GitHub account in its place is linked anew, its time restarting, and offered while the account keeps its one GitHub award. It fails if every sign-in offers the link again or a Privy-listed X becomes a second X source.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 744,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 98,
+      "test_name": "the person's own X earns once; a company X, or reconnecting the same X, earns nothing",
+      "keep_because": "The person's own X, connected through the X button's real connect and callback with X's side stood in, earns once for that X user id; a company connection offers nothing, and disconnecting then connecting the same X again is offered and earns nothing more. It fails if a company connection earns or a reconnection earns twice.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 745,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 120,
+      "test_name": "the first paired agent earns once; another agent, or pairing again, earns nothing more",
+      "keep_because": "The first agent a person pairs earns First paired agent once; a second agent, or unpairing and pairing the first again, is offered and earns nothing more. The award names the agent's wallet, and the Points page's name lookup finds the agent's name by that wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 746,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 148,
+      "test_name": "what this site held before the start earns at the start, once",
+      "keep_because": "An account, a GitHub link, a profile X connection and a pairing made before Points started, while nothing was approved, offer nothing then; once it starts the start run records each, dated at the start, leaves out a company X and an account another site already recorded for the rule, and a second run offers nothing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 747,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 201,
+      "test_name": "an X or GitHub account another site rewarded earns nothing here",
+      "keep_because": "A GitHub account and an X account another site already rewarded, the X under Privy's id for it, are recorded here for a newcomer and held to nothing, so one social account earns once across Regent sites. It fails if the X button's id and Privy's subject stop naming the same X account in Points.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
+    },
+    {
+      "id": 748,
+      "group": "Points",
+      "framework": "exunit",
+      "file": "test/autolaunch/points_account_awards_test.exs",
+      "line": 224,
+      "test_name": "with the rules off, signing in, linking, connecting X and pairing all work and offer nothing",
+      "keep_because": "With Points started and none of the five account rules approved, signing in with GitHub and Farcaster, connecting X and pairing an agent all save as before, nothing is queued for Points, and nothing is recorded or refused.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8875e5d0998cfb1a73eea4eb35b3e5ea3e38f18ef07ca51a2d93cf313458d6b5"
     }
   ],
   "legacy_folders_to_remove": [

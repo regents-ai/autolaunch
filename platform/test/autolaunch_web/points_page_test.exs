@@ -41,10 +41,8 @@ defmodule AutolaunchWeb.PointsPageTest do
       SharedReading.delete(Board.key())
     end)
 
-    Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -86_400))
-    Application.put_env(:regent_points, :approved_rules, [@earned, @open])
-    Application.put_env(:regent_points, :adapters, %{@earned => Source, @open => Source})
-
+    # The accounts are made while nothing earns, so their own activation offers
+    # nothing and each earns only the award recorded below.
     person =
       Accounts.register_verified!("did:privy:points-page", @wallet, [@wallet], actor: %System{})
 
@@ -52,6 +50,10 @@ defmodule AutolaunchWeb.PointsPageTest do
       Accounts.register_verified!("did:privy:points-page-other", @other, [@other],
         actor: %System{}
       )
+
+    Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -86_400))
+    Application.put_env(:regent_points, :approved_rules, [@earned, @open])
+    Application.put_env(:regent_points, :adapters, %{@earned => Source, @open => Source})
 
     for account <- [person, other], do: earn(account)
     assert %{failure: 0, discard: 0} = Oban.drain_queue(queue: :points, with_recursion: true)
